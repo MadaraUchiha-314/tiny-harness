@@ -33,7 +33,7 @@ the task; results are recorded in `evidence/verification.md`.
   - _Requirements:_ R1.5, R2.4
   - _Test:_ `uv run pytest tests/integration` (red before task 2's package exists is
     covered by task 2's red; green here)
-- [ ] 4. Pre-commit hooks and markdownlint
+- [x] 4. Pre-commit hooks and markdownlint
   - `.pre-commit-config.yaml`, `.markdownlint-cli2.jsonc`; fix existing markdown findings.
   - _Depends on:_ 2
   - _Requirements:_ R3.2, R4.2, R4.3, R5.1–R5.4

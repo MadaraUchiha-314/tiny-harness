@@ -791,10 +791,30 @@ emit_event, dispatch_hooks, run_remote_agent_turn, poll_channels, monitor_snapsh
 - **Multi-turn (19.7).** The `inbox` update appends to the mailbox; the loop awaits
   `workflow.wait_condition(lambda: self.mailbox)` while `INPUT_REQUIRED`, consuming no
   worker slot.
-- **History bound (19.8).** After each loop iteration, if the workflow's current history
-  length (`workflow.info().get_current_history_length()`) exceeds the configured bound
-  (default 10,000 events) the workflow `continue_as_new`s with a `TaskStart` carrying its
-  compacted state.
+- **History bound (19.8), the rollover contract.** After each loop iteration, if the
+  workflow's current history length (`workflow.info().get_current_history_length()`)
+  exceeds `history_event_bound` (default 10,000), the workflow awaits
+  `workflow.all_handlers_finished()` (so no `inbox` update is mid-flight), then
+  `continue_as_new(TaskStart(...))`. `TaskStart` is the complete state:
+
+  ```python
+  class TaskStart(BaseModel, frozen=True):
+      task: Task; state: AgentState                      # includes compacted history and loaded skills
+      mailbox: tuple[InboundMessage, ...]                 # undrained messages, in order
+      seen_message_ids: frozenset[str]                    # dedup across runs
+      events: tuple[tuple[int, HarnessEvent], ...]        # the tail of the durable event log
+      next_event_seq: int                                 # monotonic across runs
+      pending_help: HelpRequest | None                    # the open ask_participant, if waiting
+      children: tuple[ChildRef, ...]                      # child workflow ids to re-attach by handle
+      attempt_counters: Mapping[str, int]
+  ```
+
+  The first run starts from `TaskStart(task=..., state=empty, mailbox=(first message,),
+  ...)`. The event bridge's cursor is `next_event_seq`-based, so a poller keeps working
+  across the rollover; the first run's tail stays queryable until the new run has
+  acknowledged it (the bridge reads the new run's `events_since`, which includes the
+  carried tail). Child workflows are re-attached through
+  `workflow.get_external_workflow_handle`, so their completions still reach the parent.
 - **Sandbox (19.9).** Workflow modules import only `tiny_harness.harness.core` models and
   `pydantic`; `pydantic` is passed through (`workflow.unsafe.imports_passed_through`) as
   Temporal's Pydantic integration requires; nothing else. Payloads use

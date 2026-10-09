@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-3",
-  "currentNode": "requirements-definition",
+  "currentNode": "requirements-approval",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -21,8 +21,16 @@
     },
     "requirements-definition": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-09T15:29:14+00:00",
+      "exitedAt": "2026-10-09T15:48:21+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "requirements-approval": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-09T15:48:21+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -200,8 +208,17 @@
     }
   },
   "forced": [],
-  "parked": null,
-  "completions": {},
+  "parked": {
+    "node": "requirements-approval",
+    "reason": "awaiting a human",
+    "since": "2026-10-09T15:48:21+00:00"
+  },
+  "completions": {
+    "requirements-definition": {
+      "at": "2026-10-09T15:48:21+00:00",
+      "by": "the-loop"
+    }
+  },
   "skips": {
     "brainstorming": {
       "via": "selection",
@@ -226,7 +243,18 @@
   "effort": "high",
   "claudeArtifact": true,
   "repos": [],
-  "pullRequests": [],
+  "pullRequests": [
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#6",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 6,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/6",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-6",
+      "state": "open",
+      "linkedAt": "2026-10-09T15:47:49+00:00",
+      "linkedBy": "session"
+    }
+  ],
   "loop": "pdlc-work-item-loop",
   "phase": "requirements-definition"
 }

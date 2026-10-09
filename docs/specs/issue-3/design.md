@@ -156,17 +156,17 @@ poller at the task's current cursor.
 ```mermaid
 flowchart TD
   start([inbox message]) --> ctx["assemble_context (activity)"]
-  ctx --> llm["invoke_llm (activity)"]
+  ctx --> cmp0{over budget?<br/>compaction.trigger.in}
+  cmp0 -- yes --> compact0["compact (activity: keep.in, summarise.in)"]
+  compact0 --> ctx
+  cmp0 -- no --> llm["invoke_llm (activity)"]
   llm --> tc{tool calls?}
   tc -- none --> fin["final status (activity: emit_event)"]
   tc -- any tool --> act["invoke_tool (activity: validate, hooks, body)"]
   act -- MCP result --> rec["append results to history"]
   act -- WorkflowCommand --> intr["apply command in workflow: attach plan / wait / spawn child / mark loaded skill"]
   intr --> rec
-  rec --> cmp{context over budget?}
-  cmp -- yes --> compact["compact (activity)"]
-  compact --> ctx
-  cmp -- no --> ctx
+  rec --> ctx
   intr -. ask_participant .-> wait["INPUT_REQUIRED: wait_condition(reply)"]
   wait --> rec
 ```
@@ -532,8 +532,19 @@ class ContextWindow(BaseModel, frozen=True):
 class ContextWindowManager:
     order: tuple[str, ...] = ("system_prompt", "participants", "skills_index", "task", "plan", "state_summary", "history", "tool_results")
     async def assemble(self, state: AgentState) -> ContextWindow
-    def needs_compaction(self, window: ContextWindow, model: LLMModelInfo) -> bool   # > fraction (default 0.75)
+    async def needs_compaction(self, window: ContextWindow, model: LLMModelInfo) -> bool   # compaction.trigger.in
+    async def compact(self, window: ContextWindow) -> tuple[ContextWindow, CompactionRecord]  # keep.in, summarise.in
 ```
+
+The loop assembles, measures and compacts **before** every LLM call, then re-assembles,
+so a large first message, a drained mailbox or a freshly loaded skill never reaches the
+model over budget (10.4). The three replaceable policies are three `in` hook points
+(10.7): `compaction.trigger.in` (default: estimated tokens above
+`compaction_fraction` of `min(model context window, turn_budget_tokens)`),
+`compaction.keep.in` (default: the never-compact set below), `compaction.summarise.in`
+(default: summarise the oldest `PER_TURN` history with the LLM into `state_summary`).
+The never-compact set (10.5) is `system_prompt`, `participants`, `task` (goal and
+acceptance criteria), `plan`, and every `skill:<name>` section of a loaded skill.
 
 Order is by stability: `system_prompt`, `participants`, `skills_index` and the tool
 definitions are `STATIC` for the task and form the cached prefix; `task` and `plan` are
@@ -542,10 +553,9 @@ adapter sends the static sections as `instructions`, the rest as `input`, with
 `prompt_cache_key = task_id` and `store=False`; the static prefix of the demo prompt is
 measured at implementation and must exceed the provider's 1,024-token minimum (10.3).
 Token estimation uses the previous turn's `usage.input_tokens` plus a 4-characters-per-token
-estimate for the delta; no tokenizer dependency. Compaction is the `compaction.in` body:
-summarise the oldest `PER_TURN` history with the LLM into one `state_summary` section,
-leave every `never_compact` section intact, and record `CompactionRecord(removed_ids,
-summary, tokens_before, tokens_after)` on the task (10.6).
+estimate for the delta; no tokenizer dependency. A compaction records
+`CompactionRecord(removed_ids, summary, tokens_before, tokens_after)` on the task and in
+the store (10.6).
 
 ### Persistence (R11) — `harness/persistence/`
 

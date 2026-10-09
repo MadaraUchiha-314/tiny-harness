@@ -21,6 +21,7 @@ from tiny_harness.harness.hooks.providers import (
     utc_now,
 )
 from tiny_harness.harness.hooks.remote import JsonRpcHookExecutor, McpHookExecutor
+from tiny_harness.harness.hooks.runner import OperationRunner
 
 __all__ = [
     "DEFAULT_BODY_PRIORITY",
@@ -35,6 +36,7 @@ __all__ = [
     "JsonRpcHookExecutor",
     "McpHookExecutor",
     "Operation",
+    "OperationRunner",
     "Phase",
     "Providers",
     "RandomSource",

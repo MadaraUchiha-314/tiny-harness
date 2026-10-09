@@ -64,3 +64,18 @@ def test_scrub_model_recurses_and_keeps_non_strings() -> None:
 def test_scrub_returns_the_same_instance_when_nothing_changes() -> None:
     payload = Payload(text="clean", headers={}, inner=Inner(note="clean"))
     assert Redactor().scrub(payload) is payload
+
+
+def test_enum_fields_keep_their_type() -> None:
+    from enum import StrEnum
+
+    class Colour(StrEnum):
+        RED = "red"
+
+    class M(BaseModel):
+        colour: Colour
+        note: str
+
+    out = Redactor().scrub(M(colour=Colour.RED, note="Bearer abcdefghijklmnop"))
+    assert out.colour is Colour.RED
+    assert out.note == MASK

@@ -262,7 +262,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 23, 15, 27
   - _Requirements:_ R12.1, R12.4, R13.1–R13.4
   - _Test:_ T8 — `test_non_member_rejected_without_task_existence`; T1 — help decision validator; T3 — channel schema
-- [ ] 29. Core loop runner (in-process, no Temporal yet)
+- [x] 29. Core loop runner (in-process, no Temporal yet)
   - `harness/core/loop.py`: the five-line loop over an `Operations` port (assemble,
     invoke LLM, invoke tool, compact, persist, emit) so Layer 5 binds it to activities;
     tool-call extraction as a pure function; completion predicate `task.complete.in`
@@ -272,7 +272,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 25, 26, 28, 21
   - _Requirements:_ R8.4, R8.5, R9.2, R9.3, R12.2, R12.3, decision-004
   - _Test:_ T1 — `tests/unit/core/test_loop.py` with `FakeLLM` (loop terminates, plan attached, help request moves to `INPUT_REQUIRED`); T8 — `test_role_change_requires_admin`
-- [ ] 30. Hook-wrapped operation runner
+- [x] 30. Hook-wrapped operation runner
   - The activity-shaped wrapper that runs `pre`/`in`/`post` around each operation with
     the redactor on inputs and outputs; used by Layer 5's activities and by the
     in-process runner.

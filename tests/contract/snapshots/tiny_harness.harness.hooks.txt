@@ -35,6 +35,12 @@ class McpHookExecutor(object)
   property points
   property priority
 enum Operation: REQUEST_RECEIVED='request.received', TASK_CREATED='task.created', TASK_STATE_CHANGED='task.state_changed', TASK_COMPLETE='task.complete', CONTEXT_CREATED='context.created', LLM_INVOKED='llm.invoked', TOOL_CALLS_EXTRACTED='tool_calls.extracted', TOOL_INVOKED='tool.invoked', SYSTEM_ONE_INVOKED='system_one.invoked', PLAN_CREATED='plan.created', STEP_STARTED='step.started', STEP_FINISHED='step.finished', SUBTASK_SPAWNED='subtask.spawned', HELP_REQUESTED='help.requested', HELP_DECIDED='help.decided', CHANNEL_SENT='channel.sent', CHANNEL_RECEIVED='channel.received', COMPACTION_TRIGGER='compaction.trigger', COMPACTION_KEEP='compaction.keep', COMPACTION_SUMMARISE='compaction.summarise', PERSISTENCE_READ='persistence.read', PERSISTENCE_WRITE='persistence.write', ACTIVITY_FAILED='activity.failed', ACTIVITY_RETRIED='activity.retried', HEARTBEAT_TICK='heartbeat.tick', SHUTDOWN='shutdown', SKILL_LOADED='skill.loaded', SKILL_UNLOADED='skill.unloaded', AGENT_INVOKED='agent.invoked'
+class OperationRunner(object)
+  def __init__(self, hooks: 'HookManager', redactor: 'Redactor | None' = None) -> 'None'
+  property hooks
+  property redactor
+  def run(self, operation: 'Operation', pre: 'Pre', body: 'Callable[[Pre], Awaitable[Out]]', *, make_post: 'Callable[[Pre, Out], Post]', extract: 'Callable[[Post], Out]') -> 'Out'
+  def run_in(self, operation: 'Operation', ctx: 'Ctx') -> 'Ctx'
 enum Phase: PRE='pre', IN='in', POST='post'
 class Providers(object)
   def __init__(self, http_client_factory: 'HttpClientFactory' = <function default_http_client>, clock: 'Clock' = <function utc_now>, random: 'RandomSource' = <built-in method random of Random object>) -> None

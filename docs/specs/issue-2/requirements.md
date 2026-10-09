@@ -101,7 +101,8 @@ broken code does not reach a PR.
 #### Acceptance criteria (EARS)
 
 1. The repository SHALL configure the pre-commit framework with hooks for ruff lint,
-   ruff format, pyright and the unit tests, plus commitizen on `commit-msg`.
+   ruff format, pyright, the unit tests and markdownlint (the-loop lints all files,
+   markdown included), plus commitizen on `commit-msg`.
 2. WHEN a contributor runs the documented install command THEN the `pre-commit` and
    `commit-msg` git hooks SHALL be installed.
 3. WHEN a commit introduces a lint error, a type error or a failing unit test THEN the

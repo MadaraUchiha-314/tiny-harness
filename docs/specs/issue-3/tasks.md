@@ -61,7 +61,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ none
   - _Requirements:_ R22.1, R22.2, R22.5
   - _Test:_ T13 — `uv run pre-commit run --all-files` green; `tests/unit/test_layout.py::test_modules_mirror_diagram` (red→green)
-- [ ] 2. Error hierarchy
+- [x] 2. Error hierarchy
   - `errors.py`: `TinyHarnessError` and every subclass of `design.md` § Error handling,
     each with a `code` and a `model_dump`-able detail that never carries a secret.
   - _Depends on:_ 1

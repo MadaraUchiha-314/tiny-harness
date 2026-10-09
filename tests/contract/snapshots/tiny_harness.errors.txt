@@ -1,0 +1,28 @@
+# tiny_harness.errors
+enum AbortReason: REFUSED='refused', POLICY='policy', INVALID='invalid'
+class ChannelMembershipError(TinyHarnessError)
+class ComponentSkipped(TinyHarnessError)
+class ConfigError(TinyHarnessError)
+  def __init__(self, message: 'str', *, variable: 'str', **detail: 'str') -> 'None'
+class EntityNotFoundError(TinyHarnessError)
+class HookAbort(TinyHarnessError)
+  def __init__(self, message: 'str', *, reason: 'AbortReason', **detail: 'str') -> 'None'
+class HookTransportError(TinyHarnessError)
+class PlanCycleError(TinyHarnessError)
+class PluginError(TinyHarnessError)
+  def __init__(self, message: 'str', *, manifest_path: 'str', **detail: 'str') -> 'None'
+class RegistryConflictError(TinyHarnessError)
+class RetryableProviderError(TinyHarnessError)
+  def __init__(self, message: 'str', *, provider: 'str', status: 'int', **detail: 'str') -> 'None'
+class SkillError(TinyHarnessError)
+class StoreWriteError(TinyHarnessError)
+class TinyHarnessError(Exception)
+  def __init__(self, message: 'str', **detail: 'str') -> 'None'
+  def to_record(self) -> 'dict[str, str | dict[str, str]]'
+class ToolArgumentError(TinyHarnessError)
+  def __init__(self, message: 'str', *, validation: 'str', **detail: 'str') -> 'None'
+class ToolNotFoundError(TinyHarnessError)
+class ToolNotRetriedError(TinyHarnessError)
+class ToolSchemaChangedError(TinyHarnessError)
+class UnsupportedExtensionError(TinyHarnessError)
+class VersionNotFoundError(TinyHarnessError)

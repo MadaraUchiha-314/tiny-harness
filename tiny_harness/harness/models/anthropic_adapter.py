@@ -191,7 +191,8 @@ class AnthropicLLM(LLM):
     async def invoke(self, request: LLMRequest) -> LLMResponse:
         params = build_params(request, model=self._model, max_tokens=self._max_tokens)
         try:
-            message = await self._client.messages.create(**params)  # type: ignore[arg-type]
+            created = await self._client.messages.create(**params)  # type: ignore[arg-type]
+            message = cast(Message, created)
         except Exception as exc:
             raise translate_error(exc) from exc
         return parse_message(message)
@@ -201,7 +202,7 @@ class AnthropicLLM(LLM):
         try:
             async with self._client.messages.stream(**params) as stream:  # type: ignore[arg-type]
                 async for text in stream.text_stream:
-                    yield LLMStreamEvent(kind="text_delta", text=text)
+                    yield LLMStreamEvent(kind="text_delta", text=str(cast(object, text)))
                 final_message = cast(Message, await stream.get_final_message())
                 final = parse_message(final_message)
         except Exception as exc:

@@ -1,0 +1,38 @@
+{
+  "description": "Read one resource of a loaded skill.",
+  "execution": "intrinsic",
+  "idempotency": "idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Read one resource of a loaded skill.",
+    "properties": {
+      "kind": {
+        "enum": [
+          "scripts",
+          "references",
+          "assets"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "resource": {
+        "description": "The file name within the kind's directory",
+        "title": "Resource",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "kind",
+      "resource"
+    ],
+    "title": "LoadSkillResourceArgs",
+    "type": "object"
+  },
+  "name": "load_skill_resource",
+  "output_schema": null
+}

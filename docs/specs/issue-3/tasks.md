@@ -202,14 +202,14 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 19
   - _Requirements:_ R6.1, R6.2, R6.6, abuse case 8
   - _Test:_ T2 — `Feature: MCP tools`, `Scenario: a stdio MCP server's tools are registered with their schemas`; T8 — `test_schema_drift_refuses_invoke`
-- [ ] 21. Intrinsic tool definitions and argument models
+- [x] 21. Intrinsic tool definitions and argument models
   - The twelve intrinsics' `ToolDefinition`s (`execution=INTRINSIC`) with Pydantic
     argument models and generated JSON schemas committed under `docs/a2a/ext/`;
     registered by the built-in plugin; bodies land in Layer 4.
   - _Depends on:_ 19, 14
   - _Requirements:_ decision-004, R23.1
   - _Test:_ T3 — `tests/contract/test_intrinsic_schemas.py` (schemas match the committed files)
-- [ ] 22. Skill intrinsics
+- [x] 22. Skill intrinsics
   - `list_skills`, `load_skill`, `unload_skill`, `list_skill_resources`,
     `load_skill_resource` bodies: read the skill, connect its `mcp.json` servers,
     register their tools, return `skill_loaded`/`skill_unloaded` commands.

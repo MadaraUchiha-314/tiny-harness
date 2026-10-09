@@ -1,0 +1,61 @@
+{
+  "description": "Run a step in context isolation as a sub-task, locally or on a remote agent.",
+  "execution": "intrinsic",
+  "idempotency": "not_idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Run a step in context isolation as a sub-task, locally or on a remote agent.",
+    "properties": {
+      "acceptance_criteria": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Acceptance Criteria",
+        "type": "array"
+      },
+      "agent": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "A registered remote agent id, or null for this harness",
+        "title": "Agent"
+      },
+      "goal": {
+        "title": "Goal",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "step": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "The step this sub-task is linked to",
+        "title": "Step"
+      }
+    },
+    "required": [
+      "name",
+      "goal"
+    ],
+    "title": "SpawnSubtaskArgs",
+    "type": "object"
+  },
+  "name": "spawn_subtask",
+  "output_schema": null
+}

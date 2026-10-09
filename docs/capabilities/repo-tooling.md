@@ -16,8 +16,8 @@ checks; CI and the release workflow run the same hooks. The how-to lives in the
   a stale lockfile (`uv sync --locked`).
 - The package SHALL expose `__version__`, read from the installed distribution; the
   example `hello_world()` of issue-2 was removed when the harness modules landed (issue-3).
-- The `pre-commit` hook SHALL run ruff (lint, format), pyright (strict), the no-`Any`
-  gate over `tiny_harness/`, the unit tests and markdownlint; the `commit-msg` hook SHALL reject non-Conventional Commit messages.
+- The `pre-commit` hook SHALL run ruff (lint, format, with `Any` banned in annotations
+  and imports under `tiny_harness/`), pyright (strict), the unit tests and markdownlint; the `commit-msg` hook SHALL reject non-Conventional Commit messages.
   `uv run pre-commit install` installs both.
 - On every pull request, `ci.yml` SHALL run the pre-commit hooks over all files, the
   integration tests and the docs build, with a read-only token.
@@ -36,5 +36,5 @@ checks; CI and the release workflow run the same hooks. The how-to lives in the
 
 | Work item | What changed | Links |
 |-----------|--------------|-------|
-| issue-3 | Harness module tree, runtime dependencies, `e2e` marker, the no-`Any` pre-commit gate; `hello_world()` removed | [spec](../specs/issue-3/), [issue #3](https://github.com/MadaraUchiha-314/tiny-harness/issues/3) |
+| issue-3 | Harness module tree, runtime dependencies, `e2e` marker, ruff's `Any` ban (ANN401, banned `typing.Any`); `hello_world()` removed | [spec](../specs/issue-3/), [issue #3](https://github.com/MadaraUchiha-314/tiny-harness/issues/3) |
 | issue-2 | Initial toolchain: uv, ruff, pyright, pytest, commitizen, pre-commit, CI, PyPI release, VitePress docs | [spec](../specs/issue-2/), [issue #2](https://github.com/MadaraUchiha-314/tiny-harness/issues/2), [PR #5](https://github.com/MadaraUchiha-314/tiny-harness/pull/5), [decision-001](../decisions/decision-001.md) |

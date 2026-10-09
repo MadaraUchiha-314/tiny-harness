@@ -1,0 +1,59 @@
+{
+  "description": "Attach a plan: a DAG of steps for the current task.",
+  "execution": "intrinsic",
+  "idempotency": "idempotent",
+  "input_schema": {
+    "$defs": {
+      "PlanStepArgs": {
+        "additionalProperties": false,
+        "properties": {
+          "depends_on": {
+            "default": [],
+            "description": "Names of steps this one waits for",
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "description": {
+            "description": "What the step does and what it produces",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "description": "Short name of the step",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "PlanStepArgs",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Attach a plan: a DAG of steps for the current task.",
+    "properties": {
+      "steps": {
+        "items": {
+          "$ref": "#/$defs/PlanStepArgs"
+        },
+        "minItems": 1,
+        "title": "Steps",
+        "type": "array"
+      }
+    },
+    "required": [
+      "steps"
+    ],
+    "title": "CreatePlanArgs",
+    "type": "object"
+  },
+  "name": "create_plan",
+  "output_schema": null
+}

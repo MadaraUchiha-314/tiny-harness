@@ -1,0 +1,22 @@
+{
+  "description": "Unload a skill and its tools.",
+  "execution": "intrinsic",
+  "idempotency": "idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Unload a skill and its tools.",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "title": "UnloadSkillArgs",
+    "type": "object"
+  },
+  "name": "unload_skill",
+  "output_schema": null
+}

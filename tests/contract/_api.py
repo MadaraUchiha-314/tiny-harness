@@ -11,12 +11,21 @@ from __future__ import annotations
 import enum
 import inspect
 import os
+import re
 from pathlib import Path
 from types import ModuleType
 
 import pydantic
 
 SNAPSHOTS = Path(__file__).parent / "snapshots"
+
+
+_ADDRESS = re.compile(r" at 0x[0-9a-f]+")
+
+
+def _sig(obj: object) -> str:
+    """A signature with memory addresses of default values stripped (stable across runs)."""
+    return _ADDRESS.sub("", str(inspect.signature(obj)))  # type: ignore[arg-type]
 
 
 def _render(name: str, obj: object) -> str:
@@ -35,13 +44,13 @@ def _render(name: str, obj: object) -> str:
             if attr.startswith("_") and attr != "__init__":
                 continue
             if inspect.isfunction(value):
-                methods.append(f"  def {attr}{inspect.signature(value)}")
+                methods.append(f"  def {attr}{_sig(value)}")
             elif isinstance(value, property):
                 methods.append(f"  property {attr}")
         bases = ", ".join(b.__name__ for b in obj.__bases__)
         return "\n".join([f"class {name}({bases})", *methods])
     if inspect.isfunction(obj):
-        return f"def {name}{inspect.signature(obj)}"
+        return f"def {name}{_sig(obj)}"
     return f"{name} = {type(obj).__name__}"
 
 

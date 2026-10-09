@@ -20,6 +20,7 @@ from tiny_harness.harness.hooks.providers import (
     default_http_client,
     utc_now,
 )
+from tiny_harness.harness.hooks.remote import JsonRpcHookExecutor, McpHookExecutor
 
 __all__ = [
     "DEFAULT_BODY_PRIORITY",
@@ -31,6 +32,8 @@ __all__ = [
     "HookManager",
     "HookPoint",
     "HttpClientFactory",
+    "JsonRpcHookExecutor",
+    "McpHookExecutor",
     "Operation",
     "Phase",
     "Providers",

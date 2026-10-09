@@ -1,4 +1,4 @@
-"""Hook points, the typed context base, executors and the manager (R2.1–R2.5, R2.10).
+"""Hook points, the typed context base, executors and the manager (R2.1-R2.5, R2.10).
 
 Every lifecycle operation has a ``pre``, ``in`` and ``post`` hook point. A hook executor
 is a chain element: it receives the typed context the previous executor returned and

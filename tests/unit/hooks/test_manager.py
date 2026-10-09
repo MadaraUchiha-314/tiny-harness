@@ -1,4 +1,4 @@
-"""The hook executor chain (R2.1–R2.5): order, replacement, pass-through, abort, bodies."""
+"""The hook executor chain (R2.1-R2.5): order, replacement, pass-through, abort, bodies."""
 
 from __future__ import annotations
 

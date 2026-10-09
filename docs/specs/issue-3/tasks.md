@@ -160,7 +160,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 3 — models and tools (branch `loop/issue-3-l3-models-tools`)
 
-- [ ] 15. LLM interface, request/response models, `FakeLLM`
+- [x] 15. LLM interface, request/response models, `FakeLLM`
   - `harness/models/llm.py`: `LLMRequest`, `LLMResponse`, `Usage`, `LLMModelInfo`,
     `LLM` entity with `invoke`/`stream`; `FakeLLM` scripted for tests.
   - _Depends on:_ 4
@@ -181,13 +181,13 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 15
   - _Requirements:_ R18.1, R21.4
   - _Test:_ T1 — `tests/unit/models/test_anthropic.py` on recorded fixtures
-- [ ] 18. System One interface and `FakeSystemOne`
+- [x] 18. System One interface and `FakeSystemOne`
   - `harness/models/system_one.py`: question and answer unions mirroring
     `typesafe-sdk`, `SystemOne.decide(..., timeout)`, `FakeSystemOne`; no Jev client.
   - _Depends on:_ 4
   - _Requirements:_ R18.2
   - _Test:_ T1 — `tests/unit/models/test_system_one.py`; T3 — API snapshot
-- [ ] 19. Tool definitions, calls, results, validation
+- [x] 19. Tool definitions, calls, results, validation
   - `harness/tools/`: `Idempotency`, `Execution`, `ToolDefinition`, `ToolCall`,
     `ToolResult(untrusted)`, `WorkflowCommand`, `Tool` entity; `jsonschema` argument
     validation; `ToolNotFoundError`/`ToolArgumentError` as error results.

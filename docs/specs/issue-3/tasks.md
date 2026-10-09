@@ -88,7 +88,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 4
   - _Requirements:_ R2.1–R2.5, R2.9, R2.10
   - _Test:_ T1 — `tests/unit/hooks/test_manager.py` (order, replacement, abort, single-call veto); T3 — `tests/contract/test_hook_contexts_schema.py` (every context's JSON schema snapshot)
-- [ ] 6. Remote hook executors (JSON-RPC and MCP)
+- [x] 6. Remote hook executors (JSON-RPC and MCP)
   - `JsonRpcHookExecutor(url)` and `McpHookExecutor(server)` ported from sherma with
     Pydantic serialisation of contexts; a transport error raises
     `HookTransportError` (no pass-through).
@@ -101,7 +101,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 5
   - _Requirements:_ R2.7
   - _Test:_ T1 — `tests/unit/hooks/test_providers.py`
-- [ ] 8. Configuration models
+- [x] 8. Configuration models
   - `config.py`: every model of `design.md` § Configuration (`Settings`,
     `TemporalConfig`, `OpenAIConfig`, `AnthropicConfig`, `ServerConfig`,
     `HeartbeatConfig`, `StoreConfig`, `O11yConfig`, `RetryPolicySpec`,
@@ -111,7 +111,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 2
   - _Requirements:_ R21.1–R21.3
   - _Test:_ T1 — `tests/unit/test_config.py` (`test_missing_secret_names_variable`, `test_unknown_key_rejected`); T3 — `Settings` JSON schema snapshot
-- [ ] 9. Redactor
+- [x] 9. Redactor
   - `harness/security/redactor.py`: regexes for bearer tokens, `sk-`/`tmprl` shapes,
     `Authorization` headers, configured secret values; `scrub(model)` for Pydantic
     models and `scrub_text`.

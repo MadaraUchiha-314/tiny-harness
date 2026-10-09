@@ -202,7 +202,8 @@ class AnthropicLLM(LLM):
             async with self._client.messages.stream(**params) as stream:  # type: ignore[arg-type]
                 async for text in stream.text_stream:
                     yield LLMStreamEvent(kind="text_delta", text=text)
-                final = parse_message(cast(Message, await stream.get_final_message()))
+                final_message = cast(Message, await stream.get_final_message())
+                final = parse_message(final_message)
         except Exception as exc:
             raise translate_error(exc) from exc
         for call in final.tool_calls:

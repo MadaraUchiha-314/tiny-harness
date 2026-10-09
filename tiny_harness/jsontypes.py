@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-type JsonValue = str | int | float | bool | None | list[JsonValue] | dict[str, JsonValue]
+type JsonValue = str | int | float | bool | list[JsonValue] | dict[str, JsonValue] | None
 type JsonObject = dict[str, JsonValue]
 type JsonSchema = dict[str, JsonValue]
 

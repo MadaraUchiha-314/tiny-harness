@@ -194,7 +194,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 4
   - _Requirements:_ R6.3, R6.4, R6.5, R6.7
   - _Test:_ T8 — `test_unknown_tool_rejected`, `test_injected_tool_call_not_executed`; T1 — argument validation
-- [ ] 20. MCP tool source
+- [x] 20. MCP tool source
   - `McpToolSource` on `mcp.Client` (stdio via `StdioServerParameters`, streamable
     HTTP via URL): list tools, map `annotations.idempotent_hint`/`read_only_hint` to
     `Idempotency`, schema hash at registration, re-list per iteration and

@@ -262,7 +262,7 @@ class HookContext(BaseModel):
 # One Pre/Post context pair per operation (Post = Pre fields + the result), and an In
 # context for every replaceable body. The full catalogue, which the contract test pins:
 class RequestReceivedPre(HookContext):   message: Message
-class TaskCreatedPre(HookContext):       task: Task
+class TaskCreatedPre(HookContext):       task: HarnessTask
 class TaskStateChangedPre(HookContext):  task_id: str; before: TaskState; after: TaskState
 class ContextCreatedPre(HookContext):    state: AgentState
 class ContextCreatedPost(ContextCreatedPre): window: ContextWindow
@@ -273,7 +273,7 @@ class ToolInvokedPre(HookContext):       call: ToolCall           # one call; ve
 class ToolInvokedPost(ToolInvokedPre):   result: ToolResult
 class SystemOneInvokedPre(HookContext):  state: str; questions: Mapping[str, Question]
 class SystemOneInvokedPost(SystemOneInvokedPre): answers: Mapping[str, Answer]
-class PlanCreatedIn(HookContext):        task: Task; result: Plan | None = None
+class PlanCreatedIn(HookContext):        task: HarnessTask; result: Plan | None = None
 class StepStartedPre(HookContext):       step: Step
 class StepFinishedPre(HookContext):      step: Step; output: str | None
 class SubtaskSpawnedPre(HookContext):    parent: TaskRef; child: TaskRef
@@ -293,7 +293,7 @@ class ShutdownPre(HookContext):          reason: str
 class SkillLoadedPre(HookContext):       skill: EntityRef
 class SkillUnloadedPre(HookContext):     skill: EntityRef
 class AgentInvokedPre(HookContext):      agent: EntityRef; message: Message
-class TaskCompleteIn(HookContext):       task: Task; unresolved: tuple[TaskRef, ...]; result: CompletionDecision | None = None
+class TaskCompleteIn(HookContext):       task: HarnessTask; unresolved: tuple[TaskRef, ...]; result: CompletionDecision | None = None
 
 class HookAbort(Exception):
     """Raised by an executor to cancel the operation; carries a typed reason."""
@@ -498,13 +498,23 @@ activity and relays status updates into the parent's sub-task record (7.3).
 class Role(StrEnum): ASSIGNEE = "assignee"; REPORTER = "reporter"; WATCHER = "watcher"; ADMIN = "admin"
 class Participant(BaseModel, frozen=True): id: str; kind: Literal["human", "agent"]; role: Role; display_name: str
 class TaskRef(BaseModel, frozen=True): task_id: str; agent: EntityRef | None   # None = this harness
-class Task(BaseModel):
-    id: str; context_id: str; name: str; type: str | None; goal: str; description: str
+class TaskExtensionData(BaseModel, extra="forbid"):      # what A2A's Task lacks (8.1), kept in Task.metadata
+    name: str; type: str | None; goal: str; description: str
     acceptance_criteria: tuple[AcceptanceCriterion, ...]
     participants: tuple[Participant, ...]
     parent_tasks: tuple[TaskRef, ...]; sub_tasks: tuple[TaskRef, ...]
-    state: TaskState                       # a2a.types.TaskState, authoritative (8.2)
     plan: Plan | None
+TASK_EXT_KEY: Final = "io.github.madarauchiha-314.tiny-harness/task"
+class HarnessTask:
+    """A typed view over one a2a.types.Task. The proto is the entity; nothing is duplicated."""
+    proto: Task                                            # a2a.types.Task: id, context_id, status, artifacts, history, metadata
+    @property
+    def id(self) -> str: ...                               # proto.id
+    @property
+    def state(self) -> TaskState: ...                      # proto.status.state, authoritative (8.2)
+    @property
+    def ext(self) -> TaskExtensionData: ...                # parsed from proto.metadata[TASK_EXT_KEY]
+    def with_ext(self, ext: TaskExtensionData) -> HarnessTask   # writes it back into proto.metadata
 class Step(BaseModel):
     id: str; name: str; description: str; depends_on: tuple[str, ...]
     output: str | None = None; linked_tasks: tuple[TaskRef, ...] = (); state: StepState
@@ -514,13 +524,14 @@ class Plan(BaseModel):
     def acyclic(self) -> Self: ...         # PlanCycleError (9.5)
 ```
 
-The A2A `Task` carries only id, context, status, artifacts and history; the rest travels
-in the task extension (8.3): `Task.metadata["io.github.madarauchiha-314.tiny-harness/task"]`
-holds the JSON of `TaskExtensionData(name, type, goal, description,
-acceptance_criteria, participants, parent_tasks, sub_tasks, plan)` (8.1: A2A supplies
-neither `name` nor `type`) and the same object is emitted as a
-`DataPart` of media type `application/vnd.tiny-harness.task+json` on every status update
-whose payload changed, so renderers need no second call (9.6).
+The A2A task is the task entity, extended through its metadata (8.2, 8.3). A2A's
+`Task` is a protobuf message and cannot be subclassed to add fields, so the attributes
+A2A lacks live in `Task.metadata[TASK_EXT_KEY]` as `TaskExtensionData` and `HarnessTask`
+exposes them through typed accessors; the extension is advertised in the agent card
+(Requirement 14.3). The same object is also emitted as a data part of media type
+`application/vnd.tiny-harness.task+json` on every status update whose payload changed,
+so renderers need no second call (9.6). Workflow state holds the `Task` proto (as a
+`ProtoJson` field of `TaskStart`), never a copy of its fields.
 
 ### Context window manager and compaction (R10) — `harness/core/context.py`
 
@@ -787,7 +798,7 @@ class TaskWorkflow:
     @workflow.signal
     async def cancel(self, reason: str) -> None
     @workflow.query
-    def task(self) -> Task
+    def task(self) -> Task                                             # the a2a.types.Task, extension in metadata
     @workflow.query
     def events_since(self, cursor: int) -> EventPage                   # the event bridge reads this
 @workflow.defn
@@ -842,7 +853,7 @@ emit_event, dispatch_hooks, run_remote_agent_turn, poll_channels, monitor_snapsh
 
   ```python
   class TaskStart(BaseModel, frozen=True):
-      task: Task; state: AgentState                      # includes compacted history and loaded skills
+      task: ProtoJson[Task]; state: AgentState           # the A2A task proto; compacted history and loaded skills
       mailbox: tuple[Message, ...]                 # undrained messages, in order
       seen_message_ids: frozenset[str]                    # dedup across runs
       events: tuple[tuple[int, A2AEvent], ...]        # the tail of the durable event log
@@ -1005,7 +1016,9 @@ schemas at build time, `json-schema-to-typescript`).
 
 ```mermaid
 classDiagram
-  class Task { id; context_id; goal; acceptance_criteria; participants; parent_tasks; sub_tasks; state; plan }
+  class Task { a2a.types.Task: id; context_id; status; artifacts; history; metadata[TASK_EXT_KEY] }
+  class TaskExtensionData { name; type; goal; acceptance_criteria; participants; parent_tasks; sub_tasks; plan }
+  Task "1" --> "1" TaskExtensionData : metadata
   class Plan { steps }
   class Step { id; depends_on; output; linked_tasks; state }
   class Participant { id; kind; role }
@@ -1014,7 +1027,7 @@ classDiagram
   class AgentState { task_id; history; summary; loaded_skills; data: SchemaValidated }
   class ContextWindow { sections; tools; estimated_tokens }
   class CompactionRecord { removed_ids; summary; tokens_before; tokens_after }
-  Task "1" --> "0..1" Plan
+  TaskExtensionData "1" --> "0..1" Plan
   Plan "1" --> "*" Step
   Task "1" --> "*" Participant
   Task "1" --> "*" Channel

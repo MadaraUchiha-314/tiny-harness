@@ -14,7 +14,7 @@ pinned, so a check that passes on your machine passes in CI.
 | Commit messages and versioning | [Commitizen](https://commitizen-tools.github.io/commitizen/) ([Conventional Commits](https://www.conventionalcommits.org/)) | `pyproject.toml` (`[tool.commitizen]`) |
 | Git hooks | [pre-commit](https://pre-commit.com/) | `.pre-commit-config.yaml` |
 | Markdown lint | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | `.markdownlint-cli2.jsonc` |
-| Docs site | [VitePress](https://vitepress.dev/) on [Bun](https://bun.sh/) | `docs/.vitepress/config.mts`, `docs/package.json` |
+| Docs site | [VitePress](https://vitepress.dev/) on [Bun](https://bun.sh/), diagrams via [vitepress-plugin-mermaid](https://emersonbottero.github.io/vitepress-plugin-mermaid/) | `docs/.vitepress/config.mts`, `docs/package.json` |
 | CI/CD | GitHub Actions | `.github/workflows/` |
 | Package registry | [PyPI](https://pypi.org/project/tiny_harness/), Trusted Publishing | `.github/workflows/release.yml` |
 | Docs hosting | GitHub Pages | `.github/workflows/docs.yml` |

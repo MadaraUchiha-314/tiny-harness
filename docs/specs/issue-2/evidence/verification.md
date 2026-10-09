@@ -24,4 +24,5 @@ workItem: "github:MadaraUchiha-314/tiny-harness#2"
 | Lint error, failing unit test and type error each block the commit (R5.3) | commits with an unused import, a broken greeting, an untyped function | pass — exit 1 each | same |
 | Release computes 0.0.0 → 0.1.0 and bumps `pyproject.toml` + `uv.lock` together (R7.3) | `uv run cz bump --dry-run --yes`, then `cz bump --yes` in a throwaway clone | pass | [output.md § Release](output.md#release-version-computation-dry-run) |
 | PR CI runs hooks, integration tests and docs build, all green (R6.1–R6.4) | `the-loop pr status …#5` | pass — 3/3 success | [output.md § Pull request CI](output.md#pull-request-ci) |
+| Mermaid diagrams render on the site (PR #5 review) | `bun run docs:build`; headless screenshot of `/guide/releasing` | pass | [docs-mermaid.png](docs-mermaid.png) |
 | Live release to PyPI and Pages deploy (R7.2–R7.6 live, R8.3) | — | **not run** — these workflows run only on `main`, after merge | Proved before merge by the workflow tests and the dry run; to be observed on the first merge |

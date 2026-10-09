@@ -24,7 +24,8 @@ choices it left open and how the pieces connect.
    first release is `0.1.0`.
 5. **Pyright in strict mode** from the first line of code.
 6. **markdownlint** in the hooks (the-loop's lint-all-files rule), pinned via `npx`.
-7. **Bun** runs the VitePress docs, the same stack as the-loop's site.
+7. **Bun** runs the VitePress docs, the same stack as the-loop's site, with
+   `vitepress-plugin-mermaid` so the specs' and guides' mermaid diagrams render.
 
 ## Consequences
 

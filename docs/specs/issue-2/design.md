@@ -29,7 +29,7 @@ publishes. Nothing is defined twice, so local and CI cannot drift (requirements 
 | Commit lint + versioning | commitizen 4.x, `cz_conventional_commits` | Issue; also computes the release version |
 | Hooks | pre-commit framework, all hooks `local` / `uv run` | Versions come from `uv.lock`, not pre-commit's own envs |
 | Markdown lint | markdownlint-cli2, pinned via `npx` | the-loop rule: lint all files incl. markdown |
-| Docs | VitePress 1.6 (default theme), bun, `docs/` as `srcDir` | Issue; same stack as the-loop's site |
+| Docs | VitePress 1.6 (default theme) + `vitepress-plugin-mermaid`, bun, `docs/` as `srcDir` | Issue; same stack as the-loop's site. Mermaid rendering added at review (PR #5) |
 
 ## Architecture
 
@@ -160,7 +160,7 @@ which the issue does not ask for.
 
 ### `docs.yml` and the VitePress site (R8)
 
-- `docs/package.json`: `vitepress` dev dependency; scripts `docs:dev`, `docs:build`,
+- `docs/package.json`: `vitepress`, `vitepress-plugin-mermaid` and `mermaid` (11.x, the plugin's supported range) dev dependencies, exact versions; `config.mts` wraps the config in `withMermaid` so every mermaid fence renders; scripts `docs:dev`, `docs:build`,
   `docs:preview` run against `.` (`docs/` is `srcDir`). `bun.lock` committed.
 - `config.mts`: `base: "/tiny-harness/"`, `cleanUrls`, `lastUpdated`,
   `themeConfig.search.provider = "local"`, edit-on-GitHub link, social link to the repo.

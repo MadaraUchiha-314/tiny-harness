@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-2",
-  "currentNode": "security-review",
+  "currentNode": "human-approval",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -109,8 +109,40 @@
     },
     "security-review": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-09T05:12:49+00:00",
+      "exitedAt": "2026-10-09T05:13:55+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "evidence": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T05:13:55+00:00",
+      "exitedAt": "2026-10-09T05:14:10+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "capability-docs": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T05:14:10+00:00",
+      "exitedAt": "2026-10-09T05:14:14+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "reviewer-briefing": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T05:14:14+00:00",
+      "exitedAt": "2026-10-09T05:14:47+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "human-approval": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-09T05:14:47+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -287,7 +319,11 @@
     }
   },
   "forced": [],
-  "parked": null,
+  "parked": {
+    "node": "human-approval",
+    "reason": "`classify-feedback` did not pass:\n- feedback so far is not decisive; the gate stays open",
+    "since": "2026-10-09T05:21:26+00:00"
+  },
   "completions": {
     "requirements-definition": {
       "at": "2026-10-09T05:02:50+00:00",
@@ -307,6 +343,22 @@
     },
     "verification": {
       "at": "2026-10-09T05:12:49+00:00",
+      "by": "cli"
+    },
+    "security-review": {
+      "at": "2026-10-09T05:13:55+00:00",
+      "by": "cli"
+    },
+    "evidence": {
+      "at": "2026-10-09T05:14:10+00:00",
+      "by": "cli"
+    },
+    "capability-docs": {
+      "at": "2026-10-09T05:14:14+00:00",
+      "by": "cli"
+    },
+    "reviewer-briefing": {
+      "at": "2026-10-09T05:14:47+00:00",
       "by": "cli"
     }
   },

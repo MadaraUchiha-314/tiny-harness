@@ -23,5 +23,6 @@ workItem: "github:MadaraUchiha-314/tiny-harness#2"
 | `docs/guide/local-development.md` | New: prerequisites, `uv sync`, installing the pre-commit hooks, running each check, docs workflow |
 | `docs/guide/releasing.md` | New: how versions are computed, what `release.yml` does, required GitHub/PyPI settings |
 | `docs/specs/index.md` | New: landing page for the specs tree |
+| Docs site (all pages) | Mermaid fences render as diagrams (`vitepress-plugin-mermaid`), requested in PR #5 review |
 | `docs/architecture/architecture.md` | Repository layout and tooling section |
 | `docs/decisions/decision-001.md`, `decisions.md` | New decision record and index row |

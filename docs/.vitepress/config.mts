@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig, type DefaultTheme } from "vitepress";
+import { type DefaultTheme } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 
 // srcDir is docs/ itself; this file sits in docs/.vitepress/.
 const docsRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -73,7 +74,8 @@ function specItems(): DefaultTheme.SidebarItem[] {
     });
 }
 
-export default defineConfig({
+// withMermaid renders ```mermaid fences as diagrams (the-loop's specs use them throughout).
+export default withMermaid({
   title: "tiny-harness",
   description: "A tiny agent harness",
   base: "/tiny-harness/",

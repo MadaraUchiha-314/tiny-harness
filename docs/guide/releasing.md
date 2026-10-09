@@ -19,7 +19,7 @@ stable; breaking changes then bump the major version.
 ```mermaid
 flowchart LR
   push[push to main] --> checks["checks<br/>(ci.yml)"]
-  checks -->|pass| bump["bump<br/>cz bump → commit + tag v&lt;version&gt; → push"]
+  checks -->|pass| bump["bump<br/>cz bump → commit + tag → push"]
   bump -->|released| build[uv build]
   build --> publish["publish<br/>environment pypi, OIDC"]
   checks -->|fail| stop[nothing released]

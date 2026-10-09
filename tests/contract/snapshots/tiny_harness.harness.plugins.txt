@@ -1,0 +1,38 @@
+# tiny_harness.harness.plugins
+MCP_SCHEMA_ID = str
+NAMESPACE = str
+PLUGIN_DATA_VAR = str
+PLUGIN_ROOT_VAR = str
+PLUGIN_SCHEMA_ID = str
+model Author(name: str | None = ..., email: str | None = ..., url: str | None = ...)
+enum ComponentKind: SKILL='skill', MCP_SERVER='mcp_server', HOOK='hook', PROMPT='prompt', SYSTEM_PROMPT='system_prompt'
+model HookDef(name: <class 'str'>, priority: <class 'int'> = ..., points: tuple[str, ...] | None = ..., import_path: str | None = ..., url: pydantic.networks.HttpUrl | None = ..., mcp: tiny_harness.harness.plugins.models.McpStdioServer | tiny_harness.harness.plugins.models.McpHttpServer | None = ...)
+model HooksFile(hooks: tuple[tiny_harness.harness.plugins.models.HookDef, ...] = ...)
+model LoadReport(plugin: <class 'str'>, loaded: tuple[tiny_harness.harness.plugins.models.LoadedComponent, ...] = ..., skipped: tuple[tiny_harness.harness.plugins.models.SkippedComponent, ...] = ..., notes: tuple[str, ...] = ...)
+model LoadedComponent(kind: <enum 'ComponentKind'>, id: <class 'str'>)
+model McpConfig(schema_id: <class 'str'>, mcp_servers: collections.abc.Mapping[str, typing.Annotated[tiny_harness.harness.plugins.models.McpStdioServer | tiny_harness.harness.plugins.models.McpHttpServer | tiny_harness.harness.plugins.models.McpSseServer, FieldInfo(annotation=NoneType, required=True, discriminator='type')]])
+model McpHttpServer(type: typing.Literal['streamable-http'], url: <class 'pydantic.networks.HttpUrl'>, headers: collections.abc.Mapping[str, str] = ...)
+McpServer = _AnnotatedAlias
+model McpSseServer(type: typing.Literal['sse'], url: <class 'pydantic.networks.HttpUrl'>, headers: collections.abc.Mapping[str, str] = ...)
+model McpStdioServer(type: typing.Literal['stdio'], command: <class 'str'>, args: tuple[str, ...] = ..., env: collections.abc.Mapping[str, str] = ..., cwd: str | None = ...)
+model Plugin(manifest: <class 'tiny_harness.harness.plugins.models.PluginManifest'>, root: pathlib.Path | None = ..., skills: tuple[pathlib.Path, ...] = ..., mcp: collections.abc.Mapping[str, tiny_harness.harness.plugins.models.McpStdioServer | tiny_harness.harness.plugins.models.McpHttpServer | tiny_harness.harness.plugins.models.McpSseServer] = ..., hooks: tuple[tiny_harness.harness.plugins.models.HookDef, ...] = ..., prompts: tuple[pathlib.Path, ...] = ..., systemprompt: pathlib.Path | None = ..., notes: tuple[str, ...] = ...)
+class PluginLoader(object)
+  def __init__(self, *, hook_manager: 'HookManager', registrar: 'Registrar', providers: 'Providers | None' = None, data_root: 'Path') -> 'None'
+  def load(self, plugin: 'Plugin', *, override: 'bool' = False) -> 'LoadReport'
+  def load_directory(self, root: 'Path', *, override: 'bool' = False) -> 'LoadReport'
+model PluginManifest(schema_id: <class 'str'>, name: <class 'str'>, version: str | None = ..., description: str | None = ..., author: tiny_harness.harness.plugins.models.Author | None = ..., homepage: str | None = ..., repository: str | None = ..., license: str | None = ..., keywords: tuple[str, ...] = ..., extensions: collections.abc.Mapping[str, collections.abc.Mapping[str, object]] = ...)
+PluginName = _AnnotatedAlias
+class Registrar(Protocol)
+  def __init__(self, *args, **kwargs)
+  def register_mcp_server(self, plugin: 'Plugin', name: 'str', server: 'McpStdioServer | McpHttpServer') -> 'str'
+  def register_prompt(self, plugin: 'Plugin', path: 'Path') -> 'str'
+  def register_skill(self, plugin: 'Plugin', path: 'Path') -> 'str'
+  def register_system_prompt(self, plugin: 'Plugin', path: 'Path') -> 'str'
+model SkippedComponent(kind: <enum 'ComponentKind'>, id: <class 'str'>, code: <class 'str'>, reason: <class 'str'>)
+def contained(path: 'Path', root: 'Path') -> 'Path'
+def discover(root: 'Path') -> 'Plugin'
+def expand(value: 'str', *, root: 'Path', data: 'Path') -> 'str'
+def parse_manifest(path: 'Path') -> 'tuple[PluginManifest, tuple[str, ...]]'
+def parse_mcp(path: 'Path') -> 'McpConfig'
+def prepare_stdio(server: 'McpStdioServer', *, root: 'Path', data: 'Path') -> 'StdioServerParameters'
+def resolve_cwd(cwd: 'str', *, root: 'Path', data: 'Path') -> 'Path'

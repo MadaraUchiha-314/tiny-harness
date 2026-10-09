@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "support-tools",
+  "version": "1.2.0",
+  "description": "Fixture plugin: one skill, two MCP servers, one hook, one prompt.",
+  "extensions": {
+    "io.github.madarauchiha-314.tiny-harness": { "note": "manifest extension data is accepted" }
+  }
+}

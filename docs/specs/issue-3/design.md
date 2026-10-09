@@ -261,7 +261,7 @@ class HookContext(BaseModel):
 
 # One Pre/Post context pair per operation (Post = Pre fields + the result), and an In
 # context for every replaceable body. The full catalogue, which the contract test pins:
-class RequestReceivedPre(HookContext):   message: InboundMessage
+class RequestReceivedPre(HookContext):   message: Message
 class TaskCreatedPre(HookContext):       task: Task
 class TaskStateChangedPre(HookContext):  task_id: str; before: TaskState; after: TaskState
 class ContextCreatedPre(HookContext):    state: AgentState
@@ -292,7 +292,7 @@ class HeartbeatTickPre(HookContext):     snapshot: MonitorSnapshot
 class ShutdownPre(HookContext):          reason: str
 class SkillLoadedPre(HookContext):       skill: EntityRef
 class SkillUnloadedPre(HookContext):     skill: EntityRef
-class AgentInvokedPre(HookContext):      agent: EntityRef; message: InboundMessage
+class AgentInvokedPre(HookContext):      agent: EntityRef; message: Message
 class TaskCompleteIn(HookContext):       task: Task; unresolved: tuple[TaskRef, ...]; result: CompletionDecision | None = None
 
 class HookAbort(Exception):
@@ -459,35 +459,31 @@ the error result tells the LLM the tool is unavailable.
 ### Agents, local and remote (R1.1, R7) — `harness/agents/`
 
 ```python
-# Internal typed models (harness/core/a2a_models.py): the only A2A shapes the core sees.
-class TaskState(StrEnum): SUBMITTED = "submitted"; WORKING = "working"; INPUT_REQUIRED = "input_required"; AUTH_REQUIRED = "auth_required"; COMPLETED = "completed"; FAILED = "failed"; CANCELED = "canceled"; REJECTED = "rejected"
-class Part(BaseModel, frozen=True): text: str | None = None; data: JsonObject | None = None; url: HttpUrl | None = None; raw: bytes | None = None; media_type: str | None = None; metadata: JsonObject = {}
-class InboundMessage(BaseModel, frozen=True): message_id: str; context_id: str | None; task_id: str | None; role: Literal["user", "agent"]; parts: tuple[Part, ...]; metadata: JsonObject; extensions: tuple[str, ...]; participant_id: str | None
-class AgentCardModel(BaseModel, frozen=True): name: str; description: str; version: str; url: HttpUrl; extensions: tuple[ExtensionDecl, ...]; streaming: bool; push_notifications: bool; skills: tuple[SkillDecl, ...]
-class StatusUpdate(BaseModel, frozen=True):   task_id: str; context_id: str; state: TaskState; message: InboundMessage | None; final: bool; metadata: JsonObject
-class ArtifactUpdate(BaseModel, frozen=True): task_id: str; context_id: str; artifact_id: str; parts: tuple[Part, ...]; append: bool; last_chunk: bool
-class TaskSnapshot(BaseModel, frozen=True):   id: str; context_id: str; state: TaskState; extension: TaskExtensionData; artifacts: tuple[ArtifactUpdate, ...]
-HarnessEvent = Annotated[InboundMessage | TaskSnapshot | StatusUpdate | ArtifactUpdate, Field(discriminator="kind")]
+# The A2A SDK's own types are the harness's types; nothing mirrors them.
+from a2a.types import AgentCard, Artifact, Message, Part, Task, TaskState, TaskStatusUpdateEvent, TaskArtifactUpdateEvent
+A2AEvent = Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent
 
 class Agent(Entity):
-    agent_card: AgentCardModel
+    agent_card: AgentCard
     @abstractmethod
-    def send_message(self, request: InboundMessage, *, extensions: Sequence[str] = ()) -> AsyncIterator[HarnessEvent]: ...
+    def send_message(self, request: Message, *, extensions: Sequence[str] = ()) -> AsyncIterator[A2AEvent]: ...
     @abstractmethod
-    async def cancel_task(self, task_id: str) -> TaskSnapshot: ...
+    async def cancel_task(self, task_id: str) -> Task: ...
 class LocalAgent(Agent):      # the harness itself: send_message = update-with-start + event bridge
 class RemoteAgent(Agent):     # a2a-sdk client; card fetched from /.well-known/agent-card.json
 
-# service/a2a/convert.py — the only module that imports a2a.types:
-def to_proto(event: HarnessEvent) -> a2a.types.StreamResponse
-def from_proto_message(message: a2a.types.Message, *, participant_id: str | None) -> InboundMessage
-def from_proto_card(card: a2a.types.AgentCard) -> AgentCardModel
-def to_proto_card(card: AgentCardModel) -> a2a.types.AgentCard
+# harness/core/proto.py — the two helpers the SDK types need inside the harness:
+type ProtoJson[M: google.protobuf.message.Message] = Annotated[M, _ProtoJsonSerializer]   # Pydantic field holding a proto, (de)serialised with MessageToDict / ParseDict
+def participant_of(message: Message) -> str | None       # the asserted participant id from Message.metadata["participant_id"]
 ```
 
-Protobuf never crosses into `harness/` or into a workflow payload (22.2, 19.10): the
-server adapter and `RemoteAgent` convert at the edge, and `TaskState` is the harness's
-own enum mapped one to one onto `TASK_STATE_*`.
+The SDK's protobuf classes ship `.pyi` stubs, so they type-check under pyright strict
+and satisfy 22.2 as typed boundary values; `Message`, `Task`, `AgentCard`, `Part` and
+`TaskState` are used as-is throughout `harness/`, `service/` and the renderers' generated
+types. In workflow and activity payloads (19.10) a proto travels either as a top-level
+argument (Temporal's Pydantic data converter keeps the protobuf JSON converter in its
+chain) or as a `ProtoJson[M]` field of a Pydantic model. Pydantic models exist only for
+what A2A does not define: the task extension, plans, hook contexts, configuration.
 
 `RemoteAgent` refuses a card whose `capabilities.extensions` contains `required: true`
 for a URI outside `SUPPORTED_EXTENSIONS` (7.4) and sends `A2A-Extensions` only with
@@ -507,7 +503,7 @@ class Task(BaseModel):
     acceptance_criteria: tuple[AcceptanceCriterion, ...]
     participants: tuple[Participant, ...]
     parent_tasks: tuple[TaskRef, ...]; sub_tasks: tuple[TaskRef, ...]
-    state: TaskState                       # the harness enum mirroring A2A's, authoritative (8.2)
+    state: TaskState                       # a2a.types.TaskState, authoritative (8.2)
     plan: Plan | None
 class Step(BaseModel):
     id: str; name: str; description: str; depends_on: tuple[str, ...]
@@ -644,7 +640,7 @@ class HarnessExecutor(AgentExecutor):           # a2a-sdk
 def build_agent_card(agent: LocalAgent, config: ServerConfig) -> AgentCard     # from the entity (14.2)
 SUPPORTED_EXTENSIONS: Final = (TASK_EXT_URI, CHANNEL_EXT_URI, A2UI_EXT_URI)
 class EventBridge(Protocol):
-    def events(self, task_id: str, cursor: int) -> AsyncIterator[tuple[int, HarnessEvent]]
+    def events(self, task_id: str, cursor: int) -> AsyncIterator[tuple[int, A2AEvent]]
 class PollingEventBridge(EventBridge): interval: timedelta = 250 ms   # queries TaskWorkflow.events_since
 def create_app(config: ServerConfig) -> Starlette   # mounts JSON-RPC, REST and agent-card routes
 ```
@@ -787,7 +783,7 @@ class TaskWorkflow:
     @workflow.run
     async def run(self, start: TaskStart) -> TaskRecord
     @workflow.update
-    async def inbox(self, message: InboundMessage) -> InboxReceipt      # the inbox (15)
+    async def inbox(self, message: Message) -> InboxReceipt      # the inbox (15)
     @workflow.signal
     async def cancel(self, reason: str) -> None
     @workflow.query
@@ -847,9 +843,9 @@ emit_event, dispatch_hooks, run_remote_agent_turn, poll_channels, monitor_snapsh
   ```python
   class TaskStart(BaseModel, frozen=True):
       task: Task; state: AgentState                      # includes compacted history and loaded skills
-      mailbox: tuple[InboundMessage, ...]                 # undrained messages, in order
+      mailbox: tuple[Message, ...]                 # undrained messages, in order
       seen_message_ids: frozenset[str]                    # dedup across runs
-      events: tuple[tuple[int, HarnessEvent], ...]        # the tail of the durable event log
+      events: tuple[tuple[int, A2AEvent], ...]        # the tail of the durable event log
       next_event_seq: int                                 # monotonic across runs
       pending_help: HelpRequest | None                    # the open ask_participant, if waiting
       children: tuple[ChildRef, ...]                      # child workflow ids to re-attach by handle
@@ -881,7 +877,7 @@ class Modality(StrEnum): TEXT = "text"
 class Surface(Entity): modality: Modality; renderer: EntityRef
 class Renderer(Entity):
     supported: frozenset[str]                           # media types / part kinds it renders
-    def render(self, event: HarnessEvent) -> RenderPlan     # placeholder for unsupported kinds (20.4)
+    def render(self, event: A2AEvent) -> RenderPlan     # placeholder for unsupported kinds (20.4)
 ```
 
 Both renderers are A2A clients of the server and nothing else (20.2): the TUI uses
@@ -1034,8 +1030,8 @@ classDiagram
 - **Task extension schema** (`application/vnd.tiny-harness.task+json`):
   `TaskExtensionData` as above, `additionalProperties: false`.
 - **Event envelope schema** (`application/vnd.tiny-harness.event+json`, part of the task
-  extension): `EventEnvelope(kind, payload)` where `payload` is `TaskExtensionData`,
-  `StatusUpdate` or `ArtifactUpdate`.
+  extension): `EventEnvelope(kind, payload)` where `payload` is `TaskExtensionData`, or
+  the ProtoJSON of a `TaskStatusUpdateEvent` or `TaskArtifactUpdateEvent`.
 - **Channel extension schema** (`application/vnd.tiny-harness.channel+json`):
   `ChannelMessageData(channel_id, sender, text, parts, kind: "message" | "help_request" | "help_reply")`.
 - **Temporal search attributes.** `A2AContextId` (keyword), `A2ATaskState` (keyword),

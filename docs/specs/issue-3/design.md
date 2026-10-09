@@ -793,8 +793,8 @@ The e2e `.env.example` documents the two `secret-tool` lookups (21.1).
 
 | Artifact | Type | Location / link | Covers (screen · requirement) | Status |
 |----------|------|-----------------|-------------------------------|--------|
-| `design/web-renderer.html` | html-prototype | [design/web-renderer.html](design/web-renderer.html) | Web chat: event stream, tool calls, A2UI card with ChoicePicker and Button, help request, placeholder, task/plan/trace pane · R20, R12, R24 | draft |
-| `design/tui-renderer.html` | html-prototype | [design/tui-renderer.html](design/tui-renderer.html) | TUI: the same states as Textual panes and key bindings · R20, R12, R24 | draft |
+| `design/web-renderer.html` | html-prototype | `docs/specs/issue-3/design/web-renderer.html` (open the file in a browser; not routed by the docs site) | Web chat: event stream, tool calls, A2UI card with ChoicePicker and Button, help request, placeholder, task/plan/trace pane · R20, R12, R24 | draft |
+| `design/tui-renderer.html` | html-prototype | `docs/specs/issue-3/design/tui-renderer.html` (open the file in a browser; not routed by the docs site) | TUI: the same states as Textual panes and key bindings · R20, R12, R24 | draft |
 
 Screenshots of the drafts (rendered with headless Chromium, both themes, phone width):
 `design/screenshots/web-renderer-{light,dark,phone}.png`,

@@ -7,5 +7,16 @@ from tiny_harness.harness.entities.base import (
     RemoteLocation,
     TransportProtocol,
 )
+from tiny_harness.harness.entities.registry import WILDCARD, Fetcher, Registry, RegistryEntry
 
-__all__ = ["Entity", "EntityKind", "EntityRef", "RemoteLocation", "TransportProtocol"]
+__all__ = [
+    "WILDCARD",
+    "Entity",
+    "EntityKind",
+    "EntityRef",
+    "Fetcher",
+    "Registry",
+    "RegistryEntry",
+    "RemoteLocation",
+    "TransportProtocol",
+]

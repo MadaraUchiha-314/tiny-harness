@@ -73,7 +73,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 2
   - _Requirements:_ R1.1, R1.2, R1.4, R1.5
   - _Test:_ T1 — `tests/unit/entities/test_ref.py` (version None allowed, remote without protocol refused); T3 — API snapshot
-- [ ] 4. Registry with PEP 440 resolution
+- [x] 4. Registry with PEP 440 resolution
   - `harness/entities/registry.py`: `add`/`get`/`remove`/`list`, instance | factory |
     remote entries, sherma's `find_best_match` on `packaging.SpecifierSet`, `*` = latest
     concrete, `EntityNotFoundError`/`VersionNotFoundError`/`RegistryConflictError`.

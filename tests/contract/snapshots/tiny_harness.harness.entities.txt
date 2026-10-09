@@ -1,7 +1,16 @@
 # tiny_harness.harness.entities
+WILDCARD = str
 class Entity(ABC)
   def __init__(self, ref: 'EntityRef') -> 'None'
 enum EntityKind: PROMPT='prompt', SKILL='skill', TOOL='tool', LLM='llm', SYSTEM_ONE='system_one', HOOK='hook', CHANNEL='channel', RENDERER='renderer', STORE='store', AGENT='agent'
 model EntityRef(kind: <enum 'EntityKind'>, id: <class 'str'>, version: str | None = ...)
+Fetcher = _CallableGenericAlias
+class Registry(object)
+  def __init__(self, *, fetchers: 'Mapping[TransportProtocol, Fetcher] | None' = None) -> 'None'
+  def add(self, entry: 'RegistryEntry[T]', *, override: 'bool' = False) -> 'None'
+  def get(self, ref: 'EntityRef', kind: 'type[T]') -> 'T'
+  def list(self, kind: 'EntityKind | None' = None) -> 'Sequence[EntityRef]'
+  def remove(self, ref: 'EntityRef') -> 'None'
+model RegistryEntry(ref: <class 'tiny_harness.harness.entities.base.EntityRef'>, instance: T | None = ..., factory: collections.abc.Callable[[], T | collections.abc.Awaitable[T]] | None = ..., remote: tiny_harness.harness.entities.base.RemoteLocation | None = ...)
 model RemoteLocation(url: <class 'pydantic.networks.HttpUrl'>, protocol: <enum 'TransportProtocol'>)
 enum TransportProtocol: A2A='a2a', MCP='mcp', HTTPS='https'

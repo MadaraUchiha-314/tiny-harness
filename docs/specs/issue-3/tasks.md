@@ -95,7 +95,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 5
   - _Requirements:_ R2.6
   - _Test:_ T1 — `tests/unit/hooks/test_remote.py` with a stub JSON-RPC server and a scripted MCP stdio server; `test_unreachable_remote_hook_raises` (negative, fail-closed)
-- [ ] 7. Providers (HTTP client, clock, random)
+- [x] 7. Providers (HTTP client, clock, random)
   - `harness/hooks/providers.py`: `Providers` with `http_client_factory`, `clock`,
     `random`; a default and a test fake.
   - _Depends on:_ 5

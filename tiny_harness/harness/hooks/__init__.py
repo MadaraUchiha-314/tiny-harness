@@ -12,16 +12,30 @@ from tiny_harness.harness.hooks.base import (
     Phase,
     all_hook_points,
 )
+from tiny_harness.harness.hooks.providers import (
+    Clock,
+    HttpClientFactory,
+    Providers,
+    RandomSource,
+    default_http_client,
+    utc_now,
+)
 
 __all__ = [
     "DEFAULT_BODY_PRIORITY",
+    "Clock",
     "FunctionExecutor",
     "Handler",
     "HookContext",
     "HookExecutor",
     "HookManager",
     "HookPoint",
+    "HttpClientFactory",
     "Operation",
     "Phase",
+    "Providers",
+    "RandomSource",
     "all_hook_points",
+    "default_http_client",
+    "utc_now",
 ]

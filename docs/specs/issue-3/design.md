@@ -916,6 +916,7 @@ class Settings(BaseSettings, extra="forbid"):
     plugins: tuple[Path, ...] = (); store: StoreConfig = StoreConfig(); o11y: O11yConfig = O11yConfig()
     retries: RetryPolicies; context: ContextConfig = ContextConfig()
     push_key: SecretStr                  # TINY_HARNESS_PUSH_KEY, 32 bytes base64
+    retention: RetentionConfig = RetentionConfig()   # ttl per record kind, default 30 days
 ```
 
 Intrinsic tools and their input schemas (decision-004), each a `ToolDefinition` with
@@ -1129,6 +1130,15 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
   store file; the server needs the Temporal namespace and the store file, no provider
   key; MCP subprocesses inherit only `PLUGIN_ROOT`, `PLUGIN_DATA` and the `env` the
   manifest declares, not the parent environment; renderers hold no secret at all.
+- **Data retention** (the personal-data boundary of the requirements). `RetentionConfig`
+  (in `Settings`) sets a TTL per store record kind (default 30 days for every kind;
+  `tasks` and `plans` measured from the terminal state), and the heartbeat workflow's
+  `retention_sweep` activity deletes expired rows on every tick. Temporal history
+  retention is the namespace's setting on Temporal Cloud (the deployment guide names it;
+  the demo namespace uses the default 30 days, after which Temporal deletes closed
+  workflows). Trace retention belongs to the OTLP backend (Langfuse's project setting),
+  named in the guide. `tiny-harness tasks purge <task-id>` deletes a task's rows from the
+  store and terminates its workflow, for a deletion request that cannot wait for the TTL.
 - **Fail-closed behaviour.** Missing secret or Temporal config: `ConfigError`, exit.
   Unresolvable entity, unknown hook point, manifest error: typed error, no default.
   Non-idempotent tool with an unclear policy: `maximum_attempts=1`. Ambiguous participant

@@ -1263,8 +1263,23 @@ against the previous one, merged in order:
 
 ## Open questions
 
-None open. The requirements gate answered Q1–Q7, and the A2UI version rule (Q7) resolves
-to 0.9.1 on the installed-package facts above.
+For the design-approval gate (raised by the design critic round, recorded in
+`evidence/design-critic-review.md`):
+
+1. **R22.4 and A2UI.** Requirement 22.4 names A2UI among the constructs that must use
+   the official SDK. The official `a2ui-agent-sdk` (0.2.4) imports the 0.3.x pydantic
+   A2A types and fails against `a2a-sdk` 1.2, and it depends on `google-adk` and
+   `google-genai`. The design vendors the 0.9.1 catalog schemas instead. **Asked:** amend
+   R22.4 to list A2UI with Skills and Plugins as "own implementation against the
+   published schema", or direct the design to take the SDK and carry the conflict.
+   Default if unanswered: the amendment.
+2. **R24.5 crash points.** The design states the at-least-once window for a provider call
+   when a worker dies between the provider's reply and Temporal recording it, and proves
+   "no duplicated LLM or tool call" at the demo's two kill points (idempotent tool
+   activity; `INPUT_REQUIRED` wait). **Asked:** confirm that narrowing. Default if
+   unanswered: confirmed.
+
+The A2UI version rule (Q7) resolves to 0.9.1 on the installed-package facts above.
 
 ## Review comments
 

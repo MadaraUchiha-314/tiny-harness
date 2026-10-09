@@ -1,0 +1,18 @@
+{
+  // Structural rules stay on; stylistic ones that fight the-loop's spec templates are off.
+  "config": {
+    "default": true,
+    "MD013": false, // line length: prose is wrapped by hand, tables and URLs run long
+    "MD033": false, // inline HTML: the-loop markers and VitePress components
+    "MD041": false, // first-line heading: spec files start with YAML front matter
+    "MD060": false, // table column style: cosmetic pipe alignment
+    "MD024": { "siblings_only": true }, // spec templates repeat sub-headings per requirement
+    "MD025": { "front_matter_title": "" } // VitePress home pages carry a front-matter title
+  },
+  "ignores": [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "docs/.vitepress/cache/**",
+    "docs/.vitepress/dist/**"
+  ]
+}

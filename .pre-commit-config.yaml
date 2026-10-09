@@ -1,0 +1,53 @@
+# Pre-commit hooks for tiny-harness. CI runs these SAME hooks
+# (`uv run pre-commit run --all-files`), so a commit that passes locally passes CI.
+#
+# Every hook is `local`/`system` and goes through `uv run`, so the tool versions are the
+# ones pinned in uv.lock. markdownlint is a Node tool, pinned to an exact version via npx.
+# Install both git hooks with: uv run pre-commit install
+minimum_pre_commit_version: "4.0.0"
+default_install_hook_types: [pre-commit, commit-msg]
+# Hooks without an explicit `stages` run on pre-commit only, not again on commit-msg.
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-lint
+        name: ruff (lint + autofix)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: ruff (format)
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+
+      - id: pyright
+        name: pyright (type check)
+        entry: uv run pyright
+        language: system
+        pass_filenames: false
+        types_or: [python, pyi, toml]
+
+      - id: pytest-unit
+        name: pytest (unit tests)
+        entry: uv run pytest tests/unit -q
+        language: system
+        pass_filenames: false
+        types_or: [python, pyi, toml, yaml]
+
+      - id: markdownlint
+        name: markdownlint
+        entry: npx --yes markdownlint-cli2@0.23.3
+        language: system
+        types: [markdown]
+        # One process: concurrent npx installs race on the shared npx cache.
+        require_serial: true
+
+      - id: commitizen
+        name: Conventional Commits (commitizen)
+        entry: uv run cz check --allow-abort --commit-msg-file
+        language: system
+        stages: [commit-msg]

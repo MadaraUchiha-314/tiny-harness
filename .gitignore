@@ -222,3 +222,8 @@ __marimo__/
 # the-loop: per-work-item advisory lock beside work-item-state.json
 work-item-state.lock
 graph-state.lock
+
+# Docs site (VitePress, bun)
+node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/

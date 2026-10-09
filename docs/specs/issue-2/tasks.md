@@ -55,7 +55,7 @@ the task; results are recorded in `evidence/verification.md`.
   - _Requirements:_ R7.1–R7.6
   - _Test:_ task 5's tests; `uv run cz bump --dry-run --yes` from a throwaway clone shows
     `0.0.0 → 0.1.0`.
-- [ ] 8. VitePress docs site and `docs.yml`
+- [x] 8. VitePress docs site and `docs.yml`
   - `docs/package.json`, `bun.lock`, `.vitepress/config.mts`, `index.md`, `docs.yml`,
     `.gitignore` entries.
   - _Depends on:_ 4

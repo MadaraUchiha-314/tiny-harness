@@ -148,8 +148,9 @@ sequenceDiagram
 The dashed obligations of decision-002: the message is in Temporal history before the
 server acknowledges; the executor never runs loop code; a crash of the worker leaves the
 workflow to resume on another worker from history; a crash of the server leaves the
-workflow running and a reconnecting surface calls `SubscribeToTask`, which re-attaches a
-poller at the task's current cursor.
+workflow running and a reconnecting surface calls `SubscribeToTask`, which attaches a
+new poller that replays the task's durable event log from sequence 0, so an outage skips
+nothing.
 
 ### The core loop
 
@@ -650,7 +651,12 @@ notification configs live in the `Store` behind `PushNotificationConfigStore` an
 delivered by the `emit_event` activity through `BasePushNotificationSender`. The
 `A2A-Extensions` header is parsed by the SDK into `RequestContext.requested_extensions`;
 `HarnessExecutor` rejects a request whose set contains a URI outside
-`SUPPORTED_EXTENSIONS` with `UnsupportedOperationError` before intake (14.4). A
+`SUPPORTED_EXTENSIONS` with `UnsupportedOperationError` before intake (14.4). `SubscribeToTask` is served by `HarnessRequestHandler(DefaultRequestHandler)`, whose
+`on_subscribe_to_task` override attaches a fresh `PollingEventBridge` at cursor 0 for the
+task (the workflow's `events_since(0)` returns the whole durable log, carried across
+continue-as-new) and streams until a final event or disconnect; a terminal task whose
+workflow is closed is replayed from the store's `TaskRecord.events`, which the final
+`persist` wrote. The SDK's in-process queue manager is not relied on for recovery. A
 multi-process deployment replaces `PollingEventBridge` with an implementation of the
 SDK's own `TaskEventStream` seam (`DefaultRequestHandler(event_stream=…)`); the default
 stays in-process. Extension URIs are under

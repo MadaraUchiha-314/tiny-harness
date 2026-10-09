@@ -7,10 +7,8 @@ workItem: "github:MadaraUchiha-314/tiny-harness#2"
 
 ## Security review (gate)
 
-- **Mechanism:** the-loop checklist (`reference/security.md`), run by the session against
-  `git diff origin/main...HEAD`. The built-in `/security-review` skill was started too;
-  its result was not back when this record was written and will be added under
-  "Built-in review" below.
+- **Mechanism:** the built-in `/security-review` skill (Claude Code) plus the-loop's
+  checklist (`reference/security.md`), both against `git diff origin/main...HEAD`.
 - **Outcome:** pass. No finding blocks.
 - **Findings:**
 
@@ -35,4 +33,11 @@ workItem: "github:MadaraUchiha-314/tiny-harness#2"
 
 ## Built-in review
 
-Pending.
+`/security-review`: **no findings** at confidence 8 or higher. It checked the trigger and
+permission model of all three workflows (no `pull_request_target`, no event data in `run:`
+steps, the version passed through `env:`, `bump` holds no OIDC token, `publish` runs no
+repository code and only downloads the same run's artifact), the pre-commit hooks, the
+VitePress config (sidebar text built from repository file names, escaped by VitePress),
+YAML loading (`safe_load` only) and the evidence files (no tokens, emails, home or `/tmp`
+paths, hostnames). It noted tag-pinned actions (rather than SHA-pinned) as hardening, out
+of scope.

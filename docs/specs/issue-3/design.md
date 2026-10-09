@@ -2,8 +2,8 @@
 type: design
 phase: design
 workItem: issue-3
-status: draft
-approvedBy: []
+status: approved
+approvedBy: ["MadaraUchiha-314"]
 overrides: {}
 ---
 
@@ -1301,3 +1301,9 @@ The A2UI version rule (Q7) resolves to 0.9.1 on the installed-package facts abov
 > comments (issue-109). Append-only and attributed: an approval never silently
 > discards a reviewer's suggestions, and the feedback travels with the document
 > it concerns rather than living in a side-channel tracker.
+
+### 2026-10-09 — approved
+
+**@MadaraUchiha-314** wrote:
+
+approved design

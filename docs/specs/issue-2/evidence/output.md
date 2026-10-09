@@ -10,8 +10,8 @@ $ uv sync --locked
 Using CPython 3.14.7 interpreter at: /usr/bin/python3.14
 Creating virtual environment at: .venv
 Resolved 34 packages in 0.81ms
-   Building tiny-harness @ file:///tmp/claude-1000/-home-the-looper--the-loop-workspace--worktrees-github-com-MadaraUchiha-314-tiny-harness-github-MadaraUchiha-314-tiny-harness-2/47f7a8e0-9a2d-4e26-a741-4f44f3b165fa/scratchpad/fresh
-      Built tiny-harness @ file:///tmp/claude-1000/-home-the-looper--the-loop-workspace--worktrees-github-com-MadaraUchiha-314-tiny-harness-github-MadaraUchiha-314-tiny-harness-2/47f7a8e0-9a2d-4e26-a741-4f44f3b165fa/scratchpad/fresh
+   Building tiny-harness @ file://<scratch>/fresh
+      Built tiny-harness @ file://<scratch>/fresh
 Prepared 1 package in 3ms
 warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
          If the cache and target directories are on different filesystems, hardlinking may not be supported.

@@ -915,6 +915,7 @@ class Settings(BaseSettings, extra="forbid"):
     server: ServerConfig; heartbeat: HeartbeatConfig = HeartbeatConfig()
     plugins: tuple[Path, ...] = (); store: StoreConfig = StoreConfig(); o11y: O11yConfig = O11yConfig()
     retries: RetryPolicies; context: ContextConfig = ContextConfig()
+    push_key: SecretStr                  # TINY_HARNESS_PUSH_KEY, 32 bytes base64
 ```
 
 Intrinsic tools and their input schemas (decision-004), each a `ToolDefinition` with
@@ -1110,10 +1111,20 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
     declared security scheme is refused by `RemoteAgent` until a later work item adds
     credential handling; nothing is sent.
 - **Secrets handling.** All secrets are `SecretStr` in `Settings`, read from the
-  environment; `Record` has no credential field; the `Redactor` runs over log fields,
-  span attributes and every activity payload that could carry free text (tool arguments
-  and results) before Temporal serialises it (abuse case 6). Secrets never appear in the
-  context window: the LLM request carries no configuration.
+  environment. The `Redactor` (`harness/security/redactor.py`: bearer tokens, `sk-` and
+  `tmprl` key shapes, `Authorization` headers, any value equal to a configured secret)
+  runs at four points so no credential-shaped string is ever recorded (abuse case 6):
+  (1) in `execute`, over every text and data part of the inbound message **before**
+  update-with-start, so the update argument in Temporal history is already redacted;
+  (2) in the workflow's activity wrapper, over every activity argument before scheduling
+  and over every result before it is returned to the workflow, so history holds redacted
+  payloads; (3) in the `persist` activity over every `Record`; (4) in the o11y plugin
+  over log fields and span attributes. The one credential the harness must keep is the
+  A2A push-notification config's `token`/`authentication`, a client-supplied callback
+  secret: `PushConfigRecord` stores it encrypted (AES-GCM through `cryptography`, key
+  from `TINY_HARNESS_PUSH_KEY`), it is decrypted only inside the `emit_event` activity,
+  and it is never placed in a workflow payload. Secrets never appear in the context
+  window: the LLM request carries no configuration.
 - **Least privilege.** The worker needs the Temporal namespace, the provider key and the
   store file; the server needs the Temporal namespace and the store file, no provider
   key; MCP subprocesses inherit only `PLUGIN_ROOT`, `PLUGIN_DATA` and the `env` the
@@ -1132,7 +1143,7 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
 | 3 unregistered tool / path escape / `command` expansion | `ToolNotFoundError`, path resolution, no expansion in `command` | `test_unknown_tool_rejected`, `test_plugin_path_escape_rejected`, `test_command_not_expanded` |
 | 4 non-member on channel / foreign task | `AccessPolicy` on every task operation + channel membership, uniform not-found | `test_non_member_rejected_without_task_existence`, `test_foreign_task_get_list_subscribe_cancel_not_found` |
 | 5 unknown required extension / security scheme on remote card | `RemoteAgent` refusal | `test_remote_card_with_unknown_required_ext_refused` |
-| 6 credential-shaped values | `Redactor` on logs, spans, payloads | `test_redactor_masks_tokens` |
+| 6 credential-shaped values | `Redactor` at ingress, activity boundary, store and o11y; push tokens encrypted | `test_redactor_masks_tokens`, `test_ingress_redacted_before_history`, `test_push_token_encrypted_at_rest` |
 | 7 oversized / rate-limited request | middleware limits before any route or Temporal call | `test_oversized_request_not_persisted` |
 | 8 tool schema drift | schema hash check | `test_schema_drift_refuses_invoke` |
 | 9 forged A2UI action ids | surface/component registry | `test_unknown_a2ui_action_discarded` |
@@ -1205,6 +1216,7 @@ Which types apply, the environment and the evidence plan are `testing-plan.md`'s
 | `pydantic`, `pydantic-settings` | typed models everywhere; env settings | R22.2; already pulled by `mcp` |
 | `jsonschema` | validate tool arguments and state subsets against JSON Schema | stdlib has no validator |
 | `opentelemetry-sdk`, `-exporter-otlp` | traces | R17 |
+| `cryptography` (via `a2a-sdk[encryption]`) | AES-GCM for push-config tokens at rest | finding 1; stdlib has no AEAD |
 | `textual` | TUI | R20.2 |
 | `packaging` | PEP 440 resolution | transitive via `openai`, used directly |
 | `pyyaml` | skill and prompt front matter | already a dev dependency; `tomllib` cannot parse YAML |

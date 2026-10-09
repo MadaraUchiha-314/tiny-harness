@@ -61,7 +61,7 @@ the task; results are recorded in `evidence/verification.md`.
   - _Depends on:_ 4
   - _Requirements:_ R8.1–R8.3
   - _Test:_ `bun run docs:build` in `docs/` exits 0 (dead-link check included).
-- [ ] 9. Guides, README, architecture, capability doc, decision
+- [x] 9. Guides, README, architecture, capability doc, decision
   - `docs/guide/{tech-stack,local-development,releasing}.md`; README links; architecture
     section; `docs/capabilities/repo-tooling.md` + index row; `docs/decisions/decision-001.md`.
   - _Depends on:_ 8

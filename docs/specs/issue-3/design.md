@@ -599,15 +599,20 @@ class Channel(Entity):
 class ChannelMessage(BaseModel, frozen=True): id: str; channel_id: str; sender: str; parts: tuple[ContentPart, ...]; at: datetime
 class HelpNeed(BaseModel): question: str; options: tuple[str, ...]; blocking_work: bool | None
 class HelpRoute(StrEnum): ASK = "ask"; CREATE_TASK = "create_task"
+class HelpDecision(BaseModel, frozen=True): route: HelpRoute; participant_id: str; question: str | None; options: tuple[str, ...]; name: str | None; goal: str | None; acceptance_criteria: tuple[str, ...]; reason: str
 ```
 
 The default channel medium is A2A itself (`A2AChannel`): a `send` emits an A2A `Message`
 event on the task carrying the channel extension data part; a participant sends by calling
 `SendMessage` on the task with the same part. The channel extension
 (`…/tiny-harness/channel`) defines `ChannelMessageData(channel_id, sender, text, parts)`
-and the membership rule (13.3). `help.decided.in` default body: route `ASK` when the
-need's options fit one message and no acceptance criterion depends on another
-participant's work, else `CREATE_TASK`; an executor can replace it (12.4). `ASK` is the
+and the membership rule (13.3). `help.decided.in` has one default body (12.4): an LLM call
+with structured output against the `HelpDecision` schema (`route: ASK | CREATE_TASK`,
+`participant_id`, `question`, `options`, `name`, `goal`, `acceptance_criteria`,
+`reason`), given the `HelpNeed` and the task; a validator then rejects an `ASK` whose
+need names work that an acceptance criterion assigns to another participant, and
+re-runs the body once with the validation error in context. An executor replaces the
+body by setting `result`; the validator always runs. `ASK` is the
 intrinsic `ask_participant`: it emits the help message, sets `INPUT_REQUIRED`, and the
 workflow `wait_condition`s on the reply update (12.2, 12.5, 12.6). Completion (8.5): when the LLM emits no tool call, the workflow runs `task.complete.in`
 with the list of unresolved sub-tasks (local children and remote tasks not in a terminal
@@ -762,7 +767,7 @@ The System One interface mirrors `typesafe-sdk`'s shapes one to one (`Noul`, `Ch
 `ScoreAnswer.score/confidence/probabilities`; `AsyncTypeSafeClient.system_one(state,
 questions)`), so the later Jev adapter is a field-for-field mapping with no interface
 change (18.2). The loop does not call it in this work
-item; `help.decided.in` uses the LLM with structured output.
+item; `help.decided.in`'s default body is defined under Participants and channels.
 
 ### Durable execution (R19) — `service/durable/`
 

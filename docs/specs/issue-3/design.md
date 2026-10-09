@@ -564,17 +564,23 @@ class Store(Entity):
     async def put(self, record: Record) -> None
     async def get[R: Record](self, kind: type[R], id: str) -> R | None
     async def query[R: Record](self, kind: type[R], where: Filter) -> Sequence[R]
-Record = TaskRecord | PlanRecord | StateRecord | ChannelMessageRecord | InboxAuditRecord | CompactionRecord
+Record = TaskRecord | PlanRecord | StateRecord | ChannelMessageRecord | InboxAuditRecord | CompactionRecord | PushConfigRecord
 ```
 
 The default is `SqliteStore` on the standard library `sqlite3`, one table per record kind
 with a JSON column and indexed id, context and timestamp columns, run through
 `asyncio.to_thread`. Limits: single process writer, no replication; production deployments
-plug a store entity. What Temporal already holds (the running workflow's state, history,
-activity results) is not duplicated; the store holds what must be readable without the
-workflow: terminal task records, channel messages, compaction records, inbox audit rows
-(11.5). Secrets never enter a `Record` because `Record` fields are typed and none is a
-credential (11.4).
+plug a store entity. What the store holds, and when (11.1, 11.5): `TaskRecord` on every
+state change and at the terminal state; `PlanRecord` whenever a plan is attached or a
+step changes (9.4); `StateRecord` at the end of every loop iteration (the typed
+`AgentState.data` subset and the summary, not the raw history, which Temporal holds);
+`ChannelMessageRecord` before delivery (13.2); `InboxAuditRecord` at intake;
+`CompactionRecord` per compaction; `PushConfigRecord` per push config. Every write goes
+through the `persist` activity, whose `persistence.write.in` body is the replaceable
+target (a plugin can route plans to its own system, 9.4). Temporal history remains the
+replay source; the store is the read model that outlives the workflow. Secrets never
+enter a `Record`: fields are typed and none is a credential, with one encrypted
+exception, the push-config token (finding 1 below, 11.4).
 
 ### Participants and channels (R12, R13) — `harness/channels/`
 
@@ -987,8 +993,8 @@ classDiagram
   `ChannelMessageData(channel_id, sender, text, parts, kind: "message" | "help_request" | "help_reply")`.
 - **Temporal search attributes.** `A2AContextId` (keyword), `A2ATaskState` (keyword),
   `TinyHarnessAgent` (keyword), registered by the worker at startup.
-- **Store tables.** `tasks`, `plans`, `channel_messages`, `inbox_audit`, `compactions`,
-  `push_configs`; each `(id TEXT PRIMARY KEY, context_id TEXT, created_at TEXT, json
+- **Store tables.** `tasks`, `plans`, `state`, `channel_messages`, `inbox_audit`,
+  `compactions`, `push_configs`; each `(id TEXT PRIMARY KEY, context_id TEXT, created_at TEXT, json
   TEXT)` with indexes on `context_id` and `created_at`.
 
 ## Error handling

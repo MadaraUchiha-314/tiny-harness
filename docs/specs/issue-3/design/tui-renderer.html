@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>tiny-harness TUI renderer</title>
+<style>
+/* Design plan — a mock of the Textual app: a terminal frame; left pane is the A2A event
+   stream, right pane the task extension; A2UI basic-catalog components map to Textual
+   widgets (ChoicePicker → RadioSet, Button → Button, TextField → Input); unrenderable
+   parts show as placeholders. Keyboard: Tab cycles panes, Enter sends, F2 switches tabs. */
+:root {
+  --bg: #e9ebe6; --term: #faf9f5; --fg: #1d2420; --muted: #6a736d; --rule: #c9cfc7;
+  --accent: #1d6b5a; --warn: #8a5a00; --err: #a33a2a; --sel: #dbe9e2;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1312; --term: #161b1a; --fg: #e4e8e3; --muted: #8f9a94; --rule: #2d3532;
+  --accent: #6cc6a6; --warn: #ffd27a; --err: #ff8c7a; --sel: #223029; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1312; --term: #161b1a; --fg: #e4e8e3; --muted: #8f9a94; --rule: #2d3532;
+  --accent: #6cc6a6; --warn: #ffd27a; --err: #ff8c7a; --sel: #223029; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.45 var(--mono); padding: 16px; }
+.term { background: var(--term); border: 1px solid var(--rule); border-radius: 8px; max-width: 1100px; margin: 0 auto; overflow: hidden; }
+.bar { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem .8rem; border-bottom: 1px solid var(--rule); color: var(--muted); white-space: nowrap; overflow-x: auto; }
+.bar b { color: var(--fg); font-weight: 600; }
+.panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 34%); min-height: 460px; }
+@media (max-width: 760px) { .panes { grid-template-columns: 1fr; } .right { border-left: 0 !important; border-top: 1px solid var(--rule); } }
+.pane { padding: .5rem .8rem; min-width: 0; }
+.right { border-left: 1px solid var(--rule); }
+.title { color: var(--muted); border-bottom: 1px solid var(--rule); margin-bottom: .4rem; padding-bottom: .2rem; }
+.title b { color: var(--fg); }
+pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; }
+.you { color: var(--accent); }
+.st { color: var(--muted); }
+.tool { color: var(--muted); }
+.tool b { color: var(--fg); font-weight: 500; }
+.help { color: var(--warn); }
+.ph { color: var(--muted); font-style: italic; }
+.box { border: 1px dashed var(--accent); padding: .3rem .5rem; margin: .3rem 0; }
+.radio { display: block; background: none; border: 0; font: inherit; color: var(--fg); text-align: left; padding: 0 .2rem; cursor: pointer; width: 100%; }
+.radio[aria-checked="true"] { background: var(--sel); }
+.btn { display: inline-block; border: 1px solid var(--accent); color: var(--accent); background: none; font: inherit; padding: 0 .6rem; margin-top: .2rem; cursor: pointer; }
+.btn:focus-visible, .radio:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.input { display: flex; gap: .4rem; border-top: 1px solid var(--rule); padding: .4rem .8rem; }
+.input input { flex: 1; min-width: 0; font: inherit; background: none; border: 0; color: var(--fg); }
+.foot { display: flex; flex-wrap: wrap; gap: .3rem 1rem; padding: .3rem .8rem; border-top: 1px solid var(--rule); color: var(--muted); }
+.foot kbd { color: var(--fg); background: var(--sel); padding: 0 .3rem; border-radius: 3px; }
+.ok { color: var(--accent); }
+.steps { margin: 0; padding-left: 0; list-style: none; }
+.steps li { white-space: pre-wrap; }
+.tabs { display: flex; gap: .8rem; margin-bottom: .3rem; }
+.tabs button { background: none; border: 0; font: inherit; color: var(--muted); padding: 0; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<div class="term" role="application" aria-label="tiny-harness TUI">
+  <div class="bar"><span><b>tiny-harness</b> · support-agent v0.1.0 · A2A 1.0 · http://localhost:8080</span><span>task 7f3a…c21e · <span class="help">INPUT_REQUIRED</span></span></div>
+  <div class="panes">
+    <div class="pane">
+      <div class="title"><b>Conversation</b> · channel #task-7f3a</div>
+      <pre><span class="you">you ›</span> Refund order #48213: the customer says the blender arrived cracked. Check the order and propose a resolution.
+<span class="st">── task submitted → WORKING · plan: 4 steps</span>
+<span class="tool">⚙ <b>orders.get_order</b>(order_id="48213") → delivered 2026-10-06, warranty active</span>
+<span class="tool">⚙ <b>policy.lookup</b>(topic="damaged on arrival") → refund or replacement ≤14d, photo &gt;$75</span>
+agent › The order qualifies for a damaged-on-arrival resolution. The item is $129,
+        so policy needs a photo before a refund. A replacement can ship without one.</pre>
+      <div class="box" role="group" aria-label="A2UI card">
+        <div class="st">A2UI · Card › ChoicePicker, Button</div>
+        <div>Proposed resolution</div>
+        <button class="radio" role="radio" aria-checked="true">(●) Ship replacement now</button>
+        <button class="radio" role="radio" aria-checked="false">( ) Refund after photo</button>
+        <button class="radio" role="radio" aria-checked="false">( ) Escalate to a human</button>
+        <button class="btn" id="confirm">[ Confirm ]</button>
+      </div>
+      <pre><span class="help">? help requested ›</span> The customer has two open orders. Should the replacement go to the
+  address on #48213 or the newer address on #48377?
+<span class="st">── task → INPUT_REQUIRED · waiting on channel reply</span>
+<span class="ph">[unrenderable part: application/vnd.example.calendar+json]</span></pre>
+      <pre id="more"></pre>
+    </div>
+    <div class="pane right">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="task">Task</button>
+        <button role="tab" aria-selected="false" data-tab="plan">Plan</button>
+        <button role="tab" aria-selected="false" data-tab="trace">Trace</button>
+      </div>
+      <div data-panel="task">
+        <div class="title"><b>Goal</b></div>
+        <pre>Resolve the damaged-on-arrival complaint on
+order #48213 within policy.</pre>
+        <div class="title"><b>Acceptance criteria</b></div>
+        <pre><span class="ok">[x]</span> Order and warranty verified
+<span class="ok">[x]</span> Policy applied and cited
+[ ] Customer offered a resolution they accept
+[ ] Ticket closed with the resolution recorded</pre>
+        <div class="title"><b>Participants</b></div>
+        <pre>support-agent      assignee
+you                reporter
+billing-agent(A2A) watcher
+ops-lead           admin</pre>
+        <div class="title"><b>Sub-tasks</b></div>
+        <pre>billing-agent/t-91a0  WORKING
+  "confirm refund eligibility"</pre>
+      </div>
+      <div data-panel="plan" hidden>
+        <div class="title"><b>Plan</b> · 4 steps</div>
+        <ul class="steps">
+          <li><span class="ok">●</span> 1 Verify order and delivery
+    <span class="st">→ delivered 2026-10-06</span></li>
+          <li><span class="ok">●</span> 2 Look up damage policy
+    <span class="st">→ refund or replacement</span></li>
+          <li><span class="help">◐</span> 3 Agree resolution with customer
+    <span class="st">↳ billing-agent/t-91a0 · waiting</span></li>
+          <li>○ 4 Record resolution and close
+    <span class="st">depends on 3</span></li>
+        </ul>
+      </div>
+      <div data-panel="trace" hidden>
+        <div class="title"><b>Trace</b></div>
+        <pre>invoke_agent support-agent
+  chat ×3 · execute_tool ×2
+gpt-6.1-sol in 6,812 (cached 5,120) out 341
+workflow 7f3a…c21e · 2 retries (429)</pre>
+      </div>
+    </div>
+  </div>
+  <form class="input" id="composer"><span class="you">›</span><input id="reply" aria-label="Reply" value="Use the address on #48213."><span class="st">Enter to send</span></form>
+  <div class="foot"><span><kbd>Tab</kbd> pane</span><span><kbd>F2</kbd> task/plan/trace</span><span><kbd>Enter</kbd> send</span><span><kbd>^C</kbd> cancel task</span><span><kbd>q</kbd> quit</span></div>
+</div>
+<script>
+(function () {
+  var m = /[?&]theme=(light|dark)/.exec(location.search); if (m) document.documentElement.setAttribute('data-theme', m[1]);
+  var tabs = document.querySelectorAll('.tabs button');
+  function show(name) {
+    tabs.forEach(function (x) { x.setAttribute('aria-selected', x.dataset.tab === name ? 'true' : 'false'); });
+    document.querySelectorAll('[data-panel]').forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+  }
+  tabs.forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.tab); }); });
+  var radios = document.querySelectorAll('.radio');
+  radios.forEach(function (r) {
+    r.addEventListener('click', function () {
+      radios.forEach(function (x) {
+        var on = x === r; x.setAttribute('aria-checked', on ? 'true' : 'false');
+        x.textContent = (on ? '(●) ' : '( ) ') + x.textContent.slice(4);
+      });
+    });
+  });
+  var more = document.getElementById('more');
+  document.getElementById('confirm').addEventListener('click', function () {
+    var v = document.querySelector('.radio[aria-checked="true"]').textContent.slice(4);
+    more.textContent += 'you › [A2UI action] confirm "' + v + '"\n';
+  });
+  document.getElementById('composer').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var i = document.getElementById('reply'); if (!i.value.trim()) return;
+    more.textContent += 'you › ' + i.value.trim() + '\n── reply received → WORKING · resuming step 3\n';
+    i.value = '';
+    document.querySelector('.bar .help').textContent = 'WORKING';
+    document.querySelector('.bar .help').className = 'ok';
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'F2') { e.preventDefault(); var cur = document.querySelector('.tabs button[aria-selected="true"]'); var next = cur.nextElementSibling || tabs[0]; show(next.dataset.tab); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-3",
-  "currentNode": "design-critic-review",
+  "currentNode": "test-planning",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -45,10 +45,18 @@
     },
     "design-critic-review": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-09T16:45:12+00:00",
-      "exitedAt": "",
+      "exitedAt": "2026-10-09T17:01:55+00:00",
       "lastBlock": "`validate-artifacts` did not pass:\n- required artifact is missing (docs/specs/issue-3/evidence/design-critic-review.md)",
+      "forced": false
+    },
+    "test-planning": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-09T17:01:55+00:00",
+      "exitedAt": "",
+      "lastBlock": "",
       "forced": false
     }
   },
@@ -233,6 +241,10 @@
     "design": {
       "at": "2026-10-09T16:45:12+00:00",
       "by": "the-loop"
+    },
+    "design-critic-review": {
+      "at": "2026-10-09T17:01:55+00:00",
+      "by": "the-loop"
     }
   },
   "skips": {
@@ -272,5 +284,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "design"
+  "phase": "test-planning"
 }

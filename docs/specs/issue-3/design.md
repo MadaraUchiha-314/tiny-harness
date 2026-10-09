@@ -560,7 +560,16 @@ adapter sends the static sections as `instructions`, the rest as `input`, with
 `prompt_cache_key = task_id` and `store=False`; the static prefix of the demo prompt is
 measured at implementation and must exceed the provider's 1,024-token minimum (10.3).
 Token estimation uses the previous turn's `usage.input_tokens` plus a 4-characters-per-token
-estimate for the delta; no tokenizer dependency. A compaction records
+estimate for the delta; no tokenizer dependency. **Demo budget** (non-functional
+requirement "Cost"): `turn_budget_tokens = 12,000` input per turn, of which the static
+prefix (system prompt, participants, skills index, the demo's two MCP tools plus the
+twelve intrinsics' definitions) targets 2,500–3,500 tokens, above the 1,024-token cache
+minimum and below a third of the budget; history and tool results fill the rest and
+compaction triggers at 75 % (9,000); output targets ≤ 1,000 tokens per turn
+(`max_output_tokens=2,000` as the hard cap). The e2e evidence records every turn's
+`input_tokens`, `cached_tokens` and `output_tokens`; the demo passes the budget when no
+turn exceeds 12,000 input or 2,000 output and `cached_tokens ≥ 2,000` from the second
+turn on. A compaction records
 `CompactionRecord(removed_ids, summary, tokens_before, tokens_after)` on the task and in
 the store (10.6).
 

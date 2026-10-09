@@ -227,26 +227,26 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 4, 2
   - _Requirements:_ R8.1, R8.2, R8.3, R9.1, R9.5
   - _Test:_ T1 — `tests/unit/core/test_task.py` (metadata round trip), `test_plan.py` (cycle rejected); T3 — `tests/contract/test_task_extension_schema.py`
-- [ ] 24. Agent state and schema-validated subsets
+- [x] 24. Agent state and schema-validated subsets
   - `AgentState` (history, summary, loaded skills, `data: SchemaValidated`), plugin
     schema registration, validated writes.
   - _Depends on:_ 23
   - _Requirements:_ R10.1
   - _Test:_ T1 — `tests/unit/core/test_state.py` (invalid write rejected)
-- [ ] 25. Context window manager
+- [x] 25. Context window manager
   - `ContextWindowManager.assemble` with the stability-ordered sections, tool
     definitions in the static prefix, untrusted-block rendering of tool results,
     token estimation from the previous usage plus the 4-chars estimate.
   - _Depends on:_ 24, 12, 19
   - _Requirements:_ R4.3, R10.2, R10.3, R6.5
   - _Test:_ T1 — `tests/unit/core/test_context.py` (order by stability, static prefix byte-identical across turns, untrusted preamble present)
-- [ ] 26. Compaction with three `in` policies
+- [x] 26. Compaction with three `in` policies
   - `compaction.trigger.in`, `compaction.keep.in`, `compaction.summarise.in` defaults
     in the built-in plugin; never-compact set; `CompactionRecord`.
   - _Depends on:_ 25, 15
   - _Requirements:_ R10.4–R10.8
   - _Test:_ T1 — `tests/unit/core/test_compaction.py` (keep set intact, record written, policies replaceable)
-- [ ] 27. Persistence store interface and `SqliteStore`
+- [x] 27. Persistence store interface and `SqliteStore`
   - `harness/persistence/`: `Store` entity, every `Record` kind including
     `PushConfigRecord` with AES-GCM-encrypted token (`cryptography`), `SqliteStore` on
     stdlib `sqlite3` through `asyncio.to_thread`, tables and indexes of the design,
@@ -254,7 +254,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 8, 9
   - _Requirements:_ R11.1–R11.4, retention
   - _Test:_ T1 — `tests/unit/persistence/test_sqlite.py` (put/get/query, write failure surfaces `StoreWriteError`, sweep deletes expired rows); T8 — `test_push_token_encrypted_at_rest`
-- [ ] 28. Channels: entity, `A2AChannel`, `HelpNeed`/`HelpDecision`
+- [x] 28. Channels: entity, `A2AChannel`, `HelpNeed`/`HelpDecision`
   - `harness/channels/`: `Channel` entity, `ChannelMessage`, membership check
     (`ChannelMembershipError`), `A2AChannel` emitting the channel data part, channel
     extension schema under `docs/a2a/ext/channel.json`; `help.decided.in` default body

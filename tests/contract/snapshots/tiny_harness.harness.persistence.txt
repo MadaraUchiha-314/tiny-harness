@@ -1,0 +1,34 @@
+# tiny_harness.harness.persistence
+RECORD_TYPES = dict
+model ChannelMessageRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['channel_messages'] = ..., channel_id: <class 'str'>, sender: <class 'str'>, message_kind: typing.Literal['message', 'help_request', 'help_reply'], parts: tuple[tiny_harness.harness.tools.models.ContentPart, ...])
+model CompactionStoreRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['compactions'] = ..., record: <class 'tiny_harness.harness.core.compaction.CompactionRecord'>)
+model Filter(context_id: str | None = ..., task_id: str | None = ..., since: datetime.datetime | None = ..., limit: <class 'int'> = ...)
+model InboxAuditRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['inbox_audit'] = ..., message_id: <class 'str'>, participant_id: str | None, accepted: <class 'bool'>, reason: <class 'str'> = ...)
+model PlanRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['plans'] = ..., plan: <class 'tiny_harness.harness.core.task.Plan'>, turn: <class 'int'>)
+model PushConfigRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['push_configs'] = ..., config_id: <class 'str'>, url: <class 'str'>, token_ciphertext: <class 'str'> = ..., authentication_ciphertext: <class 'str'> = ...)
+class PushTokenCipher(object)
+  def __init__(self, key: 'SecretStr') -> 'None'
+  def decrypt(self, ciphertext: 'str') -> 'str'
+  def encrypt(self, plaintext: 'str') -> 'str'
+Record = TypeAliasType
+model RecordBase(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>)
+enum RecordKind: TASKS='tasks', PLANS='plans', STATE='state', CHANNEL_MESSAGES='channel_messages', INBOX_AUDIT='inbox_audit', COMPACTIONS='compactions', PUSH_CONFIGS='push_configs'
+class SqliteStore(Store)
+  def __init__(self, path: 'Path | str', *, ref: 'EntityRef | None' = None) -> 'None'
+  def close(self) -> 'None'
+  def delete(self, record_type: 'type[RecordBase]', id: 'str') -> 'bool'
+  def get(self, record_type: 'type[R]', id: 'str') -> 'R | None'
+  def purge_task(self, task_id: 'str') -> 'dict[RecordKind, int]'
+  def put(self, record: 'RecordBase') -> 'None'
+  def query(self, record_type: 'type[R]', where: 'Filter') -> 'Sequence[R]'
+  def raw_row(self, kind: 'RecordKind', id: 'str') -> 'JsonObject | None'
+  def sweep(self, retention: 'Mapping[RecordKind, timedelta]', now: 'datetime') -> 'dict[RecordKind, int]'
+model StateRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['state'] = ..., turn: <class 'int'>, summary: <class 'str'>, data: <class 'tiny_harness.harness.core.state.SchemaValidated'>, loaded_skills: tuple[str, ...])
+class Store(Entity)
+  def delete(self, record_type: 'type[RecordBase]', id: 'str') -> 'bool'
+  def get(self, record_type: 'type[R]', id: 'str') -> 'R | None'
+  def put(self, record: 'RecordBase') -> 'None'
+  def query(self, record_type: 'type[R]', where: 'Filter') -> 'Sequence[R]'
+  def sweep(self, retention: 'Mapping[RecordKind, timedelta]', now: 'datetime') -> 'dict[RecordKind, int]'
+model TaskRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['tasks'] = ..., task: <class 'a2a_pb2.Task'>, state_name: <class 'str'>, events: tuple[JsonObject, ...] = ...)
+def kind_of(record: 'RecordBase') -> 'RecordKind'

@@ -1,10 +1,34 @@
 # tiny_harness.harness.core
+KEEP = HookPoint
+NEVER_COMPACT = frozenset
+ORDER = tuple
 PARTICIPANT_KEY = str
+SUMMARISE = HookPoint
+SUMMARISER_INSTRUCTIONS = str
 TASK_EXT_KEY = str
 TASK_EXT_MEDIA_TYPE = str
 TASK_EXT_URI = str
 TERMINAL_STATES = frozenset
+TRIGGER = HookPoint
+UNTRUSTED_PREAMBLE = str
 model AcceptanceCriterion(text: <class 'str'>, met: <class 'bool'> = ...)
+model AgentState(task_id: <class 'str'>, history: tuple[tiny_harness.harness.core.state.HistoryEntry, ...] = ..., next_history_id: <class 'int'> = ..., summary: <class 'str'> = ..., loaded_skills: tuple[tiny_harness.harness.core.state.LoadedSkillRecord, ...] = ..., data: <class 'tiny_harness.harness.core.state.SchemaValidated'> = ..., last_usage: tiny_harness.harness.models.llm.Usage | None = ..., last_context_chars: <class 'int'> = ..., turn: <class 'int'> = ...)
+model CompactionKeepIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., sections: tuple[str, ...], result: tuple[str, ...] | None = ...)
+model CompactionRecord(task_id: <class 'str'>, turn: <class 'int'>, removed_ids: tuple[int, ...], summary: <class 'str'>, tokens_before: <class 'int'>, tokens_after: <class 'int'>, at: <class 'datetime.datetime'>)
+model CompactionSummariseIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., previous_summary: <class 'str'>, history: <class 'str'>, removed_ids: tuple[int, ...], result: str | None = ...)
+model CompactionTriggerIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., estimated_tokens: <class 'int'>, budget: <class 'int'>, fraction: <class 'float'>, result: bool | None = ...)
+class Compactor(object)
+  def __init__(self, *, hooks: 'HookManager', manager: 'ContextWindowManager', llm: 'LLM', now: 'type[datetime]' = <class 'datetime.datetime'>) -> 'None'
+  def compact(self, state: 'AgentState', window: 'ContextWindow', *, task_id: 'str', correlation_id: 'str') -> 'tuple[AgentState, CompactionRecord]'
+  def register_defaults(self) -> 'None'
+  def should_compact(self, window: 'ContextWindow', model: 'LLMModelInfo', *, task_id: 'str', correlation_id: 'str') -> 'bool'
+model ContextSection(name: <class 'str'>, stability: <enum 'Stability'>, never_compact: <class 'bool'>, content: <class 'str'>)
+model ContextWindow(sections: tuple[tiny_harness.harness.core.context.ContextSection, ...], tools: tuple[tiny_harness.harness.tools.models.ToolDefinition, ...], input: tuple[InputItem, ...], estimated_tokens: <class 'int'>, chars: <class 'int'>)
+class ContextWindowManager(object)
+  def __init__(self, *, turn_budget_tokens: 'int' = 12000, compaction_fraction: 'float' = 0.75) -> 'None'
+  def assemble(self, *, task: 'HarnessTask', state: 'AgentState', system_prompt: 'str', skills_index: 'str', tools: 'Sequence[ToolDefinition]') -> 'ContextWindow'
+  def budget(self, model: 'LLMModelInfo') -> 'int'
+  def over_budget(self, window: 'ContextWindow', model: 'LLMModelInfo') -> 'bool'
 class HarnessTask(object)
   def __init__(self, proto: 'Task') -> 'None'
   property context_id
@@ -16,14 +40,25 @@ class HarnessTask(object)
   property state_name
   def with_ext(self, ext: 'TaskExtensionData') -> 'HarnessTask'
   def with_state(self, state: 'int') -> 'HarnessTask'
+model HistoryEntry(id: <class 'int'>, item: InputItem)
+model LoadedSkillRecord(name: <class 'str'>, body: <class 'str'>, tools: tuple[str, ...] = ...)
 model Participant(id: <class 'str'>, kind: typing.Literal['human', 'agent'], role: <enum 'Role'>, display_name: <class 'str'> = ...)
 model Plan(steps: tuple[tiny_harness.harness.core.task.Step, ...])
 ProtoJson = TypeAliasType
 enum Role: ASSIGNEE='assignee', REPORTER='reporter', WATCHER='watcher', ADMIN='admin'
+model SchemaValidated(data: JsonObject = ..., schemas: collections.abc.Mapping[str, JsonSchema] = ...)
+enum Stability: STATIC='static', PER_TASK='per_task', PER_TURN='per_turn'
+class StateValidationError(TinyHarnessError)
 model Step(id: <class 'str'>, name: <class 'str'>, description: <class 'str'> = ..., depends_on: tuple[str, ...] = ..., output: str | None = ..., linked_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., state: <enum 'StepState'> = ...)
 enum StepState: PENDING='pending', ACTIVE='active', DONE='done', FAILED='failed'
 model TaskExtensionData(name: <class 'str'>, type: str | None = ..., goal: <class 'str'>, description: <class 'str'> = ..., acceptance_criteria: tuple[tiny_harness.harness.core.task.AcceptanceCriterion, ...] = ..., participants: tuple[tiny_harness.harness.core.task.Participant, ...] = ..., parent_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., sub_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., plan: tiny_harness.harness.core.task.Plan | None = ...)
 model TaskRef(task_id: <class 'str'>, agent: tiny_harness.harness.entities.base.EntityRef | None = ...)
+def estimate_tokens(chars: 'int', state: 'AgentState') -> 'int'
 def participant_of(message: 'Message') -> 'str | None'
 def proto_json(message_type: 'type[M]') -> 'object'
+def render_entries(entries: 'tuple[HistoryEntry, ...]') -> 'str'
+def render_participants(task: 'HarnessTask') -> 'str'
+def render_plan(task: 'HarnessTask') -> 'str'
+def render_task(task: 'HarnessTask') -> 'str'
+def render_untrusted(result: 'ToolResult') -> 'ToolResult'
 def state_name(state: 'int') -> 'str'

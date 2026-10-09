@@ -1,0 +1,28 @@
+# tiny_harness.harness.channels
+CHANNEL_EXT_MEDIA_TYPE = str
+CHANNEL_EXT_URI = str
+DECISION_INSTRUCTIONS = str
+HELP_DECIDED = HookPoint
+class A2AChannel(Channel)
+  def __init__(self, ref: 'EntityRef', *, task_id: 'str', context_id: 'str', members: 'Sequence[str]', store: 'Store', emitter: 'Emitter') -> 'None'
+  def accept(self, message: 'ChannelMessage') -> 'None'
+  def receive(self) -> 'AsyncIterator[ChannelMessage]'
+  def send(self, message: 'ChannelMessage') -> 'None'
+class Channel(Entity)
+  def __init__(self, ref: 'EntityRef', *, task_id: 'str', members: 'Sequence[str]') -> 'None'
+  def check_member(self, participant_id: 'str | None') -> 'None'
+  property id
+  def receive(self) -> 'AsyncIterator[ChannelMessage]'
+  def send(self, message: 'ChannelMessage') -> 'None'
+model ChannelMessage(id: <class 'str'>, channel_id: <class 'str'>, sender: <class 'str'>, parts: tuple[tiny_harness.harness.tools.models.ContentPart, ...], at: <class 'datetime.datetime'>, kind: typing.Literal['message', 'help_request', 'help_reply'] = ...)
+model ChannelMessageData(channel_id: <class 'str'>, sender: <class 'str'>, kind: typing.Literal['message', 'help_request', 'help_reply'] = ..., text: <class 'str'> = ..., parts: tuple[tiny_harness.harness.tools.models.ContentPart, ...] = ..., in_reply_to: str | None = ...)
+Emitter = _CallableGenericAlias
+model HelpDecidedIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., need: <class 'tiny_harness.harness.channels.models.HelpNeed'>, task_text: <class 'str'>, participants_text: <class 'str'>, objection: str | None = ..., result: tiny_harness.harness.channels.models.HelpDecision | None = ...)
+model HelpDecision(route: <enum 'HelpRoute'>, participant_id: <class 'str'>, question: str | None = ..., options: tuple[str, ...] = ..., name: str | None = ..., goal: str | None = ..., acceptance_criteria: tuple[str, ...] = ..., reason: <class 'str'> = ...)
+model HelpNeed(question: <class 'str'>, options: tuple[str, ...] = ..., blocking_work: bool | None = ..., participant_id: str | None = ...)
+enum HelpRoute: ASK='ask', CREATE_TASK='create_task'
+MessageKind = _LiteralGenericAlias
+def decide(hooks: 'HookManager', *, need: 'HelpNeed', task: 'HarnessTask', correlation_id: 'str') -> 'HelpDecision'
+def decision_schema() -> 'JsonSchema'
+def register_default(hooks: 'HookManager', llm: 'LLM') -> 'None'
+def validate_decision(need: 'HelpNeed', decision: 'HelpDecision') -> 'str | None'

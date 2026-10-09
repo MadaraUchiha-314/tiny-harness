@@ -1320,6 +1320,7 @@ source = { editable = "." }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
     { name = "anthropic" },
+    { name = "cryptography" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "mcp" },
@@ -1345,6 +1346,7 @@ dev = [
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.2.2" },
     { name = "anthropic", specifier = ">=1.13.0" },
+    { name = "cryptography", specifier = ">=50.0.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "mcp", specifier = ">=2.3.0" },

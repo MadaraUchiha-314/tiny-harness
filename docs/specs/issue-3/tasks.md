@@ -166,7 +166,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 4
   - _Requirements:_ R18.1, R18.6
   - _Test:_ T1 — `tests/unit/models/test_llm_interface.py`; T3 — API snapshot
-- [ ] 16. OpenAI adapter (Responses API)
+- [x] 16. OpenAI adapter (Responses API)
   - `OpenAILLM`: `AsyncOpenAI(max_retries=0)`, `responses.create` with
     `instructions` = static prefix, `input` items, tools as function tools,
     `prompt_cache_key`, `store=False`, `max_output_tokens`; parse `output` items into
@@ -175,7 +175,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 15, 8
   - _Requirements:_ R18.1, R18.3, R18.5, R10.3
   - _Test:_ T1 — `tests/unit/models/test_openai.py` on recorded fixtures (`tests/fixtures/openai/`), `test_provider_retries_disabled`, `test_cached_tokens_parsed`
-- [ ] 17. Anthropic adapter (configurable, not exercised e2e)
+- [x] 17. Anthropic adapter (configurable, not exercised e2e)
   - `AnthropicLLM` over `messages.create` with `cache_control` on the static prefix,
     tool use blocks mapped to `ToolCall`.
   - _Depends on:_ 15

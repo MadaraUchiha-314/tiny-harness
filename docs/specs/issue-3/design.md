@@ -1073,12 +1073,19 @@ Every row logs through the o11y plugin at the same level in development and prod
 Each boundary from the requirements' Security considerations, the mechanism, and the test
 that proves it. Abuse cases are numbered as in `requirements.md`.
 
-- **AuthN/AuthZ.** None in the harness (decision-003): the perimeter authenticates.
-  Participant identity on a message is `Message.metadata["participant_id"]`, self-asserted;
-  `ChannelMembershipError` enforces membership against the task's participant list
-  (abuse case 4), and a privileged operation (role change, cancel by a non-participant)
-  requires the asserted participant to hold `ADMIN` or be the reporter, else it is denied
-  and recorded. The deployment guide names the perimeter requirement; the agent card
+- **AuthN/AuthZ.** None in the harness (decision-003): the perimeter authenticates, and
+  participant identity is `Message.metadata["participant_id"]` (or the `X-Participant-Id`
+  header the perimeter may set), **self-asserted** until the later authentication work
+  item binds it to `ServerCallContext.user`. One `AccessPolicy` is applied at every
+  task-access boundary in `HarnessRequestHandler`: `GetTask`, `ListTasks` (filtered to the
+  caller's tasks), `SubscribeToTask`, `CancelTask`, the four push-config operations, and
+  `SendMessage` to an existing task. The rule: the asserted participant must be a
+  participant of the task; otherwise the response is the uniform A2A task-not-found error
+  (abuse case 4), identical for a missing task and a foreign one. Channels add membership
+  (`ChannelMembershipError`). Role changes exist only through the `set_participant_role`
+  intrinsic and the task extension on `SendMessage`, and both require the asserted
+  participant to hold `ADMIN` (abuse case 2); any other privileged act (cancel) requires
+  participation. Denials are recorded. The deployment guide names the perimeter requirement; the agent card
   declares no security scheme, so no client is told it can authenticate.
 - **Input validation & injection surfaces.**
   - *A2A ingress*: the SDK parses the protocol types; a Starlette middleware enforces
@@ -1089,8 +1096,8 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
     messages and A2UI actions are rendered only inside delimited untrusted blocks with a
     fixed preamble; the only effect text can have is through a tool call the LLM emits,
     which must name a registered tool and validate against its schema (`ToolNotFoundError`,
-    `ToolArgumentError`); role changes exist only as the `set_participant_role` intrinsic,
-    which checks the asserted role as above.
+    `ToolArgumentError`); role changes exist only as the `set_participant_role` intrinsic
+    and the task extension, both admin-only as above.
   - *Command injection* (abuse case 3): MCP `command` is never expanded; `args`, `env`,
     `cwd` expand two fixed variables; subprocesses are started with an argument vector,
     never a shell; `cwd` and every component path must resolve inside the plugin root.
@@ -1121,9 +1128,9 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
 | Abuse case | Mechanism | Negative test (testing-plan row: security) |
 |---|---|---|
 | 1 unauthenticated client | perimeter (out of scope) | documented; no harness test |
-| 2 injected instructions | untrusted blocks + registry + schema + role check | `test_injected_tool_call_not_executed`, `test_role_change_requires_admin` |
+| 2 injected instructions | untrusted blocks + registry + schema + admin-only role change | `test_injected_tool_call_not_executed`, `test_role_change_requires_admin` |
 | 3 unregistered tool / path escape / `command` expansion | `ToolNotFoundError`, path resolution, no expansion in `command` | `test_unknown_tool_rejected`, `test_plugin_path_escape_rejected`, `test_command_not_expanded` |
-| 4 non-member on channel / foreign task | membership check, uniform error | `test_non_member_rejected_without_task_existence` |
+| 4 non-member on channel / foreign task | `AccessPolicy` on every task operation + channel membership, uniform not-found | `test_non_member_rejected_without_task_existence`, `test_foreign_task_get_list_subscribe_cancel_not_found` |
 | 5 unknown required extension / security scheme on remote card | `RemoteAgent` refusal | `test_remote_card_with_unknown_required_ext_refused` |
 | 6 credential-shaped values | `Redactor` on logs, spans, payloads | `test_redactor_masks_tokens` |
 | 7 oversized / rate-limited request | middleware limits before any route or Temporal call | `test_oversized_request_not_persisted` |

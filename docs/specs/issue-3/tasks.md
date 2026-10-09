@@ -49,7 +49,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 1 — entities, hooks, configuration, errors (branch `loop/issue-3-l1-entities`)
 
-- [ ] 1. Package layout and dependency baseline
+- [x] 1. Package layout and dependency baseline
   - Create the module tree of `design.md` § Layers and modules (`interaction/`,
     `service/`, `harness/`, `config.py`, `errors.py`, `builtin/`), each with a docstring;
     add the Layer-1 dependencies to `pyproject.toml` (`pydantic`, `pydantic-settings`,

@@ -31,6 +31,13 @@ repos:
         pass_filenames: false
         types_or: [python, pyi, toml]
 
+      - id: no-any
+        name: no `Any` in tiny_harness (R22.2)
+        entry: bash -c '! grep -rnE "\bAny\b" tiny_harness'
+        language: system
+        pass_filenames: false
+        types_or: [python, pyi]
+
       - id: pytest-unit
         name: pytest (unit tests)
         entry: uv run pytest tests/unit -q

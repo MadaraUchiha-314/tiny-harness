@@ -136,21 +136,21 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 10
   - _Requirements:_ R3.6, R3.7, abuse case 3
   - _Test:_ T8 — `test_plugin_path_escape_rejected`, `test_command_with_expansion_rejected`
-- [ ] 12. Prompt entity and the default system prompt as markdown
+- [x] 12. Prompt entity and the default system prompt as markdown
   - `harness/prompts/`: `PromptEntity` with `##`-section parsing;
     `builtin/systemprompt.md` (role, task, participants, tools, skills, rules);
     replace-whole-file and extend-section from a plugin.
   - _Depends on:_ 10
   - _Requirements:_ R4.1, R4.2, R4.4
   - _Test:_ T1 — `tests/unit/prompts/test_prompt.py`; T6 — snapshot of the default sections
-- [ ] 13. Agent Skills loader
+- [x] 13. Agent Skills loader
   - `harness/skills/`: `SkillFrontMatter` with the specification's constraints,
     `Skill`, `SkillLoader` (YAML front matter, body, resources one level deep), skip
     with reason on invalid front matter.
   - _Depends on:_ 10
   - _Requirements:_ R5.1, R5.2, R5.4, R5.5
   - _Test:_ T1 — `tests/unit/skills/test_loader.py` (name/description rules, invalid skipped); T3
-- [ ] 14. Built-in plugin skeleton
+- [x] 14. Built-in plugin skeleton
   - `builtin/plugin.json` and namespace dir loaded first by the same loader; registers
     the default prompt; placeholders for the intrinsics and default bodies filled by
     later tasks.

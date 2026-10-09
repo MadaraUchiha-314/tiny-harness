@@ -14,14 +14,14 @@ the task; results are recorded in `evidence/verification.md`.
 
 ## Task list
 
-- [ ] 1. Python project skeleton
+- [x] 1. Python project skeleton
   - `.python-version` (3.14), `pyproject.toml` (project `tiny_harness` 0.0.0, `uv_build`
     flat layout, dev group, ruff/pyright/pytest/commitizen config), `uv lock`, `uv sync`.
   - _Depends on:_ none
   - _Requirements:_ R1.1–R1.4, R3.1, R3.3, R4.1
   - _Test:_ `uv sync --locked` exits 0 and creates `.venv/`; `uv run ruff --version`,
     `pyright --version`, `pytest --version`, `cz version` resolve from the lock.
-- [ ] 2. `hello_world` with unit test
+- [x] 2. `hello_world` with unit test
   - Write `tests/unit/test_hello.py` first (red: import fails), then
     `tiny_harness/{__init__,hello}.py` and `py.typed` (green).
   - _Depends on:_ 1

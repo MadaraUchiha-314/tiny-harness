@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# the-loop: per-work-item advisory lock beside work-item-state.json
+work-item-state.lock
+graph-state.lock

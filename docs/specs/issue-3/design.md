@@ -633,8 +633,9 @@ agent_card=card, push_config_store=StorePushConfigStore, push_sender=
 BasePushNotificationSender)`; every dispatcher method requires `A2A-Version: 1.0` (a
 missing header is read as 0.3 and refused), and both renderers send it.
 
-`execute`: validate the message (size limit, parts), run `request.received` hooks (an
-activity, so the hook chain is the same everywhere), then
+`execute`: the Starlette middleware has already enforced `max_request_bytes` and the
+per-peer rate limit, and `convert.from_proto_message` has validated the parts; `execute`
+then calls
 `client.execute_update_with_start_workflow(TaskWorkflow.inbox, message,
 start_workflow_operation=WithStartWorkflowOperation(TaskWorkflow.run, start, id=task_id,
 task_queue=…, id_conflict_policy=USE_EXISTING))`, then stream from `EventBridge` until a
@@ -661,9 +662,13 @@ point is a `ServerCallContextBuilder` subclass reading `request.scope["user"]` i
 
 ### Inbox and events (R15) — `service/inbox.py`
 
-The inbox is the task workflow's mailbox plus an audit row. `IntakeActivity` runs inside
-`execute` before update-with-start: size and rate checks, `request.received` hooks, an
-`InboxAuditRecord` to the store. The four A2A event payloads are accepted on
+The inbox is the task workflow's mailbox plus an audit row. Transport limits (size,
+rate) are a Starlette middleware in front of the routes, so an oversized request is
+rejected before anything reaches Temporal (abuse case 7). Everything else about intake is
+durable: when the workflow drains a message from its mailbox it first runs the `intake`
+activity, which runs `request.received` hooks (an executor may rewrite or abort the
+message) and writes the `InboxAuditRecord`; the message is already in history, so a
+crash between acceptance and intake loses nothing (19.12). The four A2A event payloads are accepted on
 `SendMessage`: a `Message` is the normal case; a `Task` payload creates or updates the
 task extension data; `TaskStatusUpdateEvent` and `TaskArtifactUpdateEvent` from a remote
 agent are routed to the sub-task record that references that remote task (15.1).
@@ -829,8 +834,9 @@ emit_event, dispatch_hooks, run_remote_agent_turn, poll_channels, monitor_snapsh
   data_converter=pydantic_data_converter, interceptors=[TracingInterceptor()])` from
   `TemporalConfig`; the worker and the server share one client. `temporalio`'s
   `openai-agents` and `google-adk` extras pin `mcp<2` and are never installed.
-- **Lifecycle (19.12, decision-002).** `execute` → `IntakeActivity` → update-with-start →
-  bridge. Heartbeat is a schedule. Channel delivery and persistence are activities.
+- **Lifecycle (19.12, decision-002).** middleware limits → `execute` → update-with-start
+  → workflow drains the mailbox → `intake` activity → loop; bridge streams. Heartbeat is
+  a schedule. Channel delivery and persistence are activities.
 
 ### Surfaces and renderers (R20) — `interaction/`, `renderers/web`
 
@@ -1045,9 +1051,10 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
   and recorded. The deployment guide names the perimeter requirement; the agent card
   declares no security scheme, so no client is told it can authenticate.
 - **Input validation & injection surfaces.**
-  - *A2A ingress*: the SDK parses the protocol types; `IntakeActivity` enforces
+  - *A2A ingress*: the SDK parses the protocol types; a Starlette middleware enforces
     `max_request_bytes` (default 1 MiB) and a token-bucket rate limit per peer address
-    before anything is persisted (abuse case 7).
+    before the request reaches a route, so nothing oversized is persisted (abuse
+    case 7).
   - *Prompt injection* (abuse case 2): tool results, remote-agent messages, channel
     messages and A2UI actions are rendered only inside delimited untrusted blocks with a
     fixed preamble; the only effect text can have is through a tool call the LLM emits,
@@ -1089,7 +1096,7 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
 | 4 non-member on channel / foreign task | membership check, uniform error | `test_non_member_rejected_without_task_existence` |
 | 5 unknown required extension / security scheme on remote card | `RemoteAgent` refusal | `test_remote_card_with_unknown_required_ext_refused` |
 | 6 credential-shaped values | `Redactor` on logs, spans, payloads | `test_redactor_masks_tokens` |
-| 7 oversized / rate-limited request | `IntakeActivity` limits before persistence | `test_oversized_request_not_persisted` |
+| 7 oversized / rate-limited request | middleware limits before any route or Temporal call | `test_oversized_request_not_persisted` |
 | 8 tool schema drift | schema hash check | `test_schema_drift_refuses_invoke` |
 | 9 forged A2UI action ids | surface/component registry | `test_unknown_a2ui_action_discarded` |
 

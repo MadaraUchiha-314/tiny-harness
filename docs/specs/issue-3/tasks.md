@@ -121,7 +121,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 2 — plugins, prompts, skills, built-in plugin (branch `loop/issue-3-l2-plugins`)
 
-- [ ] 10. Agent Plugins manifest models and loader
+- [x] 10. Agent Plugins manifest models and loader
   - `harness/plugins/`: `PluginManifest`, `McpServerDef`, `McpHttpServerDef`,
     `HookDef`, `PromptDef`, `Plugin`, `PluginLoader.load_directory`/`load`, `LoadReport`;
     validation against the published 1.0.0 schemas (vendored under
@@ -130,7 +130,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 4, 5, 8
   - _Requirements:_ R3.1–R3.5, R3.8
   - _Test:_ T2 — `Feature: Plugins`, `Scenario: a directory plugin registers its skills, MCP tools, hooks and prompts`; `Scenario: a programmatic plugin registers the same components`; T1 — malformed manifest, duplicate `(id, version)`
-- [ ] 11. Plugin path and expansion rules (security)
+- [x] 11. Plugin path and expansion rules (security)
   - Path containment for every component and `cwd`; `${PLUGIN_ROOT}`/`${PLUGIN_DATA}`
     expansion in `args`, `env` values, `cwd` only; `${` in `command` is a `PluginError`.
   - _Depends on:_ 10

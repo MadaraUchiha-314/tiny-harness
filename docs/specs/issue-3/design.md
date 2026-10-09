@@ -445,16 +445,35 @@ registration; `invoke` re-lists before calling when the server advertises
 ### Agents, local and remote (R1.1, R7) — `harness/agents/`
 
 ```python
+# Internal typed models (harness/core/a2a_models.py): the only A2A shapes the core sees.
+class TaskState(StrEnum): SUBMITTED = "submitted"; WORKING = "working"; INPUT_REQUIRED = "input_required"; AUTH_REQUIRED = "auth_required"; COMPLETED = "completed"; FAILED = "failed"; CANCELED = "canceled"; REJECTED = "rejected"
+class Part(BaseModel, frozen=True): text: str | None = None; data: JsonObject | None = None; url: HttpUrl | None = None; raw: bytes | None = None; media_type: str | None = None; metadata: JsonObject = {}
+class InboundMessage(BaseModel, frozen=True): message_id: str; context_id: str | None; task_id: str | None; role: Literal["user", "agent"]; parts: tuple[Part, ...]; metadata: JsonObject; extensions: tuple[str, ...]; participant_id: str | None
+class AgentCardModel(BaseModel, frozen=True): name: str; description: str; version: str; url: HttpUrl; extensions: tuple[ExtensionDecl, ...]; streaming: bool; push_notifications: bool; skills: tuple[SkillDecl, ...]
+class StatusUpdate(BaseModel, frozen=True):   task_id: str; context_id: str; state: TaskState; message: InboundMessage | None; final: bool; metadata: JsonObject
+class ArtifactUpdate(BaseModel, frozen=True): task_id: str; context_id: str; artifact_id: str; parts: tuple[Part, ...]; append: bool; last_chunk: bool
+class TaskSnapshot(BaseModel, frozen=True):   id: str; context_id: str; state: TaskState; extension: TaskExtensionData; artifacts: tuple[ArtifactUpdate, ...]
+HarnessEvent = Annotated[InboundMessage | TaskSnapshot | StatusUpdate | ArtifactUpdate, Field(discriminator="kind")]
+
 class Agent(Entity):
-    agent_card: AgentCard
+    agent_card: AgentCardModel
     @abstractmethod
-    def send_message(self, request: Message, *, extensions: Sequence[str] = ()) -> AsyncIterator[A2AEvent]: ...
+    def send_message(self, request: InboundMessage, *, extensions: Sequence[str] = ()) -> AsyncIterator[HarnessEvent]: ...
     @abstractmethod
-    async def cancel_task(self, task_id: str) -> Task: ...
-A2AEvent = Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent
+    async def cancel_task(self, task_id: str) -> TaskSnapshot: ...
 class LocalAgent(Agent):      # the harness itself: send_message = update-with-start + event bridge
 class RemoteAgent(Agent):     # a2a-sdk client; card fetched from /.well-known/agent-card.json
+
+# service/a2a/convert.py — the only module that imports a2a.types:
+def to_proto(event: HarnessEvent) -> a2a.types.StreamResponse
+def from_proto_message(message: a2a.types.Message, *, participant_id: str | None) -> InboundMessage
+def from_proto_card(card: a2a.types.AgentCard) -> AgentCardModel
+def to_proto_card(card: AgentCardModel) -> a2a.types.AgentCard
 ```
+
+Protobuf never crosses into `harness/` or into a workflow payload (22.2, 19.10): the
+server adapter and `RemoteAgent` convert at the edge, and `TaskState` is the harness's
+own enum mapped one to one onto `TASK_STATE_*`.
 
 `RemoteAgent` refuses a card whose `capabilities.extensions` contains `required: true`
 for a URI outside `SUPPORTED_EXTENSIONS` (7.4) and sends `A2A-Extensions` only with
@@ -473,7 +492,7 @@ class Task(BaseModel):
     acceptance_criteria: tuple[AcceptanceCriterion, ...]
     participants: tuple[Participant, ...]
     parent_tasks: tuple[TaskRef, ...]; sub_tasks: tuple[TaskRef, ...]
-    state: TaskState                       # the A2A enum, authoritative (8.2)
+    state: TaskState                       # the harness enum mirroring A2A's, authoritative (8.2)
     plan: Plan | None
 class Step(BaseModel):
     id: str; name: str; description: str; depends_on: tuple[str, ...]
@@ -573,7 +592,7 @@ class HarnessExecutor(AgentExecutor):           # a2a-sdk
 def build_agent_card(agent: LocalAgent, config: ServerConfig) -> AgentCard     # from the entity (14.2)
 SUPPORTED_EXTENSIONS: Final = (TASK_EXT_URI, CHANNEL_EXT_URI, A2UI_EXT_URI)
 class EventBridge(Protocol):
-    def events(self, task_id: str, cursor: int) -> AsyncIterator[tuple[int, A2AEvent]]
+    def events(self, task_id: str, cursor: int) -> AsyncIterator[tuple[int, HarnessEvent]]
 class PollingEventBridge(EventBridge): interval: timedelta = 250 ms   # queries TaskWorkflow.events_since
 def create_app(config: ServerConfig) -> Starlette   # mounts JSON-RPC, REST and agent-card routes
 ```
@@ -754,7 +773,7 @@ class Modality(StrEnum): TEXT = "text"
 class Surface(Entity): modality: Modality; renderer: EntityRef
 class Renderer(Entity):
     supported: frozenset[str]                           # media types / part kinds it renders
-    def render(self, event: A2AEvent) -> RenderPlan     # placeholder for unsupported kinds (20.4)
+    def render(self, event: HarnessEvent) -> RenderPlan     # placeholder for unsupported kinds (20.4)
 ```
 
 Both renderers are A2A clients of the server and nothing else (20.2): the TUI uses

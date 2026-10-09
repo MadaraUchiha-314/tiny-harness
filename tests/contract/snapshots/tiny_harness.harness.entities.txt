@@ -1,0 +1,7 @@
+# tiny_harness.harness.entities
+class Entity(ABC)
+  def __init__(self, ref: 'EntityRef') -> 'None'
+enum EntityKind: PROMPT='prompt', SKILL='skill', TOOL='tool', LLM='llm', SYSTEM_ONE='system_one', HOOK='hook', CHANNEL='channel', RENDERER='renderer', STORE='store', AGENT='agent'
+model EntityRef(kind: <enum 'EntityKind'>, id: <class 'str'>, version: str | None = ...)
+model RemoteLocation(url: <class 'pydantic.networks.HttpUrl'>, protocol: <enum 'TransportProtocol'>)
+enum TransportProtocol: A2A='a2a', MCP='mcp', HTTPS='https'

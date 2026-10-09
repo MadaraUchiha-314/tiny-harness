@@ -67,7 +67,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 1
   - _Requirements:_ R22.3
   - _Test:_ T1 — `tests/unit/test_errors.py` (codes unique, no secret field); T3 — `tests/contract/test_errors_api.py`
-- [ ] 3. Entity base, `EntityRef`, `TransportProtocol`, `RemoteLocation`
+- [x] 3. Entity base, `EntityRef`, `TransportProtocol`, `RemoteLocation`
   - `harness/entities/base.py` per the design; `version: str | None`; a remote
     location requires a protocol.
   - _Depends on:_ 2

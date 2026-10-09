@@ -40,7 +40,7 @@ Three decisions shape everything below:
 Where the requirements name a version "current on 2026-10-09", this design pins:
 `a2a-sdk` 1.2, `mcp` 2.3, `temporalio` 1.34, `openai` 3.27, `anthropic` 1.13,
 `opentelemetry-sdk` 1.45, `textual` 8.2, React 19.3, and **A2UI 0.9.1** (the 1.0
-candidate has no library support: `a2ui-agent-sdk` ships 0.8–0.9.1 catalogs only, so the
+candidate has no library support: the official renderers and SDKs cover 0.8–0.9.1 only, so the
 approver's rule picks 0.9.1). Every signature quoted below was read from the installed
 packages on Python 3.14.7, where all of them import. Exact pins land in `pyproject.toml`
 and `renderers/web/package.json` at implementation; the testing plan verifies them.
@@ -898,20 +898,24 @@ events (20.3). Layout, states and interactions are the HTML prototypes in the UI
 inventory below. A2UI (20.5–20.6): **version 0.9.1**, extension URI
 `https://a2ui.org/a2a-extension/a2ui/v0.9.1`, parts of media type
 `application/a2ui+json`, card params `supportedCatalogIds` and `acceptsInlineCatalogs`.
-The 1.0 candidate has no library support (`a2ui-agent-sdk` 0.2.4 bundles 0.8, 0.9 and
-0.9.1 catalogs only), which is the approver's stated condition for staying on 0.9.
-`a2ui-agent-sdk` itself is **not a dependency**: its A2A part helpers import the 0.3.x
-pydantic types and fail against `a2a-sdk` 1.2, and it drags in `google-adk` and
-`google-genai`. The harness vendors the 0.9.1 `catalog.json`, `common_types.json` and
-`server_to_client.json` (Apache-2.0, with attribution) under `interaction/a2ui/schemas/`
-and validates with `jsonschema`. `interaction/a2ui/` holds `UiMessage` models for the four
-server messages (`createSurface`, `updateComponents`, `updateDataModel`,
-`deleteSurface`) and the two client messages (`action`, `error`), the `emit_ui`
-intrinsic tool, and action intake (abuse case 9: a surface or component id the task did
-not create is discarded). Each renderer implements the basic catalog on its own
-widget set: Textual widgets in `interaction/tui/a2ui.py` (Video and AudioPlayer render
-the placeholder), React components in `renderers/web/src/a2ui/` (no React renderer
-exists upstream; the Lit renderer is kept as a reference only). MCP Apps: `Renderer.
+The 1.0 candidate has no library support (the official renderers and SDKs implement the
+0.9 family), which is the approver's stated condition for staying on 0.9. **Renderers use
+the official A2UI renderer and the default catalog, nothing else:** the web renderer
+takes `@a2ui/react` (0.10.x) with `@a2ui/web_core`, its `MessageProcessor` fed with the
+`application/a2ui+json` parts and its `A2uiSurface` rendering the bundled `basicCatalog`;
+user actions come back through the renderer's action callback and are sent as A2A
+messages. No A2UI component is hand-written for the web. The TUI has no official
+renderer, so `interaction/tui/a2ui.py` maps the basic catalog onto Textual widgets
+(Video and AudioPlayer render the placeholder). **On the agent side no A2UI SDK is
+used:** the Python `a2ui-agent-sdk` targets the 0.3.x A2A types and fails to import
+against `a2a-sdk` 1.2 (and depends on `google-adk`), and A2A ≥ 1.0 is non-negotiable. The
+harness emits A2UI payloads itself through the `emit_ui` intrinsic: `interaction/a2ui/`
+holds typed models for the four server messages (`createSurface`, `updateComponents`,
+`updateDataModel`, `deleteSurface`) and the two client messages (`action`, `error`),
+validates every payload against the 0.9.1 `catalog.json`, `common_types.json` and
+`server_to_client.json` vendored (Apache-2.0, with attribution) under
+`interaction/a2ui/schemas/`, and discards an action whose surface or component id the
+task did not create (abuse case 9). MCP Apps: `Renderer.
 supported` can declare `text/html;profile=mcp-app` later; nothing else is built (20.7).
 
 ### Configuration (R21) — `config.py`
@@ -971,7 +975,7 @@ The e2e `.env.example` documents the two `secret-tool` lookups (21.1).
 | R17 | `service/o11y/` plugin, `Redactor` |
 | R18 | `models/` (`LLM`, `OpenAILLM`, `AnthropicLLM`, `SystemOne`, `FakeSystemOne`) |
 | R19 | `service/durable/` (workflows, activities, worker, retry policies) |
-| R20 | `interaction/` (surface, renderer, `tui/`, `a2ui/`), `renderers/web` |
+| R20 | `interaction/` (surface, renderer, `tui/`, `a2ui/`), `renderers/web` on `@a2ui/react` |
 | R21 | `config.py`, `.env.example` |
 | R22 | package layout above; pyright strict; boundary parsers in each adapter |
 | R23 | `tests/contract/` per interface; JSON schemas for extensions |
@@ -1249,7 +1253,8 @@ Which types apply, the environment and the evidence plan are `testing-plan.md`'s
 | `textual` | TUI | R20.2 |
 | `packaging` | PEP 440 resolution | transitive via `openai`, used directly |
 | `pyyaml` | skill and prompt front matter | already a dev dependency; `tomllib` cannot parse YAML |
-| `a2ui-agent-sdk` | **not added**: incompatible with `a2a-sdk` 1.x and pulls `google-adk`; its 0.9.1 catalog schemas are vendored | R20.5 |
+| `a2ui-agent-sdk` (Python) | **not added**: incompatible with `a2a-sdk` 1.x and pulls `google-adk`; the harness emits payloads itself against the vendored 0.9.1 schemas | R20.5, A2A ≥ 1.0 |
+| `@a2ui/react`, `@a2ui/web_core` (web) | the official A2UI React renderer and default catalog | R20.5–20.6 |
 | `typesafe-sdk` | **not added**: the interface only, no client in this work item | Q3 answer |
 | `langfuse` | **not added**: OTLP export reaches Langfuse | R17.5 |
 | `react`, `vite`, `typescript` (web) | web renderer | R20.2 |
@@ -1276,12 +1281,12 @@ For the design-approval gate (raised by the design critic round, recorded in
 `evidence/design-critic-review.md`):
 
 1. **R22.4 and A2UI.** Requirement 22.4 names A2UI among the constructs that must use
-   the official SDK. The official `a2ui-agent-sdk` (0.2.4) imports the 0.3.x pydantic
-   A2A types and fails against `a2a-sdk` 1.2, and it depends on `google-adk` and
-   `google-genai`. The design vendors the 0.9.1 catalog schemas instead. **Asked:** amend
-   R22.4 to list A2UI with Skills and Plugins as "own implementation against the
-   published schema", or direct the design to take the SDK and carry the conflict.
-   Default if unanswered: the amendment.
+   the official SDK. The design uses the official A2UI renderer (`@a2ui/react` with
+   `@a2ui/web_core` and its default catalog) on the web, but not the Python agent-side
+   `a2ui-agent-sdk`, which imports the 0.3.x A2A types and fails against `a2a-sdk` 1.2;
+   the harness emits payloads itself against the vendored 0.9.1 schemas. **Asked:** record
+   that reading of R22.4 (official renderer yes, agent SDK no, A2A ≥ 1.0 untouched).
+   Default if unanswered: recorded.
 2. **R24.5 crash points.** The design states the at-least-once window for a provider call
    when a worker dies between the provider's reply and Temporal recording it, and proves
    "no duplicated LLM or tool call" at the demo's two kill points (idempotent tool

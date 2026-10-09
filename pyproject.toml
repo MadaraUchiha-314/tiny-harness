@@ -8,9 +8,11 @@ license-files = ["LICENSE"]
 authors = [{ name = "MadaraUchiha-314" }]
 requires-python = ">=3.14"
 dependencies = [
+    "anthropic>=1.13.0",
     "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "mcp>=2.3.0",
+    "openai>=3.28.0",
     "packaging>=26.3",
     "pydantic>=2.14.0",
     "pyyaml>=6.0.3",

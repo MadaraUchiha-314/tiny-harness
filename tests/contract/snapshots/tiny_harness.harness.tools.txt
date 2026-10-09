@@ -1,0 +1,17 @@
+# tiny_harness.harness.tools
+model ContentPart(kind: typing.Literal['text', 'data'], text: str | None = ..., data: JsonObject | None = ..., media_type: str | None = ...)
+enum Execution: ACTIVITY='activity', INTRINSIC='intrinsic'
+enum Idempotency: IDEMPOTENT='idempotent', NOT_IDEMPOTENT='not_idempotent'
+class Tool(Entity)
+  def __init__(self, ref: 'EntityRef', definition: 'ToolDefinition') -> 'None'
+  def invoke(self, call: 'ToolCall') -> 'ToolResult | WorkflowCommand'
+model ToolCall(call_id: <class 'str'>, name: <class 'str'>, arguments: JsonObject)
+model ToolDefinition(name: <class 'str'>, description: <class 'str'>, input_schema: JsonSchema, output_schema: JsonSchema | None = ..., idempotency: <enum 'Idempotency'> = ..., execution: <enum 'Execution'> = ...)
+class ToolInvoker(object)
+  def __init__(self, registry: 'Registry') -> 'None'
+  def invoke(self, call: 'ToolCall') -> 'ToolResult | WorkflowCommand'
+model ToolResult(call_id: <class 'str'>, content: tuple[tiny_harness.harness.tools.models.ContentPart, ...], is_error: <class 'bool'> = ..., untrusted: typing.Literal[True] = ...)
+model WorkflowCommand(kind: typing.Literal['attach_plan', 'complete_step', 'wait_for_reply', 'spawn_subtask', 'create_participant_task', 'set_role', 'skill_loaded', 'skill_unloaded', 'ui_emitted'], call_id: <class 'str'>, payload: JsonObject, result: <class 'tiny_harness.harness.tools.models.ToolResult'>)
+def definition_json(definition: 'ToolDefinition') -> 'str'
+def resolve_tool(registry: 'Registry', name: 'str') -> 'Tool'
+def validate_arguments(definition: 'ToolDefinition', call: 'ToolCall') -> 'None'

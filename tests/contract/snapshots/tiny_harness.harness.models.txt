@@ -1,0 +1,35 @@
+# tiny_harness.harness.models
+class LLM(Entity)
+  def __init__(self, ref: 'EntityRef', info: 'LLMModelInfo') -> 'None'
+  def invoke(self, request: 'LLMRequest') -> 'LLMResponse'
+  def stream(self, request: 'LLMRequest') -> 'AsyncIterator[LLMStreamEvent]'
+Answer = TypeAliasType
+model ChoiceAnswer(kind: typing.Literal['choice'] = ..., choice: <class 'str'>, confidence: <class 'float'>, probabilities: collections.abc.Mapping[str, float])
+model ChoiceQuestion(kind: typing.Literal['choice'] = ..., instructions: <class 'str'>, options: collections.abc.Mapping[str, str])
+class FakeLLM(LLM)
+  def __init__(self, responses: 'Sequence[LLMResponse]', *, model: 'str' = 'fake-1') -> 'None'
+  def invoke(self, request: 'LLMRequest') -> 'LLMResponse'
+  def stream(self, request: 'LLMRequest') -> 'AsyncIterator[LLMStreamEvent]'
+class FakeSystemOne(SystemOne)
+  def __init__(self, scripted: 'Mapping[str, Answer] | None' = None) -> 'None'
+  def decide(self, state: 'str', questions: 'Mapping[str, Question]', *, timeout: 'timedelta') -> 'Mapping[str, Answer]'
+enum FinishReason: STOP='stop', TOOL_CALLS='tool_calls', LENGTH='length', REFUSAL='refusal'
+InputItem = TypeAliasType
+model LLMModelInfo(provider: <class 'str'>, model: <class 'str'>, context_window_tokens: <class 'int'>, min_cacheable_tokens: <class 'int'> = ...)
+model LLMRequest(instructions: <class 'str'>, input: tuple[InputItem, ...], tools: tuple[tiny_harness.harness.tools.models.ToolDefinition, ...] = ..., response_format: JsonSchema | None = ..., cache_key: str | None = ..., max_output_tokens: int | None = ...)
+model LLMResponse(output_text: <class 'str'>, tool_calls: tuple[tiny_harness.harness.tools.models.ToolCall, ...], usage: <class 'tiny_harness.harness.models.llm.Usage'>, model: <class 'str'>, finish: <enum 'FinishReason'>)
+model LLMStreamEvent(kind: typing.Literal['text_delta', 'tool_call', 'done'], text: str | None = ..., call: tiny_harness.harness.tools.models.ToolCall | None = ..., response: tiny_harness.harness.models.llm.LLMResponse | None = ...)
+model MessageItem(kind: typing.Literal['message'] = ..., role: <enum 'Role'>, text: <class 'str'>)
+model NoulAnswer(kind: typing.Literal['noul'] = ..., probability: <class 'float'>)
+model NoulQuestion(kind: typing.Literal['noul'] = ..., instructions: <class 'str'>)
+Question = TypeAliasType
+enum Role: USER='user', ASSISTANT='assistant'
+model ScoreAnswer(kind: typing.Literal['score'] = ..., score: <class 'float'>, confidence: <class 'float'>, probabilities: collections.abc.Mapping[int, float])
+model ScoreQuestion(kind: typing.Literal['score'] = ..., instructions: <class 'str'>, levels: tuple[str, ...])
+class SystemOne(Entity)
+  def decide(self, state: 'str', questions: 'Mapping[str, Question]', *, timeout: 'timedelta') -> 'Mapping[str, Answer]'
+model ToolCallItem(kind: typing.Literal['tool_call'] = ..., call: <class 'tiny_harness.harness.tools.models.ToolCall'>)
+model ToolResultItem(kind: typing.Literal['tool_result'] = ..., result: <class 'tiny_harness.harness.tools.models.ToolResult'>)
+model Usage(input_tokens: <class 'int'>, cached_tokens: <class 'int'>, output_tokens: <class 'int'>)
+def extract_tool_calls(response: 'LLMResponse') -> 'tuple[ToolCall, ...]'
+def scripted(text: 'str' = '', *, tool_calls: 'Sequence[ToolCall]' = (), input_tokens: 'int' = 100, cached_tokens: 'int' = 0, output_tokens: 'int' = 10, model: 'str' = 'fake-1') -> 'LLMResponse'

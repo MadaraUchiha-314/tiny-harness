@@ -162,7 +162,9 @@ flowchart TD
   compact0 --> ctx
   cmp0 -- no --> llm["invoke_llm (activity)"]
   llm --> tc{tool calls?}
-  tc -- none --> fin["final status (activity: emit_event)"]
+  tc -- none --> done{"task.complete.in:<br/>sub-tasks resolved?"}
+  done -- wait --> wait2["wait_condition(children resolved)"] --> done
+  done -- complete --> fin["final status (activity: emit_event)"]
   tc -- any tool --> act["invoke_tool (activity: validate, hooks, body)"]
   act -- MCP result --> rec["append results to history"]
   act -- WorkflowCommand --> intr["apply command in workflow: attach plan / wait / spawn child / mark loaded skill"]
@@ -604,7 +606,12 @@ and the membership rule (13.3). `help.decided.in` default body: route `ASK` when
 need's options fit one message and no acceptance criterion depends on another
 participant's work, else `CREATE_TASK`; an executor can replace it (12.4). `ASK` is the
 intrinsic `ask_participant`: it emits the help message, sets `INPUT_REQUIRED`, and the
-workflow `wait_condition`s on the reply update (12.2, 12.5, 12.6). `CREATE_TASK` is the
+workflow `wait_condition`s on the reply update (12.2, 12.5, 12.6). Completion (8.5): when the LLM emits no tool call, the workflow runs `task.complete.in`
+with the list of unresolved sub-tasks (local children and remote tasks not in a terminal
+state, `INPUT_REQUIRED` and `AUTH_REQUIRED` included); the default `CompletionDecision`
+is `wait` while any is unresolved (the workflow `wait_condition`s on child completion,
+then re-evaluates), and `complete` otherwise; an executor can return `complete` or
+`fail(reason)` instead. `CREATE_TASK` is the
 intrinsic `create_task_for_participant`: a `create_participant_task` command, on which
 the workflow starts a child task workflow assigned to that participant and links it as a
 sub-task (12.3). Every intrinsic therefore passes `invoke_tool`'s validation and the

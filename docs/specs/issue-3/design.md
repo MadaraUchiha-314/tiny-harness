@@ -776,7 +776,18 @@ emit_event, dispatch_hooks, run_remote_agent_turn, poll_channels, monitor_snapsh
   runs on another worker.
 - **Replay safety (19.2).** Activities return typed results recorded in history; the
   workflow never calls a model or a tool directly. Tool-call extraction is a pure function
-  of the recorded `LLMResponse`.
+  of the recorded `LLMResponse`. **The residual window:** an activity is at-least-once,
+  so a worker that dies after the provider answered but before Temporal recorded the
+  result re-runs the call on the next attempt. For `invoke_llm` that is one duplicated
+  provider call (cost, no state change: `store=False`); for a `NOT_IDEMPOTENT` tool the
+  retry path refuses, so the step fails with `ToolNotRetriedError` rather than
+  duplicating a side effect. No external idempotency key closes the LLM window (the
+  Responses API offers none), so the design states it rather than claiming otherwise.
+  The demo (24.5) kills the worker at two points where the guarantee holds and is
+  observable: during an idempotent fixture tool's activity, and during the
+  `INPUT_REQUIRED` wait; the trace proves one LLM span and one tool span per step across
+  the restart. The approver confirms this narrowing at design-approval (raised in Open
+  questions).
 - **Multi-turn (19.7).** The `inbox` update appends to the mailbox; the loop awaits
   `workflow.wait_condition(lambda: self.mailbox)` while `INPUT_REQUIRED`, consuming no
   worker slot.

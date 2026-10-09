@@ -13,7 +13,6 @@ dependencies = [
     "mcp>=2.3.0",
     "packaging>=26.3",
     "pydantic>=2.14.0",
-    "pydantic-settings>=2.15.0",
     "pyyaml>=6.0.3",
 ]
 classifiers = [

@@ -27,7 +27,7 @@ the task; results are recorded in `evidence/verification.md`.
   - _Depends on:_ 1
   - _Requirements:_ R1.5, R2.1–R2.3
   - _Test:_ `uv run pytest tests/unit/test_hello.py` (red→green)
-- [ ] 3. Integration test: built wheel installs and imports
+- [x] 3. Integration test: built wheel installs and imports
   - `tests/integration/test_package.py` with a Gherkin docstring linked to R2.
   - _Depends on:_ 2
   - _Requirements:_ R1.5, R2.4

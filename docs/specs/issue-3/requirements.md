@@ -2,8 +2,8 @@
 type: requirements
 phase: requirements-definition
 workItem: issue-3
-status: draft
-approvedBy: []
+status: approved
+approvedBy: ["MadaraUchiha-314"]
 collaborators: [product-manager, architect, engineer, reviewer, approver]
 overrides: {}
 ---
@@ -252,6 +252,8 @@ so that the harness's voice and rules are mine without rewriting the loop.
    sections, through the prompt entity of Requirement 1.
 3. WHEN the context window is assembled THEN the system SHALL place the system prompt at
    a fixed, templated position (Requirement 10).
+4. The default system prompt SHALL be stored as a markdown file shipped with the package
+   (not a string in code), so it can be read, diffed and overridden as a document.
 
 ### Requirement 5 — Skills (Agent Skills specification)
 
@@ -439,8 +441,8 @@ never blocks my queue with a one-line question.
    complete THEN the system SHALL create a task assigned to that participant
    (Requirement 8), link it as a sub-task, and continue or wait as the plan dictates.
 4. The system SHALL decide between criterion 2 and criterion 3 through a hooked
-   operation whose default is replaceable; the default MAY use the System One model
-   (Requirement 18).
+   operation whose default is replaceable; the default SHALL use the LLM, not the System
+   One model (Requirement 18.2).
 5. WHEN a reply to a help request arrives THEN the system SHALL resume the waiting task
    with the reply in context and move it out of `INPUT_REQUIRED`.
 6. WHILE a task waits for input THEN the system SHALL survive a process restart and
@@ -499,8 +501,11 @@ verb of the specification, so that any A2A client can drive it.
    what is reused and what is replaced; sherma targets `a2a-sdk` 0.3.x, so the port to
    the 1.x SDK (protobuf-generated types, route factories, `A2A-Version`) is part of
    the design.
-9. The system SHALL authenticate requests under the security schemes the agent card
-   declares; the scheme for the demo is Open question Q4.
+9. The system SHALL NOT implement authentication in this work item: requests are
+   assumed authenticated by the enterprise's existing perimeter (a gateway or reverse
+   proxy in front of the server), the agent card declares no security scheme, and the
+   design SHALL leave the A2A SDK's standard security-scheme mechanism as the later
+   integration point (Open question Q4, answered).
 
 ### Requirement 15 — Inbox and events
 
@@ -580,8 +585,10 @@ behind one interface, so that provider choice is configuration.
    SHALL accommodate Anthropic's Messages API without change.
 2. The system SHALL define a System One model entity that answers typed questions about
    a state (yes/no, choice among options, rubric score) with a probability and a
-   confidence per answer; the first implementation SHALL be TypeSafe AI's Jev through
-   `typesafe-sdk`, and a deterministic fake SHALL exist for tests.
+   confidence per answer, with TypeSafe AI's Jev (`typesafe-sdk`) as the shape the
+   interface is designed against; the core loop SHALL NOT call a System One model in this
+   work item (the interface and a deterministic fake ship; the Jev client and its use in
+   the loop are a later work item, Open question Q3, answered).
 3. WHEN a provider SDK raises a retryable error THEN the system SHALL surface it as a
    typed retryable failure to durable execution (Requirement 19), and the provider
    client's own retries SHALL be disabled so one layer owns retrying.
@@ -631,9 +638,12 @@ retries with declared guarantees, so that a pod restart never loses or duplicate
 11. The system SHALL connect to Temporal Cloud with TLS and an API key supplied by the
     environment; the e2e configuration SHALL be namespace `tiny-harness.gtebu`, address
     `tiny-harness.gtebu.tmprl.cloud:7233` and the key from `TEMPORAL_API_KEY`.
-12. The A2A executor's `execute` SHALL start or signal the workflow and return; the
+12. Temporal SHALL cover the whole request lifecycle, not only the core loop: the A2A
+    executor's `execute` SHALL start or signal a workflow and return, inbox intake,
+    heartbeat ticks and channel delivery SHALL be workflow or activity code, and the
     design SHALL state how the workflow's task updates reach the A2A event queue of a
-    streaming request and the push notification configs of Requirement 15.
+    streaming request and the push notification configs of Requirement 15 (Open
+    question Q6, answered).
 
 ### Requirement 20 — Surfaces and renderers
 
@@ -650,10 +660,12 @@ and from a web page at the same time, so that the surface is my choice.
    same task updates.
 4. WHEN a renderer receives a message or artifact kind it cannot render THEN it SHALL
    show a typed placeholder naming the kind and SHALL NOT drop the item.
-5. The system SHALL implement the A2UI A2A extension at version 0.9.1
-   (<https://a2ui.org/>): the harness advertises the extension URI and its supported
-   catalog ids in the agent card, emits A2UI messages as `application/a2ui+json` data
-   parts, and accepts user actions as A2A messages carrying the same part type.
+5. The system SHALL implement the A2UI A2A extension (<https://a2ui.org/>) at version
+   1.0 WHEN the A2UI SDKs and renderer packages the design selects support 1.0,
+   otherwise at 0.9.1 (Open question Q7, answered); the design SHALL record which and
+   why. The harness advertises the extension URI and its supported catalog ids in the
+   agent card, emits A2UI messages as `application/a2ui+json` data parts, and accepts
+   user actions as A2A messages carrying the same part type.
 6. Both renderers SHALL render the A2UI basic catalog (Text, Image, Icon, Video,
    AudioPlayer, Row, Column, List, Card, Tabs, Divider, Modal, Button, CheckBox,
    TextField, DateTimeInput, ChoicePicker, Slider); a component the TUI cannot represent
@@ -759,8 +771,8 @@ so that acceptance is an observation rather than an inference from tests.
   absent, never silently passed.
 - **Cost.** Context assembly ordered for prefix caching (Requirement 10); the design
   SHALL state the token budget per turn it targets for the demo.
-- **Latency.** System One decisions SHALL be bounded by a configured timeout and fall
-  back to the LLM path on timeout.
+- **Latency.** The System One interface SHALL carry a timeout, so that a later
+  integration into the loop can fall back to the LLM path on timeout.
 - **Documentation.** Every public interface has a docstring; `docs/capabilities/` gains
   one doc per requirement group; the docs site gets a getting-started page for the demo.
 - **Portability.** The harness SHALL run without a file system or shell tool present.
@@ -786,8 +798,10 @@ so that acceptance is an observation rather than an inference from tests.
     reached with credentials.
   - The operator. Trusted.
 - **Trust boundaries & data:**
-  - The A2A server is the public ingress; every request must be authenticated under the
-    security schemes the agent card declares before it reaches the inbox.
+  - The A2A server is the ingress. Authentication is deferred by the approver's decision:
+    the harness assumes the enterprise's perimeter authenticates every request before it
+    arrives, and the A2A SDK's security-scheme mechanism is the later integration point.
+    Every other boundary below holds regardless.
   - Channel messages cross from participants into the task's context; membership is the
     boundary.
   - Tool results, remote-agent messages and A2UI actions cross into the LLM context;
@@ -805,9 +819,9 @@ so that acceptance is an observation rather than an inference from tests.
     in Temporal event history and traced; the persistence store, Temporal Cloud and the
     trace exporter are the data boundary, and the design states the retention of each.
 - **Abuse cases (EARS):**
-  1. WHEN an unauthenticated client calls any A2A operation other than agent-card
-     discovery THEN the system SHALL reject the request with the protocol's
-     authentication error and SHALL NOT create a task or persist the message.
+  1. Deferred with authentication (Open question Q4): the perimeter rejects
+     unauthenticated clients. The harness SHALL document that it must not be exposed
+     without one.
   2. WHEN a message, tool result, remote-agent artifact or A2UI action contains text
      instructing the harness to call a tool, change a participant's role, or reveal a
      secret THEN the system SHALL treat it as data: a tool call SHALL be executed only
@@ -833,8 +847,8 @@ so that acceptance is an observation rather than an inference from tests.
   9. WHEN an A2UI action names a surface or component id the harness did not create
      THEN the system SHALL discard the action and record it.
 - **Fail closed:**
-  - No authentication configured on the A2A server: serve only on loopback and log a
-    warning; refuse a non-loopback bind.
+  - No perimeter in front of the A2A server: the deployment documentation names this as
+    the operator's responsibility; the harness itself binds where configured.
   - Missing secret, missing Temporal configuration, unknown configuration key: refuse to
     start.
   - Unresolvable entity reference, unknown hook point, plugin manifest error: refuse the
@@ -849,7 +863,12 @@ so that acceptance is an observation rather than an inference from tests.
 - The Self-improvement column (simulation, evaluation, optimization): the ticket marks it
   TBD.
 - Memory and Sandbox, which appear on the diagram but not in the ticket text (Open
-  questions, Q2).
+  question Q2, answered: out of scope).
+- Authentication and authorization of A2A requests (Open question Q4, answered: the
+  enterprise perimeter handles it; A2A's security schemes are the later integration
+  point).
+- Calling a System One model from the core loop (Open question Q3, answered: interface
+  and fake only).
 - Voice and video modalities; MCP Apps rendering (interface room only, Requirement 20).
 - The A2A gRPC binding.
 - Exercising Anthropic end to end (no key available); the interface accommodates it.
@@ -860,7 +879,9 @@ so that acceptance is an observation rather than an inference from tests.
 
 ## Open questions
 
-Raised for the requirements-approval gate; each answer is recorded here by the gate.
+Raised for the requirements-approval gate. Answered by @MadaraUchiha-314 in the review of
+PR #6 on 2026-10-09; each answer is recorded under its question and folded into the
+requirement it concerns.
 
 1. **Split or single.** This work item is an epic. Should it stay one work item with one
    design and one task DAG, or become a parent with child issues per requirement group
@@ -868,25 +889,41 @@ Raised for the requirements-approval gate; each answer is recorded here by the g
    and durable execution; renderers)? The requirements are numbered so either works; the
    design and task DAG differ in shape. Default if unanswered: one work item, tasks
    sequenced by requirement group.
+   **Answer:** one work item, delivered as stacked pull requests
+   ([thread](https://github.com/MadaraUchiha-314/tiny-harness/pull/6#discussion_r4232187888)).
 2. **Memory and Sandbox.** The diagram shows both beside Tools; the ticket text does not
    mention them. Are they in scope for this work item? Default: out of scope, interface
    room left in the tool entity.
+   **Answer:** out of scope
+   ([thread](https://github.com/MadaraUchiha-314/tiny-harness/pull/6#discussion_r4232190812)).
 3. **Jev access.** Jev is TypeSafe AI's System One model, in early access behind a
    waitlist. Is a `TYPESAFE_API_KEY` available for verification? Default: implement the
    Jev client against the published API, verify it with a recorded fixture, and mark the
    live test as skipped when the key is absent.
+   **Answer:** build the interfaces for System One models like Jev, but do not integrate
+   one into the harness loop yet
+   ([thread](https://github.com/MadaraUchiha-314/tiny-harness/pull/6#discussion_r4232198451)).
 4. **A2A security scheme.** Which authentication scheme should the demo's A2A server
    require (API key header, OAuth2, mTLS)? Default: API key header, declared in the
    agent card.
+   **Answer:** no authentication in tiny-harness for now; enterprises bring their own
+   mechanisms, requests are assumed authenticated, and A2A's standard way is used later
+   ([thread](https://github.com/MadaraUchiha-314/tiny-harness/pull/6#discussion_r4232217632)).
 5. **Renderers' location.** Should the web renderer (React) live in this repository or in
    a sibling repository? Default: this repository, under a `renderers/web` directory,
    with its own toolchain.
+   **Answer:** not raised in review; the default stands.
 6. **Temporal in the request lifecycle.** The ticket asks whether Temporal covers only the
    core loop or the whole request lifecycle. Requirement 19.12 leaves the mechanism to
    the design; is there a preference, or is the design free to choose?
+   **Answer:** Temporal in the whole request lifecycle
+   ([thread](https://github.com/MadaraUchiha-314/tiny-harness/pull/6#discussion_r4232245824)).
 7. **A2UI version.** 0.9.1 is the released specification; 1.0 is a release candidate
    that renames theme properties and adds action responses. Target 0.9.1 (default) or
    the 1.0 candidate?
+   **Answer:** 1.0 if the libraries support it, to future-proof; 0.9 if library support
+   is lacking
+   ([thread](https://github.com/MadaraUchiha-314/tiny-harness/pull/6#discussion_r4232298314)).
 
 ## Review comments
 
@@ -894,3 +931,25 @@ Raised for the requirements-approval gate; each answer is recorded here by the g
 > comments (issue-109). Append-only and attributed: an approval never silently
 > discards a reviewer's suggestions, and the feedback travels with the document
 > it concerns rather than living in a side-channel tracker.
+
+### 2026-10-09 — approved
+
+**@MadaraUchiha-314** wrote:
+
+looks good minor feedback.
+
+Inline review comments on PR #6, by the same reviewer, folded into the document above
+(the-loop recorded them here for provenance):
+
+- Requirement 4: "I want to do a nit pick kinda requirement that the default system
+  prompt should be stored as a markdown file" → criterion 4.4 added.
+- Q1: "Since work item. Use stacked PRs to deliver" → recorded under Q1.
+- Q2: "out of scope" → recorded under Q2 and Out of scope.
+- Q3: "Let's build the interfaces for integration of SystemOne models like Jev but
+  let's not integrate that in our harness loop yet" → 18.2, 12.4 and the latency bullet
+  revised.
+- Q4: "Let's not build authentication into tiny-harness for now. … Assume requests are
+  unauthenticated for now." → 14.9, the security section and Out of scope revised.
+- Q6: "I also prefer temporal to be in the whole request lifecycle" → 19.12 revised.
+- Q7: "If we have library support for v1.0, I would prefer to future proof this. If the
+  library support of 1.0 is lacking, let's go with 0.9" → 20.5 revised.

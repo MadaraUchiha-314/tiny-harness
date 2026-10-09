@@ -1,4 +1,4 @@
-"""The plugin loader (R3.1–R3.9): discover, validate, contain, expand, register.
+"""The plugin loader (R3.1-R3.9): discover, validate, contain, expand, register.
 
 Loading follows the specification's rules: a manifest that fails its schema is fatal
 for the whole plugin (``PluginError``, nothing loaded); a component that fails loads is

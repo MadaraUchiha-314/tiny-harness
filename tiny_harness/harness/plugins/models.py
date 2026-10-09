@@ -1,4 +1,4 @@
-"""Agent Plugins 1.0.0 manifest models and the tiny-harness namespace (R3.1–R3.3).
+"""Agent Plugins 1.0.0 manifest models and the tiny-harness namespace (R3.1-R3.3).
 
 A plugin is a directory with ``plugin.json``, optional ``skills/<name>/SKILL.md``
 directories and an optional ``mcp.json``. Hooks and prompts are outside the

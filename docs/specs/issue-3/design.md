@@ -190,7 +190,7 @@ class EntityRef(BaseModel, frozen=True):
     id: str
     version: str | None = None          # PEP 440 specifier; "*" = latest concrete
 
-class Protocol(StrEnum):
+class TransportProtocol(StrEnum):
     A2A = "a2a"; MCP = "mcp"; HTTPS = "https"
 
 class Entity(ABC):
@@ -207,7 +207,7 @@ class RegistryEntry[T: Entity](BaseModel):
 
 class RemoteLocation(BaseModel, frozen=True):
     url: HttpUrl
-    protocol: Protocol
+    protocol: TransportProtocol
 
 class Registry:
     async def add(self, entry: RegistryEntry[Entity], *, override: bool = False) -> None
@@ -256,14 +256,41 @@ class HookContext(BaseModel):
     entity: EntityRef | None            # the entity the operation acts on
     attempt: int = 1
 
-class LLMInvokedPre(HookContext):  request: LLMRequest
-class LLMInvokedPost(HookContext): request: LLMRequest; response: LLMResponse
-class ToolInvokedPre(HookContext): call: ToolCall           # one call; veto by raising HookAbort
-class ToolInvokedPost(HookContext): call: ToolCall; result: ToolResult
-# … one Pre/Post pair per Operation, plus an In context for the replaceable bodies:
-class PlanCreatedIn(HookContext):   task: Task; result: Plan | None = None
-class HelpDecidedIn(HookContext):   need: HelpNeed; result: HelpRoute | None = None
-class CompactionIn(HookContext):    window: ContextWindow; result: ContextWindow | None = None
+# One Pre/Post context pair per operation (Post = Pre fields + the result), and an In
+# context for every replaceable body. The full catalogue, which the contract test pins:
+class RequestReceivedPre(HookContext):   message: InboundMessage
+class TaskCreatedPre(HookContext):       task: Task
+class TaskStateChangedPre(HookContext):  task_id: str; before: TaskState; after: TaskState
+class ContextCreatedPre(HookContext):    state: AgentState
+class ContextCreatedPost(ContextCreatedPre): window: ContextWindow
+class LLMInvokedPre(HookContext):        request: LLMRequest
+class LLMInvokedPost(LLMInvokedPre):     response: LLMResponse
+class ToolCallsExtractedPre(HookContext): response: LLMResponse; calls: tuple[ToolCall, ...]
+class ToolInvokedPre(HookContext):       call: ToolCall           # one call; veto by raising HookAbort
+class ToolInvokedPost(ToolInvokedPre):   result: ToolResult
+class SystemOneInvokedPre(HookContext):  state: str; questions: Mapping[str, Question]
+class SystemOneInvokedPost(SystemOneInvokedPre): answers: Mapping[str, Answer]
+class PlanCreatedIn(HookContext):        task: Task; result: Plan | None = None
+class StepStartedPre(HookContext):       step: Step
+class StepFinishedPre(HookContext):      step: Step; output: str | None
+class SubtaskSpawnedPre(HookContext):    parent: TaskRef; child: TaskRef
+class HelpRequestedPre(HookContext):     need: HelpNeed
+class HelpDecidedIn(HookContext):        need: HelpNeed; result: HelpDecision | None = None
+class ChannelSentPre(HookContext):       message: ChannelMessage
+class ChannelReceivedPre(HookContext):   message: ChannelMessage
+class CompactionTriggerIn(HookContext):  window: ContextWindow; model: LLMModelInfo; result: bool | None = None
+class CompactionKeepIn(HookContext):     window: ContextWindow; result: frozenset[str] | None = None   # section names
+class CompactionSummariseIn(HookContext): window: ContextWindow; keep: frozenset[str]; result: ContextWindow | None = None
+class PersistenceReadPre(HookContext):   kind: str; id: str
+class PersistenceWriteIn(HookContext):   record: Record; result: Literal["stored"] | None = None   # replaceable target (R9.4)
+class ActivityFailedPre(HookContext):    activity: str; error: ErrorInfo; policy: RetryPolicySpec
+class ActivityRetriedPre(HookContext):   activity: str; policy: RetryPolicySpec; next_delay: timedelta   # rewrite policy/delay
+class HeartbeatTickPre(HookContext):     snapshot: MonitorSnapshot
+class ShutdownPre(HookContext):          reason: str
+class SkillLoadedPre(HookContext):       skill: EntityRef
+class SkillUnloadedPre(HookContext):     skill: EntityRef
+class AgentInvokedPre(HookContext):      agent: EntityRef; message: InboundMessage
+class TaskCompleteIn(HookContext):       task: Task; unresolved: tuple[TaskRef, ...]; result: CompletionDecision | None = None
 
 class HookAbort(Exception):
     """Raised by an executor to cancel the operation; carries a typed reason."""
@@ -324,8 +351,17 @@ class McpServerDef(BaseModel, extra="forbid"):        # discriminated on `type`
     type: Literal["stdio"]; command: str; args: list[str] = []; env: dict[str, str] = {}; cwd: str | None = None
 class McpHttpServerDef(BaseModel, extra="forbid"):
     type: Literal["streamable-http"]; url: HttpUrl; headers: dict[str, str] = {}
-class HookDef(BaseModel, extra="forbid"): ...        # exactly one of import_path | url | mcp
-class Plugin(BaseModel): manifest: PluginManifest; root: Path | None; skills: ...; mcp: ...; hooks: ...; prompts: ...
+class HookDef(BaseModel, extra="forbid"):
+    name: str; priority: int = 500
+    points: tuple[HookPoint, ...] | None = None          # None = every point the executor declares
+    import_path: str | None = None                        # exactly one of import_path | url | mcp
+    url: HttpUrl | None = None
+    mcp: McpServerDef | McpHttpServerDef | None = None
+class PromptDef(BaseModel, extra="forbid"): id: str; path: Path; extends: str | None = None
+class Plugin(BaseModel):
+    manifest: PluginManifest; root: Path | None
+    skills: tuple[Path, ...]; mcp: Mapping[str, McpServerDef | McpHttpServerDef]
+    hooks: tuple[HookDef, ...]; prompts: tuple[PromptDef, ...]; systemprompt: Path | None
 
 class PluginLoader:
     async def load_directory(self, root: Path) -> LoadReport
@@ -450,8 +486,9 @@ class Plan(BaseModel):
 
 The A2A `Task` carries only id, context, status, artifacts and history; the rest travels
 in the task extension (8.3): `Task.metadata["io.github.madarauchiha-314.tiny-harness/task"]`
-holds the JSON of `TaskExtensionData(goal, description, acceptance_criteria,
-participants, parent_tasks, sub_tasks, plan)` and the same object is emitted as a
+holds the JSON of `TaskExtensionData(name, type, goal, description,
+acceptance_criteria, participants, parent_tasks, sub_tasks, plan)` (8.1: A2A supplies
+neither `name` nor `type`) and the same object is emitted as a
 `DataPart` of media type `application/vnd.tiny-harness.task+json` on every status update
 whose payload changed, so renderers need no second call (9.6).
 
@@ -746,17 +783,32 @@ supported` can declare `text/html;profile=mcp-app` later; nothing else is built 
 ### Configuration (R21) — `config.py`
 
 ```python
+class TemporalConfig(BaseModel, extra="forbid"):  address: str; namespace: str; api_key: SecretStr; task_queue: str = "tiny-harness"; tls: bool = True
+class OpenAIConfig(BaseModel, extra="forbid"):    api_key: SecretStr; model: str = "gpt-6.1-sol"; timeout: timedelta = timedelta(seconds=60)
+class AnthropicConfig(BaseModel, extra="forbid"): api_key: SecretStr; model: str
+class ServerConfig(BaseModel, extra="forbid"):    bind: str = "127.0.0.1:8080"; base_url: HttpUrl; max_request_bytes: int = 1_048_576; rate_limit_per_minute: int = 120; bridge_interval: timedelta = timedelta(milliseconds=250)
+class HeartbeatConfig(BaseModel, extra="forbid"): interval: timedelta = timedelta(seconds=30)
+class StoreConfig(BaseModel, extra="forbid"):     sqlite_path: Path = Path("tiny-harness.sqlite3")
+class O11yConfig(BaseModel, extra="forbid"):      otlp_endpoint: HttpUrl | None = None; langfuse_public_key: SecretStr | None = None; langfuse_secret_key: SecretStr | None = None
+class RetryPolicySpec(BaseModel, frozen=True):    initial_interval: timedelta = timedelta(seconds=1); backoff_coefficient: float = 2.0; maximum_interval: timedelta = timedelta(seconds=60); maximum_attempts: int = 5; non_retryable_error_types: tuple[str, ...] = ()
+class RetryPolicies(BaseModel, extra="forbid"):   default: RetryPolicySpec; per_activity: Mapping[str, RetryPolicySpec] = {}
+class ContextConfig(BaseModel, extra="forbid"):   turn_budget_tokens: int = 12_000; compaction_fraction: float = 0.75; history_event_bound: int = 10_000
 class Settings(BaseSettings, extra="forbid"):
-    temporal: TemporalConfig            # address, namespace, api_key: SecretStr (env TEMPORAL_API_KEY)
-    openai: OpenAIConfig                # api_key: SecretStr (OPENAI_API_KEY), model = "gpt-6.1-sol"
-    anthropic: AnthropicConfig | None
-    server: ServerConfig                # bind, base_url, extensions, max_request_bytes, rate limits
-    heartbeat: HeartbeatConfig          # interval
-    plugins: tuple[Path, ...]
-    store: StoreConfig                  # sqlite path
-    o11y: O11yConfig                    # otlp endpoint, langfuse keys: SecretStr | None
-    retries: RetryPolicies
+    temporal: TemporalConfig; openai: OpenAIConfig; anthropic: AnthropicConfig | None = None
+    server: ServerConfig; heartbeat: HeartbeatConfig = HeartbeatConfig()
+    plugins: tuple[Path, ...] = (); store: StoreConfig = StoreConfig(); o11y: O11yConfig = O11yConfig()
+    retries: RetryPolicies; context: ContextConfig = ContextConfig()
 ```
+
+Intrinsic tools and their input schemas (decision-004), each a `ToolDefinition` with
+`execution=INTRINSIC` registered by the built-in plugin: `create_plan(steps: [{name,
+description, depends_on}])`, `complete_step(step_id, output)`, `spawn_subtask(agent: str |
+null, name, goal, acceptance_criteria)`, `ask_participant(participant_id, question,
+options)`, `create_task_for_participant(participant_id, name, goal, acceptance_criteria)`,
+`set_participant_role(participant_id, role)`, `list_skills()`, `load_skill(name)`,
+`unload_skill(name)`, `list_skill_resources(name)`, `load_skill_resource(name, path)`,
+`emit_ui(messages: A2UI server messages)`. Their JSON schemas are generated from Pydantic
+argument models and committed with the extension schemas.
 
 `pydantic-settings` reads environment variables; a missing required secret fails
 `Settings()` at startup with the variable name (21.2); unknown keys are rejected (21.3).

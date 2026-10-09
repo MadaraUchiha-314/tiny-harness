@@ -219,7 +219,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 4 — core loop, context, persistence (branch `loop/issue-3-l4-core`)
 
-- [ ] 23. Task extension, `HarnessTask`, participants, plan and steps
+- [x] 23. Task extension, `HarnessTask`, participants, plan and steps
   - `harness/core/`: `Role`, `Participant`, `TaskRef`, `AcceptanceCriterion`,
     `TaskExtensionData`, `TASK_EXT_KEY`, `HarnessTask` view over `a2a.types.Task`
     (`ProtoJson` helper, `participant_of`), `Step`, `Plan` with the acyclic validator;

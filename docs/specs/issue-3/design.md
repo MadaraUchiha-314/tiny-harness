@@ -448,9 +448,12 @@ args, env, cwd))` or `mcp.Client(url)` for streamable HTTP; its outbound spans a
 justified below. Tool
 output is wrapped in `ToolResult.untrusted` and the context window manager renders it
 inside a delimited `<tool_result name=…>` block with a fixed preamble that it is data
-(6.5). Schema drift (abuse case 8): `McpToolSource` records the schema hash at
-registration; `invoke` re-lists before calling when the server advertises
-`listChanged`, and refuses on mismatch.
+(6.5). Schema drift (abuse case 8): `McpToolSource` records each tool's schema hash at
+registration; before the first invocation of any of a server's tools in a loop iteration,
+`invoke_tool` re-lists that server's tools (one `list_tools` per server per iteration,
+not per call) and compares hashes, whatever capabilities the server advertises. A
+mismatch refuses the call with `ToolSchemaChangedError` until the tool is re-registered;
+the error result tells the LLM the tool is unavailable.
 
 ### Agents, local and remote (R1.1, R7) — `harness/agents/`
 
@@ -1034,7 +1037,8 @@ TinyHarnessError
 ├── HookAbort(reason), HookTransportError                                   (R2)
 ├── PluginError(manifest_path), ComponentSkipped(reason)                     (R3)
 ├── SkillError                                                               (R5)
-├── ToolNotFoundError, ToolArgumentError(validation), ToolNotRetriedError    (R6, R19)
+├── ToolNotFoundError, ToolArgumentError(validation), ToolNotRetriedError,   (R6, R19)
+│   ToolSchemaChangedError
 ├── PlanCycleError                                                           (R9)
 ├── StoreWriteError                                                          (R11)
 ├── ChannelMembershipError                                                   (R13)

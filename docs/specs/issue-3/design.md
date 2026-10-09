@@ -375,7 +375,8 @@ class PluginLoader:
 `PluginError` before any component is touched (3.5). Path escape: every component path is
 resolved and required to be inside `root` (3.6). Variable expansion is a pure function
 `expand(value, {"PLUGIN_ROOT", "PLUGIN_DATA"})` applied to `args`, `env` values and `cwd`
-only (3.7). The built-in plugin (`tiny_harness/builtin/`) is loaded first with the same
+only (3.7); a `command` containing `${` fails validation with `PluginError` and the
+attempt is recorded, rather than being spawned literally (abuse case 3). The built-in plugin (`tiny_harness/builtin/`) is loaded first with the same
 loader (3.9) and registers: the default system prompt, the intrinsic tools, the default
 `in` bodies, the default channel, the SQLite store, the two renderers' catalogs.
 
@@ -1100,8 +1101,8 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
     which must name a registered tool and validate against its schema (`ToolNotFoundError`,
     `ToolArgumentError`); role changes exist only as the `set_participant_role` intrinsic
     and the task extension, both admin-only as above.
-  - *Command injection* (abuse case 3): MCP `command` is never expanded; `args`, `env`,
-    `cwd` expand two fixed variables; subprocesses are started with an argument vector,
+  - *Command injection* (abuse case 3): an MCP `command` containing `${` is rejected at
+    load with `PluginError`; `args`, `env`, `cwd` expand two fixed variables; subprocesses are started with an argument vector,
     never a shell; `cwd` and every component path must resolve inside the plugin root.
   - *Path traversal*: same resolution rule for skills' `references/`, `assets/`,
     `scripts/` (one level deep, inside the skill directory).
@@ -1150,7 +1151,7 @@ that proves it. Abuse cases are numbered as in `requirements.md`.
 |---|---|---|
 | 1 unauthenticated client | perimeter (out of scope) | documented; no harness test |
 | 2 injected instructions | untrusted blocks + registry + schema + admin-only role change | `test_injected_tool_call_not_executed`, `test_role_change_requires_admin` |
-| 3 unregistered tool / path escape / `command` expansion | `ToolNotFoundError`, path resolution, no expansion in `command` | `test_unknown_tool_rejected`, `test_plugin_path_escape_rejected`, `test_command_not_expanded` |
+| 3 unregistered tool / path escape / `command` expansion | `ToolNotFoundError`, path resolution, `${` in `command` rejected at load | `test_unknown_tool_rejected`, `test_plugin_path_escape_rejected`, `test_command_with_expansion_rejected` |
 | 4 non-member on channel / foreign task | `AccessPolicy` on every task operation + channel membership, uniform not-found | `test_non_member_rejected_without_task_existence`, `test_foreign_task_get_list_subscribe_cancel_not_found` |
 | 5 unknown required extension / security scheme on remote card | `RemoteAgent` refusal | `test_remote_card_with_unknown_required_ext_refused` |
 | 6 credential-shaped values | `Redactor` at ingress, activity boundary, store and o11y; push tokens encrypted | `test_redactor_masks_tokens`, `test_ingress_redacted_before_history`, `test_push_token_encrypted_at_rest` |

@@ -757,14 +757,23 @@ assemble_context, invoke_llm, invoke_tool, compact, persist, send_channel_messag
 emit_event, dispatch_hooks, run_remote_agent_turn, poll_channels, monitor_snapshot, intake
 ```
 
-- **Retry policy (19.3, 19.5).** `RetryPolicies` is configuration keyed by activity name
-  with Temporal's fields (`initial_interval`, `backoff_coefficient`, `maximum_interval`,
-  `maximum_attempts`, `non_retryable_error_types`); `activity.retried.pre` can rewrite
-  the policy of the next attempt. `invoke_tool` reads the tool's `Idempotency`: a
-  `NOT_IDEMPOTENT` tool runs with `maximum_attempts=1` and a `ToolNotRetriedError`
-  surfaces to the loop as an error `ToolResult`, which a hook can override.
+- **Retry policy (19.3–19.5): attempts are managed by the workflow, not by Temporal's
+  retry.** Every activity is scheduled with `RetryPolicy(maximum_attempts=1)`. On
+  failure (an `ActivityError`, including the timeout a dead worker produces), the
+  workflow runs the `dispatch_hooks` activity for `activity.failed.pre` and
+  `activity.retried.pre` with the `RetryPolicySpec` for that activity (from
+  `RetryPolicies`, per activity or default) and the computed next delay; the returned
+  context may rewrite the policy or the delay, or abort. If attempts remain, the workflow
+  `workflow.sleep`s the delay and schedules the activity again with `attempt + 1` in its
+  input; otherwise the operation fails. Exponential backoff is
+  `initial_interval × backoff_coefficient^(attempt − 1)`, capped at `maximum_interval`,
+  jittered with `workflow.random()`. `invoke_tool` for a `NOT_IDEMPOTENT` tool has
+  `maximum_attempts=1` in its spec, so a failure becomes a `ToolNotRetriedError` error
+  `ToolResult` unless `activity.retried.pre` raises the attempts.
 - **Failure detection (19.6).** Every activity has `start_to_close_timeout`; LLM and tool
-  activities heartbeat every 10 s with `heartbeat_timeout=30 s`.
+  activities heartbeat every 10 s with `heartbeat_timeout=30 s`, so a killed worker
+  surfaces as a timeout failure on the retry path above within 30 s and the next attempt
+  runs on another worker.
 - **Replay safety (19.2).** Activities return typed results recorded in history; the
   workflow never calls a model or a tool directly. Tool-call extraction is a pure function
   of the recorded `LLMResponse`.
@@ -972,7 +981,7 @@ TinyHarnessError
 
 | Where | Failure | Surfaced as |
 |---|---|---|
-| Activity body | provider 429/5xx, network | `RetryableProviderError` → Temporal retry per policy; `activity.failed`/`activity.retried` hooks |
+| Activity body | provider 429/5xx, network | `RetryableProviderError` → workflow-managed retry per `RetryPolicySpec`; `activity.failed`/`activity.retried` hooks between attempts |
 | Activity body | `HookAbort` | `ApplicationError(non_retryable=True)` → the loop records the abort; task `FAILED` or the step marked refused, per `reason` |
 | `invoke_tool` | tool not in registry, arguments invalid | error `ToolResult` back to the LLM, no retry |
 | `invoke_tool` | non-idempotent tool failed | `ToolNotRetriedError` as error `ToolResult`; a hook may re-issue |

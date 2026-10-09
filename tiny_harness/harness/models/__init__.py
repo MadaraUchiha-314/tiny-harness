@@ -1,5 +1,6 @@
 """LLM and System One model entities and their provider adapters (R18)."""
 
+from tiny_harness.harness.models.anthropic_adapter import AnthropicLLM
 from tiny_harness.harness.models.llm import (
     LLM,
     FakeLLM,
@@ -17,6 +18,7 @@ from tiny_harness.harness.models.llm import (
     extract_tool_calls,
     scripted,
 )
+from tiny_harness.harness.models.openai_adapter import OpenAILLM
 from tiny_harness.harness.models.system_one import (
     Answer,
     ChoiceAnswer,
@@ -33,6 +35,7 @@ from tiny_harness.harness.models.system_one import (
 __all__ = [
     "LLM",
     "Answer",
+    "AnthropicLLM",
     "ChoiceAnswer",
     "ChoiceQuestion",
     "FakeLLM",
@@ -46,6 +49,7 @@ __all__ = [
     "MessageItem",
     "NoulAnswer",
     "NoulQuestion",
+    "OpenAILLM",
     "Question",
     "Role",
     "ScoreAnswer",

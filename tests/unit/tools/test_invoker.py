@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
 from tiny_harness.harness.tools import (
@@ -116,5 +117,5 @@ def test_definition_defaults_and_stable_rendering() -> None:
     assert definition.idempotency is Idempotency.NOT_IDEMPOTENT
     assert definition.execution is Execution.ACTIVITY
     assert definition_json(definition) == definition_json(definition.model_copy())
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         definition.name = "y"  # type: ignore[misc]

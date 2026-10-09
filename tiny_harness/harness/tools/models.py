@@ -1,4 +1,4 @@
-"""Tool definitions, calls, results and the validating invoker (R6.3–R6.5, R6.7).
+"""Tool definitions, calls, results and the validating invoker (R6.3-R6.5, R6.7).
 
 A tool is an entity with a ``ToolDefinition``; the LLM reaches it only by emitting a
 ``ToolCall`` whose name is in the registry and whose arguments validate against the

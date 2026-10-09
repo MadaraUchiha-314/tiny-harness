@@ -178,6 +178,17 @@ class ConfigError(TinyHarnessError):
         self.variable = variable
 
 
+class ProviderError(TinyHarnessError):
+    """A provider SDK failed in a way durable execution must not retry (a 4xx)."""
+
+    code = "provider.failed"
+
+    def __init__(self, message: str, *, provider: str, status: int, **detail: str) -> None:
+        super().__init__(message, provider=provider, status=str(status), **detail)
+        self.provider = provider
+        self.status = status
+
+
 class RetryableProviderError(TinyHarnessError):
     """A provider SDK failed in a way durable execution may retry (R18.3)."""
 
@@ -200,6 +211,7 @@ __all__ = [
     "HookTransportError",
     "PlanCycleError",
     "PluginError",
+    "ProviderError",
     "RegistryConflictError",
     "RetryableProviderError",
     "SkillError",

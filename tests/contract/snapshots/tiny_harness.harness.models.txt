@@ -4,6 +4,10 @@ class LLM(Entity)
   def invoke(self, request: 'LLMRequest') -> 'LLMResponse'
   def stream(self, request: 'LLMRequest') -> 'AsyncIterator[LLMStreamEvent]'
 Answer = TypeAliasType
+class AnthropicLLM(LLM)
+  def __init__(self, api_key: 'SecretStr', *, model: 'str' = 'claude-opus-5-5', timeout: 'timedelta' = datetime.timedelta(seconds=60), max_tokens: 'int' = 2000, client: 'AsyncAnthropic | None' = None) -> 'None'
+  def invoke(self, request: 'LLMRequest') -> 'LLMResponse'
+  def stream(self, request: 'LLMRequest') -> 'AsyncIterator[LLMStreamEvent]'
 model ChoiceAnswer(kind: typing.Literal['choice'] = ..., choice: <class 'str'>, confidence: <class 'float'>, probabilities: collections.abc.Mapping[str, float])
 model ChoiceQuestion(kind: typing.Literal['choice'] = ..., instructions: <class 'str'>, options: collections.abc.Mapping[str, str])
 class FakeLLM(LLM)
@@ -22,6 +26,10 @@ model LLMStreamEvent(kind: typing.Literal['text_delta', 'tool_call', 'done'], te
 model MessageItem(kind: typing.Literal['message'] = ..., role: <enum 'Role'>, text: <class 'str'>)
 model NoulAnswer(kind: typing.Literal['noul'] = ..., probability: <class 'float'>)
 model NoulQuestion(kind: typing.Literal['noul'] = ..., instructions: <class 'str'>)
+class OpenAILLM(LLM)
+  def __init__(self, api_key: 'SecretStr', *, model: 'str' = 'gpt-6.1-sol', timeout: 'timedelta' = datetime.timedelta(seconds=60), max_output_tokens: 'int' = 2000, client: 'AsyncOpenAI | None' = None) -> 'None'
+  def invoke(self, request: 'LLMRequest') -> 'LLMResponse'
+  def stream(self, request: 'LLMRequest') -> 'AsyncIterator[LLMStreamEvent]'
 Question = TypeAliasType
 enum Role: USER='user', ASSISTANT='assistant'
 model ScoreAnswer(kind: typing.Literal['score'] = ..., score: <class 'float'>, confidence: <class 'float'>, probabilities: collections.abc.Mapping[int, float])

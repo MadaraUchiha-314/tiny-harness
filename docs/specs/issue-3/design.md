@@ -159,9 +159,9 @@ flowchart TD
   ctx --> llm["invoke_llm (activity)"]
   llm --> tc{tool calls?}
   tc -- none --> fin["final status (activity: emit_event)"]
-  tc -- mcp tool --> act["invoke_tool (activity, retry by idempotency)"]
-  tc -- intrinsic --> intr["intrinsic in workflow: plan / step / ask / subtask / skill / ui"]
-  act --> rec["append results to history"]
+  tc -- any tool --> act["invoke_tool (activity: validate, hooks, body)"]
+  act -- MCP result --> rec["append results to history"]
+  act -- WorkflowCommand --> intr["apply command in workflow: attach plan / wait / spawn child / mark loaded skill"]
   intr --> rec
   rec --> cmp{context over budget?}
   cmp -- yes --> compact["compact (activity)"]
@@ -404,9 +404,13 @@ class SkillLoader:
 
 Disclosure (5.3) is three intrinsic tools: `list_skills` (names and descriptions, also
 rendered into the prompt's `skills` section), `load_skill(name)` (body into the
-never-compact set), `load_skill_resource(name, path)`. A loaded skill's `mcp.json` servers
-and the plugin's local tools are registered on load and removed on unload through the
-same `ToolRegistry` calls (5.6).
+never-compact set), `load_skill_resource(name, path)`. They are intrinsics, so they run in
+the `invoke_tool` activity like every tool: the activity reads the skill directory,
+connects the skill's `mcp.json` servers, registers their tools in the worker-local
+registry, and returns a `skill_loaded` command carrying the skill body and the tool
+definitions; the workflow records both in `AgentState.loaded_skills`, which
+`assemble_context` reads on the next turn, so a different worker reproduces the same
+context (5.6, 19.2). `unload_skill` reverses it with `skill_unloaded`.
 
 ### Tools and MCP (R6) — `harness/tools/`
 
@@ -421,7 +425,10 @@ class ToolCall(BaseModel, frozen=True): call_id: str; name: str; arguments: Json
 class ToolResult(BaseModel, frozen=True): call_id: str; content: tuple[ContentPart, ...]; is_error: bool; untrusted: Literal[True] = True
 class Tool(Entity):
     definition: ToolDefinition
-    async def invoke(self, call: ToolCall) -> ToolResult
+    async def invoke(self, call: ToolCall) -> ToolResult | WorkflowCommand   # an intrinsic returns a command
+class WorkflowCommand(BaseModel, frozen=True):      # applied by the workflow, deterministic, no I/O
+    kind: Literal["attach_plan", "complete_step", "wait_for_reply", "spawn_subtask", "create_participant_task", "set_role", "skill_loaded", "skill_unloaded", "ui_emitted"]
+    call_id: str; payload: JsonObject; result: ToolResult   # the result the LLM sees next turn
 class McpToolSource:
     """One MCP server; lists tools and wraps each as a Tool."""
     def __init__(self, server: McpServerDef | McpHttpServerDef, client_factory: McpClientFactory)
@@ -477,9 +484,10 @@ own enum mapped one to one onto `TASK_STATE_*`.
 
 `RemoteAgent` refuses a card whose `capabilities.extensions` contains `required: true`
 for a URI outside `SUPPORTED_EXTENSIONS` (7.4) and sends `A2A-Extensions` only with
-advertised URIs (7.5). Delegation is the intrinsic `spawn_subtask(agent, goal)`: a child
-workflow `RemoteTaskWorkflow` sends the message as an activity and relays status updates
-into the parent's sub-task record (7.3).
+advertised URIs (7.5). Delegation is the intrinsic `spawn_subtask(agent, goal)`: its
+`invoke_tool` activity validates the agent reference and returns a `spawn_subtask`
+command; the workflow starts a child `RemoteTaskWorkflow`, which sends the message as an
+activity and relays status updates into the parent's sub-task record (7.3).
 
 ### Core: task, plan, state (R8, R9) — `harness/core/`
 
@@ -580,8 +588,10 @@ need's options fit one message and no acceptance criterion depends on another
 participant's work, else `CREATE_TASK`; an executor can replace it (12.4). `ASK` is the
 intrinsic `ask_participant`: it emits the help message, sets `INPUT_REQUIRED`, and the
 workflow `wait_condition`s on the reply update (12.2, 12.5, 12.6). `CREATE_TASK` is the
-intrinsic `create_task_for_participant`: a new task workflow assigned to that participant,
-linked as a sub-task (12.3).
+intrinsic `create_task_for_participant`: a `create_participant_task` command, on which
+the workflow starts a child task workflow assigned to that participant and links it as a
+sub-task (12.3). Every intrinsic therefore passes `invoke_tool`'s validation and the
+per-call `ToolInvokedPre` veto (2.9) before the workflow applies its command.
 
 ### A2A server (R14) — `service/a2a/`
 

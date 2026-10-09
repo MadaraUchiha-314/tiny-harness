@@ -675,9 +675,14 @@ durable: when the workflow drains a message from its mailbox it first runs the `
 activity, which runs `request.received` hooks (an executor may rewrite or abort the
 message) and writes the `InboxAuditRecord`; the message is already in history, so a
 crash between acceptance and intake loses nothing (19.12). The four A2A event payloads are accepted on
-`SendMessage`: a `Message` is the normal case; a `Task` payload creates or updates the
-task extension data; `TaskStatusUpdateEvent` and `TaskArtifactUpdateEvent` from a remote
-agent are routed to the sub-task record that references that remote task (15.1).
+`SendMessage` (15.1): a `Message` is the message itself; the other three travel inside a
+`Message` as one data part of media type `application/vnd.tiny-harness.event+json`,
+defined by the task extension, `EventEnvelope(kind: "task" | "status_update" |
+"artifact_update", payload)` validated against the committed schema. A `task` payload
+creates or updates the task extension data; `status_update` and `artifact_update` from a
+remote agent are routed to the sub-task record that references that remote task. An
+envelope whose `kind` or payload fails validation is rejected with the A2A invalid-params
+error before update-with-start.
 `returnImmediately: true` returns the `Task` as soon as the update is accepted (15.2).
 Processing policy (15.3): the workflow's `inbox` update appends to a mailbox list; the loop
 drains the mailbox at the top of each iteration (so a message to an executing task is
@@ -1001,6 +1006,9 @@ classDiagram
   validated by `jsonschema` before the activity returns.
 - **Task extension schema** (`application/vnd.tiny-harness.task+json`):
   `TaskExtensionData` as above, `additionalProperties: false`.
+- **Event envelope schema** (`application/vnd.tiny-harness.event+json`, part of the task
+  extension): `EventEnvelope(kind, payload)` where `payload` is `TaskExtensionData`,
+  `StatusUpdate` or `ArtifactUpdate`.
 - **Channel extension schema** (`application/vnd.tiny-harness.channel+json`):
   `ChannelMessageData(channel_id, sender, text, parts, kind: "message" | "help_request" | "help_reply")`.
 - **Temporal search attributes.** `A2AContextId` (keyword), `A2ATaskState` (keyword),

@@ -80,7 +80,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 3
   - _Requirements:_ R1.2, R1.3, R1.6, R1.7
   - _Test:_ T1 — `tests/unit/entities/test_registry.py` (resolution matrix from sherma's tests, conflict refused, override order); T3
-- [ ] 5. Hook points, contexts and `HookManager`
+- [x] 5. Hook points, contexts and `HookManager`
   - `harness/hooks/`: `Operation`, `Phase`, `HookPoint`, `HookContext` and the full
     context catalogue of the design, `HookAbort`, `HookExecutor` protocol with
     `priority`, `HookManager.run` chain semantics (`None` passes through, returned

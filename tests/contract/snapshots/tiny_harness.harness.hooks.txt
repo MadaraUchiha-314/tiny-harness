@@ -1,0 +1,25 @@
+# tiny_harness.harness.hooks
+DEFAULT_BODY_PRIORITY = int
+class FunctionExecutor(object)
+  def __init__(self, name: 'str', handler: 'Handler', *, priority: 'int' = 500, points: 'Iterable[HookPoint] | None' = None) -> 'None'
+  def handle(self, point: 'HookPoint', ctx: 'HookContext') -> 'HookContext | None'
+  property name
+  property points
+  property priority
+Handler = _CallableGenericAlias
+model HookContext(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ...)
+class HookExecutor(Protocol)
+  def __init__(self, *args, **kwargs)
+  def handle(self, point: 'HookPoint', ctx: 'HookContext') -> 'HookContext | None'
+  property name
+  property points
+  property priority
+class HookManager(object)
+  def __init__(self) -> 'None'
+  def executors_for(self, point: 'HookPoint') -> 'list[HookExecutor]'
+  def register(self, executor: 'HookExecutor') -> 'None'
+  def run(self, point: 'HookPoint', ctx: 'C') -> 'C'
+model HookPoint(operation: <enum 'Operation'>, phase: <enum 'Phase'>)
+enum Operation: REQUEST_RECEIVED='request.received', TASK_CREATED='task.created', TASK_STATE_CHANGED='task.state_changed', TASK_COMPLETE='task.complete', CONTEXT_CREATED='context.created', LLM_INVOKED='llm.invoked', TOOL_CALLS_EXTRACTED='tool_calls.extracted', TOOL_INVOKED='tool.invoked', SYSTEM_ONE_INVOKED='system_one.invoked', PLAN_CREATED='plan.created', STEP_STARTED='step.started', STEP_FINISHED='step.finished', SUBTASK_SPAWNED='subtask.spawned', HELP_REQUESTED='help.requested', HELP_DECIDED='help.decided', CHANNEL_SENT='channel.sent', CHANNEL_RECEIVED='channel.received', COMPACTION_TRIGGER='compaction.trigger', COMPACTION_KEEP='compaction.keep', COMPACTION_SUMMARISE='compaction.summarise', PERSISTENCE_READ='persistence.read', PERSISTENCE_WRITE='persistence.write', ACTIVITY_FAILED='activity.failed', ACTIVITY_RETRIED='activity.retried', HEARTBEAT_TICK='heartbeat.tick', SHUTDOWN='shutdown', SKILL_LOADED='skill.loaded', SKILL_UNLOADED='skill.unloaded', AGENT_INVOKED='agent.invoked'
+enum Phase: PRE='pre', IN='in', POST='post'
+def all_hook_points() -> 'tuple[HookPoint, ...]'

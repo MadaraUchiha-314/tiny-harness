@@ -1,0 +1,73 @@
+# CI — the checks every pull request must pass. release.yml calls this same workflow
+# (workflow_call) before it bumps and publishes, so the checks are defined once.
+#
+# The `checks` job runs the SAME pre-commit hooks a developer runs locally, through uv,
+# so tool versions come from uv.lock and local == CI.
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, type check, unit tests, markdownlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Same uv version as local development; an unpinned uv may re-resolve uv.lock
+      # differently, which `--locked` would report as drift.
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.10"
+
+      # markdownlint (a pre-commit hook) runs under Node via npx.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # --locked fails on a uv.lock that is out of date with pyproject.toml.
+      - name: Sync environment
+        run: uv sync --locked
+
+      - name: Run pre-commit hooks
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.10"
+
+      - name: Sync environment
+        run: uv sync --locked
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration
+
+  docs:
+    name: Docs build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+
+      - name: Install docs dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build docs
+        run: bun run docs:build

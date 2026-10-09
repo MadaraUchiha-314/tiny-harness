@@ -1,0 +1,131 @@
+# Release — on every push to main: run CI, compute the next version from the
+# Conventional Commits since the last tag, push the bump commit + tag, publish to PyPI.
+#
+# Versioning (commitizen, version_provider = "uv"): fix -> patch, feat -> minor,
+# breaking -> major (minor while on 0.x, major_version_zero). `cz bump` rewrites
+# [project] version and uv.lock in one `bump:` commit and tags it `v<version>`. A run
+# with nothing releasable since the last tag publishes nothing and succeeds.
+#
+# Publishing uses PyPI Trusted Publishing (GitHub OIDC) — no stored token. PyPI trusts
+# exactly: repository MadaraUchiha-314/tiny-harness, workflow release.yml, environment pypi.
+# See docs/guide/releasing.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two releases at once; they would race on the tag and the push to main.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  bump:
+    name: Version bump + build
+    needs: checks
+    runs-on: ubuntu-latest
+    # The bump commit this job pushes carries nothing releasable. (A push made with
+    # GITHUB_TOKEN does not start a new run anyway; this guards workflow_dispatch too.)
+    if: ${{ !startsWith(github.event.head_commit.message, 'bump:') }}
+    permissions:
+      contents: write
+    outputs:
+      released: ${{ steps.bump.outputs.released }}
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      # Bump from main's tip, not the event SHA: a queued run's SHA can be behind main.
+      # Full history so commitizen can read every commit since the last tag.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.10"
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # First release only: with no v* tag, `cz bump` would count the whole history.
+      # Tag the version currently in pyproject.toml on HEAD^ so the increment comes from
+      # the commits merged since. Local only, never pushed.
+      - name: Seed baseline tag (first release only, local)
+        run: |
+          if [ -z "$(git tag -l 'v*')" ]; then
+            base="v$(uv run cz version --project)"
+            git tag "$base" "HEAD^"
+            echo "Seeded local baseline ${base} at $(git rev-parse --short 'HEAD^')"
+          fi
+
+      # commitizen exits 21 (no increment) or 3 (no commits) when nothing warrants a
+      # release; both are a clean no-op.
+      - name: Bump version
+        id: bump
+        run: |
+          set +e
+          uv run cz bump --yes
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            version="$(uv run cz version --project)"
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
+          elif [ "$code" -eq 21 ] || [ "$code" -eq 3 ]; then
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing releasable since the last tag."
+          else
+            echo "::error::cz bump failed (exit ${code})"
+            exit "$code"
+          fi
+
+      # commitizen makes a lightweight tag, so push it by ref. --atomic: the commit and
+      # the tag land together or not at all (main may have moved during the run).
+      - name: Push bump commit and tag
+        if: steps.bump.outputs.released == 'true'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: git push --atomic origin "HEAD:refs/heads/main" "refs/tags/v${VERSION}"
+
+      - name: Build distribution
+        if: steps.bump.outputs.released == 'true'
+        run: uv build
+
+      - name: Upload distribution
+        if: steps.bump.outputs.released == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: bump
+    if: needs.bump.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/tiny_harness/
+    permissions:
+      # The OIDC token for Trusted Publishing — the only credential this job holds.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -40,17 +40,17 @@ the task; results are recorded in `evidence/verification.md`.
   - _Test:_ `uv run pre-commit run --all-files` exits 0; negative: a commit with message
     `bad message` is rejected by `commit-msg`, one with a ruff error is blocked by
     `pre-commit`.
-- [ ] 5. Workflow invariant tests (security abuse cases)
+- [x] 5. Workflow invariant tests (security abuse cases)
   - `tests/unit/test_workflows.py` written first against the workflows of tasks 6–7 (red:
     files missing).
   - _Depends on:_ 2
   - _Requirements:_ R6, R7, security abuse cases 1–3
   - _Test:_ `uv run pytest tests/unit/test_workflows.py` (red→green with tasks 6–7)
-- [ ] 6. `ci.yml`
+- [x] 6. `ci.yml`
   - _Depends on:_ 4, 5
   - _Requirements:_ R6.1–R6.4
   - _Test:_ task 5's tests; the PR's own CI run is green.
-- [ ] 7. `release.yml`
+- [x] 7. `release.yml`
   - _Depends on:_ 6
   - _Requirements:_ R7.1–R7.6
   - _Test:_ task 5's tests; `uv run cz bump --dry-run --yes` from a throwaway clone shows

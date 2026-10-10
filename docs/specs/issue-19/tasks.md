@@ -87,8 +87,7 @@ Conventions for every task:
   - _Test:_ T1 — `tests/unit/models/test_openai_chat.py` (every R3.3 / R3.4 / R5 case in
     the trace table) (red→green)
 - [x] 5. Runtime wiring and observability
-  - `build_runtime` passes the four settings to `OpenAILLM` and logs `model endpoint
-    <scheme>://<host[:port]> api=<api> model=<model>` once at INFO.
+  - `build_runtime` passes the four settings to `OpenAILLM` and logs `model endpoint <scheme>://<host[:port]> api=<api> model=<model>` once at INFO.
   - `LLMInvokedPre.model: LLMModelInfo | None = None`, set by `InProcessOperations`; the
     o11y hook adds `server.address`, `server.port`, `tiny_harness.llm.api` to the chat
     span.
@@ -112,7 +111,7 @@ Conventions for every task:
   - _Requirements:_ R1.1, R2.2, R3.2, R3.3, R5.1, R6.2
   - _Test:_ T2 — `uv run pytest tests/integration/compat`; T8 offline — the same inside
     `unshare -rn` (red→green)
-- [ ] 8. Ollama demo configuration, e2e test and documentation
+- [x] 8. Ollama demo configuration, e2e test and documentation
   - `examples/demo/config.ollama.toml` per the design; `tests/e2e/test_demo_ollama.py`
     (`e2e` marker; skips with a reason when `127.0.0.1:11434` does not answer or the
     model is not pulled; `TINY_HARNESS_OLLAMA_MODEL` overrides the model) using the

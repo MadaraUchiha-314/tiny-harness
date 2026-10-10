@@ -167,3 +167,15 @@ def test_secret_values_include_the_key_only_when_it_is_set(tmp_path: Path) -> No
     keyless = load(tmp_path, 'base_url = "http://127.0.0.1:11434/v1"', env=KEYLESS_ENV)
     assert "sk-secret" in [v.get_secret_value() for v in secret_values(keyed)]
     assert [v.get_secret_value() for v in secret_values(keyless)] == ["cHVzaC1rZXk="]
+
+
+# R6.1 — the shipped offline configuration.
+
+
+def test_the_ollama_demo_configuration_loads_without_any_key() -> None:
+    path = Path(__file__).resolve().parents[2] / "examples" / "demo" / "config.ollama.toml"
+    settings = Settings.load(path, env=KEYLESS_ENV)
+    assert settings.temporal.mode == "embedded"
+    assert str(settings.openai.base_url) == "http://127.0.0.1:11434/v1"
+    assert settings.openai.api_key is None and settings.openai.api == "chat_completions"
+    assert settings.openai.context_window_tokens == 16384

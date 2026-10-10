@@ -1,0 +1,51 @@
+# The demo fully offline (issue-19): an embedded Temporal and a local Ollama behind the
+# OpenAI adapter's base_url. No OpenAI key, no Temporal account, no network once the
+# pieces below are on disk. Development and single-host use only — see the deployment
+# guide.
+#
+# Once, with a network:
+#   ollama pull qwen3:8b                   # any model with tool calling works; set it below
+#   uv sync                                # the demo's MCP servers run under `uv run`
+#   # the Temporal CLI is downloaded on the first embedded start and cached; or pin
+#   # temporal.embedded.binary_path to one you already have
+#
+# Every run:
+#   OLLAMA_CONTEXT_LENGTH=16384 ollama serve   # MUST match context_window_tokens below
+#   unset OPENAI_API_KEY TEMPORAL_API_KEY
+#   export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+#   uv run python -m examples.demo examples/demo/config.ollama.toml
+
+plugins = ["examples/demo"]
+
+[temporal]
+mode = "embedded"
+task_queue = "tiny-harness-demo"
+search_attributes = true  # registered on the embedded server at startup
+
+[openai]
+base_url = "http://127.0.0.1:11434/v1"  # Ollama's OpenAI-compatible API, loopback only
+api = "chat_completions"                # Ollama serves "responses" too
+model = "qwen3:8b"
+context_window_tokens = 16384           # the server's window, not the model's maximum
+timeout = "PT600S"                      # a local model is slower than a hosted one
+max_output_tokens = 2000
+
+[server]
+bind = "127.0.0.1:8080"
+base_url = "http://127.0.0.1:8080"
+ui_dir = "renderers/web/dist"
+cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173"]
+
+[heartbeat]
+interval = "PT30S"
+
+[store]
+sqlite_path = "examples/demo/.state/tiny-harness.sqlite3"
+
+[context]
+turn_budget_tokens = 12000
+compaction_fraction = 0.75
+
+[o11y]
+log_level = "INFO"
+trace_file = "examples/demo/.state/trace.jsonl"

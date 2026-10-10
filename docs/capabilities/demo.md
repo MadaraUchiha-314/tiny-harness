@@ -37,6 +37,13 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
 - `tests/e2e/test_demo_embedded.py` SHALL run the demo in embedded mode as one `serve`
   process with no `TEMPORAL_API_KEY` in its environment and assert the task completes,
   the embedded server's start and warning are logged, and no secret is in the trace or log.
+- `tests/e2e/test_demo_ollama.py` SHALL run the demo with `config.ollama.toml`'s
+  settings — embedded Temporal, a loopback Ollama over Chat Completions — with neither
+  `OPENAI_API_KEY` nor `TEMPORAL_API_KEY` in its environment, and assert the task
+  completes, the `model endpoint` line names the loopback endpoint, and no secret is in
+  the trace or log. It skips with the reason when no Ollama answers on
+  `127.0.0.1:11434` or the model (`TINY_HARNESS_OLLAMA_MODEL`, default `qwen3:8b`) is not
+  pulled.
 - The e2e tests SHALL skip with the missing variable's name when a variable they need is
   absent (`OPENAI_API_KEY` and `TEMPORAL_API_KEY`; `OPENAI_API_KEY` alone for the
   embedded demo); each run uses its own task queue, port and state
@@ -53,3 +60,4 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
 |-----------|--------------|-------|
 | issue-3 | The demo plugin, configuration and e2e tests (Layer 9) | [spec](../specs/issue-3/), [issue #3](https://github.com/MadaraUchiha-314/tiny-harness/issues/3) |
 | issue-17 | `config.embedded.toml`, the optional config path, the embedded-mode e2e | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18) |
+| issue-19 | `config.ollama.toml`, the offline Ollama e2e | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22) |

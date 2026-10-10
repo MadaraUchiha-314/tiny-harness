@@ -202,8 +202,7 @@ Anthropic adapter keep working unchanged.
 
 ### Observability
 
-- `build_runtime` logs once at INFO: `model endpoint <scheme>://<host[:port]> api=<api>
-  model=<model>` — scheme, host and port only, never the path or query.
+- `build_runtime` logs once at INFO: `model endpoint <scheme>://<host[:port]> api=<api> model=<model>` — scheme, host and port only, never the path or query.
 - The o11y hook's chat span adds `server.address`, `server.port` (OTel's client
   attributes) and `tiny_harness.llm.api` when `ctx.model` carries them.
   `gen_ai.provider.name` stays as it is today (`tiny_harness`). The requirements' NFR

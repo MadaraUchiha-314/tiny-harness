@@ -20,6 +20,13 @@ How a deployment is described and how the processes come up. Lives in
   `tls` and `TEMPORAL_API_KEY`, defaults `namespace` to `default`, and takes the optional
   `[temporal.embedded]` table (`persist`, `database_path`, `binary_path`, `download_dir`,
   `port`). A `binary_path` that is not an executable file exits with status 2.
+- `[openai]` SHALL take `base_url` (an absolute `http`/`https` URL; default
+  `https://api.openai.com/v1`), `api` (`responses` or `chat_completions`), `model`,
+  `timeout`, `max_output_tokens` and `context_window_tokens` (a positive integer).
+  `OPENAI_API_KEY` SHALL be required only when `base_url` is unset. A `base_url` with
+  user information, or with `http` to a non-loopback host while a key is set (loopback is
+  `localhost` or a literal loopback address, never resolved), SHALL exit with status 2
+  naming `openai.base_url`.
 - Secrets SHALL come only from `TEMPORAL_API_KEY` (remote mode only), `OPENAI_API_KEY`,
   `TINY_HARNESS_PUSH_KEY` (required) and `ANTHROPIC_API_KEY`, `LANGFUSE_PUBLIC_KEY`,
   `LANGFUSE_SECRET_KEY` (when their features are configured), held as `SecretStr` and
@@ -57,3 +64,4 @@ How a deployment is described and how the processes come up. Lives in
 |-----------|--------------|-------|
 | issue-3 | Settings, secrets, errors (Layer 1); the CLI and runtime (Layer 5); `trace_file`, `search_attributes`, `ui_dir`, `cors_origins` (Layers 8–9) | [spec](../specs/issue-3/), [PR #7](https://github.com/MadaraUchiha-314/tiny-harness/pull/7), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) |
 | issue-17 | `temporal.mode` and `[temporal.embedded]`; per-command embedded behaviour; the programmatic API in `tiny_harness.service`; SIGTERM cancels the main task | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18), [decision-005](../decisions/decision-005.md) |
+| issue-19 | `[openai] base_url`, `api`, `context_window_tokens`; `OPENAI_API_KEY` optional with a `base_url`; `examples/demo/config.ollama.toml` | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22), [decision-006](../decisions/decision-006.md) |

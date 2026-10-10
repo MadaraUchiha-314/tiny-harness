@@ -1,7 +1,8 @@
 """End-to-end tests need the live environment (T4).
 
 They skip, with the reason, when a required secret is absent; they never pass silently.
-The embedded-mode demo needs only ``OPENAI_API_KEY`` (issue-17).
+The embedded-mode demo needs only ``OPENAI_API_KEY`` (issue-17); the Ollama demo needs no
+secret and skips when no local Ollama has the model (issue-19).
 """
 
 import os
@@ -16,6 +17,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     for item in items:
         if "e2e" not in item.keywords:
             continue
+        if "ollama" in item.nodeid:
+            continue  # issue-19: no secret at all; the test skips itself when Ollama is absent
         required = REQUIRED_EMBEDDED if "embedded" in item.nodeid else REQUIRED
         missing = [name for name in required if not os.environ.get(name)]
         if missing:

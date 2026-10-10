@@ -50,6 +50,19 @@ uv run tiny-harness --config examples/demo/config.embedded.toml tui   # or: TUI 
 Embedded mode is `[temporal] mode = "embedded"` in any configuration; it is for
 development and single-host use, not production.
 
+No OpenAI account either? Point the OpenAI adapter at any **OpenAI-compatible server**
+with `[openai] base_url` — Ollama, OpenRouter, vLLM, LM Studio — and choose its wire API
+with `api = "responses"` (the default) or `"chat_completions"`. With a local
+[Ollama](https://ollama.com) and embedded Temporal, the demo runs with no key and no
+network:
+
+```sh
+ollama pull qwen3:8b && OLLAMA_CONTEXT_LENGTH=16384 ollama serve &
+unset OPENAI_API_KEY TEMPORAL_API_KEY     # a local endpoint needs no key
+export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+uv run python -m examples.demo examples/demo/config.ollama.toml
+```
+
 See [getting started](https://madarauchiha-314.github.io/tiny-harness/guide/getting-started)
 for what happens next and
 [deployment](https://madarauchiha-314.github.io/tiny-harness/guide/deployment) for

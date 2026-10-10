@@ -12,6 +12,10 @@ uv run python -m examples.demo          # server + worker, web renderer at /ui
 uv run tiny-harness tui --url http://127.0.0.1:8080
 ```
 
+No accounts at all: `config.embedded.toml` needs no Temporal account, and
+`config.ollama.toml` adds a local Ollama in place of OpenAI, so the demo runs offline (see
+the comments at the top of that file).
+
 The plugin in this directory registers two stdio MCP servers (`orders`, `policy`), the
 `support-agent` skill and a prompt extension. `tests/e2e/test_demo.py` drives the same
 task through the A2A client; `tests/e2e/test_crash_recovery.py` kills the worker at two

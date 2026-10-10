@@ -90,7 +90,7 @@ pre-existing observability flake; its second run was clean.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| T1 | `uv run pytest tests/unit` | 260 passed at `38637b4`; red recorded first (collection error, `tui_participant` missing) | [unit.md](evidence/unit.md) |
+| T1 | `uv run pytest tests/unit` | 261 passed at `7bb154d`; red recorded first (collection error, `tui_participant` missing) | [unit.md](evidence/unit.md) |
 | T2 | `uv run pytest tests/integration/embedded` | 17 passed; red recorded first (`InvalidParamsError('no participant asserted')` through the real `run_tui`) | [integration.md](evidence/integration.md) |
 | T5 | composer placeholder assertion in the T2 regression scenario | `Enter to send as alice` | [integration.md](evidence/integration.md) |
 | T6 | `uv run pytest tests/ui` | 9 passed, 4 snapshots regenerated; rendered text differs from `main` only in the composer | [regression.md](evidence/regression.md) |

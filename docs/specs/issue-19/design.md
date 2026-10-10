@@ -259,9 +259,9 @@ unchanged.
 | Bad `base_url`, `api`, `context_window_tokens`; key missing without `base_url` | `ConfigError` → exit 2 naming the key or variable | `load_settings` |
 | 429, 5xx, timeout, connection refused | `RetryableProviderError` (unchanged mapping) | `translate_error` |
 | Other HTTP status, including a refused 3xx redirect | `ProviderError(status=<code>)` | `translate_error` |
-| 2xx body the selected API cannot parse — missing fields, wrong types, invalid tool-call JSON, an empty `choices` | `ProviderError(status=200, detail="unparseable <api> response")` | new `_parse_failure` wrapper around the parse step, both APIs |
+| 2xx body the selected API cannot parse — missing fields, wrong types, invalid tool-call JSON, an empty `choices` | `ProviderError(status=200)`, message `unparseable <api> response: <exception>` | `translate_error(exc, api=…)` maps `PARSE_ERRORS` before the HTTP mapping; the parse step runs inside the translating `try` on both APIs |
 
-The parse wrapper fixes a latent gap for the Responses path too: today `parse_response`
+The parse mapping fixes a latent gap for the Responses path too: today `parse_response`
 runs **outside** the `try` in `invoke`, and the stream path's `translate_error` returns
 a `json.JSONDecodeError` untouched, so an invalid tool-call argument string escapes as an
 unhandled exception. Both paths now catch `ValueError`, `KeyError`, `TypeError`,
@@ -311,7 +311,7 @@ enforces it:
   | 1 `OPENAI_BASE_URL` redirects | explicit `base_url` always passed | unit: env set to another host → request still goes to the configured / default host |
   | 2 key over clear-text `http` | `base_url` validator | unit: `http://10.0.0.5/v1` + key → `ConfigError` naming `openai.base_url`; `http://127.0.0.1` + key and `http://10.0.0.5` without key → accepted |
   | 3 credentials in the URL | `base_url` validator | unit: `http://u:p@127.0.0.1/v1` → `ConfigError` naming `openai.base_url` |
-  | 4 malformed / unexpected body | parse wrapper | unit: recorded bad bodies (empty `choices`, wrong types, invalid tool JSON) on both APIs, invoke and stream → `ProviderError` |
+  | 4 malformed / unexpected body | `PARSE_ERRORS` in `translate_error` | unit: recorded bad bodies (empty `choices`, wrong types, invalid tool JSON) on both APIs, invoke and stream → `ProviderError` |
   | 5 key in logs or errors | redactor input + startup line shape | unit: key-bearing config → no key in the startup log or a translated error; existing redaction tests extended to a custom endpoint |
 
 ## Testing strategy

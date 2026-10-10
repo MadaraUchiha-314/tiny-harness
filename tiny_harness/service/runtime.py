@@ -71,6 +71,7 @@ def workflow_config(settings: Settings, *, agent: str = AGENT_ID) -> WorkflowCon
         agent=agent,
         retries=settings.retries,
         history_event_bound=settings.context.history_event_bound,
+        search_attributes=settings.temporal.search_attributes,
     )
 
 

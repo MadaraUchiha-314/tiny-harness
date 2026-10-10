@@ -86,7 +86,7 @@ export default withMermaid({
   ignoreDeadLinks: [/\/specs\/[^/]+\/(index)?$/],
   themeConfig: {
     nav: [
-      { text: "Guide", link: "/guide/tech-stack" },
+      { text: "Guide", link: "/guide/getting-started" },
       { text: "Architecture", link: "/architecture/architecture" },
       { text: "Capabilities", link: "/capabilities/capabilities" },
       { text: "Decisions", link: "/decisions/decisions" },
@@ -96,9 +96,20 @@ export default withMermaid({
       {
         text: "Guide",
         items: [
+          { text: "Getting started", link: "/guide/getting-started" },
+          { text: "Deployment", link: "/guide/deployment" },
           { text: "Tech stack", link: "/guide/tech-stack" },
           { text: "Local development", link: "/guide/local-development" },
           { text: "Releasing", link: "/guide/releasing" },
+        ],
+      },
+      {
+        text: "A2A",
+        collapsed: false,
+        items: [
+          { text: "Extensions", link: "/a2a/extensions" },
+          { text: "Task extension v1", link: "/a2a/ext/task/v1" },
+          { text: "Channel extension v1", link: "/a2a/ext/channel/v1" },
         ],
       },
       { text: "Architecture", collapsed: false, items: treeItems("architecture", "architecture") },

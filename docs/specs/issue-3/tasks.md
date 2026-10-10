@@ -408,7 +408,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 9 — demo, docs, capability docs, verification (branch `loop/issue-3-l9-demo`)
 
-- [ ] 46. Demo plugin and configuration
+- [x] 46. Demo plugin and configuration
   - `examples/demo/`: plugin with the `orders` and `policy` stdio MCP servers (the
     `orders.get_order` tool idempotent), a `support-agent` skill, `config.toml`, the
     "refund order #48213" script, `tests/e2e/test_demo.py` and
@@ -416,7 +416,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 38, 42, 45
   - _Requirements:_ R24.1–R24.6, R19.11, R18.5
   - _Test:_ T4, T12 — `uv run pytest tests/e2e -q -m e2e`
-- [ ] 47. Deployment and getting-started documentation
+- [x] 47. Deployment and getting-started documentation
   - Docs site pages: getting started with the demo, deployment guide (perimeter
     requirement, Temporal Cloud retention, trace backend retention, the keyring
     lookups), the extension schemas published under `docs/a2a/ext/`; README updated.

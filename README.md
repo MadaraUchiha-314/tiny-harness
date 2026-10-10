@@ -6,6 +6,37 @@ task, hooks around every operation, and a TUI and a web renderer. It is being bu
 the stacked pull requests of [issue #3](https://github.com/MadaraUchiha-314/tiny-harness/issues/3);
 the spec chain lives under `docs/specs/issue-3/`.
 
+## What is in the box
+
+- An **A2A 1.0 server** (JSON-RPC and REST, streaming, push notifications) and an A2A
+  client for remote agents; three extensions (task, channel, A2UI 0.9.1).
+- A **core loop** of hooks around every operation: ingest, assemble, compact, call the
+  model, run tools, decide completion. Intrinsic tools cover plans, sub-tasks, help
+  requests, participants, skills and UI.
+- **Temporal** owns the whole request lifecycle: one workflow per task, every model and
+  tool call an activity, workflow-managed retries, a durable event log, continue-as-new.
+- **Plugins** (Agent Plugins manifests) bring MCP servers, skills, hooks and prompt
+  extensions; models are OpenAI (Responses API) and Anthropic adapters.
+- **Two renderers**: a Textual TUI and a React web renderer on the official A2UI
+  renderer.
+- **Observability**: JSON logs and OpenTelemetry spans (GenAI conventions), redacted.
+
+## Run the demo
+
+```sh
+export TEMPORAL_API_KEY="$(secret-tool lookup service temporal project tiny-harness)"
+export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+bun install --cwd renderers/web && bun run --cwd renderers/web build
+uv run python -m examples.demo            # A2A server + worker, web renderer at /ui
+uv run tiny-harness tui --url http://127.0.0.1:8080
+```
+
+See [getting started](https://madarauchiha-314.github.io/tiny-harness/guide/getting-started)
+for what happens next and
+[deployment](https://madarauchiha-314.github.io/tiny-harness/guide/deployment) for
+running it for real: the server must sit behind an authenticating perimeter.
+
 ## Install
 
 ```sh

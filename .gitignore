@@ -227,3 +227,6 @@ graph-state.lock
 node_modules/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+
+# demo runtime state (store, trace)
+examples/demo/.state/

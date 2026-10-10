@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "demo-support",
+  "version": "0.1.0",
+  "description": "The tiny-harness demo: a support agent with an order book and a policy book over MCP, the support-agent skill, and a prompt extension for the shop.",
+  "license": "Apache-2.0"
+}

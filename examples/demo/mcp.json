@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "orders": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--quiet", "python", "mcp_orders.py"],
+      "cwd": "${PLUGIN_ROOT}"
+    },
+    "policy": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--quiet", "python", "mcp_policy.py"],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

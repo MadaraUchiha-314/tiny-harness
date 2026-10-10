@@ -67,6 +67,8 @@ class SqliteStore(Store):
     def __init__(self, path: Path | str, *, ref: EntityRef | None = None) -> None:
         super().__init__(ref or EntityRef(kind=EntityKind.STORE, id="sqlite", version=None))
         self._path = str(path)
+        if self._path != ":memory:":
+            Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(self._path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")

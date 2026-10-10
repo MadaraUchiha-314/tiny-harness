@@ -7,7 +7,7 @@ harness test). This is also the record the `security-review` node reads.
 ```text
 ## uv run pytest tests/security -q
 ........................                                                 [100%]
-24 passed in 2.89s
+24 passed in 2.92s
 ```
 
 ## Tests by abuse case

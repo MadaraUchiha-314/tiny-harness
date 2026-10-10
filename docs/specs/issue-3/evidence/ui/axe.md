@@ -42,13 +42,13 @@ the Send button are all reached by Tab; Enter on the Plan tab opens its panel.
 .........                                                                [100%]
 --------------------------- snapshot report summary ----------------------------
 4 snapshots passed.
-9 passed in 9.60s
+9 passed in 9.18s
 ```
 
 ```text
 ## uv run pytest tests/ui -q -k keys
 ....                                                                     [100%]
-4 passed, 5 deselected in 6.27s
+4 passed, 5 deselected in 6.28s
 ```
 
 ## Live captures of the demo (this directory)

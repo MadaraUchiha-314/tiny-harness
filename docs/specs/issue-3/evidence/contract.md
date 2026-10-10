@@ -11,11 +11,11 @@ settings (`temporal.search_attributes`, `o11y.trace_file`) that way.
 ```text
 ## uv run pytest tests/contract -q
 .............................                                            [100%]
-29 passed in 2.82s
+29 passed in 2.78s
 ```
 
 ```text
 ## uv run pytest tests/contract -q -k snapshot
 ..............                                                           [100%]
-14 passed, 15 deselected in 2.82s
+14 passed, 15 deselected in 2.98s
 ```

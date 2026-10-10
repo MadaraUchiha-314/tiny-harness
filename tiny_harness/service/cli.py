@@ -1,0 +1,84 @@
+"""``tiny-harness`` (R21): ``serve``, ``worker``, ``tui``, ``schedules``, ``tasks``.
+
+Every command loads ``Settings`` first; a missing secret or an unknown key exits with
+the variable's name on stderr and status 2 (R21.2, R21.3). Secrets come only from the
+environment (``TEMPORAL_API_KEY``, ``OPENAI_API_KEY``, ``TINY_HARNESS_PUSH_KEY``).
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+
+from tiny_harness import __version__
+from tiny_harness.config import Settings
+from tiny_harness.errors import ConfigError
+
+CONFIG_EXIT = 2
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="tiny-harness", description="A tiny agent harness.")
+    parser.add_argument("--version", action="version", version=f"tiny-harness {__version__}")
+    parser.add_argument(
+        "--config", type=Path, default=None, help="TOML configuration file (secrets from env)"
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    serve = sub.add_parser("serve", help="run the A2A server")
+    serve.add_argument("--with-worker", action="store_true", help="also run a worker in-process")
+    sub.add_parser("worker", help="run a Temporal worker and ensure the heartbeat schedule")
+    tui = sub.add_parser("tui", help="open the terminal renderer")
+    tui.add_argument("--url", default=None, help="the server's base URL (default: config)")
+    schedules = sub.add_parser("schedules", help="manage the heartbeat schedule")
+    schedules_sub = schedules.add_subparsers(dest="schedules_command", required=True)
+    schedules_sub.add_parser("delete", help="delete the heartbeat schedule")
+    tasks = sub.add_parser("tasks", help="task administration")
+    tasks_sub = tasks.add_subparsers(dest="tasks_command", required=True)
+    purge = tasks_sub.add_parser(
+        "purge", help="delete a task's rows from the store and terminate its workflow"
+    )
+    purge.add_argument("task_id")
+    return parser
+
+
+def load(config: Path | None) -> Settings:
+    return Settings.load(config)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        settings = load(args.config)
+    except ConfigError as exc:
+        print(
+            f"configuration error: {exc.message} ({exc.detail.get('variable', '')})",
+            file=sys.stderr,
+        )
+        return CONFIG_EXIT
+    try:
+        return asyncio.run(dispatch(args, settings))
+    except KeyboardInterrupt:
+        return 130
+
+
+async def dispatch(args: argparse.Namespace, settings: Settings) -> int:
+    from tiny_harness.service import commands
+
+    if args.command == "serve":
+        return await commands.serve(settings, with_worker=bool(args.with_worker))
+    if args.command == "worker":
+        return await commands.worker(settings)
+    if args.command == "tui":
+        return await commands.tui(settings, url=args.url)
+    if args.command == "schedules":
+        return await commands.schedules_delete(settings)
+    if args.command == "tasks":
+        return await commands.tasks_purge(settings, task_id=str(args.task_id))
+    return 1
+
+
+__all__ = ["CONFIG_EXIT", "build_parser", "main"]

@@ -145,6 +145,41 @@
       "title": "OpenAIConfig",
       "type": "object"
     },
+    "RemoteAgentSpec": {
+      "additionalProperties": false,
+      "description": "A remote A2A agent to register at startup (R7.2): its card is fetched from the URL.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "url"
+      ],
+      "title": "RemoteAgentSpec",
+      "type": "object"
+    },
     "RetentionConfig": {
       "additionalProperties": false,
       "description": "Time to live per store record kind (the personal-data boundary); 30 days by default.",
@@ -356,6 +391,14 @@
   "additionalProperties": false,
   "description": "Everything a harness process needs. Built by ``load_settings``.",
   "properties": {
+    "agents": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RemoteAgentSpec"
+      },
+      "title": "Agents",
+      "type": "array"
+    },
     "anthropic": {
       "anyOf": [
         {

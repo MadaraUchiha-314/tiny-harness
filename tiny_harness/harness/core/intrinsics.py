@@ -11,6 +11,7 @@ the LLM reads next turn.
 from __future__ import annotations
 
 import re
+from contextvars import ContextVar
 from typing import cast
 
 from pydantic import ValidationError
@@ -33,17 +34,40 @@ from tiny_harness.harness.tools.intrinsics import (
 from tiny_harness.harness.tools.models import Tool, ToolCall, ToolResult, WorkflowCommand
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
+_CURRENT_TASK: ContextVar[HarnessTask | None] = ContextVar("tiny_harness_task", default=None)
+_CURRENT_ACTOR: ContextVar[str | None] = ContextVar("tiny_harness_actor", default=None)
+
 
 class TaskContext:
     """What an intrinsic may see: the task as it stands and who is acting (self-asserted).
 
-    The host rebinds ``task`` before every operation; ``actor`` is the participant the
-    current request asserted, or ``None`` when nobody did (R13.3, abuse case 8).
+    Both live in context variables, so concurrent activities on one worker (one asyncio
+    task each) never see each other's task: the host rebinds ``task`` before every
+    operation; ``actor`` is the participant the current request asserted, or ``None``
+    when nobody did (R13.3, abuse case 8).
     """
 
     def __init__(self, task: HarnessTask | None = None, actor: str | None = None) -> None:
-        self.task = task
-        self.actor = actor
+        if task is not None:
+            self.task = task
+        if actor is not None:
+            self.actor = actor
+
+    @property
+    def task(self) -> HarnessTask | None:
+        return _CURRENT_TASK.get()
+
+    @task.setter
+    def task(self, value: HarnessTask | None) -> None:
+        _CURRENT_TASK.set(value)
+
+    @property
+    def actor(self) -> str | None:
+        return _CURRENT_ACTOR.get()
+
+    @actor.setter
+    def actor(self, value: str | None) -> None:
+        _CURRENT_ACTOR.set(value)
 
 
 def slug(name: str) -> str:

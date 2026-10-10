@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import re
 import tomllib
 from collections.abc import Mapping
 from datetime import timedelta
@@ -116,6 +117,9 @@ class TemporalConfig(_Strict):
         return (store.sqlite_path.resolve().parent / "temporal.sqlite3").resolve()
 
 
+_ABSOLUTE_HTTP_URL = re.compile(r"https?://[^/?#\s]+", re.IGNORECASE)
+
+
 def _is_loopback_host(host: str) -> bool:
     """``localhost`` or a literal loopback address. Never resolved: what a name resolves to
     is what an attacker controls (issue-19 abuse case 2)."""
@@ -147,6 +151,15 @@ class OpenAIConfig(_Strict):
     context_window_tokens: PositiveInt | None = Field(
         default=None, description="the model's window; default: the adapter's table"
     )
+
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def _endpoint_is_absolute(cls, value: object) -> object:
+        """``HttpUrl`` would normalize ``https:example.com`` into an absolute URL; R1.4 asks
+        for one as written: ``http://`` or ``https://`` followed by a host."""
+        if isinstance(value, str) and not _ABSOLUTE_HTTP_URL.match(value):
+            raise ValueError("must be an absolute http:// or https:// URL")
+        return value
 
     @field_validator("base_url")
     @classmethod

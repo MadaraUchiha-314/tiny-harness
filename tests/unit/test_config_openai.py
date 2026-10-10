@@ -58,7 +58,17 @@ def test_base_url_is_taken_from_the_file(tmp_path: Path) -> None:
     assert str(config.base_url) == "https://openrouter.ai/api/v1"
 
 
-@pytest.mark.parametrize("url", ["ftp://h/v1", "127.0.0.1:11434/v1", "not a url"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "ftp://h/v1",
+        "127.0.0.1:11434/v1",
+        "not a url",
+        "https:example.com",
+        "http:/h/v1",
+        "https://",
+    ],
+)
 def test_a_base_url_that_is_not_absolute_http_is_refused(tmp_path: Path, url: str) -> None:
     error = refused(tmp_path, f'base_url = "{url}"')
     assert error.variable == "openai.base_url"

@@ -427,7 +427,11 @@ class Activities:
             message.task_id = arg.remote_task_id
         else:
             message.ClearField("task_id")
-        return await _heartbeating(_remote_turn(agent, message), every=self.heartbeat_every)
+        out = await _heartbeating(_remote_turn(agent, message), every=self.heartbeat_every)
+        # The remote agent's text is recorded in history and relayed to the parent: scrub
+        # it like every other activity result (abuse case 6); this activity runs outside
+        # the operation runner, which scrubs the others.
+        return self.engine.runner.redactor.scrub(out)
 
     # --- heartbeat (R16) --------------------------------------------------------------
 

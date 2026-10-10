@@ -334,6 +334,14 @@
           "title": "Bridge Interval",
           "type": "string"
         },
+        "cors_origins": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Cors Origins",
+          "type": "array"
+        },
         "max_request_bytes": {
           "default": 1048576,
           "title": "Max Request Bytes",
@@ -343,6 +351,20 @@
           "default": 120,
           "title": "Rate Limit Per Minute",
           "type": "integer"
+        },
+        "ui_dir": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a built web renderer to serve under /ui (R20.2)",
+          "title": "Ui Dir"
         }
       },
       "required": [

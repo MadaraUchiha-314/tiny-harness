@@ -71,3 +71,32 @@ jobs:
 
       - name: Build docs
         run: bun run docs:build
+
+  web:
+    name: Web renderer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: renderers/web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+
+      - name: Install web renderer dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type-check, build and unit tests
+        run: |
+          bun run build
+          bun run test
+
+      - name: Install Chromium for Playwright
+        run: bun x playwright install --with-deps chromium
+
+      - name: Visual and accessibility tests
+        run: |
+          bun x playwright test --project=visual
+          bun x playwright test --project=a11y

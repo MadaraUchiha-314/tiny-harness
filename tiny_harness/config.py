@@ -70,6 +70,10 @@ class ServerConfig(_Strict):
     max_request_bytes: int = 1_048_576
     rate_limit_per_minute: int = 120
     bridge_interval: timedelta = timedelta(milliseconds=250)
+    cors_origins: tuple[str, ...] = ()
+    ui_dir: Path | None = Field(
+        default=None, description="a built web renderer to serve under /ui (R20.2)"
+    )
 
 
 class HeartbeatConfig(_Strict):

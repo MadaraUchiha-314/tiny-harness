@@ -383,14 +383,14 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 8 — web renderer (branch `loop/issue-3-l8-web`)
 
-- [ ] 43. Web renderer scaffold and generated types
+- [x] 43. Web renderer scaffold and generated types
   - `renderers/web/` with Vite, TypeScript strict, React 19, Bun; `json-schema-to-
     typescript` generating types from `docs/a2a/ext/*.json` at build; `bun run
     build`/`test`/`test:visual`/`test:a11y` scripts; CI job.
   - _Depends on:_ 23, 28, 40
   - _Requirements:_ R20.2, R22
   - _Test:_ T13 — `bun run --cwd renderers/web build` and `tsc --noEmit` green in CI
-- [ ] 44. Web renderer app
+- [x] 44. Web renderer app
   - The app of `design/web-renderer.html`: REST binding with SSE (`message:stream`,
     `tasks/{id}:subscribe`), `A2A-Version: 1.0`, event stream, task/plan/trace pane
     from the task extension, composer, help-request state, placeholder for
@@ -398,7 +398,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 43
   - _Requirements:_ R20.2–R20.4
   - _Test:_ T5 — Playwright visual tests against the prototype states (`test:visual`); T9 — axe-core and keyboard walk (`test:a11y`)
-- [ ] 45. A2UI in the web renderer
+- [x] 45. A2UI in the web renderer
   - `@a2ui/react` + `@a2ui/web_core`: `MessageProcessor` fed with
     `application/a2ui+json` parts, `A2uiSurface` with `basicCatalog`, actions sent back
     as A2A messages with the A2UI part.

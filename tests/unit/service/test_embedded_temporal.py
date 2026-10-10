@@ -230,3 +230,30 @@ async def test_a_download_dir_others_can_write_is_refused(
         async with EmbeddedTemporal(temporal, store):
             pass
     assert start_local.calls == []
+
+
+# The TUI-hosted harness: the dev server's own output goes to the log, not the terminal.
+
+
+async def test_child_output_goes_to_the_given_stream(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+) -> None:
+    import os
+
+    async def spawning(**kwargs: object) -> FakeEnvironment:
+        os.write(1, b"Temporal Server: localhost:1234\n")  # what the child prints at spawn
+        os.write(2, b"level=WARN msg=cluster\n")
+        return await StartLocal()(**kwargs)
+
+    monkeypatch.setattr(module, "start_local", spawning)
+    temporal, store = config(tmp_path)
+    log = tmp_path / "harness.log"
+    with log.open("a") as stream:
+        async with EmbeddedTemporal(temporal, store, output=stream):
+            pass
+    os.write(1, b"after\n")
+    captured = capfd.readouterr()
+    assert "Temporal Server" not in captured.out and "cluster" not in captured.err
+    assert "after" in captured.out
+    assert "Temporal Server: localhost:1234" in log.read_text()
+    assert "level=WARN msg=cluster" in log.read_text()

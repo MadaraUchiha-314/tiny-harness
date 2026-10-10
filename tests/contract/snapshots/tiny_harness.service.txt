@@ -2,6 +2,6 @@
 class RunningHarness(object)
   def __init__(self, base_url: 'str', client: 'Client', settings: 'Settings', _server_task: 'asyncio.Task[None]') -> None
   def wait(self) -> 'None'
-def running_harness(settings: 'Settings', *, with_worker: 'bool' = True) -> 'AsyncGenerator[RunningHarness]'
+def running_harness(settings: 'Settings', *, with_worker: 'bool' = True, log_stream: 'TextIO | None' = None) -> 'AsyncGenerator[RunningHarness]'
 def serve(settings: 'Settings', *, with_worker: 'bool' = False) -> 'int'
-def temporal_client(settings: 'Settings') -> 'AsyncGenerator[Client]'
+def temporal_client(settings: 'Settings', *, output: 'TextIO | None' = None) -> 'AsyncGenerator[Client]'

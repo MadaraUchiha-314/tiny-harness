@@ -9,13 +9,16 @@ design)."""
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import stat
-from collections.abc import AsyncGenerator
+import sys
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import TracebackType
+from typing import TextIO
 
 from temporalio.client import Client
 from temporalio.contrib.opentelemetry import TracingInterceptor
@@ -76,6 +79,31 @@ def _owner_only(database: Path) -> None:
             candidate.chmod(0o600)
 
 
+@contextlib.contextmanager
+def _child_output(stream: TextIO | None) -> Generator[None]:
+    """Point fds 1 and 2 at ``stream`` while the dev server is spawned, so the child (which
+    inherits them) prints its banner and warnings there for its whole life rather than on
+    a terminal a TUI owns. Restored as soon as the spawn returns."""
+    if stream is None:
+        yield
+        return
+    sys.stdout.flush()
+    sys.stderr.flush()
+    stream.flush()
+    saved = (os.dup(1), os.dup(2))
+    try:
+        os.dup2(stream.fileno(), 1)
+        os.dup2(stream.fileno(), 2)
+        yield
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.dup2(saved[0], 1)
+        os.dup2(saved[1], 2)
+        os.close(saved[0])
+        os.close(saved[1])
+
+
 class _StateLock:
     """An exclusive, non-blocking ``flock`` beside the database: two dev servers on one
     SQLite file would corrupt it."""
@@ -116,9 +144,12 @@ class EmbeddedTemporal:
     exit path (normal, exception, cancellation) shuts the server down and releases the lock.
     """
 
-    def __init__(self, config: TemporalConfig, store: StoreConfig) -> None:
+    def __init__(
+        self, config: TemporalConfig, store: StoreConfig, *, output: TextIO | None = None
+    ) -> None:
         self._config = config
         self._store = store
+        self._output = output
         self._environment: WorkflowEnvironment | None = None
         self._lock: _StateLock | None = None
 
@@ -135,7 +166,8 @@ class EmbeddedTemporal:
             download_dir = _private_download_dir(embedded.download_dir or default_download_dir())
             if embedded.binary_path is None and not any(download_dir.glob(CACHED_BINARY_GLOB)):
                 log.info("downloading the Temporal CLI dev server to %s", download_dir)
-            self._environment = await self._start(embedded, database, download_dir)
+            with _child_output(self._output):
+                self._environment = await self._start(embedded, database, download_dir)
             if database is not None:
                 _owner_only(database)
         except BaseException:
@@ -201,12 +233,16 @@ class EmbeddedTemporal:
 
 
 @asynccontextmanager
-async def temporal_client(settings: Settings) -> AsyncGenerator[Client]:
-    """A connected client for the configured mode; stops what it started on exit (R6.3)."""
+async def temporal_client(
+    settings: Settings, *, output: TextIO | None = None
+) -> AsyncGenerator[Client]:
+    """A connected client for the configured mode; stops what it started on exit (R6.3).
+    ``output`` receives an embedded dev server's own stdout and stderr (default: this
+    process's)."""
     if settings.temporal.mode == "remote":
         yield await connect(settings.temporal)
         return
-    async with EmbeddedTemporal(settings.temporal, settings.store) as client:
+    async with EmbeddedTemporal(settings.temporal, settings.store, output=output) as client:
         yield client
 
 

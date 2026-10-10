@@ -68,7 +68,7 @@ async def tui(settings: Settings, *, url: str | None) -> int:
     print(f"tiny-harness: embedded harness, logs in {log_path}", file=sys.stderr)
     with log_path.open("a", encoding="utf-8") as log_file:
         observe(settings, stream=log_file)
-        async with running_harness(settings) as harness:
+        async with running_harness(settings, log_stream=log_file) as harness:
             return await run_tui(harness.base_url)
 
 

@@ -59,7 +59,10 @@ def isolated_observability(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.mark.usefixtures("isolated_observability")
 async def test_tui_hosts_its_own_harness_in_embedded_mode(
-    tmp_path: Path, script_model: ScriptModel, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    script_model: ScriptModel,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
 ) -> None:
     """
     Feature: Embedded Temporal mode
@@ -70,7 +73,8 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
         When tiny-harness tui runs
         Then the TUI connects to a harness started in the same process
         And a message typed in the TUI runs to COMPLETED
-        And the harness's logs go to a file, not the terminal the TUI owns
+        And the harness's logs, uvicorn's logs and the dev server's output go to a file
+        And none of them reach the terminal the TUI owns
         When the TUI exits
         Then the harness's A2A server is stopped
     """
@@ -98,7 +102,13 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
     assert await commands.tui(settings, url=None) == 0
     assert seen == [str(settings.server.base_url)]
     log_file = tmp_path / "state" / commands.TUI_LOG_NAME
-    assert "embedded Temporal at 127.0.0.1:" in log_file.read_text()
+    log = log_file.read_text()
+    assert "embedded Temporal at 127.0.0.1:" in log  # the harness's JSON log
+    assert "Temporal Server:" in log  # the dev server's own banner
+    assert '"POST / HTTP/1.1" 200' in log or "HTTP/1.1" in log  # uvicorn's access log
+    captured = capfd.readouterr()
+    assert "Temporal Server:" not in captured.out + captured.err
+    assert "HTTP/1.1" not in captured.out + captured.err
     host, _, port = settings.server.bind.rpartition(":")
     with socket.socket() as sock:
         assert sock.connect_ex((host, int(port))) != 0

@@ -20,6 +20,7 @@ import httpx
 import uvicorn
 from a2a.server.tasks import BasePushNotificationSender
 from temporalio.client import Client
+from uvicorn.config import LOGGING_CONFIG
 
 from tiny_harness.config import Settings
 from tiny_harness.harness.persistence import PushTokenCipher
@@ -68,6 +69,20 @@ def observe(settings: Settings, *, stream: TextIO | None = None) -> None:
     configure_tracing(settings.o11y, service_name=settings.o11y.service_name)
 
 
+def uvicorn_log_config(stream: TextIO) -> dict[str, object]:
+    """uvicorn's error and access loggers, written to ``stream`` instead of stdio."""
+    handler = {"class": "logging.StreamHandler", "stream": stream}
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {"stream": handler},
+        "loggers": {
+            name: {"handlers": ["stream"], "level": "INFO", "propagate": False}
+            for name in ("uvicorn", "uvicorn.error", "uvicorn.access")
+        },
+    }
+
+
 @dataclass
 class RunningHarness:
     """A started harness: where to reach it, and its Temporal client."""
@@ -92,17 +107,22 @@ async def _until_started(server: uvicorn.Server, task: asyncio.Task[None]) -> No
 
 @asynccontextmanager
 async def running_harness(
-    settings: Settings, *, with_worker: bool = True
+    settings: Settings, *, with_worker: bool = True, log_stream: TextIO | None = None
 ) -> AsyncGenerator[RunningHarness]:
     """Start Temporal (per ``temporal.mode``), the runtime, the worker and the A2A server;
     yield once the server is listening; stop all of them on exit (issue-17 R6.1, R6.2).
 
     In embedded mode the worker always runs here: no other process can reach the embedded
-    server (R5.1)."""
+    server (R5.1). ``log_stream``, when given, receives uvicorn's logs and an embedded dev
+    server's output instead of this process's stdout and stderr (the TUI hosting its own
+    harness owns the terminal)."""
     if settings.temporal.mode == "embedded" and not with_worker:
         log.info("embedded mode: the worker runs in this process")
         with_worker = True
-    async with temporal_client(settings) as client, contextlib.AsyncExitStack() as stack:
+    async with (
+        temporal_client(settings, output=log_stream) as client,
+        contextlib.AsyncExitStack() as stack,
+    ):
         runtime = await build_runtime(settings)
         push_store = StorePushConfigStore(runtime.store, PushTokenCipher(settings.push_key))
         push_http = httpx.AsyncClient(timeout=10)
@@ -147,7 +167,15 @@ async def running_harness(
                 build_worker(client, activities, task_queue=settings.temporal.task_queue)
             )
         host, port = bind_address(settings)
-        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="info"))
+        server = uvicorn.Server(
+            uvicorn.Config(
+                app,
+                host=host,
+                port=port,
+                log_level="info",
+                log_config=uvicorn_log_config(log_stream) if log_stream else LOGGING_CONFIG,
+            )
+        )
         task = asyncio.create_task(server.serve())
         try:
             await _until_started(server, task)

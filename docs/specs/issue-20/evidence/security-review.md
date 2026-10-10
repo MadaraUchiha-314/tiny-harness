@@ -23,7 +23,7 @@ workItem: issue-20
   | PII | The OS user name now goes to the server the user configured, by default. That is the intended identity assertion, it is documented (README, guide, capability doc), and `--participant` overrides it. It is not logged by the CLI. In committed evidence it is redacted to `[os-user]`. |
   | Other | The diff adds no subprocess, shell, file path, deserialization, template or new dependency. |
 
-  An earlier security-relevant finding, fixed with tests: a non-ASCII or control-character
+  Earlier security-relevant findings, fixed with tests: a non-ASCII or control-character
   id would not survive the header's latin-1 decoding or would break HTTP (self-review
   round 1, `2adbe39`, R1.8), and an OS user name with surrounding whitespace that h11
   would reject (critic round 2, `7bb154d`). Abuse case 1 (no participant → refused) and abuse case 2

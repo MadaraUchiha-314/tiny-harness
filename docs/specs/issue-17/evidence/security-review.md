@@ -36,5 +36,8 @@ workItem: issue-17
 - **Risk tier:** 4. The work adds attack surface (an unauthenticated local server, a
   binary download), which is the default tier 3, and touches the fixed sensitive path
   `**/*schema*` (`tests/contract/snapshots/settings.schema.json`), which raises it to 4.
-- **Human sign-off:** required at tier 4 and requested on PR #18; recorded here when
-  given.
+- **Human sign-off:** @MadaraUchiha-314 (approver), 2026-10-10. The request on PR #18
+  said one approving reply covers both the PR and this security review
+  ([request](https://github.com/MadaraUchiha-314/tiny-harness/pull/18#issuecomment-6100603808)),
+  and the reply was "approved"
+  ([sign-off](https://github.com/MadaraUchiha-314/tiny-harness/pull/18#issuecomment-6100675826)).

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-17",
-  "currentNode": "human-approval",
+  "currentNode": "complete",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -141,8 +141,16 @@
     },
     "human-approval": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "approved",
       "enteredAt": "2026-10-10T18:08:18+00:00",
+      "exitedAt": "2026-10-10T18:16:48+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "complete": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-10T18:16:48+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -319,11 +327,7 @@
     }
   },
   "forced": [],
-  "parked": {
-    "node": "human-approval",
-    "reason": "`classify-feedback` did not pass:\n- feedback so far is not decisive; the gate stays open",
-    "since": "2026-10-10T18:10:23+00:00"
-  },
+  "parked": null,
   "completions": {
     "requirements-definition": {
       "at": "2026-10-10T16:01:34+00:00",
@@ -404,5 +408,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "needs-review"
+  "phase": "complete"
 }

@@ -97,6 +97,11 @@ under an identity, so that I can talk to a harness from the TUI at all.
    `temporal.mode`), and in embedded mode with no `--url`, where the TUI hosts its own
    harness.
 7. The TUI SHALL display the participant it asserts, not a placeholder it never sends.
+8. IF the participant, from `--participant` or the OS user name, contains a character
+   outside printable ASCII THEN the command SHALL exit with status 2 before connecting,
+   and stderr SHALL name the `--participant` option. *(Added in self-review round 1: the
+   header is decoded as latin-1 by the server, so a non-ASCII id would not match the
+   metadata copy on later header-only calls, and a control character breaks HTTP.)*
 
 ### Requirement 2 — The fix stays fixed
 
@@ -128,7 +133,8 @@ what every other client already does, and adds no privilege.
      SHALL treat it exactly as the same assertion from any other A2A client: task
      membership checks use it as given, and the perimeter is what authenticates it.
 - **Fail-closed expectations:** no identity is ever invented to get past the refusal. An
-  undeterminable user name or an empty `--participant` stops the command (R1.4, R1.5)
+  undeterminable user name, an empty `--participant`, or an id the header cannot carry
+  intact stops the command (R1.4, R1.5, R1.8)
   rather than falling back to a shared placeholder such as `you`.
 
 ## Out of scope

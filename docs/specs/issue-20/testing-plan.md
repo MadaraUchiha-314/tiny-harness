@@ -42,6 +42,7 @@ overrides: {}
 |-----|----------------|-----------------|
 | T1 | R1.1, R1.3 | parser accepts `--participant`; no flag → `getpass.getuser()` |
 | T1 | R1.4, R1.5 | `OSError` from `getuser` and a blank flag → exit 2, stderr names `--participant` |
+| T1 | R1.8 | `josé`, `a\nb`, `a\rb`, `名前`, a tab, from the flag or the OS → `None`; `--participant josé` → exit 2 |
 | T1 | R1.2, R1.6 | `commands.tui(url=…, participant="alice")` → `run_tui(url, participant="alice")` |
 | T2 | R1.2, R1.6, R1.7, R2.1 | `Scenario: TUI sends a message under the asserted participant` |
 | T5 | R1.7 | the regression scenario reads `Enter to send as alice` from the composer |

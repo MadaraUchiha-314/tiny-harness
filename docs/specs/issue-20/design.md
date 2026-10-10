@@ -53,10 +53,12 @@ executor, the access policy and the web renderer.
 - `build_parser`: the `tui` sub-parser gains
   `--participant ID` (`default=None`, help: "the participant id to assert (default: the
   OS user name)").
-- New `tui_participant(args: argparse.Namespace) -> str | None`. It returns
-  `args.participant.strip()` when the flag was given, and `None` when that is empty. With
-  no flag, it returns `getpass.getuser()`, or `None` when that raises `OSError` (the
-  Python 3.14 contract when no user name can be found).
+- New `tui_participant(args: argparse.Namespace) -> str | None`. It takes
+  `args.participant.strip()` when the flag was given, else `getpass.getuser()` (`None`
+  when that raises `OSError`, the Python 3.14 contract when no user name can be found).
+  It returns `None` unless the id is non-empty printable ASCII (R1.8). The id also rides
+  in the `X-Participant-Id` header: httpx sends it as UTF-8, Starlette decodes it as
+  latin-1, and h11 refuses CR/LF only at send time.
 - `main`: for the `tui` command, after `refusal`, calls `tui_participant`. On `None` it
   prints `configuration error: no participant to assert; pass --participant <id>
   (--participant)` and returns `CONFIG_EXIT` (2). This happens before `asyncio.run`,
@@ -108,6 +110,7 @@ None changed. The participant is a plain `str` on the existing wire fields
 |-----------|-------|--------|
 | `--participant ""` or whitespace only | `cli.main` | stderr `configuration error: … (--participant)`, exit 2, nothing started |
 | no flag, `getpass.getuser()` raises `OSError` | `cli.main` | same as above |
+| id (flag or OS user) not printable ASCII, for example `josé` or one containing `\n` | `cli.main` | same as above; the user passes an ASCII `--participant` |
 | server still refuses (for example a perimeter strips the header and metadata) | executor → TUI | unchanged behaviour of the server; out of scope |
 
 ## Security design
@@ -116,7 +119,7 @@ None changed. The participant is a plain `str` on the existing wire fields
 |-----------------------------|-------------|
 | CLI → server, participant id | Unchanged server enforcement: `executor.py` still refuses a message that asserts nobody, and `AccessPolicy` still checks membership against the asserted id. The fix adds no server-side default; abuse case 1 is proved by the existing refusal test, which still passes. |
 | Self-asserted identity (decision-003) | The TUI uses the same two channels every other client uses (`X-Participant-Id`, `participant_id`). The value the TUI sends gets no extra trust; abuse case 2 is the existing `tests/integration/a2a/test_access.py` behaviour. |
-| Fail closed on missing identity | `cli.main` exits 2 on a blank flag or an undeterminable user name. It never falls back to a shared placeholder such as `you`. |
+| Fail closed on missing identity | `cli.main` exits 2 on a blank flag, an undeterminable user name, or an id outside printable ASCII. It never falls back to a shared placeholder such as `you`. |
 
 No secret is read, logged or stored. The participant id is not logged by the CLI.
 

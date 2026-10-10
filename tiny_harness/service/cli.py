@@ -75,13 +75,20 @@ def refusal(args: argparse.Namespace, settings: Settings) -> str | None:
 
 def tui_participant(args: argparse.Namespace) -> str | None:
     """Who the TUI asserts (issue-20 R1): ``--participant``, else the OS user name; ``None``
-    when neither names anyone, so the caller fails closed rather than inventing an id."""
+    when neither names anyone, so the caller fails closed rather than inventing an id.
+
+    Only printable ASCII is accepted: the id also travels in the ``X-Participant-Id``
+    header, which the server decodes as latin-1 and HTTP forbids control characters in, so
+    anything else would not match the task it created (R1.8)."""
     if args.participant is not None:
-        return args.participant.strip() or None
-    try:
-        return getpass.getuser()
-    except OSError:
-        return None
+        participant = args.participant.strip()
+    else:
+        try:
+            participant = getpass.getuser()
+        except OSError:
+            return None
+    valid = participant and participant.isascii() and participant.isprintable()
+    return participant if valid else None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -104,7 +111,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.participant is None:
             print(
                 "configuration error: no participant to assert; "
-                "pass --participant <id> (--participant)",
+                "pass --participant <id> in printable ASCII (--participant)",
                 file=sys.stderr,
             )
             return CONFIG_EXIT

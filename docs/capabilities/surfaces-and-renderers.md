@@ -38,8 +38,10 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   events. `tiny-harness tui --url <server>` starts it.
 - The TUI SHALL assert a participant on every message and action it sends, as the
   `X-Participant-Id` header and the `participant_id` metadata: `--participant <id>`, else
-  the OS user name. IF neither yields an id (a blank `--participant`, or no OS user name)
-  THEN `tiny-harness tui` SHALL exit 2 naming `--participant` before it connects. The
+  the OS user name. IF neither yields a non-empty printable-ASCII id (a blank
+  `--participant`, no OS user name, or a non-ASCII or control character, which the
+  header cannot carry intact) THEN `tiny-harness tui` SHALL exit 2 naming
+  `--participant` before it connects. The
   composer shows the asserted id (`Enter to send as <id>`). The id is self-asserted
   (decision-003); the server's refusal of a message that asserts nobody is unchanged.
 - The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app on shadcn

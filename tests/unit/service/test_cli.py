@@ -181,7 +181,21 @@ def test_tui_participant_is_none_when_nothing_can_be_asserted(
     assert tui_participant(parser.parse_args(["tui", "--participant", "  "])) is None
 
 
-@pytest.mark.parametrize("flag", [["--participant", ""], ["--participant", "   "], []])
+@pytest.mark.parametrize("value", ["josé", "a\nb", "a\rb", "名前", "tab\there"])
+def test_tui_participant_refuses_what_the_header_cannot_carry(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    """Non-ASCII reaches the server latin-1 decoded and control characters break HTTP, so
+    the id would not match the task's later (issue-20 R1.8): refused, from either source."""
+    parser = build_parser()
+    assert tui_participant(parser.parse_args(["tui", "--participant", value])) is None
+    monkeypatch.setattr(getpass, "getuser", lambda: value)
+    assert tui_participant(parser.parse_args(["tui"])) is None
+
+
+@pytest.mark.parametrize(
+    "flag", [["--participant", ""], ["--participant", "   "], ["--participant", "josé"], []]
+)
 def test_tui_without_a_participant_exits_two_before_connecting(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

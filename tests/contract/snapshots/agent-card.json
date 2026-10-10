@@ -1,0 +1,54 @@
+{
+  "capabilities": {
+    "extensions": [
+      {
+        "description": "tiny-harness task extension: name, goal, acceptance criteria, participants, plan and sub-tasks in Task.metadata; event envelopes as data parts",
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/task/v1"
+      },
+      {
+        "description": "tiny-harness channels: messages, help requests and replies as data parts",
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/channel/v1"
+      },
+      {
+        "description": "A2UI 0.9.1 surfaces and actions as application/a2ui+json parts",
+        "params": {
+          "acceptsInlineCatalogs": false,
+          "supportedCatalogIds": [
+            "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+          ]
+        },
+        "uri": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+      }
+    ],
+    "pushNotifications": true,
+    "streaming": true
+  },
+  "defaultInputModes": [
+    "text/plain",
+    "application/vnd.tiny-harness.task+json",
+    "application/vnd.tiny-harness.channel+json",
+    "application/vnd.tiny-harness.event+json",
+    "application/a2ui+json"
+  ],
+  "defaultOutputModes": [
+    "text/plain",
+    "application/vnd.tiny-harness.task+json",
+    "application/vnd.tiny-harness.channel+json",
+    "application/a2ui+json"
+  ],
+  "description": "A tiny agent harness: tasks, plans, participants, tools and skills over A2A",
+  "name": "tiny-harness",
+  "supportedInterfaces": [
+    {
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "1.0",
+      "url": "http://127.0.0.1:8080/"
+    },
+    {
+      "protocolBinding": "HTTP+JSON",
+      "protocolVersion": "1.0",
+      "url": "http://127.0.0.1:8080/"
+    }
+  ],
+  "version": "0.1.0"
+}

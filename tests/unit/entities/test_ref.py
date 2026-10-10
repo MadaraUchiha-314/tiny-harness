@@ -44,6 +44,7 @@ def test_every_entity_kind_is_a_known_construct() -> None:
         "hook",
         "channel",
         "renderer",
+        "surface",
         "store",
         "agent",
     }

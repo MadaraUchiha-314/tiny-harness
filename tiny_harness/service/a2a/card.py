@@ -4,7 +4,6 @@ the harness declares reaches ``capabilities.extensions``. No security scheme is 
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Final
 
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
@@ -13,6 +12,7 @@ from pydantic import BaseModel, ConfigDict
 from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
 from tiny_harness.harness.core import TASK_EXT_MEDIA_TYPE, TASK_EXT_URI
+from tiny_harness.interaction.a2ui import BASIC_CATALOG_ID
 
 A2UI_MEDIA_TYPE: Final = "application/a2ui+json"
 EVENT_MEDIA_TYPE: Final = "application/vnd.tiny-harness.event+json"
@@ -50,10 +50,16 @@ class AgentSkillSpec(BaseModel):
 
 def build_agent_card(agent: AgentDescription, base_url: str) -> AgentCard:
     url = base_url.rstrip("/") + "/"
-    extensions: Sequence[AgentExtension] = [
-        AgentExtension(uri=uri, description=EXTENSION_DESCRIPTIONS.get(uri, ""), required=False)
-        for uri in agent.extensions
-    ]
+    extensions: list[AgentExtension] = []
+    for uri in agent.extensions:
+        extension = AgentExtension(
+            uri=uri, description=EXTENSION_DESCRIPTIONS.get(uri, ""), required=False
+        )
+        if uri == A2UI_EXT_URI:
+            extension.params.update(
+                {"supportedCatalogIds": [BASIC_CATALOG_ID], "acceptsInlineCatalogs": False}
+            )
+        extensions.append(extension)
     return AgentCard(
         name=agent.name,
         description=agent.description,

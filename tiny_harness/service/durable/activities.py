@@ -6,13 +6,14 @@ heartbeat every 10 s so a dead worker is detected within ``heartbeat_timeout`` (
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from typing import Protocol, cast
 
 from a2a.types import Message, Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.types import Role as A2ARole
-from google.protobuf import struct_pb2
+from google.protobuf import json_format, struct_pb2
 from temporalio import activity
 from temporalio.client import Client, WorkflowExecutionStatus, WorkflowUpdateFailedError
 from temporalio.exceptions import ApplicationError
@@ -47,6 +48,13 @@ from tiny_harness.harness.persistence import (
     StateRecord,
     TaskRecord,
 )
+from tiny_harness.interaction.a2ui import (
+    A2UI_MEDIA_TYPE,
+    A2UIValidationError,
+    Action,
+    parse_client_message,
+)
+from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.durable.models import (
     ActivityFailedPre,
     ActivityName,
@@ -58,6 +66,7 @@ from tiny_harness.service.durable.models import (
     CompletionIn,
     CompletionOut,
     EmitIn,
+    EventEntry,
     HeartbeatTickPre,
     InboxReceipt,
     IntakeIn,
@@ -97,7 +106,7 @@ NON_RETRYABLE_CODES = frozenset({ProviderError.code, HookAbort.code, ToolNotFoun
 class EventSink(Protocol):
     """Where ``emit_event`` delivers: push notification configs, in the server process."""
 
-    async def deliver(self, task_id: str, context_id: str, entry_payload: object) -> None: ...
+    async def deliver(self, task_id: str, context_id: str, entry: EventEntry) -> None: ...
 
 
 async def _heartbeating[T](coro: Awaitable[T], *, every: float = HEARTBEAT_EVERY) -> T:
@@ -169,6 +178,19 @@ class Activities:
         now = datetime.now(UTC)
         accepted = participant is None or task.ext.is_participant(participant)
         reason = "" if accepted else "not a participant"
+        ui_action: JsonObject | None = None
+        if accepted:
+            try:
+                action = ui_action_of(arg.message)
+            except A2UIValidationError as exc:
+                accepted, reason = False, f"{exc.code}: {exc.message}"
+            else:
+                if action is not None:
+                    if arg.surfaces.accepts(action):
+                        ui_action = action.payload()
+                        text = (text + "\n" if text else "") + describe_action(action)
+                    else:  # abuse case 9: a surface or component the task did not create
+                        accepted, reason = False, "a2ui.unknown_surface_or_component"
         try:
             if accepted:
                 pre = RequestReceivedPre(
@@ -217,6 +239,7 @@ class Activities:
             participant_id=participant,
             reason=reason,
             interrupt=interrupt,
+            ui_action=ui_action if accepted else None,
         )
 
     # --- the loop's operations ------------------------------------------------------
@@ -345,7 +368,7 @@ class Activities:
     @activity.defn(name=ActivityName.EMIT_EVENT.value)
     async def emit_event(self, arg: EmitIn) -> None:
         if self.sink is not None:
-            await self.sink.deliver(arg.task_id, arg.context_id, arg.entry.payload)
+            await self.sink.deliver(arg.task_id, arg.context_id, arg.entry)
 
     # --- workflow-managed retries (R19.3, R19.4) -----------------------------------
 
@@ -455,6 +478,26 @@ class Activities:
     async def retention_sweep(self, arg: SweepIn) -> SweepOut:
         deleted = await self.engine.store.sweep(self.retention, datetime.now(UTC))
         return SweepOut(deleted={k.value: v for k, v in deleted.items()})
+
+
+def ui_action_of(message: Message) -> Action | None:
+    """The A2UI client message in an inbound A2A message, validated; ``None`` if none."""
+    for part in message.parts:
+        if part.HasField("data") and part.media_type == A2UI_MEDIA_TYPE:
+            payload = cast(JsonObject, json_format.MessageToDict(part.data))
+            parsed = parse_client_message(payload)
+            if isinstance(parsed, Action):
+                return parsed
+            return None
+    return None
+
+
+def describe_action(action: Action) -> str:
+    context = json.dumps(action.context, sort_keys=True)
+    return (
+        f"[A2UI action] {action.name} on surface {action.surface_id} "
+        f"from {action.source_component_id}: {context}"
+    )
 
 
 async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:

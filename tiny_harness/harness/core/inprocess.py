@@ -119,6 +119,7 @@ class InProcessOperations:
         self.context = TaskContext(actor=actor)
         self.spawned: list[tuple[TaskRef, WorkflowCommand]] = []
         self.help_requests: list[JsonObject] = []
+        self.ui_commands: list[WorkflowCommand] = []
         self.sources: list[McpToolSource] = []
         self.resolved_children: set[str] = set()
         self._bound = False
@@ -309,6 +310,9 @@ class InProcessOperations:
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
         self.help_requests.append(help)
         return await self.set_state(task, TaskState.TASK_STATE_INPUT_REQUIRED)
+
+    async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
+        self.ui_commands.append(command)
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
         return await self.set_state(task, TaskState.TASK_STATE_COMPLETED)

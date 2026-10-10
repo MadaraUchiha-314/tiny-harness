@@ -55,6 +55,7 @@ class Operations(Protocol)
   def complete(self, task: 'HarnessTask', text: 'str') -> 'HarnessTask'
   def decide_completion(self, task: 'HarnessTask') -> 'TaskCompleteIn'
   def drain(self, task: 'HarnessTask', state: 'AgentState') -> 'AgentState'
+  def emit_ui(self, task: 'HarnessTask', command: 'WorkflowCommand') -> 'None'
   def extract(self, task: 'HarnessTask', response: 'LLMResponse') -> 'tuple[ToolCall, ...]'
   def fail(self, task: 'HarnessTask', reason: 'str') -> 'HarnessTask'
   def ingest(self, task: 'HarnessTask', state: 'AgentState', text: 'str') -> 'AgentState'

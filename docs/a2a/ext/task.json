@@ -29,6 +29,7 @@
         "hook",
         "channel",
         "renderer",
+        "surface",
         "store",
         "agent"
       ],

@@ -28,6 +28,7 @@ from tiny_harness.harness.core import (
 from tiny_harness.harness.hooks import HookContext
 from tiny_harness.harness.models import LLMRequest, LLMResponse
 from tiny_harness.harness.tools import ToolCall, ToolResult, WorkflowCommand
+from tiny_harness.interaction.a2ui import SurfaceRegistry
 from tiny_harness.jsontypes import JsonObject
 
 type TaskProto = Annotated[Task, *proto_json(Task)]
@@ -166,6 +167,7 @@ class TaskStart(_Frozen):
     notes: tuple[str, ...] = ()
     attempt_counters: dict[str, int] = Field(default_factory=dict)
     parent_workflow_id: str | None = None
+    surfaces: SurfaceRegistry = SurfaceRegistry()
 
 
 class InboxReceipt(_Frozen):
@@ -190,6 +192,7 @@ class ActivityIn(_Frozen):
 class IntakeIn(ActivityIn):
     task: TaskProto
     message: MessageProto
+    surfaces: SurfaceRegistry = SurfaceRegistry()
 
 
 class IntakeOut(_Frozen):
@@ -199,6 +202,7 @@ class IntakeOut(_Frozen):
     reason: str = ""
     interrupt: bool = False
     task: TaskProto | None = None
+    ui_action: JsonObject | None = None
 
 
 class AssembleIn(ActivityIn):

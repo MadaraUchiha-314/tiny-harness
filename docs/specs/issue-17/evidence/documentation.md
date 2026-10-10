@@ -1,3 +1,8 @@
+---
+type: evidence
+workItem: issue-17
+---
+
 # Documentation
 
 Work item: issue-17 · testing-plan row T12 · commit `116199d`.
@@ -17,7 +22,7 @@ Work item: issue-17 · testing-plan row T12 · commit `116199d`.
 |---|---|---|
 | `README.md` | "No Temporal account?" run block beside the Cloud instructions | R7.1 |
 | `docs/guide/getting-started.md` | "No Temporal account: embedded mode" | R7.1 |
-| `docs/guide/deployment.md` | `[temporal]` and `[temporal.embedded]` rows, the `TEMPORAL_API_KEY` rule per mode, "Embedded Temporal is not a production deployment" | R7.2, R7.3 |
+| `docs/guide/deployment.md` | `[temporal]` and `[temporal.embedded]` rows, the `TEMPORAL_API_KEY` rule per mode, "Embedded Temporal is not a production deployment"; the download-dir rule as implemented after self-review (`12f218f`) | R7.2, R7.3 |
 | `docs/architecture/architecture.md` | remote or embedded Temporal through `durable/temporal.py`; `process.py` | R7.2 |
 | `docs/decisions/decision-005.md` | the embedded-mode decision | — |
 

@@ -7,7 +7,10 @@ row: T6
 # Contract snapshots (T6)
 
 The public API changed only additively, plus `OpenAIConfig.api_key` becoming optional
-(a relaxation: every configuration that loaded before still loads). Run at `420df50`.
+(a relaxation: every configuration that loaded before still loads). Run at `420df50`;
+the `OpenAIConfig` line below is as of `ac8a0a5`, after critic round 1 made
+`context_window_tokens` a strict integer (`gt=0` lives in the field's schema, not the
+rendered type).
 
 ```text
 $ uv run pytest -q tests/contract
@@ -25,7 +28,7 @@ $ git diff --stat 755ccb6 -- tests/contract/snapshots
 
 ```diff
 -model OpenAIConfig(api_key: <class 'pydantic.types.SecretStr'>, model: <class 'str'> = ..., timeout: <class 'datetime.timedelta'> = ..., max_output_tokens: <class 'int'> = ...)
-+model OpenAIConfig(api_key: pydantic.types.SecretStr | None = ..., base_url: pydantic.networks.HttpUrl | None = ..., api: typing.Literal['responses', 'chat_completions'] = ..., model: <class 'str'> = ..., timeout: <class 'datetime.timedelta'> = ..., max_output_tokens: <class 'int'> = ..., context_window_tokens: typing.Annotated[int, Gt(gt=0)] | None = ...)
++model OpenAIConfig(api_key: pydantic.types.SecretStr | None = ..., base_url: pydantic.networks.HttpUrl | None = ..., api: typing.Literal['responses', 'chat_completions'] = ..., model: <class 'str'> = ..., timeout: <class 'datetime.timedelta'> = ..., max_output_tokens: <class 'int'> = ..., context_window_tokens: typing.Annotated[int, Strict(strict=True)] | None = ...)
 ```
 
 ## `tiny_harness.harness.core.txt`

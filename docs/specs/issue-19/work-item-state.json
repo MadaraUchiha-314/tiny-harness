@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-19",
-  "currentNode": "verification",
+  "currentNode": "self-review",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -85,8 +85,16 @@
     },
     "verification": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-10T20:10:57+00:00",
+      "exitedAt": "2026-10-10T20:24:12+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "self-review": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-10T20:24:12+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -283,6 +291,10 @@
     "implementation": {
       "at": "2026-10-10T20:10:57+00:00",
       "by": "cli"
+    },
+    "verification": {
+      "at": "2026-10-10T20:24:12+00:00",
+      "by": "cli"
     }
   },
   "skips": {
@@ -322,5 +334,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "verification"
+  "phase": "needs-review"
 }

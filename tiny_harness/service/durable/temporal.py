@@ -49,17 +49,28 @@ def default_download_dir() -> Path:
     return Path(base) / "tiny-harness" / "temporal"
 
 
+def _refuse_unless_private(path: Path, what: str) -> None:
+    """Refuse a path another local user could replace: not ours, or group/other-writable."""
+    info = path.stat()
+    remedy = (
+        "use a private directory (temporal.embedded.download_dir) or pin "
+        "temporal.embedded.binary_path"
+    )
+    if hasattr(os, "getuid") and info.st_uid != os.getuid():
+        raise EmbeddedTemporalError(f"the {what} {path} is not owned by this user; {remedy}")
+    if stat.S_IMODE(info.st_mode) & (stat.S_IWGRP | stat.S_IWOTH):
+        raise EmbeddedTemporalError(f"the {what} {path} is writable by other users; {remedy}")
+
+
 def _private_download_dir(path: Path) -> Path:
-    """Create it ``0700``; refuse one other users can write, where a binary could be planted."""
+    """Create it ``0700``; refuse it, or a binary cached in it, if another user could plant
+    or swap what the SDK will execute."""
     if not path.exists():
         path.mkdir(parents=True, mode=0o700)
         path.chmod(0o700)  # mkdir's mode is masked by the umask
-    if stat.S_IMODE(path.stat().st_mode) & (stat.S_IWGRP | stat.S_IWOTH):
-        raise EmbeddedTemporalError(
-            f"the Temporal download directory {path} is writable by other users; "
-            "use a private directory (temporal.embedded.download_dir) or pin "
-            "temporal.embedded.binary_path"
-        )
+    _refuse_unless_private(path, "Temporal download directory")
+    for cached in path.glob(CACHED_BINARY_GLOB):
+        _refuse_unless_private(cached, "cached Temporal binary")
     return path
 
 

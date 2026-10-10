@@ -257,3 +257,34 @@ async def test_child_output_goes_to_the_given_stream(
     assert "after" in captured.out
     assert "Temporal Server: localhost:1234" in log.read_text()
     assert "level=WARN msg=cluster" in log.read_text()
+
+
+async def test_a_cached_binary_others_can_write_is_refused(
+    tmp_path: Path, start_local: StartLocal
+) -> None:
+    cache = tmp_path / "cache"
+    cache.mkdir(mode=0o700)
+    cache.chmod(0o755)  # not writable by others, but the binary inside is
+    binary = cache / "temporal-sdk-python-1.34.0"
+    binary.write_text("")
+    binary.chmod(0o666)
+    temporal, store = config(tmp_path)
+    with pytest.raises(EmbeddedTemporalError, match="writable by other users"):
+        async with EmbeddedTemporal(temporal, store):
+            pass
+    assert start_local.calls == []
+
+
+async def test_a_download_dir_owned_by_another_user_is_refused(
+    tmp_path: Path, start_local: StartLocal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    real_getuid = os.getuid
+    monkeypatch.setattr(module.os, "getuid", lambda: real_getuid() + 1)
+    temporal, store = config(tmp_path)
+    (tmp_path / "cache").mkdir(mode=0o700)
+    with pytest.raises(EmbeddedTemporalError, match="not owned by this user"):
+        async with EmbeddedTemporal(temporal, store):
+            pass
+    assert start_local.calls == []

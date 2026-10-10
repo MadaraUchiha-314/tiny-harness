@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import importlib
+import os
 import sys
 from collections.abc import Awaitable, Callable
 from typing import cast
@@ -66,7 +67,9 @@ async def tui(settings: Settings, *, url: str | None) -> int:
     log_path = settings.store.sqlite_path.resolve().parent / TUI_LOG_NAME
     log_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"tiny-harness: embedded harness, logs in {log_path}", file=sys.stderr)
-    with log_path.open("a", encoding="utf-8") as log_file:
+    descriptor = os.open(log_path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    os.chmod(log_path, 0o600)  # owner-only like the state files, also when it already existed
+    with os.fdopen(descriptor, "a", encoding="utf-8") as log_file:
         observe(settings, stream=log_file)
         async with running_harness(settings, log_stream=log_file) as harness:
             return await run_tui(harness.base_url)

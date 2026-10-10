@@ -14,6 +14,7 @@ import logging
 import os
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -103,6 +104,7 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
     assert seen == [str(settings.server.base_url)]
     log_file = tmp_path / "state" / commands.TUI_LOG_NAME
     log = log_file.read_text()
+    assert stat.S_IMODE(log_file.stat().st_mode) == 0o600
     assert "embedded Temporal at 127.0.0.1:" in log  # the harness's JSON log
     assert "Temporal Server:" in log  # the dev server's own banner
     assert '"POST / HTTP/1.1" 200' in log or "HTTP/1.1" in log  # uvicorn's access log

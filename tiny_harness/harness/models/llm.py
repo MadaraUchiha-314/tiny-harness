@@ -97,6 +97,8 @@ class LLMModelInfo(BaseModel, frozen=True):
     model: str
     context_window_tokens: int
     min_cacheable_tokens: int = 0
+    endpoint: str | None = None  # scheme://host[:port] the model is reached at (issue-19)
+    api: str | None = None  # the wire API, e.g. "responses" or "chat_completions"
 
 
 class LLM(Entity):

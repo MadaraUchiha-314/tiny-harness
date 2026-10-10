@@ -143,7 +143,7 @@ URL, so the Responses API requests are byte-identical (NFR backwards compatibili
 the only behavioural difference is that `OPENAI_BASE_URL` stops redirecting it.
 
 `LLMModelInfo` is filled with `context_window_tokens or CONTEXT_WINDOWS.get(model,
-400_000)` (R4.1, R4.2), `endpoint` = the endpoint's `host[:port]`, and `api`.
+400_000)` (R4.1, R4.2), `endpoint` = the endpoint's `scheme://host[:port]` (`endpoint_origin`), and `api`.
 
 `invoke` / `stream` dispatch on `api`: `responses` calls the existing `build_params` /
 `parse_response` / event loop **unchanged** (R3.2); `chat_completions` calls the new

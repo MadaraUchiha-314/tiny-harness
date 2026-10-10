@@ -35,7 +35,7 @@ Conventions for every task:
 
 ## Task list
 
-- [ ] 1. Config: `base_url`, `api`, `context_window_tokens`, optional key
+- [x] 1. Config: `base_url`, `api`, `context_window_tokens`, optional key
   - `OpenAIConfig`: `api_key: SecretStr | None` declared before `base_url: HttpUrl |
     None`; `api: Literal["responses", "chat_completions"]`; `context_window_tokens:
     PositiveInt | None`.
@@ -51,7 +51,7 @@ Conventions for every task:
   - _Test:_ T1 + T8 — new `tests/unit/test_config_openai.py` (every R1.4 / R2 / R3.1 /
     R4.3 case and abuse cases 2–3 from the trace table); T10 — existing
     `tests/unit/test_config.py` unedited (red→green)
-- [ ] 2. Adapter: client construction, model info, keyless headers
+- [x] 2. Adapter: client construction, model info, keyless headers
   - `OpenAILLM.__init__` gains `base_url`, `api`, `context_window_tokens`; `api_key` may
     be `None`. `_client(...)` per the design's table: explicit `base_url` (default
     `DEFAULT_BASE_URL`), `"no-key"` placeholder + per-request `Authorization: omit`,

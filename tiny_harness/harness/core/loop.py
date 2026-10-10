@@ -29,6 +29,7 @@ from tiny_harness.harness.core.state import AgentState, LoadedSkillRecord
 from tiny_harness.harness.core.task import HarnessTask, TaskRef
 from tiny_harness.harness.hooks import HookContext
 from tiny_harness.harness.models import (
+    LLMModelInfo,
     LLMRequest,
     LLMResponse,
     MessageItem,
@@ -52,6 +53,7 @@ class RequestReceivedPost(RequestReceivedPre):
 
 class LLMInvokedPre(HookContext):
     request: LLMRequest
+    model: LLMModelInfo | None = None  # where the call goes (issue-19 observability)
 
 
 class LLMInvokedPost(LLMInvokedPre):

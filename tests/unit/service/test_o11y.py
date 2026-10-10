@@ -15,7 +15,7 @@ from tiny_harness.harness.core.loop import (
     ToolInvokedPre,
 )
 from tiny_harness.harness.hooks import HookManager, Operation, OperationRunner
-from tiny_harness.harness.models import LLMRequest, LLMResponse, scripted
+from tiny_harness.harness.models import LLMModelInfo, LLMRequest, LLMResponse, scripted
 from tiny_harness.harness.security import MASK, Redactor
 from tiny_harness.harness.tools import ToolCall, ToolResult, WorkflowCommand
 from tiny_harness.service.o11y import (
@@ -105,6 +105,46 @@ async def test_one_span_per_operation_with_genai_attributes() -> None:
     assert (tool_span.attributes or {})["gen_ai.tool.name"] == "orders.get_order"
     assert tool_span.status.status_code.name == "ERROR"
     assert executor.open_spans == 0
+
+
+async def test_the_chat_span_names_the_model_endpoint_and_wire_api() -> None:
+    """issue-19 NFR observability: a trace shows where a model call went."""
+    exporter = InMemorySpanExporter()
+    provider = configure_tracing(O11yConfig(), exporter=exporter, set_global=False)
+    hooks = HookManager()
+    hooks.register(O11yExecutor(redactor=Redactor(secrets=["s3cr3t-value"]), provider=provider))
+    info = LLMModelInfo(
+        provider="openai",
+        model="qwen3:8b",
+        context_window_tokens=16384,
+        endpoint="http://127.0.0.1:11434",
+        api="chat_completions",
+    )
+
+    async def llm(ctx: LLMInvokedPre) -> LLMResponse:
+        return scripted("hi", model="qwen3:8b")
+
+    await OperationRunner(hooks).run(
+        Operation.LLM_INVOKED,
+        LLMInvokedPre(
+            task_id="t-1",
+            correlation_id="c-1",
+            request=LLMRequest(instructions="", input=()),
+            model=info,
+        ),
+        llm,
+        make_post=lambda p, r: LLMInvokedPost(
+            task_id=p.task_id,
+            correlation_id=p.correlation_id,
+            request=p.request,
+            model=p.model,
+            response=r,
+        ),
+        extract=lambda post: post.response,
+    )
+    chat = exporter.get_finished_spans()[0].attributes or {}
+    assert chat["server.address"] == "127.0.0.1" and chat["server.port"] == 11434
+    assert chat["tiny_harness.llm.api"] == "chat_completions"
 
 
 def test_langfuse_headers_are_basic_auth() -> None:

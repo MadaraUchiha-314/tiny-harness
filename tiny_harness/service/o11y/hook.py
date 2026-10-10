@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from urllib.parse import urlsplit
 
 from opentelemetry import context as otel_context
 from opentelemetry import trace
@@ -53,6 +54,21 @@ def span_name(point: HookPoint, ctx: HookContext, *, model: str | None = None) -
 
 def _key(point: HookPoint, ctx: HookContext) -> SpanKey:
     return (ctx.task_id, ctx.correlation_id, point.operation.value, ctx.attempt)
+
+
+def _endpoint_attributes(endpoint: str | None, api: str | None) -> Attributes:
+    """OTel's client ``server.*`` attributes and the wire API of a model call."""
+    attributes: Attributes = {}
+    if endpoint is not None:
+        parts = urlsplit(endpoint)
+        if parts.hostname:
+            attributes["server.address"] = parts.hostname
+        port = parts.port or {"http": 80, "https": 443}.get(parts.scheme)
+        if port is not None:
+            attributes["server.port"] = port
+    if api is not None:
+        attributes["tiny_harness.llm.api"] = api
+    return attributes
 
 
 class O11yExecutor:
@@ -117,6 +133,8 @@ class O11yExecutor:
             attributes["gen_ai.operation.name"] = "chat"
             attributes["gen_ai.provider.name"] = "tiny_harness"
             attributes["gen_ai.request.tools"] = len(ctx.request.tools)
+            if ctx.model is not None:
+                attributes.update(_endpoint_attributes(ctx.model.endpoint, ctx.model.api))
             kind = SpanKind.CLIENT
         elif isinstance(ctx, ToolInvokedPre):
             attributes["gen_ai.operation.name"] = "execute_tool"

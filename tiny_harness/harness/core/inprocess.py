@@ -189,7 +189,12 @@ class InProcessOperations:
         )
 
     async def invoke_llm(self, task: HarnessTask, request: LLMRequest) -> LLMResponse:
-        pre = LLMInvokedPre(task_id=task.id, correlation_id=self.correlation_id, request=request)
+        pre = LLMInvokedPre(
+            task_id=task.id,
+            correlation_id=self.correlation_id,
+            request=request,
+            model=self.llm.info,
+        )
 
         async def body(ctx: LLMInvokedPre) -> LLMResponse:
             return await self.llm.invoke(ctx.request)
@@ -199,7 +204,11 @@ class InProcessOperations:
             pre,
             body,
             make_post=lambda p, out: LLMInvokedPost(
-                task_id=p.task_id, correlation_id=p.correlation_id, request=p.request, response=out
+                task_id=p.task_id,
+                correlation_id=p.correlation_id,
+                request=p.request,
+                model=p.model,
+                response=out,
             ),
             extract=lambda post: post.response,
         )

@@ -4,6 +4,7 @@ and the in-process engine the activities run over."""
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -33,6 +34,8 @@ from tiny_harness.service.durable.models import WorkflowConfig
 from tiny_harness.service.o11y.plugin import executor as o11y_executor
 from tiny_harness.service.o11y.plugin import o11y_plugin
 
+log = logging.getLogger("tiny_harness.runtime")
+
 AGENT_ID = "tiny-harness"
 
 
@@ -49,6 +52,15 @@ class Runtime:
     redactor: Redactor
     sources: list[McpToolSource] = field(default_factory=lambda: list[McpToolSource]())
     reports: list[LoadReport] = field(default_factory=lambda: list[LoadReport]())
+
+
+def model_endpoint_line(llm: LLM) -> str | None:
+    """Where model calls go, for the startup log: the origin only — never the path, the
+    query or the key (issue-19 NFR observability, abuse case 5)."""
+    info = llm.info
+    if info.endpoint is None:
+        return None
+    return f"model endpoint {info.endpoint} api={info.api} model={info.model}"
 
 
 def secret_values(settings: Settings) -> list[SecretStr]:
@@ -129,6 +141,9 @@ async def build_runtime(
         api=openai_config.api,
         context_window_tokens=openai_config.context_window_tokens,
     )
+    line = model_endpoint_line(model)
+    if line is not None:
+        log.info("%s", line)
     records = store or SqliteStore(settings.store.sqlite_path)
     engine = InProcessOperations(
         registry=registry,

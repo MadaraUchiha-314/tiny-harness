@@ -44,19 +44,21 @@ def create_app(
     monitor: MonitorSource | None = None,
 ) -> Starlette:
     builder = HarnessContextBuilder()
-    routes: list[BaseRoute] = [
-        *create_agent_card_routes(card),
-        *create_jsonrpc_routes(handler, rpc_url="/", context_builder=builder),
-        *create_rest_routes(handler, context_builder=builder),
-    ]
 
     async def monitor_view(request: Request) -> JSONResponse:
         snapshot: JsonObject = await monitor() if monitor is not None else {"tasks": []}
         return JSONResponse(snapshot)
 
-    routes.append(Route("/_monitor", monitor_view, methods=["GET"]))
+    # The harness's own routes go first: the SDK's REST routes carry path parameters at
+    # the root that would otherwise capture /_monitor and /ui/... and answer 404.
+    routes: list[BaseRoute] = [
+        *create_agent_card_routes(card),
+        Route("/_monitor", monitor_view, methods=["GET"]),
+    ]
     if config.ui_dir is not None:  # the built web renderer, same origin as the API
         routes.append(Mount("/ui", app=StaticFiles(directory=config.ui_dir, html=True)))
+    routes.extend(create_jsonrpc_routes(handler, rpc_url="/", context_builder=builder))
+    routes.extend(create_rest_routes(handler, context_builder=builder))
     app = Starlette(routes=routes)
     if config.cors_origins:  # a web renderer served elsewhere (the Vite dev server)
         app.add_middleware(

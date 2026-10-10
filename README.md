@@ -18,7 +18,10 @@ the spec chain lives under `docs/specs/issue-3/`.
 - **Plugins** (Agent Plugins manifests) bring MCP servers, skills, hooks and prompt
   extensions; models are OpenAI (Responses API) and Anthropic adapters.
 - **Two renderers**: a Textual TUI and a React web renderer on the official A2UI
-  renderer, each an A2A client through the official SDK of its language.
+  renderer, each an A2A client through the official SDK of its language; the web
+  renderer is also hosted at
+  [madarauchiha-314.github.io/tiny-harness/ui](https://madarauchiha-314.github.io/tiny-harness/ui/)
+  and talks to any harness whose URL you give it.
 - **Observability**: JSON logs and OpenTelemetry spans (GenAI conventions), redacted.
 
 ## Run the demo

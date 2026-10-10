@@ -71,3 +71,8 @@ aside { border-left: 1px solid var(--rule); background: var(--panel); overflow-y
 .step.done .n { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .step.active .n { border-color: var(--accent); }
 .step .meta { font-size: .78rem; color: var(--muted); }
+
+/* The harness URL field in the header (a hosted renderer points it at any harness). */
+.harness { display: inline-flex; gap: .4rem; align-items: center; min-width: 0; }
+.harness input { font: inherit; font-size: .85rem; padding: .25rem .5rem; border: 1px solid var(--line, #cfd6d3); border-radius: 6px; min-width: 14rem; background: var(--bg, #fff); color: inherit; }
+.harness input:focus { outline: 2px solid var(--accent, #1f6f5f); outline-offset: 1px; }

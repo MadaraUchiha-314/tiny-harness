@@ -31,6 +31,12 @@ reported as not found. Participant identity in message metadata is self-asserted
 authentication is added through the A2A SDK's security schemes. A deployment without a
 perimeter is insecure by construction.
 
+A renderer hosted elsewhere, such as the one on this site at
+[`/ui/`](https://madarauchiha-314.github.io/tiny-harness/ui/), reaches a harness only if
+that harness lists the renderer's origin in `server.cors_origins`
+(`https://madarauchiha-314.github.io` for the hosted one), and the browser then talks A2A
+to the harness directly, through the perimeter.
+
 What the harness does enforce at the edge: a request body limit (`max_request_bytes`,
 413), a per-client token bucket (`rate_limit_per_minute`, 429), the extension check on
 `A2A-Extensions`, schema validation of every A2UI action against the surfaces the task

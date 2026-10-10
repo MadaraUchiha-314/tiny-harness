@@ -21,7 +21,7 @@ max_output_tokens = 2000
 bind = "127.0.0.1:8080"
 base_url = "http://127.0.0.1:8080"
 ui_dir = "renderers/web/dist"
-cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173"]
+cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173", "https://madarauchiha-314.github.io"]  # the Vite dev server and the renderer hosted on the docs site
 
 [heartbeat]
 interval = "PT30S"

@@ -39,7 +39,10 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
 - The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app that reaches the
   server only through the official A2A JavaScript SDK (`@a2a-js/sdk`, protocol 1.0:
   card resolution, the JSON-RPC transport, `sendMessageStream`, `resubscribeTask`,
-  `cancelTask`), adding `X-Participant-Id`, folds the SDK's events into a pure model, and
+  `cancelTask`), adding `X-Participant-Id`, folds the SDK's events into a pure model,
+  takes the harness URL from `?server=`, the browser's remembered choice or its own
+  origin (a "Harness" field in the header changes it), is published on the docs site
+  under `/ui/` by the docs workflow, and
   renders cards with `@a2ui/react`'s `MessageProcessor` and the basic catalog; it is
   served under `/ui` when `ui_dir` points at its build and is covered by Playwright
   visual and axe-core accessibility tests.

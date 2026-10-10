@@ -1,5 +1,6 @@
-# Docs — build the VitePress site in docs/ and deploy it to GitHub Pages on every push
-# to main that touches it. Pull requests build it in ci.yml (no deploy).
+# Docs — build the VitePress site in docs/ and the web renderer in renderers/web, and
+# deploy both to GitHub Pages (the renderer under /ui/) on every push to main that
+# touches either. Pull requests build them in ci.yml (no deploy).
 # Requires Settings → Pages → Source: GitHub Actions.
 name: Docs
 
@@ -8,6 +9,7 @@ on:
     branches: [main]
     paths:
       - docs/**
+      - renderers/web/**
       - .github/workflows/docs.yml
   workflow_dispatch:
 
@@ -41,6 +43,20 @@ jobs:
 
       - name: Build docs
         run: bun run docs:build
+
+      - name: Install web renderer dependencies
+        working-directory: renderers/web
+        run: bun install --frozen-lockfile
+
+      - name: Build the web renderer
+        working-directory: renderers/web
+        run: bun run build
+
+      # The renderer is hosted at <site>/ui/ and talks A2A to the harness URL the user
+      # enters (its assets resolve relatively, so the path needs no build-time base).
+      - name: Place the web renderer under /ui
+        working-directory: .
+        run: cp -r renderers/web/dist docs/.vitepress/dist/ui
 
       - uses: actions/upload-pages-artifact@v5
         with:

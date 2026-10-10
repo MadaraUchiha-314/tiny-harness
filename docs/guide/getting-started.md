@@ -36,7 +36,10 @@ The process prints the two surfaces:
 - **TUI** in another terminal: `uv run tiny-harness tui --url http://127.0.0.1:8080`.
 
 Both are A2A clients of the same server through the official SDKs (`a2a-sdk` for the
-TUI, `@a2a-js/sdk` for the web), so a task started in one shows up in the other.
+TUI, `@a2a-js/sdk` for the web), so a task started in one shows up in the other. The web
+renderer is also hosted on this site at [`/ui/`](https://madarauchiha-314.github.io/tiny-harness/ui/):
+enter a harness URL in its header (or open it with `?server=<url>`) and it talks to that
+harness directly, provided the harness allows the site's origin in `cors_origins`.
 
 ## What happens
 

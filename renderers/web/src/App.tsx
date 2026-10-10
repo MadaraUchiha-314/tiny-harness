@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
+import type React from "react";
 import { A2UI_MEDIA_TYPE, HarnessClient, dataPart, textPart, userMessage, type JsonObject, type StreamResponse } from "./a2a";
 import { apply, emptyView, type View } from "./model";
 import { prototypeEvents } from "./fixtures/prototype";
@@ -20,9 +21,24 @@ export interface AppConfig {
   fixture?: StreamResponse[];
 }
 
+const SERVER_KEY = "tiny-harness.server";
+
+function rememberedServer(): string | null {
+  try {
+    return window.localStorage.getItem(SERVER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The harness to talk to: the `?server=` query parameter, else the URL remembered in this
+ * browser, else the page's own origin (the harness serving the renderer under `/ui`). A
+ * renderer hosted elsewhere (GitHub Pages) needs the first or the second.
+ */
 export function configFromLocation(): AppConfig {
   const params = new URLSearchParams(window.location.search);
-  const base = params.get("server") ?? window.location.origin;
+  const base = params.get("server") ?? rememberedServer() ?? window.location.origin;
   const config: AppConfig = {
     baseUrl: base.replace(/\/$/, ""),
     participant: params.get("participant") ?? "you",
@@ -126,14 +142,47 @@ export function App(props: { config: AppConfig }): JSX.Element {
     void client.current.cancel(view.taskId).then((task) => fold({ payload: { $case: "task", value: task } }));
   }, [config.fixture, fold, view.taskId]);
 
+  const [server, setServer] = useState(config.baseUrl);
+  const connect = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const url = server.trim().replace(/\/$/, "");
+      if (!url) return;
+      try {
+        window.localStorage.setItem(SERVER_KEY, url);
+      } catch {
+        // a private window or blocked storage: the query parameter still carries it
+      }
+      const params = new URLSearchParams(window.location.search);
+      params.set("server", url);
+      window.location.search = params.toString();
+    },
+    [server],
+  );
+
   const shortId = view.taskId ? `${view.taskId.slice(0, 4)}…${view.taskId.slice(-4)}` : "no task";
   return (
     <div className="app">
       <header>
         <h1>tiny-harness</h1>
-        <span className="mono">
-          agent card · {config.agent} · A2A 1.0 · {config.baseUrl}
-        </span>
+        <span className="mono">agent card · {config.agent} · A2A 1.0 ·</span>
+        <form className="harness" onSubmit={connect}>
+          <label htmlFor="harnessUrl" className="visually-hidden">
+            Harness URL
+          </label>
+          <input
+            id="harnessUrl"
+            className="mono"
+            type="url"
+            value={server}
+            onChange={(e) => setServer(e.target.value)}
+            placeholder="https://harness.example.com"
+            title="The harness this renderer talks to (its agent card is at /.well-known/agent-card.json)"
+          />
+          <button className="choice" type="submit" disabled={server.trim() === config.baseUrl}>
+            Connect
+          </button>
+        </form>
         <span className="spacer" />
         <span className="mono">task {shortId}</span>
         <span className={pillClass(view.state)} id="taskState" data-testid="state">

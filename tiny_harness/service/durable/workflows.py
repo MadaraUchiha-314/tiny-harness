@@ -460,7 +460,9 @@ class TaskWorkflow:
             state = state.append(MessageItem(role=MessageRole.USER, text=note))
         accepted = 0
         while self.mailbox:
-            message = self.mailbox.pop(0)
+            # The message leaves the mailbox only once its intake has completed: an
+            # interrupt or a cancel during intake leaves it for the next drain (R15.5).
+            message = self.mailbox[0]
             out = await self.call(
                 ActivityName.INTAKE,
                 IntakeIn(
@@ -472,6 +474,7 @@ class TaskWorkflow:
                 ),
                 IntakeOut,
             )
+            self.mailbox.pop(0)
             if not out.accepted:
                 self.last_refusal = out.reason or "not accepted"
                 continue
@@ -486,6 +489,9 @@ class TaskWorkflow:
             if out.participant_id:
                 self.actor = out.participant_id
             state = state.append(MessageItem(role=MessageRole.USER, text=text))
+            # Committed now, not at the end of the turn: an interrupt that cancels the
+            # run restarts from ``self.state`` and must not lose what intake accepted.
+            self.state = state
         return state, accepted
 
     async def _await_runner(self, runner: asyncio.Task[object]) -> bool:

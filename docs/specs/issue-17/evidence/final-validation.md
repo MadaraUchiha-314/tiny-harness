@@ -26,4 +26,4 @@ and the review records, at the head of PR #18. Embedded runs had `TEMPORAL_API_K
 Reviews: [self-review](self-review.md) (2 rounds, 6 findings fixed),
 [critic-review](critic-review.md) (`codex/gpt-6.1-sol`, 2 findings fixed). One gap, stated
 in the testing plan: the CLI TUI cannot send a message, because it never asserts a
-participant. That defect predates this PR, is out of scope, and is raised on PR #18.
+participant. That defect predates this PR, is out of scope, and is tracked in [#20](https://github.com/MadaraUchiha-314/tiny-harness/issues/20).

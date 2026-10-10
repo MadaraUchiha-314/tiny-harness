@@ -164,7 +164,7 @@ server refuses every message (`no participant asserted`), remote or embedded. Th
 is a renderer defect, and the requirements put renderer changes out of scope. Replanned:
 the same flow, the real `HarnessApp` against the harness `tui` hosts, with a participant,
 to `COMPLETED`, is proved by T2's *TUI hosts its own harness in embedded mode*. Escalated
-on PR #18 as a follow-up.
+on PR #18; follow-up [#20](https://github.com/MadaraUchiha-314/tiny-harness/issues/20).
 
 ## Review comments
 

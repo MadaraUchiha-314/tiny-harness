@@ -196,3 +196,13 @@ def test_secret_values_skip_the_absent_temporal_key(tmp_path: Path) -> None:
     settings = Settings.load(embedded(tmp_path), env=EMBEDDED_ENV)
     values = [value.get_secret_value() for value in secret_values(settings)]
     assert values == ["sk-secret", "cHVzaC1rZXk="]
+
+
+# R6.4 — the demo ships an embedded configuration that needs no Temporal account.
+
+
+def test_the_demo_embedded_config_loads_without_a_temporal_key() -> None:
+    demo = Path(__file__).resolve().parents[2] / "examples" / "demo" / "config.embedded.toml"
+    settings = Settings.load(demo, env=EMBEDDED_ENV)
+    assert settings.temporal.mode == "embedded"
+    assert settings.temporal.address is None and settings.temporal.api_key is None

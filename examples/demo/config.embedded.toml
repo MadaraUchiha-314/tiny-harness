@@ -1,0 +1,40 @@
+# The e2e demo with an embedded Temporal (issue-17): no Temporal account, no
+# TEMPORAL_API_KEY. The harness starts a local Temporal dev server bound to 127.0.0.1,
+# persisted to examples/demo/.state/temporal.sqlite3, and stops it on exit. Development
+# and single-host use only — see the deployment guide.
+#   unset TEMPORAL_API_KEY
+#   export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+#   export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+#   uv run python -m examples.demo examples/demo/config.embedded.toml
+
+plugins = ["examples/demo"]
+
+[temporal]
+mode = "embedded"
+task_queue = "tiny-harness-demo"
+search_attributes = true  # registered on the embedded server at startup
+
+[openai]
+model = "gpt-6.1-sol"
+timeout = "PT120S"
+max_output_tokens = 2000
+
+[server]
+bind = "127.0.0.1:8080"
+base_url = "http://127.0.0.1:8080"
+ui_dir = "renderers/web/dist"
+cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173", "https://madarauchiha-314.github.io"]
+
+[heartbeat]
+interval = "PT30S"
+
+[store]
+sqlite_path = "examples/demo/.state/tiny-harness.sqlite3"
+
+[context]
+turn_budget_tokens = 12000
+compaction_fraction = 0.75
+
+[o11y]
+log_level = "INFO"
+trace_file = "examples/demo/.state/trace.jsonl"

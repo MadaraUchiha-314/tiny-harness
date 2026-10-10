@@ -114,7 +114,7 @@ Conventions for every task:
     `tiny-harness serve` in embedded mode leaves no dev-server child (abuse case 6)
     (red→green)
 
-- [ ] 6. Demo: `config.embedded.toml` and an optional config path
+- [x] 6. Demo: `config.embedded.toml` and an optional config path
   - Add `examples/demo/config.embedded.toml`. `examples.demo.__main__` takes an optional
     path argument and calls `service.serve`.
   - Add the embedded e2e test beside the existing ones. The e2e conftest's `REQUIRED`

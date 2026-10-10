@@ -90,7 +90,7 @@ class TemporalConfig(_Strict):
             if self.embedded is not None:
                 raise ValueError("temporal.embedded must not be set when temporal.mode is remote")
             return self
-        for key in ("address", "tls"):
+        for key in ("address", "api_key", "tls"):
             if key in self.model_fields_set:
                 raise ValueError(f"temporal.{key} must not be set when temporal.mode is embedded")
         binary = self.embedded.binary_path if self.embedded is not None else None

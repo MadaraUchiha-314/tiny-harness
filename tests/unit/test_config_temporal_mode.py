@@ -214,3 +214,12 @@ def test_an_out_of_range_port_is_a_config_error(tmp_path: Path, port: int) -> No
     with pytest.raises(ConfigError) as info:
         Settings.load(path, env=EMBEDDED_ENV)
     assert "temporal.embedded.port" in info.value.variable
+
+
+def test_programmatic_embedded_settings_refuse_an_api_key() -> None:
+    from pydantic import SecretStr, ValidationError
+
+    from tiny_harness.config import TemporalConfig
+
+    with pytest.raises(ValidationError, match=r"temporal\.api_key must not be set"):
+        TemporalConfig(mode="embedded", api_key=SecretStr("tmprl_secret"))

@@ -22,7 +22,8 @@ How a deployment is described and how the processes come up. Lives in
   `port`). A `binary_path` that is not an executable file exits with status 2.
 - `[openai]` SHALL take `base_url` (an absolute `http`/`https` URL; default
   `https://api.openai.com/v1`), `api` (`responses` or `chat_completions`), `model`,
-  `timeout`, `max_output_tokens` and `context_window_tokens` (a positive integer).
+  `timeout`, `max_output_tokens` and `context_window_tokens` (a
+  positive integer; a boolean or a float is refused).
   `OPENAI_API_KEY` SHALL be required only when `base_url` is unset. A `base_url` with
   user information, or with `http` to a non-loopback host while a key is set (loopback is
   `localhost` or a literal loopback address, never resolved), SHALL exit with status 2

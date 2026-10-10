@@ -32,7 +32,9 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
   and emitted when the stream ends; absent usage or call ids read as zero / `call_<n>`.
   The finish reason is `refusal` (a refusal or `content_filter`), else `tool_calls` when
   any call is present, else `length`, else `stop`.
-- A 2xx body either wire API cannot parse SHALL be raised as `ProviderError(status=200)`.
+- A 2xx body either wire API cannot parse SHALL be raised as `ProviderError(status=200)`,
+  including JSON nested too deeply to decode and a Chat Completions stream that ends
+  without a `finish_reason`, which emits no tool call and no `done`.
 - `LLMModelInfo` SHALL carry `context_window_tokens` (`[openai] context_window_tokens`,
   else the table, else 400 000), `endpoint` (`scheme://host[:port]`) and `api`; the
   runtime logs `model endpoint <endpoint> api=<api> model=<model>` at startup, and the

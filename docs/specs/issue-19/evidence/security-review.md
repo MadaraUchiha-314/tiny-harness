@@ -39,5 +39,6 @@ sign-off on this review.
 - **Earlier hardening, already fixed with tests:** deeply nested JSON (`538cd01`),
   empty or truncated streams (`072ba9f`), a non-absolute `base_url` (`1698416`) and a
   boolean `context_window_tokens` (`ac8a0a5`). See [`critic-review.md`](critic-review.md).
-- **Human sign-off:** **pending.** Risk tier 4 (sensitive path `**/*schema*`). Requested
-  from @MadaraUchiha-314 on PR #22.
+- **Human sign-off:** **approved** by @MadaraUchiha-314 on 2026-10-10
+  ([PR #22 comment](https://github.com/MadaraUchiha-314/tiny-harness/pull/22#issuecomment-6102735114)).
+  Risk tier 4 (sensitive path `**/*schema*`).

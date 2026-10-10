@@ -90,12 +90,12 @@ pre-existing observability flake; its second run was clean.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| T1 | `uv run pytest tests/unit` | 254 passed; red recorded first (collection error, `tui_participant` missing) | [unit.md](evidence/unit.md) |
+| T1 | `uv run pytest tests/unit` | 260 passed at `38637b4`; red recorded first (collection error, `tui_participant` missing) | [unit.md](evidence/unit.md) |
 | T2 | `uv run pytest tests/integration/embedded` | 17 passed; red recorded first (`InvalidParamsError('no participant asserted')` through the real `run_tui`) | [integration.md](evidence/integration.md) |
 | T5 | composer placeholder assertion in the T2 regression scenario | `Enter to send as alice` | [integration.md](evidence/integration.md) |
 | T6 | `uv run pytest tests/ui` | 9 passed, 4 snapshots regenerated; rendered text differs from `main` only in the composer | [regression.md](evidence/regression.md) |
 | T8 | `uv run pytest tests/security tests/integration/a2a` | 33 passed; the server-side refusal is unchanged | [regression.md](evidence/regression.md) |
-| T11 | ticket reproduction against the demo: remote with the OS default and with `--participant alice`, a blank `--participant`, and embedded with `--participant bob` | replies on every path; blank flag exits 2; no dev server left behind | [manual-walkthrough.md](evidence/manual-walkthrough.md), [ui/tui-participant.svg](evidence/ui/tui-participant.svg) |
+| T11 | ticket reproduction against the demo: remote with the OS default and with `--participant alice`, a blank `--participant`, and embedded with `--participant bob` | replies on every path; blank flag and `josé` exit 2; no dev server left behind | [manual-walkthrough.md](evidence/manual-walkthrough.md), [ui/tui-participant.svg](evidence/ui/tui-participant.svg) |
 | T12 | `uv run pre-commit run --all-files`; CI's `uv run pytest tests/integration tests/contract tests/security tests/ui` | pre-commit clean; CI suite 114 passed on the second run (first run: 1 failure in the untouched o11y span test, which passed 3 of 3 on its own) | [regression.md](evidence/regression.md) |
 
 **Not executed:** none. R1.4's real-world trigger (a process with no OS user name) was

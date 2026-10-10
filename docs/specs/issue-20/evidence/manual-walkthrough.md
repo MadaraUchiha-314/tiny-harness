@@ -18,7 +18,8 @@ serves it. The OS user name is redacted to `[os-user]` below and in the screensh
 | `uv run python -m examples.demo examples/demo/config.embedded.toml` | agent card served on `127.0.0.1:8080` after 7 s | pass |
 | `tiny-harness --config examples/demo/config.embedded.toml tui --url http://127.0.0.1:8080`, type a message, Enter | the agent replies; Participants shows `[os-user]  reporter`; the composer reads `Enter to send as [os-user]` | pass (R1.3, R1.6, R1.7) |
 | same with `--participant alice` | reply; `alice  reporter`; `Enter to send as alice` | pass (R1.2) |
-| same with `--participant '  '` | `configuration error: no participant to assert; pass --participant <id> (--participant)`, `exit=2`, no connection | pass (R1.5) |
+| same with `--participant '  '` | `configuration error: no participant to assert; pass --participant <id> in printable ASCII (--participant)`, `exit=2`, no connection | pass (R1.5) |
+| same with `--participant josé` (re-run after `2adbe39`) | the same refusal, `exit=2` | pass (R1.8) |
 | demo log | `no participant asserted` appears 0 times | pass |
 | demo stopped; `tiny-harness --config examples/demo/config.embedded.toml tui --participant bob` (embedded, TUI hosts the harness) | reply; `bob  reporter`; `Enter to send as bob` | pass (R1.6) |
 | after the pane is killed | no `temporal … start-dev` process left | pass |
@@ -74,9 +75,11 @@ Captured by Textual's own screenshot (`TEXTUAL_SCREENSHOT`).
  ^c cancel task  f2 task/plan/trace                                                                         ▏^p palette
 ```
 
-## The blank flag
+## The blank flag, and a non-ASCII id
+
+Re-run at commit `38637b4`, after self-review round 1 added R1.8. Both print the same:
 
 ```text
-configuration error: no participant to assert; pass --participant <id> (--participant)
+configuration error: no participant to assert; pass --participant <id> in printable ASCII (--participant)
 exit=2
 ```

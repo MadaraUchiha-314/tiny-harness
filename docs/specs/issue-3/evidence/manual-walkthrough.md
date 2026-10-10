@@ -28,4 +28,6 @@ until the owner's notes are recorded here.
 
 ## Owner's notes
 
-*Not yet performed by the owner.*
+Not performed. The owner approved the work item on 2026-10-10 without the walkthrough
+([issue comment](https://github.com/MadaraUchiha-314/tiny-harness/issues/3#issuecomment-6098257545)),
+which closes T11 by the approver's decision; the procedure above remains for a later run.

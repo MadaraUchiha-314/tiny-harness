@@ -186,7 +186,7 @@ by the same `Redactor` the harness uses, run over every capture before commit.
 - [x] T9 — `bun run --cwd renderers/web test:a11y` and `uv run pytest tests/ui -q -k keys`
 - [x] T4 — bring-up above, then `uv run pytest tests/e2e -q -m e2e` (runs `examples.demo` end to end, captures screenshots and the trace)
 - [x] T12 — `uv run pytest tests/e2e -q -m e2e -k crash_recovery` (kills the worker at the two points and restarts it)
-- [ ] T11 — the walkthrough in `evidence/manual-walkthrough.md`, performed and annotated by the owner
+- [x] T11 — the walkthrough in `evidence/manual-walkthrough.md`: not performed; closed by the approver's decision of 2026-10-10 to approve the work item without it (recorded in the evidence file)
 
 ## Verification results
 
@@ -211,10 +211,10 @@ keyring; every capture under `evidence/` was redacted by value before commit.
 | T9 | `bun run --cwd renderers/web test:a11y`; `uv run pytest tests/ui -q -k keys` | 2 passed (no axe violations, every control reachable); 4 passed | [ui/axe.md](evidence/ui/axe.md) |
 | T4 | `uv run pytest tests/e2e -q -m e2e` with the bring-up above (Temporal Cloud, `gpt-6.1-sol`), rerun at the final head after the self-review and critic rounds | 3 passed in 4 min 3 s: SUBMITTED → WORKING → A2UI artifact → INPUT_REQUIRED (card action) → INPUT_REQUIRED (text reply) → COMPLETED; `ship_replacement` once, no refund; 16 chat spans, cached tokens from call 2; no secret in trace or logs | [e2e.md](evidence/e2e.md), [e2e/trace.json](evidence/e2e/trace.json) |
 | T12 | `uv run pytest tests/e2e -q -m e2e -k crash_recovery` (same run) | 2 passed: kill during `get_order` at 24.6 s (attempt timed out, retried on the new worker; `invoke_llm` 14 scheduled / 14 completed, `invoke_tool` 14 / 13 with 1 timed out) and kill in INPUT_REQUIRED at 142.8 s (every activity one attempt); task COMPLETED both times, `ship_replacement` once each | [crash-recovery.md](evidence/crash-recovery.md) |
-| T11 | the walkthrough in `evidence/manual-walkthrough.md` | not yet performed by the owner; stays unticked | [manual-walkthrough.md](evidence/manual-walkthrough.md) |
+| T11 | the walkthrough in `evidence/manual-walkthrough.md` | not performed: the approver approved the work item on 2026-10-10 without it (issue comment), which closes the activity by the owner's decision; the procedure stays in the file for a later run | [manual-walkthrough.md](evidence/manual-walkthrough.md) |
 | | | | |
 
-**Not executed:** T11, the owner's manual walkthrough (awaiting the owner).
+**Not executed:** T11, the owner's manual walkthrough, closed by the approver's decision (approved without it on 2026-10-10).
 
 ## Review comments
 

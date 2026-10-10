@@ -68,7 +68,8 @@ reuses them. Lives in `tiny_harness/service/durable/`.
   owner. A restart on the same file resumes the running workflows.
 - The dev server binary SHALL come from `temporal.embedded.binary_path` (no download) or
   be downloaded once into a `0700` user cache directory, never the system temp directory;
-  a download directory other users can write is refused. A failed start raises
+  a download directory, or a cached binary in it, that another user owns or can write is
+  refused. A failed start raises
   `EmbeddedTemporalError` and never falls back to a remote Temporal.
 
 ## Design

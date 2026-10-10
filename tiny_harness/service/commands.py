@@ -53,15 +53,15 @@ async def worker(settings: Settings) -> int:
     return 0
 
 
-async def tui(settings: Settings, *, url: str | None) -> int:
+async def tui(settings: Settings, *, url: str | None, participant: str) -> int:
     try:
         module = importlib.import_module("tiny_harness.interaction.tui")
     except ImportError:
         print("the TUI renderer is not installed in this build (Layer 7)", file=sys.stderr)
         return 1
-    run_tui = cast(Callable[[str], Awaitable[int]], module.run_tui)
+    run_tui = cast(Callable[..., Awaitable[int]], module.run_tui)
     if url is not None or settings.temporal.mode == "remote":
-        return await run_tui(url or str(settings.server.base_url))
+        return await run_tui(url or str(settings.server.base_url), participant=participant)
     # Embedded mode, no URL: host the harness in this process (issue-17 R5.3). Its logs go
     # to a file so they never draw over the terminal the TUI owns.
     log_path = settings.store.sqlite_path.resolve().parent / TUI_LOG_NAME
@@ -72,7 +72,7 @@ async def tui(settings: Settings, *, url: str | None) -> int:
     with os.fdopen(descriptor, "a", encoding="utf-8") as log_file:
         observe(settings, stream=log_file)
         async with running_harness(settings, log_stream=log_file) as harness:
-            return await run_tui(harness.base_url)
+            return await run_tui(harness.base_url, participant=participant)
 
 
 async def schedules_delete(settings: Settings) -> int:

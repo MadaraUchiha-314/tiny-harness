@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -36,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("worker", help="run a Temporal worker and ensure the heartbeat schedule")
     tui = sub.add_parser("tui", help="open the terminal renderer")
     tui.add_argument("--url", default=None, help="the server's base URL (default: config)")
+    tui.add_argument(
+        "--participant",
+        default=None,
+        help="the participant id to assert, printable ASCII (default: the OS user name)",
+    )
     schedules = sub.add_parser("schedules", help="manage the heartbeat schedule")
     schedules_sub = schedules.add_subparsers(dest="schedules_command", required=True)
     schedules_sub.add_parser("delete", help="delete the heartbeat schedule")
@@ -67,6 +73,24 @@ def refusal(args: argparse.Namespace, settings: Settings) -> str | None:
     return None
 
 
+def tui_participant(args: argparse.Namespace) -> str | None:
+    """Who the TUI asserts (issue-20 R1): ``--participant``, else the OS user name; ``None``
+    when neither names anyone, so the caller fails closed rather than inventing an id.
+
+    Only printable ASCII is accepted: the id also travels in the ``X-Participant-Id``
+    header, which the server decodes as latin-1 and HTTP forbids control characters in, so
+    anything else would not match the task it created (R1.8)."""
+    if args.participant is not None:
+        participant = args.participant.strip()
+    else:
+        try:
+            participant = getpass.getuser().strip()
+        except OSError:
+            return None
+    valid = participant and participant.isascii() and participant.isprintable()
+    return participant if valid else None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -82,6 +106,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if reason is not None:
         print(f"configuration error: {reason}", file=sys.stderr)
         return CONFIG_EXIT
+    if args.command == "tui":
+        args.participant = tui_participant(args)
+        if args.participant is None:
+            print(
+                "configuration error: no participant to assert; "
+                "pass --participant <id> in printable ASCII (--participant)",
+                file=sys.stderr,
+            )
+            return CONFIG_EXIT
     try:
         return asyncio.run(dispatch(args, settings))
     except EmbeddedTemporalError as exc:
@@ -103,7 +136,7 @@ async def dispatch(args: argparse.Namespace, settings: Settings) -> int:
     if args.command == "worker":
         return await commands.worker(settings)
     if args.command == "tui":
-        return await commands.tui(settings, url=args.url)
+        return await commands.tui(settings, url=args.url, participant=str(args.participant))
     if args.command == "schedules":
         return await commands.schedules_delete(settings)
     if args.command == "tasks":

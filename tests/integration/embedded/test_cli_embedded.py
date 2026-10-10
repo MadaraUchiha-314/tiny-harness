@@ -83,11 +83,12 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
     settings = embedded_settings(tmp_path)
     seen: list[str] = []
 
-    async def piloted_tui(url: str) -> int:
-        """The real TUI app against the hosted harness, driven by Textual's pilot."""
+    async def piloted_tui(url: str, *, participant: str) -> int:
+        """The real TUI app against the hosted harness, driven by Textual's pilot. The
+        participant is the command's, never this stand-in's (issue-20 R2.2)."""
         seen.append(url)
-        client = await SdkClient.connect(url, participant="alice")
-        app = HarnessApp(client, url=url, participant="alice")
+        client = await SdkClient.connect(url, participant=participant)
+        app = HarnessApp(client, url=url, participant=participant)
         try:
             async with app.run_test(size=(110, 36)) as pilot:
                 app.query_one("#composer", Input).focus()
@@ -100,7 +101,7 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
         return 0
 
     monkeypatch.setattr(tui_module, "run_tui", piloted_tui)
-    assert await commands.tui(settings, url=None) == 0
+    assert await commands.tui(settings, url=None, participant="alice") == 0
     assert seen == [str(settings.server.base_url)]
     log_file = tmp_path / "state" / commands.TUI_LOG_NAME
     log = log_file.read_text()
@@ -114,6 +115,45 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
     host, _, port = settings.server.bind.rpartition(":")
     with socket.socket() as sock:
         assert sock.connect_ex((host, int(port))) != 0
+
+
+@pytest.mark.usefixtures("isolated_observability")
+async def test_tui_sends_a_message_under_the_asserted_participant(
+    tmp_path: Path, script_model: ScriptModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Feature: TUI participant assertion
+    Requirement: docs/specs/issue-20/bugfix.md#R1
+
+    Scenario: TUI sends a message under the asserted participant
+        Given Settings with mode embedded and no --url
+        When tiny-harness tui runs with participant alice
+        And a message is typed in the real TUI that run_tui opens
+        Then the server accepts it and the task runs to COMPLETED
+        And the composer shows the asserted participant
+    """
+    script_model(scripted("Hello, alice."))
+    settings = embedded_settings(tmp_path)
+    apps: list[HarnessApp] = []
+    placeholders: list[str] = []
+
+    async def piloted(self: HarnessApp) -> None:
+        """Only the terminal is replaced: run_tui, SdkClient.connect and HarnessApp are
+        the real ones, so the participant has to come from the command (issue-20 R2.1)."""
+        apps.append(self)
+        async with self.run_test(size=(110, 36)) as pilot:
+            composer = self.query_one("#composer", Input)
+            placeholders.append(str(composer.placeholder))
+            composer.focus()
+            await pilot.press(*"hello", "enter")
+            await self.workers.wait_for_complete()  # pyright: ignore[reportUnknownMemberType]
+            await pilot.pause()
+
+    monkeypatch.setattr(HarnessApp, "run_async", piloted)
+    assert await commands.tui(settings, url=None, participant="alice") == 0
+    [app] = apps
+    assert app.state_name == "COMPLETED", app.state_name
+    assert placeholders == ["Enter to send as alice"]
 
 
 async def test_tui_with_a_url_starts_no_embedded_server(
@@ -135,13 +175,13 @@ async def test_tui_with_a_url_starts_no_embedded_server(
         started.append(self)
         raise AssertionError("tui --url must not start an embedded server")
 
-    async def fake_tui(url: str) -> int:
-        return 0 if url == "http://remote.example:8080" else 1
+    async def fake_tui(url: str, *, participant: str) -> int:
+        return 0 if (url, participant) == ("http://remote.example:8080", "alice") else 1
 
     monkeypatch.setattr(temporal_module.EmbeddedTemporal, "__aenter__", no_start)
     monkeypatch.setattr(tui_module, "run_tui", fake_tui)
     settings = embedded_settings(tmp_path)
-    assert await commands.tui(settings, url="http://remote.example:8080") == 0
+    assert await commands.tui(settings, url="http://remote.example:8080", participant="alice") == 0
     assert started == []
 
 

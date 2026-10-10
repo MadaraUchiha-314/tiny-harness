@@ -20,7 +20,8 @@ the rendering; they cannot prove the wire.
 
 ## Action
 
-The verification plan's UI row now captures the live demo in both renderers; the
-parser test feeds CRLF bytes through a `ReadableStream`. When a layer adds a client of
+The verification plan's UI row now captures the live demo in both renderers. The
+hand-written parser was then replaced by the official `@a2a-js/sdk` client at the
+approver's request, which removes the class of defect rather than one instance. When a layer adds a client of
 an external SDK's server, its tasks.md entry should name one test that exercises the
 real transport.

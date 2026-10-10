@@ -1,5 +1,17 @@
 /** The A2A events behind the first state of `design/web-renderer.html`. */
-import { A2UI_MEDIA_TYPE, CHANNEL_MEDIA_TYPE, TASK_EXT_KEY, type JsonObject, type StreamResponse } from "../a2a";
+import {
+  A2UI_MEDIA_TYPE,
+  CHANNEL_MEDIA_TYPE,
+  Role,
+  TASK_EXT_KEY,
+  TaskState,
+  dataPart,
+  textPart,
+  type JsonObject,
+  type Message,
+  type Part,
+  type StreamResponse,
+} from "../a2a";
 
 export const TASK_ID = "7f3a0000-0000-0000-0000-00000000c21e";
 export const CONTEXT_ID = "ctx-7f3a";
@@ -63,86 +75,80 @@ export const CARD: JsonObject = {
   },
 };
 
+const agentMessage = (messageId: string, parts: Part[]): Message => ({
+  messageId,
+  contextId: CONTEXT_ID,
+  taskId: TASK_ID,
+  role: Role.ROLE_AGENT,
+  parts,
+  metadata: undefined,
+  extensions: [],
+  referenceTaskIds: [],
+});
+
+const statusUpdate = (state: TaskState, message?: Message): StreamResponse => ({
+  payload: {
+    $case: "statusUpdate",
+    value: { taskId: TASK_ID, contextId: CONTEXT_ID, status: { state, message, timestamp: undefined }, metadata: undefined },
+  },
+});
+
+const artifactUpdate = (artifactId: string, name: string, parts: Part[]): StreamResponse => ({
+  payload: {
+    $case: "artifactUpdate",
+    value: {
+      taskId: TASK_ID,
+      contextId: CONTEXT_ID,
+      artifact: { artifactId, name, description: "", parts, metadata: undefined, extensions: [] },
+      append: false,
+      lastChunk: true,
+      metadata: undefined,
+    },
+  },
+});
+
 export function prototypeEvents(): StreamResponse[] {
-  const status = (state: string) => ({ taskId: TASK_ID, contextId: CONTEXT_ID, status: { state } });
   return [
     {
-      task: {
-        id: TASK_ID,
-        contextId: CONTEXT_ID,
-        status: { state: "TASK_STATE_SUBMITTED" },
-        metadata: { [TASK_EXT_KEY]: extension },
-      },
-    },
-    { statusUpdate: status("TASK_STATE_WORKING") },
-    {
-      statusUpdate: {
-        ...status("TASK_STATE_WORKING"),
-        status: {
-          state: "TASK_STATE_WORKING",
-          message: {
-            messageId: "m-agent-1",
-            role: "ROLE_AGENT",
-            parts: [
-              {
-                text:
-                  "The order qualifies for a damaged-on-arrival resolution. The item is $129, so policy " +
-                  "needs a photo before a refund. A replacement can ship without one.",
-              },
-            ],
-          },
+      payload: {
+        $case: "task",
+        value: {
+          id: TASK_ID,
+          contextId: CONTEXT_ID,
+          status: { state: TaskState.TASK_STATE_SUBMITTED, message: undefined, timestamp: undefined },
+          artifacts: [],
+          history: [],
+          metadata: { [TASK_EXT_KEY]: extension },
         },
       },
     },
-    {
-      artifactUpdate: {
-        taskId: TASK_ID,
-        contextId: CONTEXT_ID,
-        artifact: {
-          artifactId: "a2ui:1",
-          name: "a2ui",
-          parts: [
-            { data: { version: "v0.9.1", createSurface: { surfaceId: "resolution", catalogId: CATALOG } }, mediaType: A2UI_MEDIA_TYPE },
-            { data: CARD, mediaType: A2UI_MEDIA_TYPE },
-          ],
-        },
-        lastChunk: true,
-      },
-    },
-    {
-      statusUpdate: {
-        ...status("TASK_STATE_INPUT_REQUIRED"),
-        status: {
-          state: "TASK_STATE_INPUT_REQUIRED",
-          message: {
-            messageId: "help-1",
-            role: "ROLE_AGENT",
-            parts: [
-              {
-                text:
-                  "The customer has two open orders. Should the replacement go to the address on " +
-                  "order #48213 or the newer address on #48377? I need a judgement call before I can continue.",
-              },
-              {
-                data: { channel_id: TASK_ID, sender: "support-agent", kind: "help_request", text: "", parts: [], in_reply_to: null },
-                mediaType: CHANNEL_MEDIA_TYPE,
-              },
-            ],
-          },
-        },
-      },
-    },
-    {
-      artifactUpdate: {
-        taskId: TASK_ID,
-        contextId: CONTEXT_ID,
-        artifact: {
-          artifactId: "cal-1",
-          name: "calendar",
-          parts: [{ data: { when: "2026-10-10" }, mediaType: "application/vnd.example.calendar+json" }],
-        },
-        lastChunk: true,
-      },
-    },
+    statusUpdate(TaskState.TASK_STATE_WORKING),
+    statusUpdate(
+      TaskState.TASK_STATE_WORKING,
+      agentMessage("m-agent-1", [
+        textPart(
+          "The order qualifies for a damaged-on-arrival resolution. The item is $129, so policy " +
+            "needs a photo before a refund. A replacement can ship without one.",
+        ),
+      ]),
+    ),
+    artifactUpdate("a2ui:1", "a2ui", [
+      dataPart({ version: "v0.9.1", createSurface: { surfaceId: "resolution", catalogId: CATALOG } }, A2UI_MEDIA_TYPE),
+      dataPart(CARD, A2UI_MEDIA_TYPE),
+    ]),
+    statusUpdate(
+      TaskState.TASK_STATE_INPUT_REQUIRED,
+      agentMessage("help-1", [
+        textPart(
+          "The customer has two open orders. Should the replacement go to the address on " +
+            "order #48213 or the newer address on #48377? I need a judgement call before I can continue.",
+        ),
+        dataPart(
+          { channel_id: TASK_ID, sender: "support-agent", kind: "help_request", text: "", parts: [], in_reply_to: null },
+          CHANNEL_MEDIA_TYPE,
+        ),
+      ]),
+    ),
+    artifactUpdate("cal-1", "calendar", [dataPart({ when: "2026-10-10" }, "application/vnd.example.calendar+json")]),
   ];
 }

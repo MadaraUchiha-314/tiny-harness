@@ -36,8 +36,10 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   tabs on the right and the composer below, every action on a key; it streams the reply
   and keeps a `SubscribeToTask` stream per open task, so a second surface sees the same
   events. `tiny-harness tui --url <server>` starts it.
-- The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app that talks REST +
-  SSE with `A2A-Version: 1.0` and `X-Participant-Id`, folds events into a pure model, and
+- The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app that reaches the
+  server only through the official A2A JavaScript SDK (`@a2a-js/sdk`, protocol 1.0:
+  card resolution, the JSON-RPC transport, `sendMessageStream`, `resubscribeTask`,
+  `cancelTask`), adding `X-Participant-Id`, folds the SDK's events into a pure model, and
   renders cards with `@a2ui/react`'s `MessageProcessor` and the basic catalog; it is
   served under `/ui` when `ui_dir` points at its build and is covered by Playwright
   visual and axe-core accessibility tests.

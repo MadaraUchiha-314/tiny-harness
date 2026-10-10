@@ -1,4 +1,4 @@
-import { sseEvents } from "./a2a";
+import { Role, userMessage } from "./a2a";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
@@ -36,34 +36,10 @@ describe("the web renderer", () => {
   });
 });
 
-function body(text: string, splitAt: number): ReadableStream<Uint8Array> {
-  const bytes = new TextEncoder().encode(text);
-  return new ReadableStream({
-    start(controller) {
-      // Two chunks, as a network would deliver them.
-      controller.enqueue(bytes.slice(0, splitAt));
-      controller.enqueue(bytes.slice(splitAt));
-      controller.close();
-    },
-  });
-}
-
-const FRAMES =
-  'data: {"task": {"id": "t1", "contextId": "c1", "status": {"state": "TASK_STATE_SUBMITTED"}}}\r\n\r\n' +
-  'data: {"statusUpdate": {"taskId": "t1", "contextId": "c1", "status": {"state": "TASK_STATE_WORKING"}}}\r\n\r\n';
-
-async function states(stream: ReadableStream<Uint8Array>): Promise<(string | undefined)[]> {
-  const events = [];
-  for await (const event of sseEvents(stream)) events.push(event);
-  return events.map((e) => (e.task ? e.task.status.state : e.statusUpdate?.status.state));
-}
-
-it("sseEvents parses CRLF frames as the a2a-sdk server sends them", async () => {
-  expect(await states(body(FRAMES, 40))).toEqual(["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING"]);
-});
-
-it("sseEvents keeps a CRLF pair whole across a chunk boundary", async () => {
-  const firstCr = FRAMES.indexOf("\r");
-  expect(await states(body(FRAMES, firstCr + 1))).toEqual(["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING"]);
-  expect(await states(body(FRAMES, firstCr + 3))).toEqual(["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING"]);
+it("userMessage builds the SDK's message shape with the participant in the metadata", () => {
+  const message = userMessage({ text: "hello", contextId: "ctx-1", taskId: "t-1", participant: "alice" });
+  expect(message.role).toBe(Role.ROLE_USER);
+  expect(message.taskId).toBe("t-1");
+  expect(message.parts[0]?.content).toEqual({ $case: "text", value: "hello" });
+  expect(message.metadata).toEqual({ participant_id: "alice" });
 });

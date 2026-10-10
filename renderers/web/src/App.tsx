@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
-import { A2AClient, A2UI_MEDIA_TYPE, userMessage, type JsonObject, type StreamResponse } from "./a2a";
+import { A2UI_MEDIA_TYPE, HarnessClient, dataPart, textPart, userMessage, type JsonObject, type StreamResponse } from "./a2a";
 import { apply, emptyView, type View } from "./model";
 import { prototypeEvents } from "./fixtures/prototype";
 import { Composer } from "./components/Composer";
@@ -43,7 +43,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const [view, setView] = useState<View>(() => emptyView());
   const [busy, setBusy] = useState(false);
   const seq = useRef(0);
-  const client = useRef(new A2AClient(config.baseUrl, config.participant));
+  const client = useRef(new HarnessClient(config.baseUrl, config.participant));
   const contextId = useRef(crypto.randomUUID());
 
   const fold = useCallback((event: StreamResponse) => {
@@ -84,7 +84,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
         ...(view.taskId ? { taskId: view.taskId } : {}),
       };
       const message = userMessage(options);
-      fold({ message });
+      fold({ payload: { $case: "message", value: message } });
       if (config.fixture) return;
       void consume(client.current.sendMessage(message));
     },
@@ -104,13 +104,16 @@ export function App(props: { config: AppConfig }): JSX.Element {
         },
       };
       const message = userMessage({
-        parts: [{ data: payload, mediaType: A2UI_MEDIA_TYPE }],
+        parts: [dataPart(payload, A2UI_MEDIA_TYPE)],
         contextId: view.contextId ?? contextId.current,
         participant: config.participant,
         ...(view.taskId ? { taskId: view.taskId } : {}),
       });
       fold({
-        message: { ...message, parts: [{ text: `${action.name} ${JSON.stringify(action.context)}` }] },
+        payload: {
+          $case: "message",
+          value: { ...message, parts: [textPart(`${action.name} ${JSON.stringify(action.context)}`)] },
+        },
       });
       if (config.fixture || !view.taskId) return;
       void consume(client.current.sendMessage(message));
@@ -120,7 +123,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
 
   const cancel = useCallback(() => {
     if (!view.taskId || config.fixture) return;
-    void client.current.cancel(view.taskId).then((task) => fold({ task }));
+    void client.current.cancel(view.taskId).then((task) => fold({ payload: { $case: "task", value: task } }));
   }, [config.fixture, fold, view.taskId]);
 
   const shortId = view.taskId ? `${view.taskId.slice(0, 4)}…${view.taskId.slice(-4)}` : "no task";

@@ -13,6 +13,7 @@
     "test:a11y": "bun run build && playwright test --project=a11y"
   },
   "dependencies": {
+    "@a2a-js/sdk": "1.3.0",
     "@a2ui/react": "^0.13.0",
     "@a2ui/web_core": "^0.13.0",
     "react": "^19.0.0",

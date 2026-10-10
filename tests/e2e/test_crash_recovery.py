@@ -60,7 +60,7 @@ class Attempts:
 
 
 async def attempts(demo: Demo, task_id: str) -> Attempts:
-    settings = Settings.load(demo.config)
+    settings = Settings.load(demo.config, env=demo.env())
     client = await connect(settings.temporal)
     names: dict[int, str] = {}
     result = Attempts()

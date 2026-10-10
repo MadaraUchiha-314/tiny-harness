@@ -91,6 +91,9 @@ class Demo:
     worker: subprocess.Popen[bytes] | None = None
     workers_started: int = 0
     started: float = field(default_factory=time.monotonic)
+    push_key: str = field(
+        default_factory=lambda: base64.b64encode(secrets.token_bytes(32)).decode()
+    )
 
     @classmethod
     def create(cls, name: str) -> Demo:
@@ -153,12 +156,16 @@ class Demo:
     def elapsed(self) -> float:
         return time.monotonic() - self.started
 
+    def env(self) -> dict[str, str]:
+        """The processes' environment: the caller's, plus a push key when none is exported."""
+        env = dict(os.environ)
+        env.setdefault("TINY_HARNESS_PUSH_KEY", self.push_key)
+        return env
+
     # --- processes -----------------------------------------------------------------------
 
     def _spawn(self, verb: list[str], log: str) -> subprocess.Popen[bytes]:
         handle = (self.root / log).open("ab")
-        env = dict(os.environ)
-        env.setdefault("TINY_HARNESS_PUSH_KEY", base64.b64encode(secrets.token_bytes(32)).decode())
         return subprocess.Popen(
             [
                 sys.executable,
@@ -169,7 +176,7 @@ class Demo:
                 *verb,
             ],
             cwd=REPO,
-            env=env,
+            env=self.env(),
             stdout=handle,
             stderr=subprocess.STDOUT,
         )

@@ -71,3 +71,22 @@ async def test_abuse_a_translated_error_does_not_carry_the_key() -> None:
             LLMRequest(instructions="", input=(MessageItem(role=Role.USER, text="hi"),))
         )
     assert KEY not in str(caught.value) and KEY not in repr(caught.value.__dict__)
+
+
+# R1.3: OPENAI_BASE_URL is ignored, but never silently (self-review round 1, finding 2).
+
+
+def test_an_exported_openai_base_url_is_warned_about_without_its_value() -> None:
+    from tiny_harness.service.runtime import ignored_environment_warning
+
+    line = ignored_environment_warning({"OPENAI_BASE_URL": "http://proxy.internal/v1"})
+    assert line is not None
+    assert "OPENAI_BASE_URL" in line and "[openai] base_url" in line
+    assert "proxy.internal" not in line
+
+
+@pytest.mark.parametrize("env", [{}, {"OPENAI_BASE_URL": ""}])
+def test_no_warning_without_the_variable(env: dict[str, str]) -> None:
+    from tiny_harness.service.runtime import ignored_environment_warning
+
+    assert ignored_environment_warning(env) is None

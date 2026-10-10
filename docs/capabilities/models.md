@@ -22,8 +22,8 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
   raised as `RetryableProviderError`, any other provider error as `ProviderError`.
 - The OpenAI adapter SHALL send every request to `[openai] base_url` (default
   `https://api.openai.com/v1`) and to no other host: the client is always built with an
-  explicit URL, so `OPENAI_BASE_URL` is never read, and a custom endpoint's redirects are
-  refused. A custom endpoint SHALL receive no `OpenAI-Organization` / `OpenAI-Project`
+  explicit URL, so `OPENAI_BASE_URL` is never read (the runtime logs one WARNING, without
+  its value, when it is set), and a custom endpoint's redirects are refused. A custom endpoint SHALL receive no `OpenAI-Organization` / `OpenAI-Project`
   headers, and with no key no `Authorization` header.
 - WHERE `api = "chat_completions"` the adapter SHALL call `/chat/completions`: the prefix
   as the leading `system` message, the calls of a turn grouped in one `assistant`

@@ -5,6 +5,7 @@ and the in-process engine the activities run over."""
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -61,6 +62,14 @@ def model_endpoint_line(llm: LLM) -> str | None:
     if info.endpoint is None:
         return None
     return f"model endpoint {info.endpoint} api={info.api} model={info.model}"
+
+
+def ignored_environment_warning(env: Mapping[str, str]) -> str | None:
+    """``OPENAI_BASE_URL`` no longer redirects the model (issue-19 R1.3); say so rather than
+    ignore it silently. The value is never echoed."""
+    if not env.get("OPENAI_BASE_URL"):
+        return None
+    return "OPENAI_BASE_URL is set and ignored; the model endpoint is [openai] base_url"
 
 
 def secret_values(settings: Settings) -> list[SecretStr]:
@@ -144,6 +153,9 @@ async def build_runtime(
     line = model_endpoint_line(model)
     if line is not None:
         log.info("%s", line)
+    ignored = ignored_environment_warning(os.environ)
+    if ignored is not None:
+        log.warning("%s", ignored)
     records = store or SqliteStore(settings.store.sqlite_path)
     engine = InProcessOperations(
         registry=registry,

@@ -116,7 +116,7 @@ def test_context_window_tokens_is_taken_from_the_file(tmp_path: Path) -> None:
     assert load(tmp_path, "context_window_tokens = 16384").openai.context_window_tokens == 16384
 
 
-@pytest.mark.parametrize("value", ["0", "-1", '"big"'])
+@pytest.mark.parametrize("value", ["0", "-1", '"big"', "true", "16384.0"])
 def test_a_non_positive_context_window_is_refused(tmp_path: Path, value: str) -> None:
     error = refused(tmp_path, f"context_window_tokens = {value}")
     assert error.variable == "openai.context_window_tokens"

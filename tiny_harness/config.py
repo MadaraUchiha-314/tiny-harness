@@ -24,8 +24,8 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
-    PositiveInt,
     SecretStr,
+    StrictInt,
     ValidationError,
     ValidationInfo,
     field_validator,
@@ -148,8 +148,8 @@ class OpenAIConfig(_Strict):
     model: str = "gpt-6.1-sol"
     timeout: timedelta = timedelta(seconds=60)
     max_output_tokens: int = 2_000
-    context_window_tokens: PositiveInt | None = Field(
-        default=None, description="the model's window; default: the adapter's table"
+    context_window_tokens: StrictInt | None = Field(
+        default=None, gt=0, description="the model's window; default: the adapter's table"
     )
 
     @field_validator("base_url", mode="before")

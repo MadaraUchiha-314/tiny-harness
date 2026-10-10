@@ -12,7 +12,7 @@ from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.types import Message, Part, TaskState
 from a2a.utils.errors import InvalidParamsError, TaskNotFoundError, UnsupportedOperationError
-from google.protobuf import json_format, struct_pb2
+from google.protobuf import json_format
 from pydantic import BaseModel, ConfigDict, ValidationError
 from temporalio.client import Client, WithStartWorkflowOperation
 from temporalio.common import SearchAttributePair, TypedSearchAttributes, WorkflowIDConflictPolicy
@@ -52,18 +52,12 @@ class EventEnvelope(BaseModel):
 
 
 def redact_message(redactor: Redactor, message: Message) -> Message:
-    """Scrub every text and data part before the message enters Temporal history."""
+    """Scrub the whole message, every string of every field (parts, their metadata, the
+    message metadata, extensions), before it enters Temporal history (abuse case 6)."""
+    raw = json_format.MessageToDict(message)
+    scrubbed = redactor.scrub_value(raw)
     clean = Message()
-    clean.CopyFrom(message)
-    for part in clean.parts:
-        if part.HasField("text"):
-            part.text = redactor.scrub_text(part.text)
-        elif part.HasField("data"):
-            raw = json_format.MessageToDict(part.data)
-            scrubbed = redactor.scrub_value(raw)
-            value = struct_pb2.Value()
-            json_format.ParseDict(cast(JsonObject, scrubbed), value)
-            part.data.CopyFrom(value)
+    json_format.ParseDict(cast(JsonObject, scrubbed), clean)
     return clean
 
 

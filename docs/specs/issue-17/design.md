@@ -394,8 +394,9 @@ three levels:
   file, lock and permission handling with `start_local` stubbed (R2.4, abuse cases 4,
   5, 7, 8).
 - **Integration tests** start the real dev server through `EmbeddedTemporal`. The
-  integration suite already downloads it for `start_time_skipping`, so this adds no new
-  environment. They prove loopback binding, shutdown on every exit path, the lock, and
+  suite already downloads Temporal's time-skipping test server into a shared cache;
+  these tests add the CLI dev server, downloaded once into the same cache, and no
+  credentials. They prove loopback binding, shutdown on every exit path, the lock, and
   restart durability: a task workflow started, the server stopped, restarted on the same
   database, the workflow still running (R3.3). They also start `running_harness` in
   embedded mode with a stub model, so an A2A message completes end to end through the

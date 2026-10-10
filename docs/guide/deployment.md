@@ -74,7 +74,8 @@ One TOML file, validated into typed models; unknown keys are rejected. The demo'
 | Section | Keys | Notes |
 |---------|------|-------|
 | top level | `plugins = ["path", …]`, `agents = [{id, url, version}]` | plugin directories (Agent Plugins manifests) and remote A2A agents registered at startup |
-| `[temporal]` | `address`, `namespace`, `task_queue`, `tls`, `search_attributes` | `search_attributes = true` only after `A2AContextId`, `A2ATaskState` and `TinyHarnessAgent` are registered on the namespace (`tcld`); otherwise every workflow fails its first task |
+| `[temporal]` | `mode`, `address`, `namespace`, `task_queue`, `tls`, `search_attributes` | `mode` is `remote` (the default: `address` and `namespace` required) or `embedded` (`address` and `tls` refused, `namespace` defaults to `default`); any other value refuses to start. In remote mode, `search_attributes = true` only after `A2AContextId`, `A2ATaskState` and `TinyHarnessAgent` are registered on the namespace (`tcld`), otherwise every workflow fails its first task; in embedded mode they are registered at startup |
+| `[temporal.embedded]` | `persist`, `database_path`, `binary_path`, `download_dir`, `port` | embedded mode only (refused in remote mode); every key optional. `persist = true` keeps state in `database_path` (default `temporal.sqlite3` beside the store, `0600`); `binary_path` pins an installed Temporal CLI and disables downloads; otherwise the CLI is downloaded once into `download_dir` (default `~/.cache/tiny-harness/temporal`, `0700`; a directory others can write is refused); `port` defaults to a free one |
 | `[openai]` | `model`, `timeout`, `max_output_tokens` | the Responses API |
 | `[anthropic]` | `model` | optional; the Messages API, not exercised end to end |
 | `[server]` | `bind`, `base_url`, `max_request_bytes`, `rate_limit_per_minute`, `bridge_interval`, `cors_origins`, `ui_dir` | `base_url` is what the agent card advertises; `ui_dir` serves a built web renderer under `/ui` |
@@ -89,7 +90,7 @@ One TOML file, validated into typed models; unknown keys are rejected. The demo'
 
 | Variable | Used by | Required |
 |----------|---------|----------|
-| `TEMPORAL_API_KEY` | server, worker | yes |
+| `TEMPORAL_API_KEY` | server, worker | in `remote` mode; **refused** in `embedded` mode |
 | `OPENAI_API_KEY` | worker | yes |
 | `TINY_HARNESS_PUSH_KEY` | server, worker | yes; 16, 24 or 32 bytes, base64; AES-GCM key for push-notification tokens at rest |
 | `ANTHROPIC_API_KEY` | worker | when `[anthropic]` is configured |
@@ -105,6 +106,27 @@ export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)
 
 Every configured secret value is redacted from log lines, span attributes, persisted
 messages and the context window; a secret never appears in a workflow payload.
+
+## Embedded Temporal is not a production deployment
+
+`[temporal] mode = "embedded"` runs the Temporal CLI dev server as a child of the harness
+process. It exists so the harness can be tried, developed against and tested with no
+Temporal account; it is not a way to deploy it:
+
+- **One host, one process.** The server lives and dies with the process that started it,
+  and a lock beside its database refuses a second owner, so `tiny-harness worker` is
+  refused in embedded mode and the worker always runs inside `serve` (or the TUI). Workers
+  cannot scale out.
+- **No authentication.** The dev server's frontend, metrics endpoint and internal
+  services listen on `127.0.0.1` only, but anything on the same host can reach them and
+  read every workflow history (conversations, tool results). Use embedded mode only on a
+  single-user machine.
+- **No operations tooling.** No Temporal UI, no archival, no namespace retention
+  settings, no upgrade path for the persisted file; a `kill -9` of the harness can leave
+  the dev server running.
+
+The harness logs a `WARNING` saying so every time an embedded server starts. Production
+uses `mode = "remote"` against Temporal Cloud or a self-hosted cluster.
 
 ## Retention: what lives where, for how long
 

@@ -126,7 +126,7 @@ Conventions for every task:
     `env -u TEMPORAL_API_KEY uv run pytest tests/e2e -k embedded` (red→green: fails
     before the config exists)
 
-- [ ] 7. Documentation and capability docs
+- [x] 7. Documentation and capability docs
   - README: a "Run without Temporal" block beside the Cloud instructions (R7.1).
   - Configuration reference (`docs/guide/` and `docs/capabilities/configuration.md`):
     every new key, its default, and the per-mode table (R7.2).

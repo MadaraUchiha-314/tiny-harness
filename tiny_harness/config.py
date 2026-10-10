@@ -89,8 +89,11 @@ class O11yConfig(_Strict):
     ``LANGFUSE_SECRET_KEY`` when set."""
 
     otlp_endpoint: HttpUrl | None = None
+    langfuse_host: HttpUrl = HttpUrl("https://cloud.langfuse.com")
     langfuse_public_key: SecretStr | None = None
     langfuse_secret_key: SecretStr | None = None
+    service_name: str = "tiny-harness"
+    log_level: str = "INFO"
 
 
 class RetryPolicySpec(BaseModel, frozen=True, extra="forbid"):

@@ -3,7 +3,7 @@ SECRET_VARIABLES = tuple
 model AnthropicConfig(api_key: <class 'pydantic.types.SecretStr'>, model: <class 'str'>)
 model ContextConfig(turn_budget_tokens: <class 'int'> = ..., compaction_fraction: <class 'float'> = ..., history_event_bound: <class 'int'> = ...)
 model HeartbeatConfig(interval: <class 'datetime.timedelta'> = ...)
-model O11yConfig(otlp_endpoint: pydantic.networks.HttpUrl | None = ..., langfuse_public_key: pydantic.types.SecretStr | None = ..., langfuse_secret_key: pydantic.types.SecretStr | None = ...)
+model O11yConfig(otlp_endpoint: pydantic.networks.HttpUrl | None = ..., langfuse_host: <class 'pydantic.networks.HttpUrl'> = ..., langfuse_public_key: pydantic.types.SecretStr | None = ..., langfuse_secret_key: pydantic.types.SecretStr | None = ..., service_name: <class 'str'> = ..., log_level: <class 'str'> = ...)
 model OpenAIConfig(api_key: <class 'pydantic.types.SecretStr'>, model: <class 'str'> = ..., timeout: <class 'datetime.timedelta'> = ..., max_output_tokens: <class 'int'> = ...)
 model RemoteAgentSpec(id: <class 'str'>, url: <class 'pydantic.networks.HttpUrl'>, version: str | None = ...)
 model RetentionConfig(tasks: <class 'datetime.timedelta'> = ..., plans: <class 'datetime.timedelta'> = ..., state: <class 'datetime.timedelta'> = ..., channel_messages: <class 'datetime.timedelta'> = ..., inbox_audit: <class 'datetime.timedelta'> = ..., compactions: <class 'datetime.timedelta'> = ..., push_configs: <class 'datetime.timedelta'> = ...)

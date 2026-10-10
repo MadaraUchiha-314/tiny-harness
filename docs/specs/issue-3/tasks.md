@@ -346,7 +346,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 6 — observability plugin (branch `loop/issue-3-l6-o11y`)
 
-- [ ] 39. o11y plugin
+- [x] 39. o11y plugin
   - `service/o11y/`: one `HookExecutor` on every `pre`/`post` point opening and closing
     spans with GenAI semantic-convention names and attributes, structured logging with
     task/correlation ids, OTLP exporter configuration, Langfuse endpoint option, redactor

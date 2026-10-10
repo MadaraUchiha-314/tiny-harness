@@ -30,6 +30,8 @@ from tiny_harness.harness.skills.loader import skills_index
 from tiny_harness.harness.tools.mcp import McpToolSource, ServerSpec
 from tiny_harness.harness.tools.skill_tools import SkillSession, skill_tools
 from tiny_harness.service.durable.models import WorkflowConfig
+from tiny_harness.service.o11y.plugin import executor as o11y_executor
+from tiny_harness.service.o11y.plugin import o11y_plugin
 
 AGENT_ID = "tiny-harness"
 
@@ -86,6 +88,9 @@ async def build_runtime(
     reports = [await load_builtin(hook_manager=hooks, registrar=registrar, data_root=root)]
     registrar.override = True
     loader = PluginLoader(hook_manager=hooks, registrar=registrar, data_root=root)
+    redactor = Redactor(secrets=secret_values(settings))
+    o11y_executor.redactor = redactor  # the plugin's one hook scrubs with the real secrets
+    reports.append(await loader.load(o11y_plugin()))
     for path in settings.plugins:
         reports.append(await loader.load_directory(path, override=True))
     sources: list[McpToolSource] = []
@@ -108,7 +113,6 @@ async def build_runtime(
         await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
     system_prompt = await render_system_prompt(registry)
     index = skills_index(await skills.skills())
-    redactor = Redactor(secrets=secret_values(settings))
     model = llm or OpenAILLM(
         settings.openai.api_key,
         model=settings.openai.model,

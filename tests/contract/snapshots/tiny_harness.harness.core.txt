@@ -52,8 +52,11 @@ class Operations(Protocol)
   def __init__(self, *args, **kwargs)
   def assemble(self, task: 'HarnessTask', state: 'AgentState') -> 'ContextWindow'
   def compact(self, task: 'HarnessTask', state: 'AgentState', window: 'ContextWindow') -> 'tuple[AgentState, CompactionRecord]'
+  def complete(self, task: 'HarnessTask', text: 'str') -> 'HarnessTask'
   def decide_completion(self, task: 'HarnessTask') -> 'TaskCompleteIn'
+  def drain(self, task: 'HarnessTask', state: 'AgentState') -> 'AgentState'
   def extract(self, task: 'HarnessTask', response: 'LLMResponse') -> 'tuple[ToolCall, ...]'
+  def fail(self, task: 'HarnessTask', reason: 'str') -> 'HarnessTask'
   def ingest(self, task: 'HarnessTask', state: 'AgentState', text: 'str') -> 'AgentState'
   def invoke_llm(self, task: 'HarnessTask', request: 'LLMRequest') -> 'LLMResponse'
   def invoke_tool(self, task: 'HarnessTask', call: 'ToolCall') -> 'ToolResult | WorkflowCommand'
@@ -61,6 +64,7 @@ class Operations(Protocol)
   def set_state(self, task: 'HarnessTask', state: 'int') -> 'HarnessTask'
   def should_compact(self, task: 'HarnessTask', window: 'ContextWindow') -> 'bool'
   def spawn(self, task: 'HarnessTask', command: 'WorkflowCommand') -> 'TaskRef'
+  def wait_for_reply(self, task: 'HarnessTask', help: 'JsonObject') -> 'HarnessTask'
 class Outcome(object)
   def __init__(self, kind: 'OutcomeKind', task: 'HarnessTask', state: 'AgentState', final_text: 'str' = '', help: 'JsonObject | None' = None, reason: 'str' = '') -> None
 model Participant(id: <class 'str'>, kind: typing.Literal['human', 'agent'], role: <enum 'Role'>, display_name: <class 'str'> = ...)
@@ -79,6 +83,8 @@ model SubtaskSpawnedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, a
 model TaskCompleteIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., unresolved: tuple[tiny_harness.harness.core.task.TaskRef, ...], result: tiny_harness.harness.core.loop.CompletionDecision | None = ..., reason: <class 'str'> = ...)
 class TaskContext(object)
   def __init__(self, task: 'HarnessTask | None' = None, actor: 'str | None' = None) -> 'None'
+  property actor
+  property task
 model TaskExtensionData(name: <class 'str'>, type: str | None = ..., goal: <class 'str'>, description: <class 'str'> = ..., acceptance_criteria: tuple[tiny_harness.harness.core.task.AcceptanceCriterion, ...] = ..., participants: tuple[tiny_harness.harness.core.task.Participant, ...] = ..., parent_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., sub_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., plan: tiny_harness.harness.core.task.Plan | None = ...)
 model TaskRef(task_id: <class 'str'>, agent: tiny_harness.harness.entities.base.EntityRef | None = ...)
 model ToolCallsExtractedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., response: <class 'tiny_harness.harness.models.llm.LLMResponse'>, calls: tuple[tiny_harness.harness.tools.models.ToolCall, ...])

@@ -282,7 +282,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 5 — durable execution, A2A server, inbox, heartbeat (branch `loop/issue-3-l5-service`)
 
-- [ ] 31. Temporal client, worker, data converter, search attributes
+- [x] 31. Temporal client, worker, data converter, search attributes
   - `service/durable/client.py`, `worker.py`: `Client.connect` with API key, TLS,
     `pydantic_data_converter`, `TracingInterceptor`; worker registration of workflows
     and activities; search attributes `A2AContextId`, `A2ATaskState`,
@@ -290,7 +290,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 8, 30
   - _Requirements:_ R19.9–R19.11
   - _Test:_ T2 — `Feature: Durable core loop`, `Scenario: a task runs the loop to completion with recorded activity results` (first scenario, with the activities of task 32)
-- [ ] 32. Activities
+- [x] 32. Activities
   - `assemble_context`, `invoke_llm`, `invoke_tool`, `compact`, `persist`,
     `send_channel_message`, `emit_event`, `dispatch_hooks`, `intake`,
     `run_remote_agent_turn`, `poll_channels`, `monitor_snapshot`, `retention_sweep`,
@@ -298,7 +298,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 31
   - _Requirements:_ R19.1, R19.6
   - _Test:_ T2 — as task 31; T1 — each activity against fakes
-- [ ] 33. `TaskWorkflow`: loop, mailbox, retries, completion, rollover
+- [x] 33. `TaskWorkflow`: loop, mailbox, retries, completion, rollover
   - `run`, `inbox` update, `cancel` signal, `task` and `events_since` queries;
     workflow-managed attempts with hooks between them; `wait_condition` for
     `INPUT_REQUIRED`; `TaskStart` rollover with `all_handlers_finished`; the durable
@@ -307,20 +307,20 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 32, 29
   - _Requirements:_ R19.2–R19.5, R19.7, R19.8, R15.3–R15.5, R8.5
   - _Test:_ T2 — `Scenario: a worker crash mid-activity resumes without a second LLM call`; `Scenario: a non-idempotent tool failure is not retried`; `Scenario: activity.failed and activity.retried hooks run between workflow-managed attempts`; `Scenario: an inbox message to an executing task is drained at the next iteration`; `Scenario: compaction runs before the LLM call when the first message is over budget`; `Scenario: continue-as-new carries the mailbox, event log and pending help request`; `Scenario: a parent waits for an unresolved sub-task before completing`
-- [ ] 34. Help requests end to end
+- [x] 34. Help requests end to end
   - `ask_participant` → channel message → `INPUT_REQUIRED` → reply update → resume;
     `create_task_for_participant` → child workflow linked as sub-task.
   - _Depends on:_ 33, 28
   - _Requirements:_ R12.2, R12.3, R12.5, R12.6
   - _Test:_ T2 — `Feature: Help requests`, `Scenario: a reply on the channel resumes an INPUT_REQUIRED task`; `Scenario: a need that blocks on another participant's work creates a sub-task`
-- [ ] 35. Remote agents and `RemoteTaskWorkflow`
+- [x] 35. Remote agents and `RemoteTaskWorkflow`
   - `harness/agents/remote.py` on `a2a-sdk`'s `create_client`/`A2ACardResolver`,
     `A2A-Version` and `A2A-Extensions` headers, required-extension refusal;
     `RemoteTaskWorkflow` relaying status updates into the parent's sub-task record.
   - _Depends on:_ 33
   - _Requirements:_ R7.1–R7.5, abuse case 5
   - _Test:_ T2 — `Feature: Remote agents`, `Scenario: delegation to a remote A2A agent tracks the sub-task state`; T8 — `test_remote_card_with_unknown_required_ext_refused`
-- [ ] 36. A2A server: app, card, executor, request handler, task store, bridge
+- [x] 36. A2A server: app, card, executor, request handler, task store, bridge
   - `service/a2a/`: `create_app` mounting the three route sets, `build_agent_card`
     from the entity with the three extensions, `HarnessExecutor` (redact → update-with-
     start → bridge → `TaskUpdater`), `HarnessRequestHandler` with `on_subscribe_to_task`
@@ -330,14 +330,14 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 33, 27
   - _Requirements:_ R14.1–R14.9, R15.1, R15.2, R15.6, abuse cases 2, 4, 7
   - _Test:_ T2 — `Feature: A2A server`: `Scenario: SendStreamingMessage streams a Task then status updates through the bridge`; `Scenario: GetTask and ListTasks read the workflow`; `Scenario: an unadvertised extension is rejected`; `Scenario: returnImmediately returns after the task exists`; `Scenario: push notification configs receive status updates`; `Scenario: cancel emits CANCELED`; `Scenario: SubscribeToTask after a server restart replays the event log`; T8 — `test_foreign_task_get_list_subscribe_cancel_not_found`, `test_oversized_request_not_persisted`, `test_ingress_redacted_before_history`; T6 — agent card snapshot
-- [ ] 37. Heartbeat schedule and workflow
+- [x] 37. Heartbeat schedule and workflow
   - `service/heartbeat.py`: schedule creation (`ScheduleActionStartWorkflow`,
     `ScheduleIntervalSpec`), `HeartbeatWorkflow` running `poll_channels`,
     `monitor_snapshot`, `retention_sweep`; `GET /_monitor`; CLI `schedules delete`.
   - _Depends on:_ 32, 36
   - _Requirements:_ R16.1–R16.5
   - _Test:_ T2 — `Feature: Heartbeat`, `Scenario: a schedule tick forwards a pull-channel message to its task`
-- [ ] 38. CLI entry points
+- [x] 38. CLI entry points
   - `tiny-harness serve|worker|tui|schedules|tasks purge` (`argparse`, stdlib), wired
     to `Settings`; `tasks purge` deletes rows and terminates the workflow.
   - _Depends on:_ 36, 37

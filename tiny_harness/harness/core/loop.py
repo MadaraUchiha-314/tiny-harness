@@ -116,6 +116,10 @@ class Operations(Protocol):
 
     async def ingest(self, task: HarnessTask, state: AgentState, text: str) -> AgentState: ...
 
+    async def drain(self, task: HarnessTask, state: AgentState) -> AgentState:
+        """Top of every turn: fold queued inbox items into the history (R15.3)."""
+        ...
+
     async def assemble(self, task: HarnessTask, state: AgentState) -> ContextWindow: ...
 
     async def should_compact(self, task: HarnessTask, window: ContextWindow) -> bool: ...
@@ -141,6 +145,14 @@ class Operations(Protocol):
     ) -> None: ...
 
     async def set_state(self, task: HarnessTask, state: int) -> HarnessTask: ...
+
+    async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
+        """``ask_participant``: deliver the question, then ``INPUT_REQUIRED`` (R12.2)."""
+        ...
+
+    async def complete(self, task: HarnessTask, text: str) -> HarnessTask: ...
+
+    async def fail(self, task: HarnessTask, reason: str) -> HarnessTask: ...
 
 
 def default_completion(unresolved: tuple[TaskRef, ...]) -> CompletionDecision:
@@ -170,6 +182,7 @@ class CoreLoop:
         if task.state != TaskState.TASK_STATE_WORKING:
             task = await ops.set_state(task, TaskState.TASK_STATE_WORKING)
         for _ in range(self._max_turns):
+            state = await ops.drain(task, state)
             window = await ops.assemble(task, state)
             compaction: CompactionRecord | None = None
             if await ops.should_compact(task, window):
@@ -193,9 +206,9 @@ class CoreLoop:
                 state = state.append(ToolResultItem(result=out))
             await ops.record(task, state, compaction)
             if waiting is not None:
-                task = await ops.set_state(task, TaskState.TASK_STATE_INPUT_REQUIRED)
+                task = await ops.wait_for_reply(task, waiting)
                 return Outcome(kind="waiting_for_reply", task=task, state=state, help=waiting)
-        task = await ops.set_state(task, TaskState.TASK_STATE_FAILED)
+        task = await ops.fail(task, "turn limit reached")
         return Outcome(kind="failed", task=task, state=state, reason="turn limit reached")
 
     async def _apply(
@@ -216,7 +229,7 @@ class CoreLoop:
             step = command.payload.get("step")
             return link_subtask(task, ref, str(step) if step else None), state, waiting
         if command.kind == "wait_for_reply":
-            return task, state, dict(command.payload)
+            return task, state, {**command.payload, "call_id": command.call_id}
         return task, state, waiting
 
     async def _finish(self, task: HarnessTask, state: AgentState, text: str) -> Outcome:
@@ -224,9 +237,9 @@ class CoreLoop:
         if decision.result is CompletionDecision.WAIT:
             return Outcome(kind="waiting_for_children", task=task, state=state, final_text=text)
         if decision.result is CompletionDecision.FAIL:
-            task = await self._ops.set_state(task, TaskState.TASK_STATE_FAILED)
+            task = await self._ops.fail(task, decision.reason)
             return Outcome(kind="failed", task=task, state=state, reason=decision.reason)
-        task = await self._ops.set_state(task, TaskState.TASK_STATE_COMPLETED)
+        task = await self._ops.complete(task, text)
         return Outcome(kind="completed", task=task, state=state, final_text=text)
 
 

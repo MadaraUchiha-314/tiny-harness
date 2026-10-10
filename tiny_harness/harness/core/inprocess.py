@@ -11,6 +11,8 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+from a2a.types import TaskState
+
 from tiny_harness.harness.core.compaction import CompactionRecord, Compactor
 from tiny_harness.harness.core.context import ContextWindow, ContextWindowManager
 from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics
@@ -64,6 +66,8 @@ from tiny_harness.harness.tools import (
     ToolResult,
     WorkflowCommand,
 )
+from tiny_harness.harness.tools.mcp import McpToolSource
+from tiny_harness.jsontypes import JsonObject
 
 TASK_COMPLETE = HookPoint(operation=Operation.TASK_COMPLETE, phase=Phase.IN)
 
@@ -114,6 +118,8 @@ class InProcessOperations:
         self.correlation_id = correlation_id
         self.context = TaskContext(actor=actor)
         self.spawned: list[tuple[TaskRef, WorkflowCommand]] = []
+        self.help_requests: list[JsonObject] = []
+        self.sources: list[McpToolSource] = []
         self.resolved_children: set[str] = set()
         self._bound = False
 
@@ -147,6 +153,9 @@ class InProcessOperations:
             extract=lambda post: post.state,
         )
 
+    async def drain(self, task: HarnessTask, state: AgentState) -> AgentState:
+        return state  # no inbox in-process; the Temporal host drains its mailbox here
+
     async def tool_definitions(self) -> tuple[ToolDefinition, ...]:
         definitions: list[ToolDefinition] = []
         for ref in self.registry.list(EntityKind.TOOL):
@@ -156,6 +165,8 @@ class InProcessOperations:
 
     async def assemble(self, task: HarnessTask, state: AgentState) -> ContextWindow:
         self._ctx(task)
+        for source in self.sources:  # one re-list per server per iteration (abuse case 8)
+            source.begin_iteration()
         return self.manager.assemble(
             task=task,
             state=state,
@@ -294,6 +305,16 @@ class InProcessOperations:
         updated = task.with_state(state)
         self._ctx(updated)
         return updated
+
+    async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
+        self.help_requests.append(help)
+        return await self.set_state(task, TaskState.TASK_STATE_INPUT_REQUIRED)
+
+    async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
+        return await self.set_state(task, TaskState.TASK_STATE_COMPLETED)
+
+    async def fail(self, task: HarnessTask, reason: str) -> HarnessTask:
+        return await self.set_state(task, TaskState.TASK_STATE_FAILED)
 
 
 __all__ = ["TASK_COMPLETE", "InProcessOperations", "register_completion_default"]

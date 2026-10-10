@@ -52,6 +52,14 @@ class AnthropicConfig(_Strict):
     model: str
 
 
+class RemoteAgentSpec(_Strict):
+    """A remote A2A agent to register at startup (R7.2): its card is fetched from the URL."""
+
+    id: str
+    url: HttpUrl
+    version: str | None = None
+
+
 class ServerConfig(_Strict):
     """The A2A server (R14). Bind and base URL, transport limits, the event bridge interval."""
 
@@ -134,6 +142,7 @@ class Settings(_Strict):
     server: ServerConfig
     heartbeat: HeartbeatConfig = HeartbeatConfig()
     plugins: tuple[Path, ...] = ()
+    agents: tuple[RemoteAgentSpec, ...] = ()
     store: StoreConfig = StoreConfig()
     o11y: O11yConfig = O11yConfig()
     retries: RetryPolicies = RetryPolicies()
@@ -219,6 +228,7 @@ __all__ = [
     "HeartbeatConfig",
     "O11yConfig",
     "OpenAIConfig",
+    "RemoteAgentSpec",
     "RetentionConfig",
     "RetryPolicies",
     "RetryPolicySpec",

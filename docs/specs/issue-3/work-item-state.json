@@ -343,6 +343,16 @@
       "state": "open",
       "linkedAt": "2026-10-09T23:23:14+00:00",
       "linkedBy": "session"
+    },
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#10",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 10,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/10",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-10",
+      "state": "open",
+      "linkedAt": "2026-10-09T23:47:06+00:00",
+      "linkedBy": "session"
     }
   ],
   "loop": "pdlc-work-item-loop",

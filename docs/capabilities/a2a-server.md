@@ -29,7 +29,14 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   message SHALL be persisted (the inbox audit row) before the request is acknowledged.
 - WHEN `cancel` runs THEN the workflow SHALL be signalled and the task emitted as
   `CANCELED`.
-- `SubscribeToTask` SHALL replay the event log from sequence 1, across server restarts.
+- `SubscribeToTask` SHALL replay the event log from sequence 1, across server restarts,
+  running past an earlier final event (an `INPUT_REQUIRED` the task has since left) and
+  ending only at the newest final event.
+- A `task` event envelope on an existing task SHALL update its name, description and
+  acceptance criteria for any participant and its participants only for an admin
+  (refused otherwise); a `status_update` or `artifact_update` envelope SHALL be recorded
+  into the task's history as a framed event with an audit row. Routing such updates to
+  a remote sub-task is not built in this work item.
 - Partial progress SHALL be streamed: every status update, the A2UI artifact updates and
   channel message events, not one terminal event per turn.
 - `GetTask` SHALL answer from the workflow's `task` query, falling back to the store once

@@ -37,6 +37,12 @@ participant. Lives in `tiny_harness/harness/channels/` and the channel extension
   once with the objection on failure; an executor can replace it.
 - `set_participant_role` SHALL require the asserted actor to be an admin of the task;
   participant identity in message metadata is self-asserted (decision-003).
+- A message that asserts no participant SHALL be refused at the executor and at intake,
+  and a task operation with no `X-Participant-Id` SHALL answer not found (fail closed);
+  the harness asserts itself as the sender when it delegates to a child or remote task.
+- Sub-task and remote-agent results and an agent participant's messages SHALL enter the
+  context inside the delimited untrusted block; a human participant's own message is the
+  task's instruction.
 
 ## Design
 

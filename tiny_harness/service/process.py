@@ -47,6 +47,7 @@ from tiny_harness.service.runtime import (
     secret_values,
     workflow_config,
 )
+from tiny_harness.service.signals import cancel_on_sigterm
 
 log = logging.getLogger("tiny_harness.process")
 
@@ -188,10 +189,18 @@ async def running_harness(
 
 
 async def serve(settings: Settings, *, with_worker: bool = False) -> int:
-    """Run the harness until the process is asked to stop (R21; issue-17 R6.1)."""
+    """Run the harness until the process is asked to stop (R21; issue-17 R6.1). SIGTERM
+    stops it in order, embedded Temporal included, and returns 0."""
     observe(settings)
-    async with running_harness(settings, with_worker=with_worker) as harness:
-        await harness.wait()
+    terminated = cancel_on_sigterm()
+    try:
+        async with running_harness(settings, with_worker=with_worker) as harness:
+            await harness.wait()
+    except asyncio.CancelledError:
+        task = asyncio.current_task()
+        if not terminated.is_set() or task is None:
+            raise
+        task.uncancel()  # the cancellation was our own SIGTERM handling; absorb it
     return 0
 
 

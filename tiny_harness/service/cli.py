@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
-import signal
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -54,20 +52,6 @@ def load(config: Path | None) -> Settings:
     return Settings.load(config)
 
 
-def cancel_on_sigterm() -> None:
-    """SIGTERM cancels the main task, exactly as asyncio's own SIGINT handling does, so the
-    ``finally`` blocks that stop the worker and an embedded Temporal dev server unwind in
-    order (issue-17 R2.3). Raising ``KeyboardInterrupt`` from a plain signal handler instead
-    would make asyncio cancel every task at once, the worker's pollers included, and its
-    shutdown would hang. uvicorn takes the signal over while ``serve`` runs and re-raises it
-    after its own shutdown, which lands here too."""
-    task = asyncio.current_task()
-    if task is None:
-        return
-    with contextlib.suppress(NotImplementedError, RuntimeError):  # Windows; non-main thread
-        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, task.cancel)
-
-
 def refusal(args: argparse.Namespace, settings: Settings) -> str | None:
     """Why this command cannot run in embedded mode, or ``None`` (issue-17 R5.2, R5.5)."""
     temporal = settings.temporal
@@ -105,12 +89,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EMBEDDED_EXIT
     except KeyboardInterrupt:
         return 130
-    except asyncio.CancelledError:  # SIGTERM, via cancel_on_sigterm
+    except asyncio.CancelledError:  # SIGTERM, via service.signals.cancel_on_sigterm
         return SIGTERM_EXIT
 
 
 async def dispatch(args: argparse.Namespace, settings: Settings) -> int:
     from tiny_harness.service import commands
+    from tiny_harness.service.signals import cancel_on_sigterm
 
     cancel_on_sigterm()
     if args.command == "serve":

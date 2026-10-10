@@ -34,7 +34,8 @@ How a deployment is described and how the processes come up. Lives in
   process (logs to `tiny-harness.log` beside the store), and `schedules delete` /
   `tasks purge` SHALL act on the persisted state, exiting 2 when `persist = false`. A dev
   server that fails to start SHALL exit 1 with the cause. SIGTERM SHALL cancel the main
-  task so every `finally` runs (exit 143).
+  task so every `finally` runs: `serve` (and the programmatic `serve`) then exits 0,
+  the other commands 143 (`tiny_harness/service/signals.py`).
 - `tiny_harness.service` SHALL export the programmatic entry points `running_harness`,
   `serve`, `RunningHarness` and `temporal_client`, driven by the same `Settings` as the CLI.
 - `build_runtime` SHALL assemble one process from `Settings`: the built-in plugin, the

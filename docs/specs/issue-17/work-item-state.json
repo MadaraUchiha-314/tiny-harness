@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-17",
-  "currentNode": "self-review",
+  "currentNode": "critic-review",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -93,8 +93,16 @@
     },
     "self-review": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-10T17:33:05+00:00",
+      "exitedAt": "2026-10-10T17:40:38+00:00",
+      "lastBlock": "`validate-artifacts` did not pass:\n- required section is missing: Review cycles (docs/specs/issue-17/evidence/self-review.md)",
+      "forced": false
+    },
+    "critic-review": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-10T17:40:38+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -295,6 +303,10 @@
     },
     "verification": {
       "at": "2026-10-10T17:33:05+00:00",
+      "by": "cli"
+    },
+    "self-review": {
+      "at": "2026-10-10T17:40:38+00:00",
       "by": "cli"
     }
   },

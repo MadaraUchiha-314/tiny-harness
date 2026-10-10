@@ -253,3 +253,71 @@ def dev_servers_for(state: Path) -> list[str]:
         if "start-dev" in line and str(state) in line:
             found.append(f"{entry.parent.name} {line}")
     return found
+
+
+@pytest.mark.skipif(not Path("/proc").exists(), reason="process listing needs /proc")
+async def test_sigterm_to_programmatic_serve_leaves_no_dev_server(tmp_path: Path) -> None:
+    """
+    Feature: Embedded Temporal mode
+    Requirement: docs/specs/issue-17/requirements.md#R6
+
+    Scenario: Embedded server stops when a program running serve receives SIGTERM
+        Given a program that calls tiny_harness.service.serve in embedded mode
+        When the process receives SIGTERM
+        Then it exits 0 after stopping the embedded server
+        And no Temporal dev server process for its state remains
+    """
+    port = free_port()
+    state = tmp_path / "state"
+    config = tmp_path / "config.toml"
+    config.write_text(
+        "\n".join(
+            [
+                "[temporal]",
+                'mode = "embedded"',
+                "[temporal.embedded]",
+                f'download_dir = "{CACHE}"',
+                "[server]",
+                f'bind = "127.0.0.1:{port}"',
+                f'base_url = "http://127.0.0.1:{port}"',
+                "[store]",
+                f'sqlite_path = "{state / "tiny-harness.sqlite3"}"',
+                "",
+            ]
+        )
+    )
+    env = {k: v for k, v in os.environ.items() if k != "TEMPORAL_API_KEY"}
+    env.update(
+        OPENAI_API_KEY="sk-unused",
+        TINY_HARNESS_PUSH_KEY=base64.b64encode(os.urandom(32)).decode(),
+    )
+    program = (
+        "import asyncio, sys\n"
+        "from pathlib import Path\n"
+        "from tiny_harness.config import Settings\n"
+        "from tiny_harness.service import serve\n"
+        "sys.exit(asyncio.run(serve(Settings.load(Path(sys.argv[1])))))\n"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", program, str(config)],
+        cwd=REPO,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        await asyncio.to_thread(wait_for_port, port, process, time.monotonic() + 60)
+        assert dev_servers_for(state), "the embedded dev server should be running"
+        process.send_signal(signal.SIGTERM)
+        _, stderr = await asyncio.to_thread(process.communicate, timeout=30)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate()
+        for line in dev_servers_for(state):
+            with contextlib.suppress(ProcessLookupError, ValueError):
+                os.kill(int(line.split(" ", 1)[0]), signal.SIGKILL)
+    assert dev_servers_for(state) == []
+    assert "embedded Temporal stopped" in stderr, stderr[-2000:]
+    assert process.returncode == 0, stderr[-2000:]

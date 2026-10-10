@@ -35,6 +35,21 @@ uv run python -m examples.demo            # A2A server + worker, web renderer at
 uv run tiny-harness tui --url http://127.0.0.1:8080
 ```
 
+No Temporal account? Run it with an **embedded Temporal**: the harness starts a local
+Temporal dev server for its own process (loopback only, persisted beside the store) and
+stops it on exit, so only the OpenAI key is needed:
+
+```sh
+unset TEMPORAL_API_KEY                    # refused in embedded mode
+export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+uv run python -m examples.demo examples/demo/config.embedded.toml
+uv run tiny-harness --config examples/demo/config.embedded.toml tui   # or: TUI hosting it all
+```
+
+Embedded mode is `[temporal] mode = "embedded"` in any configuration; it is for
+development and single-host use, not production.
+
 See [getting started](https://madarauchiha-314.github.io/tiny-harness/guide/getting-started)
 for what happens next and
 [deployment](https://madarauchiha-314.github.io/tiny-harness/guide/deployment) for

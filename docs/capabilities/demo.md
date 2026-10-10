@@ -12,9 +12,11 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
 
 ## Current behaviour
 
-- `python -m examples.demo` SHALL start the A2A server with an in-process worker on
-  `127.0.0.1:8080`, serve the built web renderer under `/ui` and print how to start the
-  TUI; both surfaces reach the same instance.
+- `python -m examples.demo [CONFIG]` SHALL start the A2A server with an in-process worker
+  on `127.0.0.1:8080` through `tiny_harness.service.serve`, serve the built web renderer
+  under `/ui` and print how to start the TUI; both surfaces reach the same instance.
+  `CONFIG` defaults to `config.toml` (Temporal Cloud); `config.embedded.toml` runs the
+  same demo on an embedded Temporal with no Temporal account.
 - WHEN the complaint about order #48213 is sent THEN the agent SHALL load the skill,
   create a plan, call `get_order` and `policy.lookup`, emit an A2UI card with the
   resolution options and a Confirm button, ask the reporter and wait in
@@ -32,8 +34,12 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
   waits for input, restart it, and assert from Temporal's history that every
   `invoke_llm` was scheduled once and completed once and that the ledger shows
   `ship_replacement` at most once.
-- The e2e tests SHALL skip with the missing variable's name when `OPENAI_API_KEY` or
-  `TEMPORAL_API_KEY` is absent; each run uses its own task queue, port and state
+- `tests/e2e/test_demo_embedded.py` SHALL run the demo in embedded mode as one `serve`
+  process with no `TEMPORAL_API_KEY` in its environment and assert the task completes,
+  the embedded server's start and warning are logged, and no secret is in the trace or log.
+- The e2e tests SHALL skip with the missing variable's name when a variable they need is
+  absent (`OPENAI_API_KEY` and `TEMPORAL_API_KEY`; `OPENAI_API_KEY` alone for the
+  embedded demo); each run uses its own task queue, port and state
   directory, and writes redacted evidence to `TINY_HARNESS_E2E_EVIDENCE` when set.
 
 ## Design
@@ -46,3 +52,4 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | The demo plugin, configuration and e2e tests (Layer 9) | [spec](../specs/issue-3/), [issue #3](https://github.com/MadaraUchiha-314/tiny-harness/issues/3) |
+| issue-17 | `config.embedded.toml`, the optional config path, the embedded-mode e2e | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18) |

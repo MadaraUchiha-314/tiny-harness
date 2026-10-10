@@ -56,15 +56,32 @@ reuses them. Lives in `tiny_harness/service/durable/`.
   workflow's first task.
 - Inbox intake, heartbeat ticks and channel delivery SHALL be workflow or activity code;
   the A2A executor starts or signals a workflow and returns.
+- Every process SHALL reach Temporal through `temporal_client(settings)`
+  (`durable/temporal.py`): `connect()` in remote mode, or, in embedded mode, an
+  `EmbeddedTemporal` that starts the Temporal CLI dev server
+  (`WorkflowEnvironment.start_local`) with the same Pydantic converter and tracing
+  interceptor, bound to `127.0.0.1` (every port it opens, frontend, metrics and internal
+  services alike), with the Web UI off, and stops it on every exit path.
+- WHILE embedded state is persisted, the SQLite file and its `-wal`/`-shm` SHALL be
+  `0600` (tightened before start when the file exists and right after start when the
+  server created it), and an exclusive `flock` on `<database>.lock` SHALL refuse a second
+  owner. A restart on the same file resumes the running workflows.
+- The dev server binary SHALL come from `temporal.embedded.binary_path` (no download) or
+  be downloaded once into a `0700` user cache directory, never the system temp directory;
+  a download directory, or a cached binary in it, that another user owns or can write is
+  refused. A failed start raises
+  `EmbeddedTemporalError` and never falls back to a remote Temporal.
 
 ## Design
 
 [design.md § Durable execution](../specs/issue-3/design.md#durable-execution-r19--servicedurable),
 [design.md § A request's life](../specs/issue-3/design.md#a-requests-life),
-[decision-002](../decisions/decision-002.md).
+[decision-002](../decisions/decision-002.md),
+[issue-17 design.md](../specs/issue-17/design.md), [decision-005](../decisions/decision-005.md).
 
 ## History
 
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Workflows, activities, client, worker, child and remote workflows, heartbeat (Layer 5); `emit_ui` and surfaces in the workflow (Layer 7); opt-in search attributes (Layer 9) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [decision-002](../decisions/decision-002.md) |
+| issue-17 | `temporal_client` and embedded Temporal mode: the dev server as an owned child process, loopback-only, persisted `0600` under a state lock | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18), [decision-005](../decisions/decision-005.md) |

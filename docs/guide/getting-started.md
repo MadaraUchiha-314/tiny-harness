@@ -22,6 +22,28 @@ export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"   # encrypts push-conf
 A missing variable stops the process at startup with the variable's name; there is no
 anonymous or local fallback.
 
+### No Temporal account: embedded mode
+
+Every configuration can run with an **embedded Temporal** instead:
+`[temporal] mode = "embedded"`, no `address`, and no `TEMPORAL_API_KEY` (it is refused in
+that mode, so an embedded run is never confused with a Cloud one). The harness starts the
+Temporal CLI dev server through the Temporal SDK, bound to `127.0.0.1` and persisted to
+`temporal.sqlite3` beside the store, and stops it when the process exits. The first run
+downloads the CLI once into `~/.cache/tiny-harness/temporal` (or set
+`temporal.embedded.binary_path` to an installed `temporal`).
+
+```sh
+unset TEMPORAL_API_KEY
+uv run python -m examples.demo examples/demo/config.embedded.toml   # server + worker + Temporal
+uv run tiny-harness --config examples/demo/config.embedded.toml tui # or the TUI hosting all three
+```
+
+`tiny-harness tui` with no `--url` in embedded mode starts the harness in its own process
+and writes the harness's logs to `tiny-harness.log` beside the store, so they never draw
+over the TUI. The same configuration drives the programmatic entry point,
+`tiny_harness.service.running_harness(settings)`. Embedded mode is for development and
+single-host use; see [deployment](deployment#embedded-temporal-is-not-a-production-deployment).
+
 ## Run the demo
 
 ```sh

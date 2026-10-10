@@ -26,10 +26,10 @@ Affected docs are updated in the same PR as the work item that changes behaviour
 | Capability | What it covers |
 |------------|----------------|
 | [a2a-server](a2a-server.md) | Every A2A 1.0 verb, the card, streaming from the event log, the inbox, push, limits, access policy. |
-| [durable-execution](durable-execution.md) | One Temporal workflow per task, activities, workflow-managed retries, continue-as-new, the sandbox. |
+| [durable-execution](durable-execution.md) | One Temporal workflow per task, activities, workflow-managed retries, continue-as-new, the sandbox; remote or embedded Temporal. |
 | [heartbeat](heartbeat.md) | The schedule that polls channels, snapshots tasks and sweeps retention. |
 | [observability](observability.md) | JSON logs and GenAI spans from the hooks, redaction, OTLP/Langfuse/file export. |
-| [configuration](configuration.md) | `Settings`, secrets from the environment, the CLI and runtime. |
+| [configuration](configuration.md) | `Settings`, secrets from the environment, `temporal.mode`, the CLI, runtime and programmatic entry points. |
 
 ## The surfaces
 

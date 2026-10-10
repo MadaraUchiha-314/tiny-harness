@@ -2,6 +2,7 @@
 SECRET_VARIABLES = tuple
 model AnthropicConfig(api_key: <class 'pydantic.types.SecretStr'>, model: <class 'str'>)
 model ContextConfig(turn_budget_tokens: <class 'int'> = ..., compaction_fraction: <class 'float'> = ..., history_event_bound: <class 'int'> = ...)
+model EmbeddedTemporalConfig(persist: <class 'bool'> = ..., database_path: pathlib.Path | None = ..., binary_path: pathlib.Path | None = ..., download_dir: pathlib.Path | None = ..., port: int | None = ...)
 model HeartbeatConfig(interval: <class 'datetime.timedelta'> = ...)
 model O11yConfig(otlp_endpoint: pydantic.networks.HttpUrl | None = ..., langfuse_host: <class 'pydantic.networks.HttpUrl'> = ..., langfuse_public_key: pydantic.types.SecretStr | None = ..., langfuse_secret_key: pydantic.types.SecretStr | None = ..., service_name: <class 'str'> = ..., log_level: <class 'str'> = ..., trace_file: pathlib.Path | None = ...)
 model OpenAIConfig(api_key: <class 'pydantic.types.SecretStr'>, model: <class 'str'> = ..., timeout: <class 'datetime.timedelta'> = ..., max_output_tokens: <class 'int'> = ...)
@@ -12,5 +13,5 @@ model RetryPolicySpec(initial_interval: <class 'datetime.timedelta'> = ..., back
 model ServerConfig(bind: <class 'str'> = ..., base_url: <class 'pydantic.networks.HttpUrl'>, max_request_bytes: <class 'int'> = ..., rate_limit_per_minute: <class 'int'> = ..., bridge_interval: <class 'datetime.timedelta'> = ..., cors_origins: tuple[str, ...] = ..., ui_dir: pathlib.Path | None = ...)
 model Settings(temporal: <class 'tiny_harness.config.TemporalConfig'>, openai: <class 'tiny_harness.config.OpenAIConfig'>, anthropic: tiny_harness.config.AnthropicConfig | None = ..., server: <class 'tiny_harness.config.ServerConfig'>, heartbeat: <class 'tiny_harness.config.HeartbeatConfig'> = ..., plugins: tuple[pathlib.Path, ...] = ..., agents: tuple[tiny_harness.config.RemoteAgentSpec, ...] = ..., store: <class 'tiny_harness.config.StoreConfig'> = ..., o11y: <class 'tiny_harness.config.O11yConfig'> = ..., retries: <class 'tiny_harness.config.RetryPolicies'> = ..., context: <class 'tiny_harness.config.ContextConfig'> = ..., retention: <class 'tiny_harness.config.RetentionConfig'> = ..., push_key: <class 'pydantic.types.SecretStr'>)
 model StoreConfig(sqlite_path: <class 'pathlib.Path'> = ...)
-model TemporalConfig(address: <class 'str'>, namespace: <class 'str'>, api_key: <class 'pydantic.types.SecretStr'>, task_queue: <class 'str'> = ..., tls: <class 'bool'> = ..., search_attributes: <class 'bool'> = ...)
+model TemporalConfig(mode: typing.Literal['remote', 'embedded'] = ..., address: str | None = ..., namespace: str | None = ..., api_key: pydantic.types.SecretStr | None = ..., task_queue: <class 'str'> = ..., tls: <class 'bool'> = ..., search_attributes: <class 'bool'> = ..., embedded: tiny_harness.config.EmbeddedTemporalConfig | None = ...)
 def load_settings(path: 'Path | None' = None, *, env: 'Mapping[str, str] | None' = None, settings_type: 'type[S]') -> 'S'

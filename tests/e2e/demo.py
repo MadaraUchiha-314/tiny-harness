@@ -88,6 +88,7 @@ class Demo:
     root: Path
     port: int
     task_queue: str
+    embedded: bool = False  # issue-17: an embedded Temporal, no Temporal credentials
     config: Path = field(init=False)
     server: subprocess.Popen[bytes] | None = None
     worker: subprocess.Popen[bytes] | None = None
@@ -99,13 +100,18 @@ class Demo:
     )
 
     @classmethod
-    def create(cls, name: str) -> Demo:
+    def create(cls, name: str, *, embedded: bool = False) -> Demo:
         suffix = uuid.uuid4().hex[:8]
         root = LOGS / f"{name}-{suffix}"
         if root.exists():
             shutil.rmtree(root)
         root.mkdir(parents=True)
-        demo = cls(root=root, port=free_port(), task_queue=f"tiny-harness-e2e-{suffix}")
+        demo = cls(
+            root=root,
+            port=free_port(),
+            task_queue=f"tiny-harness-e2e-{suffix}",
+            embedded=embedded,
+        )
         demo.config = root / "config.toml"
         demo.config.write_text(demo.config_text())
         return demo
@@ -113,14 +119,21 @@ class Demo:
     def config_text(self) -> str:
         """The demo's config with this run's paths, port and task queue (no secrets)."""
         base = f"http://127.0.0.1:{self.port}"
+        temporal = (
+            ['mode = "embedded"']
+            if self.embedded
+            else [
+                'address = "tiny-harness.gtebu.tmprl.cloud:7233"',
+                'namespace = "tiny-harness.gtebu"',
+                "tls = true",
+            ]
+        )
         return "\n".join(
             [
                 f'plugins = ["{DEMO}"]',
                 "[temporal]",
-                'address = "tiny-harness.gtebu.tmprl.cloud:7233"',
-                'namespace = "tiny-harness.gtebu"',
+                *temporal,
                 f'task_queue = "{self.task_queue}"',
-                "tls = true",
                 "search_attributes = false",
                 "[openai]",
                 'model = "gpt-6.1-sol"',
@@ -163,6 +176,8 @@ class Demo:
         """The processes' environment: the caller's, plus a push key when none is exported."""
         env = dict(os.environ)
         env.setdefault("TINY_HARNESS_PUSH_KEY", self.push_key)
+        if self.embedded:  # the proof: embedded mode runs with no Temporal key at all
+            env.pop("TEMPORAL_API_KEY", None)
         return env
 
     # --- processes -----------------------------------------------------------------------

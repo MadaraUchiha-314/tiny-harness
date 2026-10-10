@@ -15,7 +15,9 @@ Four ideas carry it:
   ([hooks](../capabilities/hooks.md), [decision-004](../decisions/decision-004.md)).
 - **Temporal owns the whole request lifecycle**: one workflow per task, every side effect
   an activity ([durable-execution](../capabilities/durable-execution.md),
-  [decision-002](../decisions/decision-002.md)).
+  [decision-002](../decisions/decision-002.md)). Temporal is remote (Cloud or
+  self-hosted) or embedded: a dev server the process owns, reached through the same
+  `durable/temporal.py` client ([decision-005](../decisions/decision-005.md)).
 - **A2A 1.0 in and out**, with the harness's own protocols as advertised extensions
   ([a2a-server](../capabilities/a2a-server.md), [A2A extensions](../a2a/extensions)).
 
@@ -70,7 +72,7 @@ flowchart LR
 | Column | Modules | Capabilities |
 |--------|---------|--------------|
 | Interaction | `interaction/surface.py`, `renderer.py`, `a2ui/`, `tui/`; `renderers/web` | [surfaces-and-renderers](../capabilities/surfaces-and-renderers.md) |
-| Service | `service/a2a/`, `inbox.py`, `heartbeat.py`, `channels.py`, `o11y/`, `durable/`, `cli.py`, `commands.py`, `runtime.py` | [a2a-server](../capabilities/a2a-server.md), [heartbeat](../capabilities/heartbeat.md), [observability](../capabilities/observability.md), [durable-execution](../capabilities/durable-execution.md), [configuration](../capabilities/configuration.md) |
+| Service | `service/a2a/`, `inbox.py`, `heartbeat.py`, `channels.py`, `o11y/`, `durable/`, `cli.py`, `commands.py`, `process.py`, `runtime.py` | [a2a-server](../capabilities/a2a-server.md), [heartbeat](../capabilities/heartbeat.md), [observability](../capabilities/observability.md), [durable-execution](../capabilities/durable-execution.md), [configuration](../capabilities/configuration.md) |
 | Harness | `harness/entities/`, `hooks/`, `plugins/`, `prompts/`, `skills/`, `tools/`, `models/`, `core/`, `persistence/`, `channels/`, `agents/`, `security/` | [entities-and-registry](../capabilities/entities-and-registry.md), [hooks](../capabilities/hooks.md), [plugins](../capabilities/plugins.md), [prompts-and-skills](../capabilities/prompts-and-skills.md), [tools](../capabilities/tools.md), [models](../capabilities/models.md), [tasks-and-plans](../capabilities/tasks-and-plans.md), [context-window](../capabilities/context-window.md), [persistence](../capabilities/persistence.md), [participants-and-channels](../capabilities/participants-and-channels.md), [remote-agents](../capabilities/remote-agents.md) |
 | Cross-cutting | `builtin/`, `config.py`, `errors.py`, `jsontypes.py` | [plugins](../capabilities/plugins.md), [configuration](../capabilities/configuration.md) |
 | Not built | Memory, Sandbox, Self-improvement | out of scope for issue-3; `tools/` leaves a `ToolKind` slot |

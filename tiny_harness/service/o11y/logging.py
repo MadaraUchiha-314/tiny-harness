@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
+from typing import TextIO
 
 from tiny_harness.harness.security import Redactor
 
@@ -37,16 +38,22 @@ class JsonFormatter(logging.Formatter):
 
 
 def configure_logging(
-    *, level: int = logging.INFO, redactor: Redactor | None = None, name: str = "tiny_harness"
+    *,
+    level: int = logging.INFO,
+    redactor: Redactor | None = None,
+    name: str = "tiny_harness",
+    stream: TextIO | None = None,
 ) -> logging.Logger:
-    """Install the JSON formatter on the harness logger; idempotent."""
+    """Install the JSON formatter on the harness logger; idempotent. ``stream`` defaults to
+    stderr; the TUI hosting its own harness passes a log file so records never draw over
+    the terminal it owns (issue-17)."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
     for handler in logger.handlers:
         if isinstance(handler.formatter, JsonFormatter):
             handler.formatter.redactor = redactor or handler.formatter.redactor
             return logger
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonFormatter(redactor))
     logger.addHandler(handler)
     logger.propagate = False

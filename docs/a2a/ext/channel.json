@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "ContentPart": {
+      "description": "A piece of a tool result: text, or JSON data with a media type.",
+      "properties": {
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "data"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "ContentPart",
+      "type": "object"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/channel/v1/schema.json",
+  "additionalProperties": false,
+  "description": "The A2A extension's data part (``application/vnd.tiny-harness.channel+json``).",
+  "properties": {
+    "channel_id": {
+      "title": "Channel Id",
+      "type": "string"
+    },
+    "in_reply_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "In Reply To"
+    },
+    "kind": {
+      "default": "message",
+      "enum": [
+        "message",
+        "help_request",
+        "help_reply"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "parts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ContentPart"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "sender": {
+      "title": "Sender",
+      "type": "string"
+    },
+    "text": {
+      "default": "",
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "channel_id",
+    "sender"
+  ],
+  "title": "ChannelMessageData",
+  "type": "object"
+}

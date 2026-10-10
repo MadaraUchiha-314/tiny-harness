@@ -1,0 +1,298 @@
+{
+  "$defs": {
+    "AcceptanceCriterion": {
+      "properties": {
+        "met": {
+          "default": false,
+          "title": "Met",
+          "type": "boolean"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AcceptanceCriterion",
+      "type": "object"
+    },
+    "EntityKind": {
+      "description": "The kinds of entity the harness knows; one abstract interface per kind (R1.1).",
+      "enum": [
+        "prompt",
+        "skill",
+        "tool",
+        "llm",
+        "system_one",
+        "hook",
+        "channel",
+        "renderer",
+        "store",
+        "agent"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "EntityRef": {
+      "description": "Registry reference. ``version`` is a PEP 440 specifier, ``\"*\"`` for the latest\nconcrete version, or ``None`` when versioning does not apply to the kind (R1.2).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EntityKind"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "Participant": {
+      "description": "A human or agent with a role on the task (R8.1).",
+      "properties": {
+        "display_name": {
+          "default": "",
+          "title": "Display Name",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "human",
+            "agent"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "role"
+      ],
+      "title": "Participant",
+      "type": "object"
+    },
+    "Plan": {
+      "description": "A DAG of steps; a cycle or a dangling dependency is a ``PlanCycleError`` (R9.5).",
+      "properties": {
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "title": "Plan",
+      "type": "object"
+    },
+    "Role": {
+      "enum": [
+        "assignee",
+        "reporter",
+        "watcher",
+        "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "Step": {
+      "description": "One node of the plan DAG (R9.1).",
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "linked_tasks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TaskRef"
+          },
+          "title": "Linked Tasks",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "state": {
+          "$ref": "#/$defs/StepState",
+          "default": "pending"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "StepState": {
+      "enum": [
+        "pending",
+        "active",
+        "done",
+        "failed"
+      ],
+      "title": "StepState",
+      "type": "string"
+    },
+    "TaskRef": {
+      "description": "A task on this harness (``agent`` is None) or on a remote agent.",
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "TaskRef",
+      "type": "object"
+    }
+  },
+  "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/task/v1/schema.json",
+  "additionalProperties": false,
+  "description": "What A2A's task lacks (R8.1); carried in ``Task.metadata[TASK_EXT_KEY]``.",
+  "properties": {
+    "acceptance_criteria": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AcceptanceCriterion"
+      },
+      "title": "Acceptance Criteria",
+      "type": "array"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "goal": {
+      "title": "Goal",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "parent_tasks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TaskRef"
+      },
+      "title": "Parent Tasks",
+      "type": "array"
+    },
+    "participants": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Participant"
+      },
+      "title": "Participants",
+      "type": "array"
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Plan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sub_tasks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TaskRef"
+      },
+      "title": "Sub Tasks",
+      "type": "array"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Type"
+    }
+  },
+  "required": [
+    "name",
+    "goal"
+  ],
+  "title": "TaskExtensionData",
+  "type": "object"
+}

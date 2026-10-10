@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
+from enum import Enum
 from typing import TypeVar, cast
 
 from pydantic import BaseModel, SecretStr
@@ -54,6 +55,8 @@ class Redactor:
 
     def scrub_value(self, value: object) -> object:
         """Recursively scrub strings inside plain data (dicts, lists, tuples, models)."""
+        if isinstance(value, Enum):
+            return value  # a StrEnum is a str, but its value is a label, never a secret
         if isinstance(value, str):
             return self.scrub_text(value)
         if isinstance(value, SecretStr):

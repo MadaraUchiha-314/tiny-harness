@@ -176,8 +176,15 @@ class Activities:
         participant = participant_of(arg.message)
         text = "\n".join(p.text for p in arg.message.parts if p.HasField("text"))
         now = datetime.now(UTC)
-        accepted = participant is None or task.ext.is_participant(participant)
-        reason = "" if accepted else "not a participant"
+        # Fail closed (abuse case 4): a message must assert a participant who is on the
+        # task; the executor fills the assertion from the perimeter's header when the
+        # message carries none, so a message with neither is refused here.
+        accepted = participant is not None and task.ext.is_participant(participant)
+        reason = (
+            ""
+            if accepted
+            else ("no participant asserted" if participant is None else "not a participant")
+        )
         ui_action: JsonObject | None = None
         if accepted:
             try:

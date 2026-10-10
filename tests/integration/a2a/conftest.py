@@ -56,7 +56,10 @@ class Server:
     async def __aenter__(self) -> Server:
         await self.worker.__aenter__()
         self.http = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=self.app), base_url="http://harness", timeout=60
+            transport=httpx.ASGITransport(app=self.app),
+            base_url="http://harness",
+            timeout=60,
+            headers={"X-Participant-Id": "alice"},  # the perimeter's assertion, overridden per call
         )
         self.client = await create_client(
             "http://harness",

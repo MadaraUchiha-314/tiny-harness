@@ -19,7 +19,7 @@ from a2a.utils.errors import A2AError
 from temporalio.testing import WorkflowEnvironment
 
 from tests.integration.a2a.conftest import make_server
-from tests.integration.a2a.test_server import GET_ORDER, user_message
+from tests.integration.a2a.test_server import GET_ORDER, run_to_completion, user_message
 from tiny_harness.harness.models import scripted
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -76,3 +76,35 @@ async def test_foreign_task_get_list_subscribe_cancel_not_found(env: WorkflowEnv
         server.harness.get_order.gate.set()
         final = await env.client.get_workflow_handle(task_id).result()
     assert final.id == task_id
+
+
+async def test_no_asserted_participant_is_refused_everywhere(env: WorkflowEnvironment) -> None:
+    """
+    Feature: A2A server
+    Requirement: docs/specs/issue-3/requirements.md#R14 (abuse case 4)
+
+    Scenario: no asserted participant is refused everywhere
+        Given a task alice created
+        When a request carries neither the participant header nor participant metadata
+        Then SendMessage is rejected as invalid params and no task is created
+        And GetTask and CancelTask on alice's task answer not found
+    """
+    suffix = uuid.uuid4().hex[:8]
+    tq, context_id = f"tq-{suffix}", f"ctx-{suffix}"
+    server = await make_server(env, [scripted("Done.")], task_queue=tq)
+    nobody = ClientCallContext(service_parameters={"X-Participant-Id": ""})
+    async with server:
+        task_id = await run_to_completion(server, context_id)
+        anonymous = user_message("hello", context_id=f"{context_id}-anon")
+        anonymous.ClearField("metadata")
+        with pytest.raises(A2AError) as info:
+            async for _ in server.a2a().send_message(
+                SendMessageRequest(message=anonymous), context=nobody
+            ):
+                pass
+        assert "no participant" in str(info.value).lower()
+        with pytest.raises(A2AError):
+            await server.a2a().get_task(GetTaskRequest(id=task_id), context=nobody)
+        with pytest.raises(A2AError):
+            await server.a2a().cancel_task(CancelTaskRequest(id=task_id), context=nobody)
+        assert (await server.a2a().get_task(GetTaskRequest(id=task_id))).id == task_id  # alice can

@@ -32,12 +32,17 @@ def asserted_participant(context: ServerCallContext | None) -> str | None:
 
 
 class AccessPolicy:
-    """A participant who asserts an identity must be on the task; nobody learns more."""
+    """A task operation needs an asserted participant who is on the task (abuse case 4).
+
+    Fail closed: with no assertion at all the task is as unknown as it is to a stranger.
+    The assertion is self-asserted (decision-003); the perimeter is what authenticates it.
+    """
 
     def allows(self, task: Task, context: ServerCallContext | None) -> bool:
         participant = asserted_participant(context)
         if participant is None:
-            return True
+            log.warning("access denied: no participant asserted", extra={"task_id": task.id})
+            return False
         try:
             allowed = HarnessTask(task).ext.is_participant(participant)
         except ValueError:

@@ -155,7 +155,9 @@ class HarnessExecutor(AgentExecutor):
         message.task_id = context.task_id
         message.context_id = context.context_id
         participant = participant_of(message) or asserted_participant(context.call_context)
-        if participant and participant_of(message) is None:
+        if participant is None:  # fail closed (abuse case 4): nothing is created for nobody
+            raise InvalidParamsError(message="no participant asserted")
+        if participant_of(message) is None:
             message.metadata.update({"participant_id": participant})
         envelope = envelope_of(message)
         agent = self._config.agent

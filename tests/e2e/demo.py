@@ -343,7 +343,9 @@ class Driver:
     async def client(self) -> Client:
         if self._client is None:
             # A model turn is under a minute; a silence of 3 min on the stream is a hang.
-            self._http = httpx.AsyncClient(timeout=httpx.Timeout(300, read=180))
+            self._http = httpx.AsyncClient(
+                timeout=httpx.Timeout(300, read=180), headers={"X-Participant-Id": "alice"}
+            )
             self._client = await create_client(
                 self.demo.base_url,
                 client_config=ClientConfig(

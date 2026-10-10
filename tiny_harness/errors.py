@@ -178,6 +178,13 @@ class ConfigError(TinyHarnessError):
         self.variable = variable
 
 
+class EmbeddedTemporalError(TinyHarnessError):
+    """The embedded Temporal dev server could not be started; never a fallback to a remote
+    Temporal (issue-17 R2.4)."""
+
+    code = "temporal.embedded_start"
+
+
 class ProviderError(TinyHarnessError):
     """A provider SDK failed in a way durable execution must not retry (a 4xx)."""
 
@@ -206,6 +213,7 @@ __all__ = [
     "ChannelMembershipError",
     "ComponentSkipped",
     "ConfigError",
+    "EmbeddedTemporalError",
     "EntityNotFoundError",
     "HookAbort",
     "HookTransportError",

@@ -51,7 +51,7 @@ Conventions for every task:
     per-mode table; the existing demo config still loads as remote and still needs the
     key) (red→green)
 
-- [ ] 2. `EmbeddedTemporal` and `temporal_client` (`service/durable/temporal.py`)
+- [x] 2. `EmbeddedTemporal` and `temporal_client` (`service/durable/temporal.py`)
   - Implement the state lock (`fcntl.flock` on `<db>.lock`; skipped with a WARNING where
     `fcntl` is absent), `0600` database and lock creation and tightening, and the private
     `0700` download dir (`$XDG_CACHE_HOME`/`~/.cache` fallback).

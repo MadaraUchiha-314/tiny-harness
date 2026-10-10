@@ -146,25 +146,49 @@ Redact before committing: local paths under the home directory, host names other
 
 ## Verification activities
 
-- [ ] T1 — `uv run pytest tests/unit`
-- [ ] T2 — `uv run pytest tests/integration/compat`
-- [ ] T4 — with Ollama up and `qwen3:1.7b` pulled: `env -u OPENAI_API_KEY -u TEMPORAL_API_KEY TINY_HARNESS_OLLAMA_MODEL=qwen3:1.7b uv run pytest tests/e2e -k ollama -s`
-- [ ] T6 — `uv run pytest tests/contract`, then `git diff tests/contract/snapshots`
-- [ ] T8 — `uv run pytest tests/unit tests/integration/compat -k "abuse or security"`
-- [ ] T8 offline — `unshare -rn sh -c 'ip link set lo up && ip -brief addr && env -u OPENAI_API_KEY -u TEMPORAL_API_KEY .venv/bin/pytest tests/integration/compat'`
-- [ ] T10 — `uv run pre-commit run --all-files` and `uv run pytest tests/integration tests/contract tests/security tests/ui`
-- [ ] T11 — with Ollama up: `env -u OPENAI_API_KEY -u TEMPORAL_API_KEY uv run tiny-harness --config <copy of config.ollama.toml with model qwen3:1.7b> tui`; send "hello", wait for the answer, quit; read `tiny-harness.log` for the `model endpoint` line
-- [ ] T12 — `bun run --cwd docs docs:build`
+- [x] T1 — `uv run pytest tests/unit`
+- [x] T2 — `uv run pytest tests/integration/compat`
+- [x] T4 — with Ollama up and `qwen3:1.7b` pulled: `env -u OPENAI_API_KEY -u TEMPORAL_API_KEY TINY_HARNESS_OLLAMA_MODEL=qwen3:1.7b uv run pytest tests/e2e -k ollama -s`
+- [x] T6 — `uv run pytest tests/contract`, then `git diff tests/contract/snapshots`
+- [x] T8 — `uv run pytest tests/unit tests/integration/compat -k "abuse or security"`
+- [x] T8 offline — `unshare -rn sh -c 'ip link set lo up && ip -brief addr && env -u OPENAI_API_KEY -u TEMPORAL_API_KEY .venv/bin/pytest tests/integration/compat'`
+- [x] T10 — `uv run pre-commit run --all-files` and `uv run pytest tests/integration tests/contract tests/security tests/ui`
+- [x] T11 — with Ollama up: the TUI against a harness hosted from `config.ollama.toml` (model `qwen3:1.7b`); send "hello", wait for the answer; read the `model endpoint` line. Driven with Textual's pilot, not by hand — see the results row
+- [x] T12 — `bun run --cwd docs docs:build`
 
 ## Verification results
 
-*Not yet executed.*
+All nine activities ran at `420df50` on 2026-10-10 and passed. Every requirement has
+passing proof; the one limit is that the real local model (a 1.7B one, sized to this
+machine) answered without calling tools, so tool calls over Chat Completions rest on the
+recorded-body tests.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 | `env -u OPENAI_API_KEY -u TEMPORAL_API_KEY uv run pytest tests/unit` | pass — 342 passed, 84 of them new | [`unit.md`](evidence/unit.md) |
+| T2 | `uv run pytest -v tests/integration/compat` | pass — 3 scenarios | [`integration.md`](evidence/integration.md) |
+| T4 | the Ollama e2e with `qwen3:1.7b` on Ollama 0.40.2 | pass — `COMPLETED` in 106.5 s, no key of either kind; the endpoint line and the chat span's `server.*` / `tiny_harness.llm.api` present; the model made no tool call | [`e2e-ollama.md`](evidence/e2e-ollama.md) |
+| T6 | `uv run pytest tests/contract`; `git diff --stat 755ccb6 -- tests/contract/snapshots` | pass — 30 passed; additive diff only (plus `api_key` optional) | [`contract.md`](evidence/contract.md) |
+| T8 | `uv run pytest -v tests/unit tests/integration/compat -k "abuse or security"` | pass — 22 passed, every abuse case covered | [`security.md`](evidence/security.md) |
+| T8 offline | the compat scenarios inside `unshare -rn`, only `lo` up | pass — 3 passed with no network | [`security.md`](evidence/security.md#offline-the-scenarios-with-no-network) |
+| T10 | `uv run pre-commit run --all-files`; CI's `pytest tests/integration tests/contract tests/security tests/ui` | pass — every hook; 117 passed, 4 UI snapshots unchanged | [`regression.md`](evidence/regression.md) |
+| T11 | the TUI over a harness hosted from the Ollama config, driven by Textual's pilot (the session has no interactive terminal): `hello` + Enter, wait, screenshot | pass — `COMPLETED` in 58.5 s; the `model endpoint` line logged | [`manual.md`](evidence/manual.md), [`manual/tui.svg`](evidence/manual/tui.svg) |
+| T12 | `bun run --cwd docs docs:build` | pass — build complete | [`documentation.md`](evidence/documentation.md) |
 
-**Not executed:** none yet.
+**Not executed:** none.
+
+**Deviations from the plan, with reasons:**
+
+- T11 was scripted with Textual's pilot instead of typed by hand, because this session
+  has no interactive terminal. It composes the same parts `tiny-harness tui` does when
+  it hosts its own harness, and the screenshot is an SVG (Textual's native capture), not a
+  PNG.
+- T10's first attempt failed in `pytest-textual-snapshot` because the machine's `/tmp`
+  reached its per-user quota (other sessions' files); re-run with `TMPDIR` on the home
+  filesystem, it passed.
+- T4 and T11 ran Ollama with `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0`
+  so the 16 384-token window fit the machine's free memory; the harness side is
+  unchanged by that.
 
 ## Review comments
 

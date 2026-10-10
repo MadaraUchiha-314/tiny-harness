@@ -125,31 +125,46 @@ first two).
 
 ## Verification activities
 
-- [ ] T1 — `env -u TEMPORAL_API_KEY uv run pytest tests/unit`
-- [ ] T2 — `env -u TEMPORAL_API_KEY uv run pytest tests/integration/embedded`, then
+- [x] T1 — `env -u TEMPORAL_API_KEY uv run pytest tests/unit`
+- [x] T2 — `env -u TEMPORAL_API_KEY uv run pytest tests/integration/embedded`, then
   `the-loop scenarios --root "$PWD" --glob 'tests/integration/embedded/*.py' --format markdown`
-- [ ] T4 — `env -u TEMPORAL_API_KEY uv run pytest tests/e2e -k embedded` with
+- [x] T4 — `env -u TEMPORAL_API_KEY uv run pytest tests/e2e -k embedded` with
   `OPENAI_API_KEY` and `TINY_HARNESS_PUSH_KEY` exported (by reference, above)
-- [ ] T7 — `env -u TEMPORAL_API_KEY uv run pytest tests/integration/embedded -k startup_time -s`
-- [ ] T8 — `env -u TEMPORAL_API_KEY uv run pytest tests/unit tests/integration/embedded tests/security -k embedded`
-- [ ] T10 — `uv run pre-commit run --all-files` and
+- [x] T7 — `env -u TEMPORAL_API_KEY uv run pytest tests/integration/embedded -k startup_time -s`
+- [x] T8 — `env -u TEMPORAL_API_KEY uv run pytest tests/unit tests/integration/embedded tests/security -k embedded`
+- [x] T10 — `uv run pre-commit run --all-files` and
   `uv run pytest tests/integration tests/contract tests/security tests/ui`
-- [ ] T11 — manual: in a shell with `TEMPORAL_API_KEY` unset, run
+- [x] T11 — manual: in a shell with `TEMPORAL_API_KEY` unset, run
   `uv run tiny-harness --config examples/demo/config.embedded.toml tui`; confirm the
   INFO and WARNING lines in the log; send one message and see a reply; quit with
   `q` (the TUI's quit binding, outside the input box); run `pgrep -fa 'temporal server start-dev'` (expect nothing) and
   `stat -c '%a %n' examples/demo/.state/temporal.sqlite3*` (expect `600`)
-- [ ] T12 — `bun run --cwd docs docs:build`; confirm R7.1–R7.3 sections exist
+- [x] T12 — `bun run --cwd docs docs:build`; confirm R7.1–R7.3 sections exist
 
 ## Verification results
 
-_Not yet executed._
+Executed 2026-10-10 at commit `116199d` (T1, T2, T7, T8, T10 were captured at `cdd0785`
+and re-run green after the T11 fix: tests/unit 238, integration/contract/security/ui 112).
+Every embedded run had `TEMPORAL_API_KEY` unset.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 Unit | `env -u TEMPORAL_API_KEY uv run pytest tests/unit` | 237 passed (238 after the T11 fix); the 39 issue-17 unit tests listed by name | [unit.md](evidence/unit.md) |
+| T2 Integration | `env -u TEMPORAL_API_KEY uv run pytest tests/integration/embedded` + `the-loop scenarios` | 15 passed against the real Temporal CLI dev server 1.9.1; 11 Gherkin scenarios | [integration.md](evidence/integration.md) |
+| T4 End-to-end | `env -u TEMPORAL_API_KEY uv run pytest tests/e2e/test_demo_embedded.py`, `OPENAI_API_KEY` from the keyring | passed: the demo task reached `COMPLETED` in 71 s through one `serve` process, real model | [e2e.md](evidence/e2e.md) |
+| T7 Performance | `… -k startup_time -s` | five cached starts at 0.11 s each (median 0.11, max 0.11) against the 10 s budget | [performance.md](evidence/performance.md) |
+| T8 Security / abuse case | `… tests/unit tests/integration/embedded tests/security -k embedded` + the named config cases | 37 + 27 passed; every abuse case and both design-level cases mapped to a passing test | [security-tests.md](evidence/security-tests.md) |
+| T10 Regression | `uv run pre-commit run --all-files`; `uv run pytest tests/integration tests/contract tests/security tests/ui` | all hooks passed; 112 passed; `examples/demo/config.toml` unchanged and still loads as remote needing the key | [regression.md](evidence/regression.md) |
+| T11 Manual | the TUI walkthrough in a tmux pane | lifecycle, logging, quit, no leftover process and `0600` state all pass. **It found a defect**, fixed in `116199d`: uvicorn's access log and the dev server's banner were drawing on the TUI's terminal. The "send one message" step was replanned, see below | [manual-walkthrough.md](evidence/manual-walkthrough.md), [screenshot](evidence/ui/tui-embedded.svg) |
+| T12 Documentation | `bun run --cwd docs docs:build`; the R7 sections | build complete (dead links checked); README, getting started, deployment and the capability docs carry R7.1–R7.3 | [documentation.md](evidence/documentation.md) |
 
-**Not executed:** —
+**Not executed:** T11's "send one message and see a reply" *through the CLI TUI*. On
+`main` as on this branch, `tiny-harness tui` never passes a participant to the TUI, so the
+server refuses every message (`no participant asserted`), remote or embedded. That
+is a renderer defect, and the requirements put renderer changes out of scope. Replanned:
+the same flow, the real `HarnessApp` against the harness `tui` hosts, with a participant,
+to `COMPLETED`, is proved by T2's *TUI hosts its own harness in embedded mode*. Escalated
+on PR #18 as a follow-up.
 
 ## Review comments
 

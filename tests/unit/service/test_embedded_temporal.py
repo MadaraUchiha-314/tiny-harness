@@ -288,3 +288,23 @@ async def test_a_download_dir_owned_by_another_user_is_refused(
         async with EmbeddedTemporal(temporal, store):
             pass
     assert start_local.calls == []
+
+
+async def test_a_failure_after_start_stops_the_started_server(
+    tmp_path: Path, start_local: StartLocal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[Path] = []
+
+    def owner_only(database: Path) -> None:
+        calls.append(database)
+        if len(calls) == 2:  # the post-start tightening
+            raise PermissionError("chmod refused")
+
+    monkeypatch.setattr(module, "_owner_only", owner_only)
+    temporal, store = config(tmp_path)
+    with pytest.raises(PermissionError):
+        async with EmbeddedTemporal(temporal, store):
+            pass
+    assert start_local.environments[0].shut_down
+    async with EmbeddedTemporal(temporal, store):  # and the lock was released
+        pass

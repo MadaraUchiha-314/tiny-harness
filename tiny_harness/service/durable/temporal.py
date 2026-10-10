@@ -182,7 +182,7 @@ class EmbeddedTemporal:
             if database is not None:
                 _owner_only(database)
         except BaseException:
-            self._release()
+            await self._shutdown()
             raise
         client = self._environment.client
         log.info(
@@ -229,18 +229,20 @@ class EmbeddedTemporal:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        await self._shutdown()
+
+    async def _shutdown(self) -> None:
+        """Stop the server if one was started, then release the lock; every exit path,
+        including a failure after ``start_local`` returned, comes through here."""
         try:
             if self._environment is not None:
                 await self._environment.shutdown()
                 log.info("embedded Temporal stopped")
         finally:
             self._environment = None
-            self._release()
-
-    def _release(self) -> None:
-        if self._lock is not None:
-            self._lock.release()
-            self._lock = None
+            if self._lock is not None:
+                self._lock.release()
+                self._lock = None
 
 
 @asynccontextmanager

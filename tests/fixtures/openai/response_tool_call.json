@@ -32,7 +32,7 @@
       "type": "function_call",
       "status": "completed",
       "call_id": "call_abc",
-      "name": "orders.get_order",
+      "name": "orders_get_order",
       "arguments": "{\"order_id\": \"48213\"}"
     }
   ],

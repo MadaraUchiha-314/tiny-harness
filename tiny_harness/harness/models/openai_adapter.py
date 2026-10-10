@@ -43,6 +43,7 @@ from tiny_harness.harness.models.llm import (
     ToolCallItem,
     Usage,
 )
+from tiny_harness.harness.models.wire_names import WireNames
 from tiny_harness.harness.tools import ContentPart, ToolCall, ToolDefinition
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
@@ -65,8 +66,9 @@ def _result_text(parts: Sequence[ContentPart]) -> str:
     return "\n".join(chunks)
 
 
-def build_input(request: LLMRequest) -> ResponseInputParam:
+def build_input(request: LLMRequest, names: WireNames | None = None) -> ResponseInputParam:
     """The Responses API ``input`` list for the request's items."""
+    names = names or WireNames(request.tools)
     items: list[JsonObject] = []
     for item in request.input:
         if isinstance(item, MessageItem):
@@ -76,7 +78,7 @@ def build_input(request: LLMRequest) -> ResponseInputParam:
                 {
                     "type": "function_call",
                     "call_id": item.call.call_id,
-                    "name": item.call.name,
+                    "name": names.encode(item.call.name),
                     "arguments": json.dumps(item.call.arguments),
                 }
             )
@@ -91,11 +93,14 @@ def build_input(request: LLMRequest) -> ResponseInputParam:
     return cast(ResponseInputParam, items)
 
 
-def build_tools(tools: Sequence[ToolDefinition]) -> list[JsonObject]:
+def build_tools(
+    tools: Sequence[ToolDefinition], names: WireNames | None = None
+) -> list[JsonObject]:
+    names = names or WireNames(tools)
     return [
         {
             "type": "function",
-            "name": t.name,
+            "name": names.encode(t.name),
             "description": t.description,
             "parameters": cast(JsonValue, t.input_schema),
             "strict": False,
@@ -105,17 +110,18 @@ def build_tools(tools: Sequence[ToolDefinition]) -> list[JsonObject]:
 
 
 def build_params(
-    request: LLMRequest, *, model: str, max_output_tokens: int
+    request: LLMRequest, *, model: str, max_output_tokens: int, names: WireNames | None = None
 ) -> ResponseCreateParamsBase:
+    names = names or WireNames(request.tools)
     params: JsonObject = {
         "model": model,
         "instructions": request.instructions,
-        "input": cast(JsonValue, build_input(request)),
+        "input": cast(JsonValue, build_input(request, names)),
         "store": False,
         "max_output_tokens": request.max_output_tokens or max_output_tokens,
     }
     if request.tools:
-        params["tools"] = cast(JsonValue, build_tools(request.tools))
+        params["tools"] = cast(JsonValue, build_tools(request.tools, names))
     if request.cache_key:
         params["prompt_cache_key"] = request.cache_key
     if request.response_format is not None:
@@ -130,7 +136,8 @@ def build_params(
     return cast(ResponseCreateParamsBase, params)
 
 
-def parse_response(response: Response) -> LLMResponse:
+def parse_response(response: Response, names: WireNames | None = None) -> LLMResponse:
+    names = names or WireNames()
     texts: list[str] = []
     calls: list[ToolCall] = []
     refused = False
@@ -148,7 +155,9 @@ def parse_response(response: Response) -> LLMResponse:
                 arguments = {"value": arguments}
             calls.append(
                 ToolCall(
-                    call_id=item.call_id, name=item.name, arguments=cast(JsonObject, arguments)
+                    call_id=item.call_id,
+                    name=names.decode(item.name),
+                    arguments=cast(JsonObject, arguments),
                 )
             )
     usage = response.usage
@@ -212,15 +221,21 @@ class OpenAILLM(LLM):
         )
 
     async def invoke(self, request: LLMRequest) -> LLMResponse:
-        params = build_params(request, model=self._model, max_output_tokens=self._max_output_tokens)
+        names = WireNames(request.tools)
+        params = build_params(
+            request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
+        )
         try:
             response = await self._client.responses.create(**params)
         except Exception as exc:
             raise translate_error(exc) from exc
-        return parse_response(response)
+        return parse_response(response, names)
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[LLMStreamEvent]:
-        params = build_params(request, model=self._model, max_output_tokens=self._max_output_tokens)
+        names = WireNames(request.tools)
+        params = build_params(
+            request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
+        )
         try:
             events = await self._client.responses.create(**params, stream=True)
             async for event in events:
@@ -235,12 +250,14 @@ class OpenAILLM(LLM):
                             kind="tool_call",
                             call=ToolCall(
                                 call_id=event.item.call_id,
-                                name=event.item.name,
+                                name=names.decode(event.item.name),
                                 arguments=cast(JsonObject, arguments),
                             ),
                         )
                 elif isinstance(event, ResponseCompletedEvent):
-                    yield LLMStreamEvent(kind="done", response=parse_response(event.response))
+                    yield LLMStreamEvent(
+                        kind="done", response=parse_response(event.response, names)
+                    )
         except Exception as exc:
             raise translate_error(exc) from exc
 

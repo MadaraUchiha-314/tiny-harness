@@ -73,7 +73,7 @@ def test_request_mapping_caches_the_system_prefix_and_merges_roles() -> None:
     assert [b["type"] for b in first] == ["text", "text"]
     assert cast(list[JsonObject], messages[1]["content"])[0]["type"] == "tool_use"
     assert cast(list[JsonObject], messages[2]["content"])[0]["type"] == "tool_result"
-    assert cast(list[JsonObject], params["tools"])[0]["name"] == "orders.get_order"
+    assert cast(list[JsonObject], params["tools"])[0]["name"] == "orders_get_order"
 
 
 async def test_tool_use_and_cache_reads_are_parsed() -> None:

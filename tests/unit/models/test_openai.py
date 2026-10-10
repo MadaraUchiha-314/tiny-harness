@@ -80,7 +80,8 @@ def test_request_mapping_keeps_the_prefix_static_and_caching_on() -> None:
         "output": "refund within 14 days",
     }
     tools = cast(list[JsonObject], params["tools"])
-    assert tools[0]["type"] == "function" and tools[0]["name"] == "orders.get_order"
+    assert tools[0]["type"] == "function" and tools[0]["name"] == "orders_get_order"
+    assert items[1]["name"] == "policy_lookup"  # history uses the same wire names
     assert "text" not in params
 
 

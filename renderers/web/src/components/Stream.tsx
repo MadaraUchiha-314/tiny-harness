@@ -1,10 +1,15 @@
-import type { JSX } from "react";
+import { useEffect, useRef, type JSX } from "react";
 import type { Item } from "../model";
 import { A2uiCard, type ActionPayload } from "./A2uiCard";
 
 export function Stream(props: { items: Item[]; onAction: (action: ActionPayload) => void }): JSX.Element {
+  const container = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Keep the newest item in view as the stream grows (jsdom has no scrollIntoView).
+    container.current?.lastElementChild?.scrollIntoView?.({ block: "end" });
+  }, [props.items.length]);
   return (
-    <div className="stream" id="stream" role="log" aria-live="polite" aria-label="Event stream">
+    <div ref={container} className="stream" id="stream" role="log" aria-live="polite" aria-label="Event stream">
       {props.items.map((item) => {
         switch (item.kind) {
           case "text":

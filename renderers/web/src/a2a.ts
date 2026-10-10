@@ -98,7 +98,11 @@ export function userMessage(options: SendOptions): Message {
   return message;
 }
 
-/** Parses an SSE body into the JSON of each `data:` event. */
+/**
+ * Parses an SSE body into the JSON of each `data:` event. Frames end with a blank line;
+ * the SSE specification allows CRLF, LF or CR line endings and the a2a-sdk server sends
+ * CRLF, so line endings are normalised before the frames are split.
+ */
 export async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<StreamResponse> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -106,7 +110,7 @@ export async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerat
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n|\r/g, "\n");
     let boundary = buffer.indexOf("\n\n");
     while (boundary >= 0) {
       const frame = buffer.slice(0, boundary);

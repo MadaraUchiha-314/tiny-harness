@@ -2,8 +2,8 @@
 type: design
 phase: design
 workItem: issue-17
-status: draft
-approvedBy: []
+status: approved
+approvedBy: ["MadaraUchiha-314"]
 overrides: {}
 ---
 
@@ -450,3 +450,9 @@ opt-in; the TUI hosts the harness with no `--url`; no Web UI; persistence on).
 > comments (issue-109). Append-only and attributed: an approval never silently
 > discards a reviewer's suggestions, and the feedback travels with the document
 > it concerns rather than living in a side-channel tracker.
+
+### 2026-10-10 — approved
+
+**@MadaraUchiha-314** wrote:
+
+approved

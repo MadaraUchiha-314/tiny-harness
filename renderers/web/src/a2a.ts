@@ -113,9 +113,10 @@ export class HarnessClient {
     yield* client.sendMessageStream({ tenant: "", message, configuration: undefined, metadata: undefined });
   }
 
-  async *subscribe(taskId: string): AsyncGenerator<StreamResponse> {
+  /** The task's event log from its start, then live updates, until the signal aborts. */
+  async *subscribe(taskId: string, signal?: AbortSignal): AsyncGenerator<StreamResponse> {
     const client = await this.connect();
-    yield* client.resubscribeTask({ tenant: "", id: taskId });
+    yield* client.resubscribeTask({ tenant: "", id: taskId }, signal ? { signal } : {});
   }
 
   async cancel(taskId: string): Promise<Task> {

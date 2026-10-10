@@ -18,7 +18,8 @@ every Temporal activity. Lives in `tiny_harness/harness/hooks/`.
   `step.started`, `step.finished`, `subtask.spawned`, `help.requested`, `help.decided`,
   `channel.sent`, `channel.received`, `compaction.trigger`, `compaction.keep`,
   `compaction.summarise`, `persistence.read`, `persistence.write`, `activity.failed`,
-  `activity.retried`, `heartbeat.tick`, `shutdown`, `skill.loaded` and `skill.unloaded`,
+  `activity.retried`, `heartbeat.tick`, `shutdown`, `skill.loaded`, `skill.unloaded` and
+  `agent.invoked`,
   each with the phases `pre`, `in` and `post`; the hook point name is
   `<operation>.<phase>`.
 - Executors for one hook point SHALL run as an ordered chain by priority, each receiving

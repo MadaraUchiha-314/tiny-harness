@@ -9,8 +9,10 @@ every secret value before it leaves the process.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
+import secrets
 import shutil
 import signal
 import socket
@@ -30,13 +32,14 @@ from a2a.types import GetTaskRequest, Message, Part, SendMessageRequest, StreamR
 from a2a.types import Role as A2ARole
 from google.protobuf import json_format, struct_pb2
 
+from tiny_harness import config
 from tiny_harness.interaction.a2ui import A2UI_MEDIA_TYPE, Action
 from tiny_harness.jsontypes import JsonObject
 
 REPO = Path(__file__).resolve().parents[2]
 DEMO = REPO / "examples" / "demo"
 LOGS = Path.home() / ".cache" / "tiny-harness-logs" / "e2e"
-SECRET_VARIABLES = ("TEMPORAL_API_KEY", "OPENAI_API_KEY", "TINY_HARNESS_PUSH_KEY")
+SECRET_VARIABLES = tuple(variable for _, _, variable, _ in config.SECRET_VARIABLES)
 
 COMPLAINT = (
     "Refund order #48213: the customer says the blender arrived cracked. "
@@ -154,6 +157,8 @@ class Demo:
 
     def _spawn(self, verb: list[str], log: str) -> subprocess.Popen[bytes]:
         handle = (self.root / log).open("ab")
+        env = dict(os.environ)
+        env.setdefault("TINY_HARNESS_PUSH_KEY", base64.b64encode(secrets.token_bytes(32)).decode())
         return subprocess.Popen(
             [
                 sys.executable,
@@ -164,7 +169,7 @@ class Demo:
                 *verb,
             ],
             cwd=REPO,
-            env=os.environ,
+            env=env,
             stdout=handle,
             stderr=subprocess.STDOUT,
         )
@@ -190,7 +195,7 @@ class Demo:
         self.worker = self._spawn(["worker"], f"worker-{self.workers_started}.log")
 
     def kill_worker(self) -> float:
-        """``kill -9`` the worker and its MCP subprocesses; returns the kill time."""
+        """``kill -9`` the worker (its MCP subprocesses exit on pipe EOF); returns the kill time."""
         assert self.worker is not None
         at = self.elapsed()
         self.worker.send_signal(signal.SIGKILL)

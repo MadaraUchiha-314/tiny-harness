@@ -36,26 +36,34 @@ describe("the web renderer", () => {
   });
 });
 
-function body(text: string): ReadableStream<Uint8Array> {
+function body(text: string, splitAt: number): ReadableStream<Uint8Array> {
   const bytes = new TextEncoder().encode(text);
   return new ReadableStream({
     start(controller) {
-      // Two chunks, split inside the second frame, as a network would deliver it.
-      controller.enqueue(bytes.slice(0, 40));
-      controller.enqueue(bytes.slice(40));
+      // Two chunks, as a network would deliver them.
+      controller.enqueue(bytes.slice(0, splitAt));
+      controller.enqueue(bytes.slice(splitAt));
       controller.close();
     },
   });
 }
 
-it("sseEvents parses CRLF frames as the a2a-sdk server sends them", async () => {
-  const frames =
-    'data: {"task": {"id": "t1", "contextId": "c1", "status": {"state": "TASK_STATE_SUBMITTED"}}}\r\n\r\n' +
-    'data: {"statusUpdate": {"taskId": "t1", "contextId": "c1", "status": {"state": "TASK_STATE_WORKING"}}}\r\n\r\n';
+const FRAMES =
+  'data: {"task": {"id": "t1", "contextId": "c1", "status": {"state": "TASK_STATE_SUBMITTED"}}}\r\n\r\n' +
+  'data: {"statusUpdate": {"taskId": "t1", "contextId": "c1", "status": {"state": "TASK_STATE_WORKING"}}}\r\n\r\n';
+
+async function states(stream: ReadableStream<Uint8Array>): Promise<(string | undefined)[]> {
   const events = [];
-  for await (const event of sseEvents(body(frames))) events.push(event);
-  expect(events.map((e) => (e.task ? e.task.status.state : e.statusUpdate?.status.state))).toEqual([
-    "TASK_STATE_SUBMITTED",
-    "TASK_STATE_WORKING",
-  ]);
+  for await (const event of sseEvents(stream)) events.push(event);
+  return events.map((e) => (e.task ? e.task.status.state : e.statusUpdate?.status.state));
+}
+
+it("sseEvents parses CRLF frames as the a2a-sdk server sends them", async () => {
+  expect(await states(body(FRAMES, 40))).toEqual(["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING"]);
+});
+
+it("sseEvents keeps a CRLF pair whole across a chunk boundary", async () => {
+  const firstCr = FRAMES.indexOf("\r");
+  expect(await states(body(FRAMES, firstCr + 1))).toEqual(["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING"]);
+  expect(await states(body(FRAMES, firstCr + 3))).toEqual(["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING"]);
 });

@@ -107,10 +107,14 @@ export async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerat
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let carry = ""; // a trailing CR held back until the next chunk says whether LF follows
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n|\r/g, "\n");
+    let chunk = carry + decoder.decode(value, { stream: true });
+    carry = chunk.endsWith("\r") ? "\r" : "";
+    if (carry) chunk = chunk.slice(0, -1);
+    buffer += chunk.replace(/\r\n|\r/g, "\n");
     let boundary = buffer.indexOf("\n\n");
     while (boundary >= 0) {
       const frame = buffer.slice(0, boundary);

@@ -2,8 +2,9 @@
 
 Registry tool names are ``<plugin>/<server>.<tool>``; OpenAI and Anthropic accept only
 ``[A-Za-z0-9_-]``. The mapping is built per request from the tools offered: every
-disallowed character becomes ``_`` and a collision gets a numeric suffix, so the wire
-name decodes back to exactly one registry name. A call naming an unknown wire name
+disallowed character becomes ``_``, the name is cut to the providers' 64-character
+limit and a collision (or a cut) gets a numeric suffix, so the wire name decodes back to
+exactly one registry name. A call naming an unknown wire name
 decodes to itself and the registry refuses it as an unknown tool.
 """
 
@@ -15,10 +16,13 @@ from collections.abc import Sequence
 from tiny_harness.harness.tools import ToolDefinition
 
 _DISALLOWED = re.compile(r"[^A-Za-z0-9_-]")
+MAX_WIRE_LENGTH = 64  # both providers' limit on a tool name
+_BASE_LENGTH = MAX_WIRE_LENGTH - 8  # room for a collision suffix
 
 
 def sanitize(name: str) -> str:
-    return _DISALLOWED.sub("_", name) or "_"
+    """The provider-safe form of a name, cut to leave room for a collision suffix."""
+    return (_DISALLOWED.sub("_", name) or "_")[:_BASE_LENGTH]
 
 
 class WireNames:
@@ -48,4 +52,4 @@ class WireNames:
         return self._to_registry.get(wire, wire)
 
 
-__all__ = ["WireNames", "sanitize"]
+__all__ = ["MAX_WIRE_LENGTH", "WireNames", "sanitize"]

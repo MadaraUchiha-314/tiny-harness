@@ -18,7 +18,7 @@ import pytest
 import pytest_asyncio
 from a2a.types import TaskState
 
-from tests.e2e.demo import Demo, Driver
+from tests.e2e.demo import SECRET_VARIABLES, Demo, Driver
 from tiny_harness.harness.core import TASK_EXT_KEY
 from tiny_harness.interaction.a2ui import BASIC_CATALOG_ID
 from tiny_harness.jsontypes import JsonObject
@@ -73,7 +73,8 @@ async def test_the_demo_task_runs_to_a_terminal_state_through_both_surfaces(demo
 
     tools = [row["tool"] for row in demo.ledger()]
     assert "get_order" in tools
-    assert tools.count("ship_replacement") <= 1 and tools.count("refund") <= 1
+    # The reply asks for a shipment: the non-idempotent tool ran once, the refund never.
+    assert tools.count("ship_replacement") == 1 and tools.count("refund") == 0
 
     spans = demo.spans()
     chats = [s for s in spans if s["name"] == "chat gpt-6.1-sol"]
@@ -86,5 +87,6 @@ async def test_the_demo_task_runs_to_a_terminal_state_through_both_surfaces(demo
     ]
     assert any(n > 0 for n in cached[1:]), cached  # the static prefix is cached from turn two
     text = demo.trace_file.read_text() + demo.read_log("server.log")
-    for name in ("OPENAI_API_KEY", "TEMPORAL_API_KEY", "TINY_HARNESS_PUSH_KEY"):
-        assert os.environ[name] not in text, f"{name} leaked into the trace or log"
+    for name in SECRET_VARIABLES:
+        value = os.environ.get(name)
+        assert not value or value not in text, f"{name} leaked into the trace or log"

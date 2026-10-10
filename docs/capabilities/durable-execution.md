@@ -13,9 +13,11 @@ reuses them. Lives in `tiny_harness/service/durable/`.
 ## Current behaviour
 
 - `TaskWorkflow` SHALL run the core loop over an activity-backed port: `intake`,
-  `assemble_context`, `compaction_trigger`, `invoke_llm`, `invoke_tool`,
+  `assemble_context`, `compaction_trigger`, `compact`, `invoke_llm`, `invoke_tool`,
   `decide_completion`, `persist`, `emit_event`, `send_channel_message`,
-  `dispatch_hooks`. The workflow id is the task id.
+  `dispatch_hooks`; `RemoteTaskWorkflow` runs `run_remote_agent_turn` and
+  `HeartbeatWorkflow` runs `poll_channels`, `monitor_snapshot` and `retention_sweep`.
+  These are the names `[retries] per_activity` overrides. The workflow id is the task id.
 - WHEN a workflow is replayed THEN no activity whose result is in history SHALL run
   again: a worker crash mid-task is followed by the task completing on another worker
   with every `invoke_llm` scheduled once and completed once.

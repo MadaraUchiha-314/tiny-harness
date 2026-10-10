@@ -7,7 +7,7 @@ provider accepts and come back as the registry names the loop dispatches on.
 
 from __future__ import annotations
 
-from tiny_harness.harness.models.wire_names import WireNames, sanitize
+from tiny_harness.harness.models.wire_names import MAX_WIRE_LENGTH, WireNames, sanitize
 from tiny_harness.harness.tools import ToolDefinition
 
 
@@ -41,6 +41,21 @@ def test_colliding_names_get_distinct_wire_names() -> None:
     a, b = names.encode("orders.get_order"), names.encode("orders/get_order")
     assert a == "orders_get_order" and b == "orders_get_order_2"
     assert names.decode(a) == "orders.get_order" and names.decode(b) == "orders/get_order"
+
+
+def test_long_names_are_cut_to_the_providers_limit_and_stay_distinct() -> None:
+    """
+    Scenario: long names are cut to the providers' limit and stay distinct
+        Given two registry names longer than 64 characters that share a prefix
+        When the wire names are built
+        Then each is at most 64 characters and decodes to its own registry name
+    """
+    long_a = "acme-customer-operations-support-plugin/orders.list_open_orders_for_customer"
+    long_b = "acme-customer-operations-support-plugin/orders.list_open_orders_for_customers"
+    names = WireNames([tool(long_a), tool(long_b)])
+    a, b = names.encode(long_a), names.encode(long_b)
+    assert len(a) <= MAX_WIRE_LENGTH and len(b) <= MAX_WIRE_LENGTH and a != b
+    assert names.decode(a) == long_a and names.decode(b) == long_b
 
 
 def test_unknown_wire_names_decode_to_themselves() -> None:

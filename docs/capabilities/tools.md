@@ -36,8 +36,8 @@ intrinsic tools that return a command the workflow applies. Lives in
   Their JSON schemas are committed under `docs/a2a/ext/intrinsics/` and pinned by a
   contract test.
 - Tool names SHALL cross the provider boundary as names the provider accepts
-  (`[A-Za-z0-9_-]`): each adapter builds a per-request bijection, encodes names on the
-  way out and decodes them on the tool calls that come back.
+  (`[A-Za-z0-9_-]`, at most 64 characters): each adapter builds a per-request bijection,
+  encodes names on the way out and decodes them on the tool calls that come back.
 
 ## Design
 

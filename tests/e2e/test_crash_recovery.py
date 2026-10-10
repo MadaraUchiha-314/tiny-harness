@@ -20,7 +20,7 @@ import pytest_asyncio
 from a2a.types import TaskState
 from temporalio.api.enums.v1 import EventType
 
-from tests.e2e.demo import Demo, Driver, Event
+from tests.e2e.demo import SECRET_VARIABLES, Demo, Driver, Event
 from tiny_harness.config import Settings
 from tiny_harness.service.durable.client import connect
 
@@ -149,7 +149,7 @@ async def test_a_worker_killed_during_an_idempotent_tool_activity_resumes_on_res
     assert history.timed_out["invoke_tool"] + history.failed["invoke_tool"] >= 1, history.summary()
     assert history.completed["invoke_tool"] >= 1
     assert ledger.count("get_order") >= 2  # the idempotent tool was retried
-    assert ledger.count("ship_replacement") <= 1 and ledger.count("refund") <= 1
+    assert ledger.count("ship_replacement") == 1 and ledger.count("refund") == 0
 
 
 async def test_a_worker_killed_while_input_is_required_resumes_on_restart(demo: Demo) -> None:
@@ -189,7 +189,8 @@ async def test_a_worker_killed_while_input_is_required_resumes_on_restart(demo: 
     assert killed and state == TaskState.TASK_STATE_COMPLETED, driver.transcript()
     assert history.scheduled["invoke_llm"] == history.completed["invoke_llm"], history.summary()
     assert history.scheduled["invoke_tool"] == history.completed["invoke_tool"], history.summary()
-    assert ledger.count("ship_replacement") <= 1 and ledger.count("refund") <= 1
-    for name in ("OPENAI_API_KEY", "TEMPORAL_API_KEY"):
-        logs = demo.read_log("worker-1.log") + demo.read_log("worker-2.log")
-        assert os.environ[name] not in logs
+    assert ledger.count("ship_replacement") == 1 and ledger.count("refund") == 0
+    logs = "".join(demo.read_log(f"worker-{n}.log") for n in range(1, demo.workers_started + 1))
+    for name in SECRET_VARIABLES:
+        value = os.environ.get(name)
+        assert not value or value not in logs, f"{name} leaked into a worker log"

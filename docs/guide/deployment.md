@@ -53,7 +53,8 @@ wait for the TTL.
 
 The server needs the namespace and the store; it holds no model key. The worker needs the
 namespace, the store and the provider keys. MCP subprocesses receive only `PLUGIN_ROOT`,
-`PLUGIN_DATA` and the `env` their manifest declares. Renderers hold no secret.
+`PLUGIN_DATA`, the `env` their manifest declares and the MCP SDK's minimal defaults
+(`HOME`, `PATH`, `USER`, `SHELL`, `TERM`, `LOGNAME`): never a key. Renderers hold no secret.
 
 The SQLite store is a single-writer file: server and workers that share it run on one
 host. A multi-host deployment replaces the store (the `Store` port) and the polling event
@@ -68,7 +69,8 @@ One TOML file, validated into typed models; unknown keys are rejected. The demo'
 |---------|------|-------|
 | top level | `plugins = ["path", …]`, `agents = [{id, url, version}]` | plugin directories (Agent Plugins manifests) and remote A2A agents registered at startup |
 | `[temporal]` | `address`, `namespace`, `task_queue`, `tls`, `search_attributes` | `search_attributes = true` only after `A2AContextId`, `A2ATaskState` and `TinyHarnessAgent` are registered on the namespace (`tcld`); otherwise every workflow fails its first task |
-| `[openai]` | `model`, `timeout`, `max_output_tokens` | the Responses API; `[anthropic]` is the same shape and optional |
+| `[openai]` | `model`, `timeout`, `max_output_tokens` | the Responses API |
+| `[anthropic]` | `model` | optional; the Messages API, not exercised end to end |
 | `[server]` | `bind`, `base_url`, `max_request_bytes`, `rate_limit_per_minute`, `bridge_interval`, `cors_origins`, `ui_dir` | `base_url` is what the agent card advertises; `ui_dir` serves a built web renderer under `/ui` |
 | `[heartbeat]` | `interval` | the schedule's tick |
 | `[store]` | `sqlite_path` | the plugin data root is `plugin-data/` beside it |

@@ -52,8 +52,8 @@ def _result_text(parts: Sequence[ContentPart]) -> str:
 
 
 def build_messages(request: LLMRequest, names: WireNames | None = None) -> list[MessageParam]:
-    names = names or WireNames(request.tools)
     """Items as Messages API messages, consecutive same-role items merged."""
+    names = names or WireNames(request.tools)
     messages: list[tuple[str, list[JsonObject]]] = []
 
     def push(role: str, block: JsonObject) -> None:

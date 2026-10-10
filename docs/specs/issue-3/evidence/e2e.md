@@ -49,7 +49,8 @@ non-idempotent tool, ran exactly once.
 One `chat gpt-6.1-sol` span per `invoke_llm` activity run (17 of each). From
 the second call on, the static prefix (system prompt, participants, skills index, tool
 definitions) is served from the provider's cache: `cached_tokens` in the usage response
-is non-zero.
+is non-zero. This assertion depends on the provider serving a cache hit and is the
+run's one known source of flakiness; a miss fails the test rather than passing silently.
 
 | Call | input tokens | cached input tokens | output tokens |
 |---|---|---|---|

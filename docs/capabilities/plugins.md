@@ -29,7 +29,8 @@ in `tiny_harness/builtin/`.
 - Only `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` SHALL expand, in `args`, `env` values and
   `cwd`, never in `command`; both SHALL be passed as environment variables to MCP
   subprocesses, which receive nothing else of the parent environment beyond the `env`
-  the manifest declares.
+  the manifest declares and the MCP SDK's minimal defaults (`HOME`, `PATH`, `USER`,
+  `SHELL`, `TERM`, `LOGNAME`).
 - WHEN a plugin is loaded THEN every skill, MCP server, hook and prompt it declares SHALL
   be registered; the plugin's manifest version is the entity version. A second
   registration of the same `(id, version)` SHALL be refused unless the loading order

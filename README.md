@@ -16,7 +16,8 @@ the spec chain lives under `docs/specs/issue-3/`.
 - **Temporal** owns the whole request lifecycle: one workflow per task, every model and
   tool call an activity, workflow-managed retries, a durable event log, continue-as-new.
 - **Plugins** (Agent Plugins manifests) bring MCP servers, skills, hooks and prompt
-  extensions; models are OpenAI (Responses API) and Anthropic adapters.
+  extensions; models are OpenAI (Responses API, or any OpenAI-compatible server such as
+  Ollama over Responses or Chat Completions) and Anthropic adapters.
 - **Two renderers**: a Textual TUI and a React web renderer on the official A2UI
   renderer, each an A2A client through the official SDK of its language; the web
   renderer is also hosted at

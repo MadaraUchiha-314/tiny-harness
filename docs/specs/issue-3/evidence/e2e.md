@@ -14,20 +14,20 @@ the o11y hook at creation.
 ```text
 ## uv run pytest tests/e2e -q -m e2e
 ...                                                                      [100%]
-3 passed in 254.55s (0:04:14)
+3 passed in 242.73s (0:04:02)
 ```
 
 ## Transcript (`tests/e2e/test_demo.py`)
 
 ```text
-[   5.6s] task           TASK_STATE_SUBMITTED     78693213-fea8-445e-9052-1a2c009ed35a
-[   5.6s] status_update  TASK_STATE_WORKING       
-[  42.4s] artifact_update                          a2ui
-[  46.3s] status_update  TASK_STATE_INPUT_REQUIRED Please confirm this concerns the $129 Nimbus 900 blender, order #48213 (not travel cup #48377), and tell me when the damage was reported so I can verify the 14-day window after October 6, 2026 delivery. Would you like the $129 refund or a replacement? For a refund, please provide a photo of the crack first; for a replacement, please confirm the shipping address (the blender was sent to 14 Harbour Lane, Portsea, while the other order has a different address).
-[  46.8s] status_update  TASK_STATE_WORKING       
-[  51.1s] status_update  TASK_STATE_INPUT_REQUIRED You selected the $129 refund for blender order #48213. Before I can issue it, please provide a photo of the crack and the date the damage was reported, so I can verify it was within 14 days of delivery on October 6, 2026; please also confirm that #48213 is the affected order.
-[  51.9s] status_update  TASK_STATE_WORKING       
-[  69.2s] status_update  TASK_STATE_COMPLETED     Your replacement for order #48213 is shipping to 14 Harbour Lane, Portsea, with tracking **NB-48213-R1**. As requested, no refund was issued, and order #48377 was left unchanged.
+[   5.5s] task           TASK_STATE_SUBMITTED     96086ae3-a399-4ba3-9c00-c2057b0ecbbc
+[   5.5s] status_update  TASK_STATE_WORKING       
+[  43.8s] artifact_update                          a2ui
+[  48.1s] status_update  TASK_STATE_INPUT_REQUIRED For order #48213, please confirm whether you choose the $129 refund or a replacement, and when the cracked blender was first reported (the policy requires reporting within 14 days of October 6, 2026). For a refund, please provide a photo of the damage before I issue it. If choosing a replacement, please confirm the shipping address: this blender order lists 14 Harbour Lane, Portsea, while your other open order lists 3 Quay Street, Portsea. Nothing has been refunded or shipped.
+[  48.6s] status_update  TASK_STATE_WORKING       
+[  52.2s] status_update  TASK_STATE_INPUT_REQUIRED You've selected the $129 refund for order #48213. Before I can issue it, please provide a photo of the cracked blender and the date the damage was first reported, so I can confirm it was within 14 days of delivery on October 6, 2026.
+[  53.0s] status_update  TASK_STATE_WORKING       
+[  69.2s] status_update  TASK_STATE_COMPLETED     Your replacement blender for order #48213 is shipping to 14 Harbour Lane, Portsea; tracking number: **NB-48213-R1**. No refund was issued, and order #48377 was left unchanged.
 ```
 
 The flow of requirement 24: plan, `gpt-6.1-sol`, MCP tools, an A2UI card (artifact
@@ -36,9 +36,9 @@ The flow of requirement 24: plan, `gpt-6.1-sol`, MCP tools, an A2UI card (artifa
 ## Orders ledger (the MCP server's audit file)
 
 ```text
-{"tool": "get_order", "arguments": {"order_id": "48213"}, "ts": "2026-10-10T05:15:31.634697+00:00"}
-{"tool": "list_open_orders", "arguments": {"order_id": "48213"}, "ts": "2026-10-10T05:15:44.269093+00:00"}
-{"tool": "ship_replacement", "arguments": {"order_id": "48213", "address": "14 Harbour Lane, Portsea"}, "ts": "2026-10-10T05:16:14.818994+00:00"}
+{"tool": "get_order", "arguments": {"order_id": "48213"}, "ts": "2026-10-10T08:46:46.624251+00:00"}
+{"tool": "list_open_orders", "arguments": {"order_id": "48213"}, "ts": "2026-10-10T08:46:59.534411+00:00"}
+{"tool": "ship_replacement", "arguments": {"order_id": "48213", "address": "14 Harbour Lane, Portsea"}, "ts": "2026-10-10T08:47:30.345667+00:00"}
 ```
 
 `get_order` and `list_open_orders` are idempotent reads; `ship_replacement`, the
@@ -53,22 +53,22 @@ is non-zero.
 
 | Call | input tokens | cached input tokens | output tokens |
 |---|---|---|---|
-| 1 | 1873 | 0 | 117 |
-| 2 | 2091 | 1759 | 35 |
+| 1 | 1873 | 0 | 116 |
+| 2 | 2091 | 1759 | 19 |
 | 3 | 2891 | 1759 | 23 |
 | 4 | 3146 | 2888 | 23 |
-| 5 | 3344 | 3143 | 143 |
-| 6 | 3539 | 1759 | 24 |
-| 7 | 4006 | 3536 | 101 |
-| 8 | 4239 | 1759 | 77 |
-| 9 | 4424 | 1759 | 291 |
-| 10 | 4769 | 4421 | 130 |
-| 11 | 5095 | 4766 | 90 |
-| 12 | 5381 | 5092 | 99 |
-| 13 | 5611 | 1759 | 33 |
-| 14 | 5747 | 5608 | 75 |
-| 15 | 5929 | 1759 | 35 |
-| 16 | 5629 | 1759 | 50 |
+| 5 | 3344 | 3143 | 144 |
+| 6 | 3554 | 1759 | 24 |
+| 7 | 4021 | 3551 | 119 |
+| 8 | 4250 | 1759 | 96 |
+| 9 | 4474 | 1759 | 299 |
+| 10 | 4827 | 4471 | 129 |
+| 11 | 5152 | 4824 | 79 |
+| 12 | 5416 | 5149 | 109 |
+| 13 | 5645 | 1759 | 33 |
+| 14 | 5781 | 5642 | 71 |
+| 15 | 5955 | 1759 | 20 |
+| 16 | 5655 | 1759 | 49 |
 
 ## Tool spans (`execute_tool`, `gen_ai.tool.name`)
 
@@ -94,91 +94,92 @@ is non-zero.
 
 ```json
 {
-  "id": "78693213-fea8-445e-9052-1a2c009ed35a",
-  "contextId": "ctx-0c530a66",
+  "id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+  "contextId": "ctx-1826d76e",
   "status": {
     "state": "TASK_STATE_COMPLETED",
     "message": {
-      "messageId": "78693213-fea8-445e-9052-1a2c009ed35a:status:7",
-      "contextId": "ctx-0c530a66",
-      "taskId": "78693213-fea8-445e-9052-1a2c009ed35a",
+      "messageId": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc:status:7",
+      "contextId": "ctx-1826d76e",
+      "taskId": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
       "role": "ROLE_AGENT",
       "parts": [
         {
-          "text": "Your replacement for order #48213 is shipping to 14 Harbour Lane, Portsea, with tracking **NB-48213-R1**. As requested, no refund was issued, and order #48377 was left unchanged."
+          "text": "Your replacement blender for order #48213 is shipping to 14 Harbour Lane, Portsea; tracking number: **NB-48213-R1**. No refund was issued, and order #48377 was left unchanged."
         }
       ]
     },
-    "timestamp": "2026-10-10T05:16:24.407490Z"
+    "timestamp": "2026-10-10T08:47:39.577279Z"
   },
   "metadata": {
     "io.github.madarauchiha-314.tiny-harness/task": {
+      "description": "",
+      "participants": [
+        {
+          "display_name": "",
+          "id": "alice",
+          "kind": "human",
+          "role": "reporter"
+        },
+        {
+          "display_name": "",
+          "id": "tiny-harness",
+          "kind": "agent",
+          "role": "assignee"
+        }
+      ],
+      "name": "Refund order #48213: the customer says the blender arrived c",
+      "goal": "Refund order #48213: the customer says the blender arrived cracked. Check the order and propose a resolution.",
+      "acceptance_criteria": [],
       "plan": {
         "steps": [
           {
+            "output": "Verified order #48213: Nimbus 900 blender, $129, delivered October 6, 2026, warranty active until October 6, 2027, shipping address 14 Harbour Lane, Portsea. Open orders also include #48377, a travel cup with a different shipping address (3 Quay Street, Portsea); any replacement address must be confirmed.",
             "depends_on": [],
-            "output": "Order #48213 is a $129 Nimbus 900 blender, delivered October 6, 2026, with warranty active until October 6, 2027, shipped to 14 Harbour Lane, Portsea. Another open order, #48377, is a travel cup shipped to a different address, 3 Quay Street, Portsea; reporter confirmation is needed before acting.",
+            "id": "verify-the-order",
+            "linked_tasks": [],
             "description": "Verify order details and check the customer's open orders.",
             "name": "verify the order",
-            "linked_tasks": [],
-            "id": "verify-the-order",
             "state": "done"
           },
           {
-            "depends_on": [],
-            "output": "The damaged-on-arrival policy allows a refund or replacement within 14 days of delivery. A $129 refund requires a damage photo first; a replacement does not. The reporting date and photo have not been established, so eligibility and customer preference must be confirmed before action.",
-            "description": "Determine applicable damaged-arrival outcomes and requirements.",
-            "name": "apply the policy",
-            "linked_tasks": [],
-            "id": "apply-the-policy",
-            "state": "done"
-          },
-          {
+            "output": "The damaged-on-arrival policy allows a customer-selected refund or replacement within 14 days of delivery. A $129 refund requires a damage photo first; a replacement does not. Eligibility is conditional on confirmation that the damage was reported within 14 days of October 6, 2026, as no reporting date is available. No refund or shipment has been made.",
             "depends_on": [
-              "verify-the-order",
+              "verify-the-order"
+            ],
+            "id": "apply-the-policy",
+            "linked_tasks": [],
+            "description": "Identify eligibility, the 14-day damage reporting window, and photo requirement for a $129 refund.",
+            "name": "apply the policy",
+            "state": "done"
+          },
+          {
+            "output": "Alice changed the selected resolution from refund to replacement and explicitly authorized shipment for order #48213 to 14 Harbour Lane, Portsea. She confirmed the crack was reported on October 6, 2026, the delivery date, satisfying the 14-day window, and that order #48377 is unrelated. No photo is required for replacement under the policy.",
+            "depends_on": [
               "apply-the-policy"
             ],
-            "output": "Alice changed the selected resolution from refund to replacement and explicitly authorized shipping a replacement for order #48213 to 14 Harbour Lane, Portsea. She confirmed the crack was reported October 6, 2026, the delivery date, satisfying the 14-day policy, and that order #48377 is unrelated. No damage photo is required for a replacement.",
-            "description": "Present refund and replacement choices and obtain preference, eligibility confirmation and any required photo or address confirmation.",
-            "name": "agree the resolution with the customer",
-            "linked_tasks": [],
             "id": "agree-the-resolution-with-the-customer",
+            "linked_tasks": [],
+            "description": "Present refund and replacement options via A2UI and obtain the reporter's decision and required evidence or address confirmation.",
+            "name": "agree the resolution with the customer",
             "state": "done"
           },
           {
+            "output": "Shipped the authorized replacement for order #48213 to 14 Harbour Lane, Portsea under the damaged-on-arrival policy; tracking number NB-48213-R1. No refund was issued and order #48377 was not changed.",
             "depends_on": [
               "agree-the-resolution-with-the-customer"
             ],
-            "output": "Shipped the reporter-authorized replacement for order #48213 to 14 Harbour Lane, Portsea under the damaged-on-arrival policy. The shipment tool confirmed tracking NB-48213-R1; no refund was issued and order #48377 was untouched.",
-            "description": "Execute only the eligible, explicitly approved resolution and record the result.",
-            "name": "record the resolution",
-            "linked_tasks": [],
             "id": "record-the-resolution",
+            "linked_tasks": [],
+            "description": "Execute only a confirmed eligible resolution and record its result.",
+            "name": "record the resolution",
             "state": "done"
           }
         ]
       },
-      "participants": [
-        {
-          "id": "alice",
-          "kind": "human",
-          "role": "reporter",
-          "display_name": ""
-        },
-        {
-          "id": "tiny-harness",
-          "kind": "agent",
-          "role": "assignee",
-          "display_name": ""
-        }
-      ],
-      "name": "Refund order #48213: the customer says the blender arrived c",
-      "type": null,
-      "goal": "Refund order #48213: the customer says the blender arrived cracked. Check the order and propose a resolution.",
-      "description": "",
+      "parent_tasks": [],
       "sub_tasks": [],
-      "acceptance_criteria": [],
-      "parent_tasks": []
+      "type": null
     }
   }
 }

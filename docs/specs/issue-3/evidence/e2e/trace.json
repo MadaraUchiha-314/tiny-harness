@@ -1,11 +1,11 @@
 [
  {
   "name": "MCP send server/discover",
-  "trace_id": "2e386f6e3825c1271e9a8740736a36bf",
-  "span_id": "28650cadc26a4a41",
+  "trace_id": "36cbae6d96907b63b472786394e93cdd",
+  "span_id": "99d94ec42a687a0d",
   "parent_id": "",
-  "start": 1791609318165231972,
-  "end": 1791609318890229533,
+  "start": 1791621993170070056,
+  "end": 1791621993898975654,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -14,11 +14,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "f3ef079cc4753b8bb7d110a96d471064",
-  "span_id": "2320e40ea7c7a38b",
+  "trace_id": "c1fde17c80303adffacc35ed069a176c",
+  "span_id": "824924772815d011",
   "parent_id": "",
-  "start": 1791609318890845908,
-  "end": 1791609318892954083,
+  "start": 1791621993899595869,
+  "end": 1791621993901395168,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -27,11 +27,11 @@
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "6b0ceb2e49ceb9ea49fe15fcc62f7fb0",
-  "span_id": "ecb6481dd071e6af",
+  "trace_id": "656176a1782dee7f318dd8e0e082e654",
+  "span_id": "a50ac4a0eeaa8a4d",
   "parent_id": "",
-  "start": 1791609319059711192,
-  "end": 1791609319779984195,
+  "start": 1791621994068122761,
+  "end": 1791621994790395721,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -40,11 +40,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "bf9294463a68a719321e39798e70b6c8",
-  "span_id": "9463214de0fcd7ce",
+  "trace_id": "576efe9aadef5428df38b0a320d3d4a3",
+  "span_id": "7a6210518fb7b5be",
   "parent_id": "",
-  "start": 1791609319780503855,
-  "end": 1791609319782081511,
+  "start": 1791621994790858881,
+  "end": 1791621994792474569,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -53,80 +53,80 @@
  },
  {
   "name": "HandleUpdate:inbox",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2af4a2134b759734",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609320669268838,
-  "end": 1791609320669268838,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4d4751065d142ef5",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791621995681818466,
+  "end": 1791621995681818466,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e5bd9baf69ebf56d",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609320669268838,
-  "end": 1791609320669268838,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "e3dc3b6eb7053b61",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791621995681818466,
+  "end": 1791621995681818466,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "bc683ac1d2db0ccc",
-  "parent_id": "cc902c75fe5dd6d0",
-  "start": 1791609320629693129,
-  "end": 1791609320759895249,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f2163a41733a2f34",
+  "parent_id": "7afab4af390a3bfc",
+  "start": 1791621995639955973,
+  "end": 1791621995780679836,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6f09d62d7637a3a3",
-  "parent_id": "e5bd9baf69ebf56d",
-  "start": 1791609320761184001,
-  "end": 1791609320763204133,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "95ae68cae3ee85b7",
+  "parent_id": "e3dc3b6eb7053b61",
+  "start": 1791621995781976679,
+  "end": 1791621995783937929,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "1",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:intake",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "20c4ec695e5f64cb",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609320799360598,
-  "end": 1791609320799360598,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "6a711a25e2013b43",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791621995819677083,
+  "end": 1791621995819677083,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "invoke_agent tiny-harness",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0bfccb4f8b552d69",
-  "parent_id": "5e4c9b9675fc5aea",
-  "start": 1791609320901308651,
-  "end": 1791609320901664653,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "bb7552aac56e133d",
+  "parent_id": "c4bd881d77e5fcda",
+  "start": 1791621995916386307,
+  "end": 1791621995916739393,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "request.received",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "invoke_agent",
@@ -135,96 +135,96 @@
  },
  {
   "name": "RunActivity:intake",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "5e4c9b9675fc5aea",
-  "parent_id": "20c4ec695e5f64cb",
-  "start": 1791609320900944146,
-  "end": 1791609320904063373,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c4bd881d77e5fcda",
+  "parent_id": "6a711a25e2013b43",
+  "start": 1791621995916027133,
+  "end": 1791621995919027588,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "2",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6144241ec66d74b0",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609320943147524,
-  "end": 1791609320943147524,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7051509e71e5f6b0",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791621995956051361,
+  "end": 1791621995956051361,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e17400bd855cc725",
-  "parent_id": "6144241ec66d74b0",
-  "start": 1791609321042711832,
-  "end": 1791609321043797814,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1b55f569cf235780",
+  "parent_id": "7051509e71e5f6b0",
+  "start": 1791621996072358166,
+  "end": 1791621996073417567,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "3",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1ee637da3330e6ea",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609321082597276,
-  "end": 1791609321082597276,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "44aee299b35ee5a4",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791621996106799290,
+  "end": 1791621996106799290,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "012a298abccded98",
-  "parent_id": "1ee637da3330e6ea",
-  "start": 1791609321180152725,
-  "end": 1791609321180409159,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "88a1b7d4c6b5a85f",
+  "parent_id": "44aee299b35ee5a4",
+  "start": 1791621996205241272,
+  "end": 1791621996205475815,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "4",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d8c030832d898770",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609321215757778,
-  "end": 1791609321215757778,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "36a60e6306b5d65d",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791621996238106464,
+  "end": 1791621996238106464,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "bfef00ef8afb7e4a",
-  "parent_id": "665442f8ffef6c86",
-  "start": 1791609321320082129,
-  "end": 1791609325007410775,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "414050977a72e0cc",
+  "parent_id": "38fcd08b73453559",
+  "start": 1791621996338230445,
+  "end": 1791622000157956578,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -233,7 +233,7 @@
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
    "gen_ai.usage.input_tokens": 1873,
-   "gen_ai.usage.output_tokens": 117,
+   "gen_ai.usage.output_tokens": 116,
    "gen_ai.usage.cache_read.input_tokens": 0,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
@@ -241,169 +241,169 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "665442f8ffef6c86",
-  "parent_id": "d8c030832d898770",
-  "start": 1791609321318476210,
-  "end": 1791609325008166179,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "38fcd08b73453559",
+  "parent_id": "36a60e6306b5d65d",
+  "start": 1791621996336619322,
+  "end": 1791622000158445633,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "5",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "4cbcb3ce2bf2157f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609325047208235,
-  "end": 1791609325047208235,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9f4114b63fecea03",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622000192832489,
+  "end": 1791622000192832489,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool create_plan",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "06468e6a661849b8",
-  "parent_id": "b9042e99ef56bea0",
-  "start": 1791609325141408912,
-  "end": 1791609325146429035,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c8bdfdcb8231d5ac",
+  "parent_id": "f21ab2b334192232",
+  "start": 1791622000289752654,
+  "end": 1791622000294729427,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "create_plan",
-   "gen_ai.tool.call.id": "call_Qag9YBaTjeRVpnd9SXL6jLsv",
+   "gen_ai.tool.call.id": "call_hIji2LW2sE8Gag0Zf5w86aOd",
    "tiny_harness.tool.command": "attach_plan"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "b9042e99ef56bea0",
-  "parent_id": "4cbcb3ce2bf2157f",
-  "start": 1791609325141007219,
-  "end": 1791609325146699423,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f21ab2b334192232",
+  "parent_id": "9f4114b63fecea03",
+  "start": 1791622000289394727,
+  "end": 1791622000294975432,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "6",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "184d97518065215a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609325180535419,
-  "end": 1791609325180535419,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "861573ebce1d68e8",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622000327638812,
+  "end": 1791622000327638812,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "40b543e3ca60e3e7",
-  "parent_id": "184d97518065215a",
-  "start": 1791609325270756988,
-  "end": 1791609325277068847,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f50f81db22da701b",
+  "parent_id": "861573ebce1d68e8",
+  "start": 1791622000419354347,
+  "end": 1791622000425816095,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "7",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2c37170b8279c457",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609325312618228,
-  "end": 1791609325312618228,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c07d0bab3586f0e1",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622000456510191,
+  "end": 1791622000456510191,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "83e2b1d43ca888be",
-  "parent_id": "2c37170b8279c457",
-  "start": 1791609325405953274,
-  "end": 1791609325407243680,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "41a3eee5e55d3a0f",
+  "parent_id": "c07d0bab3586f0e1",
+  "start": 1791622000547406210,
+  "end": 1791622000548702907,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "8",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ad7d7aab4097773b",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609325490297567,
-  "end": 1791609325490297567,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b886e172db711848",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622000581377131,
+  "end": 1791622000581377131,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "94ba0fabafe738e2",
-  "parent_id": "ad7d7aab4097773b",
-  "start": 1791609325591521411,
-  "end": 1791609325591775187,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9df582c51dc3de6a",
+  "parent_id": "b886e172db711848",
+  "start": 1791622000711229537,
+  "end": 1791622000711469031,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "9",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f6933ed705c64fc9",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609325626490216,
-  "end": 1791609325626490216,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3ed64dbe6b0a616d",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622000745079003,
+  "end": 1791622000745079003,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7c3ca5c02aa3b874",
-  "parent_id": "7bb7d7f06a58bc8e",
-  "start": 1791609325723802996,
-  "end": 1791609327591407945,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0fa62bddb73a442b",
+  "parent_id": "4675bef9002929e0",
+  "start": 1791622000848919872,
+  "end": 1791622002707024171,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -412,7 +412,7 @@
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
    "gen_ai.usage.input_tokens": 2091,
-   "gen_ai.usage.output_tokens": 35,
+   "gen_ai.usage.output_tokens": 19,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
@@ -420,169 +420,169 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7bb7d7f06a58bc8e",
-  "parent_id": "f6933ed705c64fc9",
-  "start": 1791609325721880710,
-  "end": 1791609327591880903,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4675bef9002929e0",
+  "parent_id": "3ed64dbe6b0a616d",
+  "start": 1791622000847185763,
+  "end": 1791622002707452648,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "10",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "46f1ba905d7edf2d",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609327625960374,
-  "end": 1791609327625960374,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d6e123aa68b43823",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622002741131945,
+  "end": 1791622002741131945,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool load_skill",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "5af5f88d9bd0a0b7",
-  "parent_id": "55aea6a32d1339cb",
-  "start": 1791609327714570090,
-  "end": 1791609327716561645,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d071d42aef59313c",
+  "parent_id": "462fcbeaf71a0377",
+  "start": 1791622002832081911,
+  "end": 1791622002834115796,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "load_skill",
-   "gen_ai.tool.call.id": "call_55d8ZYAgrZBwxJqiQt9P4Hox",
+   "gen_ai.tool.call.id": "call_aPIl94fjiuUJ1fVwdARe9qQI",
    "tiny_harness.tool.command": "skill_loaded"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "55aea6a32d1339cb",
-  "parent_id": "46f1ba905d7edf2d",
-  "start": 1791609327714269155,
-  "end": 1791609327716800188,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "462fcbeaf71a0377",
+  "parent_id": "d6e123aa68b43823",
+  "start": 1791622002831783280,
+  "end": 1791622002834358534,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "11",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ce0bd6cb1fa8e4eb",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609327747816288,
-  "end": 1791609327747816288,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5afb89e706f49858",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622002867384322,
+  "end": 1791622002867384322,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "cfeb2d8d287e3a7f",
-  "parent_id": "ce0bd6cb1fa8e4eb",
-  "start": 1791609327836704045,
-  "end": 1791609327843918612,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c251602e153c02f8",
+  "parent_id": "5afb89e706f49858",
+  "start": 1791622002965282000,
+  "end": 1791622002971755747,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "12",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "3c8a754aa29a607f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609327875634372,
-  "end": 1791609327875634372,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "599670bfd38a3d84",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622003004508667,
+  "end": 1791622003004508667,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f2671005eb4f2c95",
-  "parent_id": "3c8a754aa29a607f",
-  "start": 1791609327962066205,
-  "end": 1791609327963348365,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7a2c05ad87f0e719",
+  "parent_id": "599670bfd38a3d84",
+  "start": 1791622003098437139,
+  "end": 1791622003099735057,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "13",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "67163713155f7365",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609328002677253,
-  "end": 1791609328002677253,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d4bd79cf2b5b9669",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622003141972850,
+  "end": 1791622003141972850,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "099df05929efa5ca",
-  "parent_id": "67163713155f7365",
-  "start": 1791609328101536781,
-  "end": 1791609328101769957,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "704a0126e1f6aa3d",
+  "parent_id": "d4bd79cf2b5b9669",
+  "start": 1791622003244069812,
+  "end": 1791622003244295251,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "14",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "27d49cff7a9d09b5",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609328132903844,
-  "end": 1791609328132903844,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "40f8c6f37b15c91f",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622003277033656,
+  "end": 1791622003277033656,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "eab6b95347a48756",
-  "parent_id": "2df53dcc676e6baf",
-  "start": 1791609328228828023,
-  "end": 1791609329873431727,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "acdcdd7777e10dc6",
+  "parent_id": "4c6d5904f63ead20",
+  "start": 1791622003380077377,
+  "end": 1791622004861535464,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -599,38 +599,38 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2df53dcc676e6baf",
-  "parent_id": "27d49cff7a9d09b5",
-  "start": 1791609328226640163,
-  "end": 1791609329873842767,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4c6d5904f63ead20",
+  "parent_id": "40f8c6f37b15c91f",
+  "start": 1791622003377976640,
+  "end": 1791622004862062040,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "15",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ede518588b77bc43",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609329908901978,
-  "end": 1791609329908901978,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5f5da6d0be0def28",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622004894116433,
+  "end": 1791622004894116433,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "4d8701887b5c145a",
-  "parent_id": "e69ef46f17c199e6",
-  "start": 1791609330003084616,
-  "end": 1791609330731821598,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ee71e966522ae246",
+  "parent_id": "fd1b59e21a2f5197",
+  "start": 1791622004991020597,
+  "end": 1791622005721411055,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -639,11 +639,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "478ff5ab1baf1582",
-  "parent_id": "e69ef46f17c199e6",
-  "start": 1791609330732286375,
-  "end": 1791609330734017525,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4134a86e917ea997",
+  "parent_id": "fd1b59e21a2f5197",
+  "start": 1791622005721856584,
+  "end": 1791622005723701711,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -652,11 +652,11 @@
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0beecf59e52a1f16",
-  "parent_id": "e69ef46f17c199e6",
-  "start": 1791609330901576988,
-  "end": 1791609331632718752,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a39cd65ce5fefa5d",
+  "parent_id": "fd1b59e21a2f5197",
+  "start": 1791622005890751754,
+  "end": 1791622006622303918,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -665,11 +665,11 @@
  },
  {
   "name": "MCP send tools/call get_order",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "9b6b0d0cac95d19c",
-  "parent_id": "e69ef46f17c199e6",
-  "start": 1791609331633566313,
-  "end": 1791609331636147271,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c11d6e730b85cdd3",
+  "parent_id": "fd1b59e21a2f5197",
+  "start": 1791622006623137806,
+  "end": 1791622006625735063,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/call",
@@ -678,11 +678,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "4616cc9dc2cde33e",
-  "parent_id": "e69ef46f17c199e6",
-  "start": 1791609331636816855,
-  "end": 1791609331638561871,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "cbf2962768e62c65",
+  "parent_id": "fd1b59e21a2f5197",
+  "start": 1791622006626501366,
+  "end": 1791622006628225446,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -691,142 +691,142 @@
  },
  {
   "name": "execute_tool demo-support/orders.get_order",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e69ef46f17c199e6",
-  "parent_id": "502c846837e90583",
-  "start": 1791609329999842538,
-  "end": 1791609331796931327,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "fd1b59e21a2f5197",
+  "parent_id": "f7e21efaaf12a778",
+  "start": 1791622004988773337,
+  "end": 1791622006794801623,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "demo-support/orders.get_order",
-   "gen_ai.tool.call.id": "call_gmxebEUWmhH0ENCZJF9fknn5",
+   "gen_ai.tool.call.id": "call_lyEUvZwmxOfPLR86a4YD4FBl",
    "tiny_harness.tool.is_error": false
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "502c846837e90583",
-  "parent_id": "ede518588b77bc43",
-  "start": 1791609329999554101,
-  "end": 1791609331797275890,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f7e21efaaf12a778",
+  "parent_id": "5f5da6d0be0def28",
+  "start": 1791622004988478925,
+  "end": 1791622006795159656,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "16",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "aab750844cca1366",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609331831764994,
-  "end": 1791609331831764994,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2329bfcd38971637",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622006829354832,
+  "end": 1791622006829354832,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a4eb2ddb1103cb5b",
-  "parent_id": "aab750844cca1366",
-  "start": 1791609331924026544,
-  "end": 1791609331930397335,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0120a3c5d09d635b",
+  "parent_id": "2329bfcd38971637",
+  "start": 1791622006921822463,
+  "end": 1791622006928098456,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "17",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2d158024e1ac561a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609331961733795,
-  "end": 1791609331961733795,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2eee40ab3d375385",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622006963113350,
+  "end": 1791622006963113350,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "85a7624d6a61a9b8",
-  "parent_id": "2d158024e1ac561a",
-  "start": 1791609332048097270,
-  "end": 1791609332049414024,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "e8f80eefdde214be",
+  "parent_id": "2eee40ab3d375385",
+  "start": 1791622007073762634,
+  "end": 1791622007075120276,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "18",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a1f8bcb2de11fe6e",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609332083599112,
-  "end": 1791609332083599112,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "57c310d83117ca93",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622007109173602,
+  "end": 1791622007109173602,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "073edf05fe3e93ed",
-  "parent_id": "a1f8bcb2de11fe6e",
-  "start": 1791609332185017153,
-  "end": 1791609332185266843,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8c5b9bdd1c66d772",
+  "parent_id": "57c310d83117ca93",
+  "start": 1791622007224143198,
+  "end": 1791622007224374083,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "19",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "22aff5d4e5dd89ed",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609332214740634,
-  "end": 1791609332214740634,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a9b6743105ee6540",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622007260421283,
+  "end": 1791622007260421283,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8be9bb265a18b0a1",
-  "parent_id": "8e6137e3746a2df5",
-  "start": 1791609332311436990,
-  "end": 1791609333913867344,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0e3f5decb1f1c53e",
+  "parent_id": "2c08bdee50ed57a4",
+  "start": 1791622007371821345,
+  "end": 1791622008985441260,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -843,38 +843,38 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8e6137e3746a2df5",
-  "parent_id": "22aff5d4e5dd89ed",
-  "start": 1791609332309221176,
-  "end": 1791609333914338917,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2c08bdee50ed57a4",
+  "parent_id": "a9b6743105ee6540",
+  "start": 1791622007369510326,
+  "end": 1791622008985865336,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "20",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "954e6890bbe83a31",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609333949681237,
-  "end": 1791609333949681237,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c44bc53131778bfd",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622009019580107,
+  "end": 1791622009019580107,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0b705becae7a6552",
-  "parent_id": "c7d62c611bb71ef1",
-  "start": 1791609334068311834,
-  "end": 1791609334792011210,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1991df62543fcf94",
+  "parent_id": "5592c34f49078ec6",
+  "start": 1791622009111117231,
+  "end": 1791622009840118080,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -883,11 +883,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6676e2e6668037a8",
-  "parent_id": "c7d62c611bb71ef1",
-  "start": 1791609334792481202,
-  "end": 1791609334793942658,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9efb61bc55efae7c",
+  "parent_id": "5592c34f49078ec6",
+  "start": 1791622009840558081,
+  "end": 1791622009842115071,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -896,11 +896,11 @@
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "52c263bc7904e843",
-  "parent_id": "c7d62c611bb71ef1",
-  "start": 1791609334960398092,
-  "end": 1791609335683962881,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "24cefcda2d18f095",
+  "parent_id": "5592c34f49078ec6",
+  "start": 1791622010009348010,
+  "end": 1791622010736621945,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -909,11 +909,11 @@
  },
  {
   "name": "MCP send tools/call lookup",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f4b704d0422cc681",
-  "parent_id": "c7d62c611bb71ef1",
-  "start": 1791609335684379484,
-  "end": 1791609335686665613,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0ae537be18305f6e",
+  "parent_id": "5592c34f49078ec6",
+  "start": 1791622010737028629,
+  "end": 1791622010739274094,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/call",
@@ -922,11 +922,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a15df3cd5de276ac",
-  "parent_id": "c7d62c611bb71ef1",
-  "start": 1791609335687032041,
-  "end": 1791609335688617541,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "34c226d88f13703a",
+  "parent_id": "5592c34f49078ec6",
+  "start": 1791622010739598888,
+  "end": 1791622010741115477,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -935,142 +935,142 @@
  },
  {
   "name": "execute_tool demo-support/policy.lookup",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "c7d62c611bb71ef1",
-  "parent_id": "9da90514b59c3985",
-  "start": 1791609334066007583,
-  "end": 1791609335857305919,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5592c34f49078ec6",
+  "parent_id": "8a0be8697d696b5c",
+  "start": 1791622009108852033,
+  "end": 1791622010907374364,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "demo-support/policy.lookup",
-   "gen_ai.tool.call.id": "call_ef6ewZpfeZSPDOQ8O8pwwCPW",
+   "gen_ai.tool.call.id": "call_6SXbfr2susittun9q3iE47rS",
    "tiny_harness.tool.is_error": false
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "9da90514b59c3985",
-  "parent_id": "954e6890bbe83a31",
-  "start": 1791609334065689946,
-  "end": 1791609335857608130,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8a0be8697d696b5c",
+  "parent_id": "c44bc53131778bfd",
+  "start": 1791622009108539286,
+  "end": 1791622010907666018,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "21",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "76c24c9f8e95a2e6",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609335892400446,
-  "end": 1791609335892400446,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "150f098cac3b4113",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622010936948085,
+  "end": 1791622010936948085,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "476cf25f383df2c9",
-  "parent_id": "76c24c9f8e95a2e6",
-  "start": 1791609335987935480,
-  "end": 1791609335994011137,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4b6ce3dce861395b",
+  "parent_id": "150f098cac3b4113",
+  "start": 1791622011059858227,
+  "end": 1791622011066515782,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "22",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0e84d5d40b99c86e",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609336027239554,
-  "end": 1791609336027239554,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "149a8582008b6b24",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622011100247187,
+  "end": 1791622011100247187,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "b0a752fc4062edae",
-  "parent_id": "0e84d5d40b99c86e",
-  "start": 1791609336121243194,
-  "end": 1791609336122549859,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f744ec05c55a2359",
+  "parent_id": "149a8582008b6b24",
+  "start": 1791622011190896793,
+  "end": 1791622011192226787,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "23",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "782c3772f820ed5d",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609336158082000,
-  "end": 1791609336158082000,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d0993584bc761cbc",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622011226701996,
+  "end": 1791622011226701996,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "62d2b3c7c3a72e75",
-  "parent_id": "782c3772f820ed5d",
-  "start": 1791609336263881684,
-  "end": 1791609336264115867,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "49bc5e4fc795495a",
+  "parent_id": "d0993584bc761cbc",
+  "start": 1791622011333249450,
+  "end": 1791622011333486890,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "24",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1a6a32e916030654",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609336320975214,
-  "end": 1791609336320975214,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "e87fe1bf676bb6c8",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622011363666115,
+  "end": 1791622011363666115,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0bc09d595dcad393",
-  "parent_id": "fa1cae1b842a73f5",
-  "start": 1791609336440652977,
-  "end": 1791609340446914357,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c482b4612ed56dd9",
+  "parent_id": "ae21759b725a482a",
+  "start": 1791622011470814795,
+  "end": 1791622015342373845,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -1079,7 +1079,7 @@
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
    "gen_ai.usage.input_tokens": 3344,
-   "gen_ai.usage.output_tokens": 143,
+   "gen_ai.usage.output_tokens": 144,
    "gen_ai.usage.cache_read.input_tokens": 3143,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
@@ -1087,169 +1087,169 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "fa1cae1b842a73f5",
-  "parent_id": "1a6a32e916030654",
-  "start": 1791609336438340193,
-  "end": 1791609340447325857,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ae21759b725a482a",
+  "parent_id": "e87fe1bf676bb6c8",
+  "start": 1791622011468523707,
+  "end": 1791622015342788405,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "25",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ff5b0c63cb766987",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609340481687538,
-  "end": 1791609340481687538,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2bdbd6dfe61915fe",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622015374057829,
+  "end": 1791622015374057829,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool create_plan",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2141421d178bc0d2",
-  "parent_id": "9de0b0b8a98cbf59",
-  "start": 1791609340571123487,
-  "end": 1791609340576122452,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3949910de0e7f50d",
+  "parent_id": "7d60cf5109ddfe55",
+  "start": 1791622015467574621,
+  "end": 1791622015472551287,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "create_plan",
-   "gen_ai.tool.call.id": "call_M0Jso2WQJeRmkAAq23UwcfJf",
+   "gen_ai.tool.call.id": "call_NZDcJfMXB9sVrWKSi2dAyyxa",
    "tiny_harness.tool.command": "attach_plan"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "9de0b0b8a98cbf59",
-  "parent_id": "ff5b0c63cb766987",
-  "start": 1791609340570718816,
-  "end": 1791609340576372286,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7d60cf5109ddfe55",
+  "parent_id": "2bdbd6dfe61915fe",
+  "start": 1791622015467190009,
+  "end": 1791622015472802255,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "26",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6d26fe6169ff3451",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609340606383057,
-  "end": 1791609340606383057,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a5d67b9f7e0031fe",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622015507734924,
+  "end": 1791622015507734924,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "be4f82135e3885e7",
-  "parent_id": "6d26fe6169ff3451",
-  "start": 1791609340697552114,
-  "end": 1791609340703693531,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3b816c36ad91d08b",
+  "parent_id": "a5d67b9f7e0031fe",
+  "start": 1791622015609151978,
+  "end": 1791622015616035822,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "27",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "24e360dc7029da2a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609340733949069,
-  "end": 1791609340733949069,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "fd94552a4de61692",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622015648641442,
+  "end": 1791622015648641442,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "20e6a38f3459ca4e",
-  "parent_id": "24e360dc7029da2a",
-  "start": 1791609340836213067,
-  "end": 1791609340837622651,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "bbaab0a695f738cf",
+  "parent_id": "fd94552a4de61692",
+  "start": 1791622015742814963,
+  "end": 1791622015744216741,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "28",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "588dbfd44d481917",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609340869072569,
-  "end": 1791609340869072569,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "eaa071409d7e3769",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622015779544487,
+  "end": 1791622015779544487,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "af01eae9d4fce53d",
-  "parent_id": "588dbfd44d481917",
-  "start": 1791609340969582150,
-  "end": 1791609340969813475,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "45c62d626b86a6e7",
+  "parent_id": "eaa071409d7e3769",
+  "start": 1791622015887775179,
+  "end": 1791622015887997063,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "29",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "03b07fcca1ac57db",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609340998245492,
-  "end": 1791609340998245492,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "411f58903156bcb5",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622015921226638,
+  "end": 1791622015921226638,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a5f74fdd7b0232b4",
-  "parent_id": "8bcb8af7a5a1a38d",
-  "start": 1791609341101741235,
-  "end": 1791609342500124513,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "bf709649ef90cb8a",
+  "parent_id": "b07032bed7860fb0",
+  "start": 1791622016024494218,
+  "end": 1791622017768102509,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -1257,7 +1257,7 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 3539,
+   "gen_ai.usage.input_tokens": 3554,
    "gen_ai.usage.output_tokens": 24,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "tool_calls",
@@ -1266,38 +1266,38 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8bcb8af7a5a1a38d",
-  "parent_id": "03b07fcca1ac57db",
-  "start": 1791609341099100188,
-  "end": 1791609342500533839,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b07032bed7860fb0",
+  "parent_id": "411f58903156bcb5",
+  "start": 1791622016022063520,
+  "end": 1791622017768534378,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "30",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0da5e9f5a4c92ef7",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609342533672725,
-  "end": 1791609342533672725,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7d73452298615003",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622017802034068,
+  "end": 1791622017802034068,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ad330c6cb36cceaa",
-  "parent_id": "bd0e7a73d701541e",
-  "start": 1791609342623364450,
-  "end": 1791609343361581356,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "472978dea9b9dbb3",
+  "parent_id": "5fd6808cd142d4ae",
+  "start": 1791622017899844559,
+  "end": 1791622018631099363,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -1306,11 +1306,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "61396daae82cd844",
-  "parent_id": "bd0e7a73d701541e",
-  "start": 1791609343362026329,
-  "end": 1791609343363768376,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "219f93cd41b2c960",
+  "parent_id": "5fd6808cd142d4ae",
+  "start": 1791622018631548038,
+  "end": 1791622018633271466,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -1319,11 +1319,11 @@
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d63be16f8289a27d",
-  "parent_id": "bd0e7a73d701541e",
-  "start": 1791609343531806254,
-  "end": 1791609344267669781,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0d78b9aee1e71b4c",
+  "parent_id": "5fd6808cd142d4ae",
+  "start": 1791622018799500852,
+  "end": 1791622019532998020,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -1332,11 +1332,11 @@
  },
  {
   "name": "MCP send tools/call list_open_orders",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0dbcae0c5faeaec2",
-  "parent_id": "bd0e7a73d701541e",
-  "start": 1791609344268043329,
-  "end": 1791609344270564950,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a210012a6838be82",
+  "parent_id": "5fd6808cd142d4ae",
+  "start": 1791622019533412494,
+  "end": 1791622019535799042,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/call",
@@ -1345,11 +1345,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "008e8ad9af491bfe",
-  "parent_id": "bd0e7a73d701541e",
-  "start": 1791609344270904211,
-  "end": 1791609344272512728,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9fb5b44ad66a375b",
+  "parent_id": "5fd6808cd142d4ae",
+  "start": 1791622019536191848,
+  "end": 1791622019538301275,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -1358,142 +1358,142 @@
  },
  {
   "name": "execute_tool demo-support/orders.list_open_orders",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "bd0e7a73d701541e",
-  "parent_id": "6011d849dfc410c2",
-  "start": 1791609342621094450,
-  "end": 1791609344441768785,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5fd6808cd142d4ae",
+  "parent_id": "a3d8620eccbc23f2",
+  "start": 1791622017897536821,
+  "end": 1791622019707301763,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "demo-support/orders.list_open_orders",
-   "gen_ai.tool.call.id": "call_aGMJliKD1Chl00GbRUUKegGA",
+   "gen_ai.tool.call.id": "call_c4lMqnD0qAp2BscWnh5aZp62",
    "tiny_harness.tool.is_error": false
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6011d849dfc410c2",
-  "parent_id": "0da5e9f5a4c92ef7",
-  "start": 1791609342620793913,
-  "end": 1791609344442089666,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a3d8620eccbc23f2",
+  "parent_id": "7d73452298615003",
+  "start": 1791622017897217997,
+  "end": 1791622019707597367,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "31",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7d66d313e5aba256",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609344473741555,
-  "end": 1791609344473741555,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f85891c63ae1e0e0",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622019741063139,
+  "end": 1791622019741063139,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f72768ce5a09f67c",
-  "parent_id": "7d66d313e5aba256",
-  "start": 1791609344562462330,
-  "end": 1791609344568836302,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4294f2f0446e13d9",
+  "parent_id": "f85891c63ae1e0e0",
+  "start": 1791622019835065747,
+  "end": 1791622019841536090,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "32",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e91dbe5c9b8ed370",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609344598276371,
-  "end": 1791609344598276371,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "28a2d583d58e17e6",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622019874710204,
+  "end": 1791622019874710204,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "50fc1e4da3256628",
-  "parent_id": "e91dbe5c9b8ed370",
-  "start": 1791609344691379279,
-  "end": 1791609344692835950,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9a38d1d9e733be6b",
+  "parent_id": "28a2d583d58e17e6",
+  "start": 1791622019984038101,
+  "end": 1791622019985471797,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "33",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8687a7eec433ab88",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609344725445110,
-  "end": 1791609344725445110,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3fdad32012503990",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622020021994083,
+  "end": 1791622020021994083,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ee2b544afa2eb41b",
-  "parent_id": "8687a7eec433ab88",
-  "start": 1791609344828319362,
-  "end": 1791609344828571682,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8df7f91fb869b5a2",
+  "parent_id": "3fdad32012503990",
+  "start": 1791622020127084134,
+  "end": 1791622020127322436,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "34",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "003b52be9b0132d2",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609344858407586,
-  "end": 1791609344858407586,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1d8a3fe7d9ace38f",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622020159561561,
+  "end": 1791622020159561561,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6760ee0013e2fc53",
-  "parent_id": "e1ff3d9ac7143c5a",
-  "start": 1791609344963404809,
-  "end": 1791609347947485536,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "767d1918bcbdf873",
+  "parent_id": "0b4d7c563a5eb00e",
+  "start": 1791622020261485314,
+  "end": 1791622023700434413,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -1501,178 +1501,178 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 4006,
-   "gen_ai.usage.output_tokens": 101,
-   "gen_ai.usage.cache_read.input_tokens": 3536,
+   "gen_ai.usage.input_tokens": 4021,
+   "gen_ai.usage.output_tokens": 119,
+   "gen_ai.usage.cache_read.input_tokens": 3551,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
   }
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e1ff3d9ac7143c5a",
-  "parent_id": "003b52be9b0132d2",
-  "start": 1791609344960303331,
-  "end": 1791609347947904212,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0b4d7c563a5eb00e",
+  "parent_id": "1d8a3fe7d9ace38f",
+  "start": 1791622020258874578,
+  "end": 1791622023700878724,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "35",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "add3ec2512394c9a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609347986268456,
-  "end": 1791609347986268456,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "af86728ebede15a2",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622023737208125,
+  "end": 1791622023737208125,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool complete_step",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1c271871e1e36e4b",
-  "parent_id": "c1ca8c7a801a45b7",
-  "start": 1791609348119067119,
-  "end": 1791609348121331744,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c044c2b9782f74e3",
+  "parent_id": "a07ef83a5a86ae77",
+  "start": 1791622023834146498,
+  "end": 1791622023836566159,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "complete_step",
-   "gen_ai.tool.call.id": "call_XGMxroJFZGa56Mcc3RzAO8BO",
+   "gen_ai.tool.call.id": "call_BFKk9W8IzOi1HdZeLvvQBWtG",
    "tiny_harness.tool.command": "complete_step"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "c1ca8c7a801a45b7",
-  "parent_id": "add3ec2512394c9a",
-  "start": 1791609348118734206,
-  "end": 1791609348121579535,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a07ef83a5a86ae77",
+  "parent_id": "af86728ebede15a2",
+  "start": 1791622023833789642,
+  "end": 1791622023836823836,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "36",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "48454a890250998e",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609348152322372,
-  "end": 1791609348152322372,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8883d280a38e475a",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622023870135745,
+  "end": 1791622023870135745,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "b33f327b25e9a906",
-  "parent_id": "48454a890250998e",
-  "start": 1791609348245569652,
-  "end": 1791609348254131079,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "097ed42fd522b420",
+  "parent_id": "8883d280a38e475a",
+  "start": 1791622023978814702,
+  "end": 1791622023985684283,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "37",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "fad5fe2494c18fb6",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609348284574154,
-  "end": 1791609348284574154,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3e278f65be9089dc",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622024018811477,
+  "end": 1791622024018811477,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ae126119d4f230f0",
-  "parent_id": "fad5fe2494c18fb6",
-  "start": 1791609348374407673,
-  "end": 1791609348375844330,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "308cf6ee54adc4e9",
+  "parent_id": "3e278f65be9089dc",
+  "start": 1791622024116043033,
+  "end": 1791622024117508399,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "38",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0a04d8f3b93ee515",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609348407807464,
-  "end": 1791609348407807464,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1f97f8a4430430b8",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622024153421764,
+  "end": 1791622024153421764,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "08945904729fd380",
-  "parent_id": "0a04d8f3b93ee515",
-  "start": 1791609348512342695,
-  "end": 1791609348512570389,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "bd3f6ab3950faca0",
+  "parent_id": "1f97f8a4430430b8",
+  "start": 1791622024262163716,
+  "end": 1791622024262398327,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "39",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "cfe3c900190ca7af",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609348542309210,
-  "end": 1791609348542309210,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8e4069b8a670d526",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622024296460996,
+  "end": 1791622024296460996,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "5c0ecd6a53698e93",
-  "parent_id": "dd7d5c41df257481",
-  "start": 1791609348648960377,
-  "end": 1791609351712014593,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "af6ba63dd96e6639",
+  "parent_id": "b3c6797e2af93aa2",
+  "start": 1791622024394730835,
+  "end": 1791622027328928677,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -1680,8 +1680,8 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 4239,
-   "gen_ai.usage.output_tokens": 77,
+   "gen_ai.usage.input_tokens": 4250,
+   "gen_ai.usage.output_tokens": 96,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
@@ -1689,169 +1689,169 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "dd7d5c41df257481",
-  "parent_id": "cfe3c900190ca7af",
-  "start": 1791609348645374044,
-  "end": 1791609351712456496,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b3c6797e2af93aa2",
+  "parent_id": "8e4069b8a670d526",
+  "start": 1791622024392013846,
+  "end": 1791622027329362097,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "40",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "73751f52b79b72f2",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609351753464010,
-  "end": 1791609351753464010,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ff726a2e86667285",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622027363057277,
+  "end": 1791622027363057277,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool complete_step",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a7b489538f06ec9e",
-  "parent_id": "a52a44d41834a62f",
-  "start": 1791609351847751314,
-  "end": 1791609351849981327,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5366366fa5f0af5e",
+  "parent_id": "329922f1bf002d4e",
+  "start": 1791622027459444756,
+  "end": 1791622027461750285,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "complete_step",
-   "gen_ai.tool.call.id": "call_Y7wrJFi14ShrUWnBvn9xGokF",
+   "gen_ai.tool.call.id": "call_XkXu6dLeQnKvfcGfpEWNWHQI",
    "tiny_harness.tool.command": "complete_step"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a52a44d41834a62f",
-  "parent_id": "73751f52b79b72f2",
-  "start": 1791609351847437843,
-  "end": 1791609351850239672,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "329922f1bf002d4e",
+  "parent_id": "ff726a2e86667285",
+  "start": 1791622027459115608,
+  "end": 1791622027462256551,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "41",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d5bc601ea59b8162",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609351883746757,
-  "end": 1791609351883746757,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "944d3be0105ded65",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622027498148092,
+  "end": 1791622027498148092,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "fda28821918da5a9",
-  "parent_id": "d5bc601ea59b8162",
-  "start": 1791609351983253431,
-  "end": 1791609351989975703,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f2a560091bf2b38f",
+  "parent_id": "944d3be0105ded65",
+  "start": 1791622027600176358,
+  "end": 1791622027606561821,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "42",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "495435f58fc6e08f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609352021538130,
-  "end": 1791609352021538130,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b9b27ad606bd496d",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622027639691523,
+  "end": 1791622027639691523,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "72deaf2dcf4d05a8",
-  "parent_id": "495435f58fc6e08f",
-  "start": 1791609352121687522,
-  "end": 1791609352123145927,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "50c2af1dfa62eda3",
+  "parent_id": "b9b27ad606bd496d",
+  "start": 1791622027733445776,
+  "end": 1791622027734914820,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "43",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7e5b0b31f6186274",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609352160220443,
-  "end": 1791609352160220443,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3a542f4d87b1dfa8",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622027772095769,
+  "end": 1791622027772095769,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f371b9031fe59cd2",
-  "parent_id": "7e5b0b31f6186274",
-  "start": 1791609352271043014,
-  "end": 1791609352271295353,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "24f123f2712cf578",
+  "parent_id": "3a542f4d87b1dfa8",
+  "start": 1791622027879300814,
+  "end": 1791622027879532090,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "44",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a03cc7eafa1840e2",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609352305129239,
-  "end": 1791609352305129239,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "dcdc1a24eaf0bc36",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622027912690678,
+  "end": 1791622027912690678,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2915a1cbc076f711",
-  "parent_id": "dac15fd9fd82fd1c",
-  "start": 1791609352408266681,
-  "end": 1791609357307369046,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5770b922c2af19b9",
+  "parent_id": "ba953719a41c490e",
+  "start": 1791622028018282337,
+  "end": 1791622033690547334,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -1859,8 +1859,8 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 4424,
-   "gen_ai.usage.output_tokens": 291,
+   "gen_ai.usage.input_tokens": 4474,
+   "gen_ai.usage.output_tokens": 299,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
@@ -1868,196 +1868,196 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "dac15fd9fd82fd1c",
-  "parent_id": "a03cc7eafa1840e2",
-  "start": 1791609352405461548,
-  "end": 1791609357307795162,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ba953719a41c490e",
+  "parent_id": "dcdc1a24eaf0bc36",
+  "start": 1791622028015449887,
+  "end": 1791622033690991727,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "45",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "52a1771c8187d43a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609357341635200,
-  "end": 1791609357341635200,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "43c264469904f1b2",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622033724624572,
+  "end": 1791622033724624572,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool emit_ui",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "628ea8a94ec681bb",
-  "parent_id": "8c86e46e95ebfb78",
-  "start": 1791609357438653167,
-  "end": 1791609357485818994,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "14bba984459ac316",
+  "parent_id": "ea16861efee60d5f",
+  "start": 1791622033820822845,
+  "end": 1791622033868116323,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "emit_ui",
-   "gen_ai.tool.call.id": "call_gva4xIwtbkd6IzvjF1AcnDIm",
+   "gen_ai.tool.call.id": "call_d9URBC5AvTbpdIbiXkJROAA5",
    "tiny_harness.tool.command": "ui_emitted"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8c86e46e95ebfb78",
-  "parent_id": "52a1771c8187d43a",
-  "start": 1791609357438199833,
-  "end": 1791609357486391738,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ea16861efee60d5f",
+  "parent_id": "43c264469904f1b2",
+  "start": 1791622033820366284,
+  "end": 1791622033868481616,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "46",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a843c62347804d68",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609357519112478,
-  "end": 1791609357519112478,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "fb54ca92c12cd078",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622033904062014,
+  "end": 1791622033904062014,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "32665238f6807040",
-  "parent_id": "a843c62347804d68",
-  "start": 1791609357651958243,
-  "end": 1791609357652674107,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2c7239b5a07044f0",
+  "parent_id": "fb54ca92c12cd078",
+  "start": 1791622034043651828,
+  "end": 1791622034044351440,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "47",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "16ef894c0c8d2774",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609357684779031,
-  "end": 1791609357684779031,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "14bf6aa6a100555e",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622034077401089,
+  "end": 1791622034077401089,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "91528d4f3b344403",
-  "parent_id": "16ef894c0c8d2774",
-  "start": 1791609357779639072,
-  "end": 1791609357785771976,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "e9b6e85cf35a1e0f",
+  "parent_id": "14bf6aa6a100555e",
+  "start": 1791622034185389381,
+  "end": 1791622034191950951,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "48",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "845319a0594d371e",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609357821820022,
-  "end": 1791609357821820022,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0cad25c7b3033d3d",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622034227138570,
+  "end": 1791622034227138570,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "5986fb26d5bb5c6d",
-  "parent_id": "845319a0594d371e",
-  "start": 1791609357919611577,
-  "end": 1791609357921107526,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "034e88f748519828",
+  "parent_id": "0cad25c7b3033d3d",
+  "start": 1791622034332077272,
+  "end": 1791622034333616010,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "49",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2debfba5c6b721fa",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609357957482471,
-  "end": 1791609357957482471,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d033c2ef08e86914",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622034364992963,
+  "end": 1791622034364992963,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "c2bae2d90ed9b6d9",
-  "parent_id": "2debfba5c6b721fa",
-  "start": 1791609358060927253,
-  "end": 1791609358061170395,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5638034351641540",
+  "parent_id": "d033c2ef08e86914",
+  "start": 1791622034470849537,
+  "end": 1791622034471093140,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "50",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ee4d728d1ccfd12f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609358092258343,
-  "end": 1791609358092258343,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "6d1b0affa3dc0337",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622034502741325,
+  "end": 1791622034502741325,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e37392ff41b0c8f4",
-  "parent_id": "343fcd0c36b14044",
-  "start": 1791609358191568602,
-  "end": 1791609361222509318,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "69c45e44b7e1c965",
+  "parent_id": "c7f3426cf2c33f36",
+  "start": 1791622034613587513,
+  "end": 1791622037956835990,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -2065,203 +2065,191 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 4769,
-   "gen_ai.usage.output_tokens": 130,
-   "gen_ai.usage.cache_read.input_tokens": 4421,
+   "gen_ai.usage.input_tokens": 4827,
+   "gen_ai.usage.output_tokens": 129,
+   "gen_ai.usage.cache_read.input_tokens": 4471,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
   }
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "343fcd0c36b14044",
-  "parent_id": "ee4d728d1ccfd12f",
-  "start": 1791609358188568813,
-  "end": 1791609361222940183,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c7f3426cf2c33f36",
+  "parent_id": "6d1b0affa3dc0337",
+  "start": 1791622034610527504,
+  "end": 1791622037957268738,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "51",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "61cf2cc563bc0c9e",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609361259247257,
-  "end": 1791609361259247257,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1b6d313d0f7bc2ff",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622037992238734,
+  "end": 1791622037992238734,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool ask_participant",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "45a5b0ec9283d6b0",
-  "parent_id": "dbe2686c09b8d934",
-  "start": 1791609361350175878,
-  "end": 1791609361353240076,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0dae848f5604d154",
+  "parent_id": "0d8f9c045af88e32",
+  "start": 1791622038101532190,
+  "end": 1791622038104588652,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "ask_participant",
-   "gen_ai.tool.call.id": "call_vfsKtR2T5UMxWoGl0sLz8GKD",
+   "gen_ai.tool.call.id": "call_rDyNWXvfmPi1FM3zRML2dEoc",
    "tiny_harness.tool.command": "wait_for_reply"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "dbe2686c09b8d934",
-  "parent_id": "61cf2cc563bc0c9e",
-  "start": 1791609361349832914,
-  "end": 1791609361353485005,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "0d8f9c045af88e32",
+  "parent_id": "1b6d313d0f7bc2ff",
+  "start": 1791622038101199027,
+  "end": 1791622038104842525,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "52",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1977b5be0d6bdcd3",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609361387122037,
-  "end": 1791609361387122037,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "6bf5377db12eb17d",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622038144808290,
+  "end": 1791622038144808290,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7fff485f535f5233",
-  "parent_id": "1977b5be0d6bdcd3",
-  "start": 1791609361494539121,
-  "end": 1791609361500885217,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "6972ec97b64df5b5",
+  "parent_id": "6bf5377db12eb17d",
+  "start": 1791622038266569690,
+  "end": 1791622038273205864,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "53",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:send_channel_message",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "44db880a2c4cac9f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609361534393878,
-  "end": 1791609361534393878,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "afb5c73983ff7757",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622038306646674,
+  "end": 1791622038306646674,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:send_channel_message",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "526771fcf4d040c4",
-  "parent_id": "44db880a2c4cac9f",
-  "start": 1791609361625018343,
-  "end": 1791609361627276092,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3a85e0afbc25c405",
+  "parent_id": "afb5c73983ff7757",
+  "start": 1791622038415735120,
+  "end": 1791622038418067573,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "54",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e205aeb0306d4e20",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609361670692979,
-  "end": 1791609361670692979,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "492fab4dc76e21a3",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622038474858519,
+  "end": 1791622038474858519,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "55b4eaca1dc00bdc",
-  "parent_id": "e205aeb0306d4e20",
-  "start": 1791609361760433536,
-  "end": 1791609361762442180,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "667504981976e733",
+  "parent_id": "492fab4dc76e21a3",
+  "start": 1791622038588440901,
+  "end": 1791622038589010595,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "55",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "HandleUpdate:inbox",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2d78179b17de9944",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609362053274286,
-  "end": 1791609362053274286,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "15c400d8cd100053",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622038906809995,
+  "end": 1791622038906809995,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:intake",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "995a599b16be5421",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609362053274286,
-  "end": 1791609362053274286,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "cf4e1c3ac02e6d83",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622038906809995,
+  "end": 1791622038906809995,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
-  }
- },
- {
-  "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "acb4f6ec0606667a",
-  "parent_id": "cc902c75fe5dd6d0",
-  "start": 1791609362025828320,
-  "end": 1791609362139626543,
-  "status": "UNSET",
-  "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "invoke_agent tiny-harness",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e80793c85bec19a5",
-  "parent_id": "adf1fca617ec8967",
-  "start": 1791609362144582069,
-  "end": 1791609362144838714,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "433fa7c8543f46b5",
+  "parent_id": "a2efeeb89ea321c5",
+  "start": 1791622038990477635,
+  "end": 1791622038990733344,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "request.received",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "invoke_agent",
@@ -2269,124 +2257,136 @@
   }
  },
  {
+  "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7840e5dea7f6ded0",
+  "parent_id": "7afab4af390a3bfc",
+  "start": 1791622038876908978,
+  "end": 1791622038991249747,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc"
+  }
+ },
+ {
   "name": "RunActivity:intake",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "adf1fca617ec8967",
-  "parent_id": "995a599b16be5421",
-  "start": 1791609362143738986,
-  "end": 1791609362147209769,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a2efeeb89ea321c5",
+  "parent_id": "cf4e1c3ac02e6d83",
+  "start": 1791622038989621026,
+  "end": 1791622038993450306,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "56",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "9f1385f85aea36fb",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609362177486271,
-  "end": 1791609362177486271,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "04db932f3be5487a",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622039027078179,
+  "end": 1791622039027078179,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "de2afd550f3a5f44",
-  "parent_id": "9f1385f85aea36fb",
-  "start": 1791609362269354433,
-  "end": 1791609362270202167,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8275327ef0d4615e",
+  "parent_id": "04db932f3be5487a",
+  "start": 1791622039125214206,
+  "end": 1791622039126352919,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "57",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2207fa5406dbee5d",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609362303891115,
-  "end": 1791609362303891115,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "94cc786925b83377",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622039157966561,
+  "end": 1791622039157966561,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "21ece57c97358ac7",
-  "parent_id": "2207fa5406dbee5d",
-  "start": 1791609362397143349,
-  "end": 1791609362398661746,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a69f02fa926f6b6c",
+  "parent_id": "94cc786925b83377",
+  "start": 1791622039251471242,
+  "end": 1791622039252982431,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "58",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8674b500cea853bd",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609362433623302,
-  "end": 1791609362433623302,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a61e9af6b07e8610",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622039287518080,
+  "end": 1791622039287518080,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "2d8e955309329dac",
-  "parent_id": "8674b500cea853bd",
-  "start": 1791609362542423370,
-  "end": 1791609362542648014,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "eeea896cf00ce9c9",
+  "parent_id": "a61e9af6b07e8610",
+  "start": 1791622039401363748,
+  "end": 1791622039402201237,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "59",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "dd3c1cfe6677ad89",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609362576632288,
-  "end": 1791609362576632288,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "759fa39e09032e8d",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622039436411253,
+  "end": 1791622039436411253,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6091e6d8ee443514",
-  "parent_id": "a04e03a2a5da12a4",
-  "start": 1791609362682363481,
-  "end": 1791609365786293203,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "22530c7b5a0c4dad",
+  "parent_id": "103c327834f00f42",
+  "start": 1791622039555274161,
+  "end": 1791622042120027790,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -2394,203 +2394,203 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 5095,
-   "gen_ai.usage.output_tokens": 90,
-   "gen_ai.usage.cache_read.input_tokens": 4766,
+   "gen_ai.usage.input_tokens": 5152,
+   "gen_ai.usage.output_tokens": 79,
+   "gen_ai.usage.cache_read.input_tokens": 4824,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
   }
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a04e03a2a5da12a4",
-  "parent_id": "dd3c1cfe6677ad89",
-  "start": 1791609362679193511,
-  "end": 1791609365787032497,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "103c327834f00f42",
+  "parent_id": "759fa39e09032e8d",
+  "start": 1791622039552048199,
+  "end": 1791622042120458757,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "60",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "905c38c1daff0610",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609365821290365,
-  "end": 1791609365821290365,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4fb9e1476c1dc309",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622042153991272,
+  "end": 1791622042153991272,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool ask_participant",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "eba35a0a0f137028",
-  "parent_id": "4179c54de87cafa8",
-  "start": 1791609365915442595,
-  "end": 1791609365918528332,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "670c0d92411013a9",
+  "parent_id": "64d994545f128d0b",
+  "start": 1791622042248504942,
+  "end": 1791622042251629764,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "ask_participant",
-   "gen_ai.tool.call.id": "call_y5742ReDTkGzJRDOcKWvAxPd",
+   "gen_ai.tool.call.id": "call_RVuScylt9qP20AhmSH8WFgB9",
    "tiny_harness.tool.command": "wait_for_reply"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "4179c54de87cafa8",
-  "parent_id": "905c38c1daff0610",
-  "start": 1791609365915071742,
-  "end": 1791609365918812790,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "64d994545f128d0b",
+  "parent_id": "4fb9e1476c1dc309",
+  "start": 1791622042248126963,
+  "end": 1791622042252212059,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "61",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7da60f67f0dff4b3",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609365983720066,
-  "end": 1791609365983720066,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "6f868edae471c771",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622042284825191,
+  "end": 1791622042284825191,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f0d1fe525148214b",
-  "parent_id": "7da60f67f0dff4b3",
-  "start": 1791609366114047324,
-  "end": 1791609366120902816,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "782eecf29d5789ca",
+  "parent_id": "6f868edae471c771",
+  "start": 1791622042388790961,
+  "end": 1791622042395105093,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "62",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:send_channel_message",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "fb1fcc2b1973504f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609366154268150,
-  "end": 1791609366154268150,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "909e782ebd0f0ce0",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622042426453235,
+  "end": 1791622042426453235,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:send_channel_message",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "011be4700b549162",
-  "parent_id": "fb1fcc2b1973504f",
-  "start": 1791609366250928691,
-  "end": 1791609366253404909,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c6e93633bbca5065",
+  "parent_id": "909e782ebd0f0ce0",
+  "start": 1791622042520847111,
+  "end": 1791622042522918526,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "63",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1d99885890e8031c",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609366292191417,
-  "end": 1791609366292191417,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9fa2e94717141f4e",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622042554328437,
+  "end": 1791622042554328437,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "043b5b7cf989975e",
-  "parent_id": "1d99885890e8031c",
-  "start": 1791609366449086083,
-  "end": 1791609366449721222,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2415d773a6f088be",
+  "parent_id": "9fa2e94717141f4e",
+  "start": 1791622042643354408,
+  "end": 1791622042643927531,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "64",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "HandleUpdate:inbox",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d9f8d5d3f1b42302",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609366781478640,
-  "end": 1791609366781478640,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "aca239e1692fffd3",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622042944409972,
+  "end": 1791622042944409972,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:intake",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a44d5f5fdb74ae38",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609366781478640,
-  "end": 1791609366781478640,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "867442766368fb08",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622042944409972,
+  "end": 1791622042944409972,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e2cd198cb845cc24",
-  "parent_id": "cc902c75fe5dd6d0",
-  "start": 1791609366750389474,
-  "end": 1791609366863597375,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "87655ed805a8eef7",
+  "parent_id": "7afab4af390a3bfc",
+  "start": 1791622042917588990,
+  "end": 1791622043028177917,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc"
   }
  },
  {
   "name": "invoke_agent tiny-harness",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "068a3a53c4eb256e",
-  "parent_id": "26d7787bc81ef156",
-  "start": 1791609366865649029,
-  "end": 1791609366865921640,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "77ceec80539548f9",
+  "parent_id": "87873310a98cfeeb",
+  "start": 1791622043030249704,
+  "end": 1791622043030514100,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "request.received",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "invoke_agent",
@@ -2599,123 +2599,123 @@
  },
  {
   "name": "RunActivity:intake",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "26d7787bc81ef156",
-  "parent_id": "a44d5f5fdb74ae38",
-  "start": 1791609366865227239,
-  "end": 1791609366868467264,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "87873310a98cfeeb",
+  "parent_id": "867442766368fb08",
+  "start": 1791622043029821821,
+  "end": 1791622043033001642,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "65",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6f282fe4a88b626b",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609366898955108,
-  "end": 1791609366898955108,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5cf1e0cde6655bfd",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622043064843682,
+  "end": 1791622043064843682,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "850b659c38c24033",
-  "parent_id": "6f282fe4a88b626b",
-  "start": 1791609367017459535,
-  "end": 1791609367017891021,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "278dba486393074f",
+  "parent_id": "5cf1e0cde6655bfd",
+  "start": 1791622043180180264,
+  "end": 1791622043180629434,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "66",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7bd2fee444c35f72",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609367047481548,
-  "end": 1791609367047481548,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "969759d972aa1db5",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622043212532237,
+  "end": 1791622043212532237,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "a7eeedf70f1dd6ee",
-  "parent_id": "7bd2fee444c35f72",
-  "start": 1791609367141686056,
-  "end": 1791609367143222008,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5631de417f1b906a",
+  "parent_id": "969759d972aa1db5",
+  "start": 1791622043309534472,
+  "end": 1791622043311091751,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "67",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ed05f8efde2397b2",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609367179729745,
-  "end": 1791609367179729745,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "37d6bf3faf388c01",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622043358946277,
+  "end": 1791622043358946277,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6e1f2cb629b3c74e",
-  "parent_id": "ed05f8efde2397b2",
-  "start": 1791609367290959319,
-  "end": 1791609367291201698,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "72d3ed1b694859db",
+  "parent_id": "37d6bf3faf388c01",
+  "start": 1791622043469488966,
+  "end": 1791622043469718092,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "68",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6198178163485a5b",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609367326790258,
-  "end": 1791609367326790258,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7cfc2c7bce98b5c8",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622043504726875,
+  "end": 1791622043504726875,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d2a894e1e66ebdc4",
-  "parent_id": "3b3febc654744ab0",
-  "start": 1791609367455967547,
-  "end": 1791609370461804832,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4d101833994ec579",
+  "parent_id": "12f87d5a42db6b6b",
+  "start": 1791622043610317631,
+  "end": 1791622046334291949,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -2723,178 +2723,178 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 5381,
-   "gen_ai.usage.output_tokens": 99,
-   "gen_ai.usage.cache_read.input_tokens": 5092,
+   "gen_ai.usage.input_tokens": 5416,
+   "gen_ai.usage.output_tokens": 109,
+   "gen_ai.usage.cache_read.input_tokens": 5149,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
   }
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "3b3febc654744ab0",
-  "parent_id": "6198178163485a5b",
-  "start": 1791609367452666151,
-  "end": 1791609370462221856,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "12f87d5a42db6b6b",
+  "parent_id": "7cfc2c7bce98b5c8",
+  "start": 1791622043606802024,
+  "end": 1791622046334695707,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "69",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e98c4860c63f8f09",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609370495434658,
-  "end": 1791609370495434658,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1cf5d2771f88d8f4",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622046364750216,
+  "end": 1791622046364750216,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool complete_step",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d09c6f2bb7aece00",
-  "parent_id": "3a88868c14975d6e",
-  "start": 1791609370586003655,
-  "end": 1791609370588729549,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "da6910ed5ad3a718",
+  "parent_id": "f2bbe68fc4a71fb9",
+  "start": 1791622046457508380,
+  "end": 1791622046459812070,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "complete_step",
-   "gen_ai.tool.call.id": "call_5TxZtWy5VxI9ghuJVuSo5XoY",
+   "gen_ai.tool.call.id": "call_IJqyntzSB0D3eSX8aYw9Dxj4",
    "tiny_harness.tool.command": "complete_step"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "3a88868c14975d6e",
-  "parent_id": "e98c4860c63f8f09",
-  "start": 1791609370585664384,
-  "end": 1791609370589012621,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f2bbe68fc4a71fb9",
+  "parent_id": "1cf5d2771f88d8f4",
+  "start": 1791622046457178906,
+  "end": 1791622046460083499,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "70",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e4a78e37d348849b",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609370620434945,
-  "end": 1791609370620434945,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5f40c8caa71a6798",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622046491450788,
+  "end": 1791622046491450788,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "50be2a1b4c606913",
-  "parent_id": "e4a78e37d348849b",
-  "start": 1791609370717488297,
-  "end": 1791609370723829107,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "759b9fe75ad2f917",
+  "parent_id": "5f40c8caa71a6798",
+  "start": 1791622046590142555,
+  "end": 1791622046596499220,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "71",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "9c235efb401f95cb",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609370761338648,
-  "end": 1791609370761338648,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "00487e0a75ea7f4f",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622046629472978,
+  "end": 1791622046629472978,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d0afaba38543f02d",
-  "parent_id": "9c235efb401f95cb",
-  "start": 1791609370860497769,
-  "end": 1791609370862034657,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d5e8234ddd2e774d",
+  "parent_id": "00487e0a75ea7f4f",
+  "start": 1791622046760008154,
+  "end": 1791622046761607568,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "72",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "b47efa25de60633a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609370896928248,
-  "end": 1791609370896928248,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a97223723604dc7c",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622046795413433,
+  "end": 1791622046795413433,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "4f3a6b2a4055a021",
-  "parent_id": "b47efa25de60633a",
-  "start": 1791609371026298611,
-  "end": 1791609371026530123,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "355f43bdd4f3f4d1",
+  "parent_id": "a97223723604dc7c",
+  "start": 1791622046904480297,
+  "end": 1791622046904709028,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "73",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "dcde239342d2bd9d",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609371056193752,
-  "end": 1791609371056193752,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b350e6200d8bd39e",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622046937913836,
+  "end": 1791622046937913836,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "f8d370b39394c3a6",
-  "parent_id": "1ac0db94c13fc9a0",
-  "start": 1791609371158166722,
-  "end": 1791609373045977238,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c8ded3ff448724f2",
+  "parent_id": "8b1b6961fa2fd1cd",
+  "start": 1791622047049000753,
+  "end": 1791622048577709106,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -2902,7 +2902,7 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 5611,
+   "gen_ai.usage.input_tokens": 5645,
    "gen_ai.usage.output_tokens": 33,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "tool_calls",
@@ -2911,38 +2911,38 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1ac0db94c13fc9a0",
-  "parent_id": "dcde239342d2bd9d",
-  "start": 1791609371154729573,
-  "end": 1791609373046413221,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8b1b6961fa2fd1cd",
+  "parent_id": "b350e6200d8bd39e",
+  "start": 1791622047045321535,
+  "end": 1791622048578141609,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "74",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "06b7fc12209279c7",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609373088745352,
-  "end": 1791609373088745352,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "61676a2b6d9954cd",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622048610937791,
+  "end": 1791622048610937791,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "bbb265ed82d31937",
-  "parent_id": "ce3ef94d77efa3c8",
-  "start": 1791609373183230928,
-  "end": 1791609373916728278,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9bf479674ef7faad",
+  "parent_id": "4f7ad9320dd4c735",
+  "start": 1791622048706607444,
+  "end": 1791622049437785229,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -2951,11 +2951,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "031e78a0ad3746f3",
-  "parent_id": "ce3ef94d77efa3c8",
-  "start": 1791609373917181861,
-  "end": 1791609373919021746,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5012a8652971eaf0",
+  "parent_id": "4f7ad9320dd4c735",
+  "start": 1791622049438241103,
+  "end": 1791622049439996123,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -2964,11 +2964,11 @@
  },
  {
   "name": "MCP send server/discover",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "9c820594590d153e",
-  "parent_id": "ce3ef94d77efa3c8",
-  "start": 1791609374087440577,
-  "end": 1791609374817540105,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "44e6e1084c9316f3",
+  "parent_id": "4f7ad9320dd4c735",
+  "start": 1791622049607206287,
+  "end": 1791622050344228769,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "server/discover",
@@ -2977,11 +2977,11 @@
  },
  {
   "name": "MCP send tools/call ship_replacement",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0ae445b4d8b75316",
-  "parent_id": "ce3ef94d77efa3c8",
-  "start": 1791609374817914275,
-  "end": 1791609374820382192,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f87f27de54566d8c",
+  "parent_id": "4f7ad9320dd4c735",
+  "start": 1791622050344637952,
+  "end": 1791622050346997033,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/call",
@@ -2990,11 +2990,11 @@
  },
  {
   "name": "MCP send tools/list",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "cde0c8cf230f5ff0",
-  "parent_id": "ce3ef94d77efa3c8",
-  "start": 1791609374820689543,
-  "end": 1791609374822428899,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2e5afdcceec3b474",
+  "parent_id": "4f7ad9320dd4c735",
+  "start": 1791622050347342189,
+  "end": 1791622050349066602,
   "status": "UNSET",
   "attributes": {
    "mcp.method.name": "tools/list",
@@ -3003,142 +3003,142 @@
  },
  {
   "name": "execute_tool demo-support/orders.ship_replacement",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ce3ef94d77efa3c8",
-  "parent_id": "eae11212dfe312ca",
-  "start": 1791609373180475937,
-  "end": 1791609374990556362,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4f7ad9320dd4c735",
+  "parent_id": "632f3b953fbe284a",
+  "start": 1791622048703976900,
+  "end": 1791622050514715741,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "demo-support/orders.ship_replacement",
-   "gen_ai.tool.call.id": "call_88WwKyLC0dHsm53q0O6h65fd",
+   "gen_ai.tool.call.id": "call_iuvpmrKzhkoKEmUxr0etuqlD",
    "tiny_harness.tool.is_error": false
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "eae11212dfe312ca",
-  "parent_id": "06b7fc12209279c7",
-  "start": 1791609373180159318,
-  "end": 1791609374990862053,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "632f3b953fbe284a",
+  "parent_id": "61676a2b6d9954cd",
+  "start": 1791622048703682081,
+  "end": 1791622050515008614,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "75",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d00e94b962b55431",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609375031032779,
-  "end": 1791609375031032779,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d1760d4208b53ea3",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622050548156145,
+  "end": 1791622050548156145,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "72b4fd62380a18e1",
-  "parent_id": "d00e94b962b55431",
-  "start": 1791609375143759797,
-  "end": 1791609375151641650,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f67e2494a1dfba85",
+  "parent_id": "d1760d4208b53ea3",
+  "start": 1791622050641098110,
+  "end": 1791622050648974048,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "76",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "34a51e7395fcea60",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609375181047784,
-  "end": 1791609375181047784,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5b085f65b58b4836",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622050690388749,
+  "end": 1791622050690388749,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "3d6975b412b416da",
-  "parent_id": "34a51e7395fcea60",
-  "start": 1791609375272922922,
-  "end": 1791609375274531211,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "d6c2e29c08ce915b",
+  "parent_id": "5b085f65b58b4836",
+  "start": 1791622050792937575,
+  "end": 1791622050794528118,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "77",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "78a51d5155361d56",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609375310759062,
-  "end": 1791609375310759062,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "2c29fbec00a0bdc3",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622050830149334,
+  "end": 1791622050830149334,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e024b345093c2fff",
-  "parent_id": "78a51d5155361d56",
-  "start": 1791609375420013854,
-  "end": 1791609375420250672,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "f48da02dcf7277e7",
+  "parent_id": "2c29fbec00a0bdc3",
+  "start": 1791622050947987868,
+  "end": 1791622050948247583,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "78",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "657d750dba9d06d9",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609375451735067,
-  "end": 1791609375451735067,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "774b0367bad54c1c",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622050982834024,
+  "end": 1791622050982834024,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "47316637ec3cd368",
-  "parent_id": "d0964edca8cbd866",
-  "start": 1791609375557576352,
-  "end": 1791609378987325086,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8bb9a80f5dfda39e",
+  "parent_id": "c899801109ad67ab",
+  "start": 1791622051115307546,
+  "end": 1791622053466549223,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -3146,178 +3146,178 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 5747,
-   "gen_ai.usage.output_tokens": 75,
-   "gen_ai.usage.cache_read.input_tokens": 5608,
+   "gen_ai.usage.input_tokens": 5781,
+   "gen_ai.usage.output_tokens": 71,
+   "gen_ai.usage.cache_read.input_tokens": 5642,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
   }
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d0964edca8cbd866",
-  "parent_id": "657d750dba9d06d9",
-  "start": 1791609375553936476,
-  "end": 1791609378987729921,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "c899801109ad67ab",
+  "parent_id": "774b0367bad54c1c",
+  "start": 1791622051111736617,
+  "end": 1791622053467168144,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "79",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "38f680d0611ac89c",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609379021448304,
-  "end": 1791609379021448304,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b4a2235c606b0058",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622053504640744,
+  "end": 1791622053504640744,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool complete_step",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7650b8d32a1c12cb",
-  "parent_id": "ccd268ea64f755b8",
-  "start": 1791609379112659830,
-  "end": 1791609379114935492,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "acebbcffc8154b7f",
+  "parent_id": "a891e3d89d1a1c41",
+  "start": 1791622053596128915,
+  "end": 1791622053598369529,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "complete_step",
-   "gen_ai.tool.call.id": "call_xWiUme4zoYiFnmSR1aJlUkkU",
+   "gen_ai.tool.call.id": "call_POKAbwdbLzZfpzpxKkjVHq45",
    "tiny_harness.tool.command": "complete_step"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "ccd268ea64f755b8",
-  "parent_id": "38f680d0611ac89c",
-  "start": 1791609379112350166,
-  "end": 1791609379115197731,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "a891e3d89d1a1c41",
+  "parent_id": "b4a2235c606b0058",
+  "start": 1791622053595815754,
+  "end": 1791622053598618456,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "80",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e8b28000e3919a44",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609379148490191,
-  "end": 1791609379148490191,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "bffc38c67da5f726",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622053631491876,
+  "end": 1791622053631491876,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "fc04c98111f3db8a",
-  "parent_id": "e8b28000e3919a44",
-  "start": 1791609379244283161,
-  "end": 1791609379250908822,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "6f7128ba642f1553",
+  "parent_id": "bffc38c67da5f726",
+  "start": 1791622053741794125,
+  "end": 1791622053748914123,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "81",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "249da90afd1cf176",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609379282998243,
-  "end": 1791609379282998243,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "b93ea8a6235646f0",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622053783891693,
+  "end": 1791622053783891693,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "7aa35f295e40dc2c",
-  "parent_id": "249da90afd1cf176",
-  "start": 1791609379378891087,
-  "end": 1791609379380468764,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "90050a2b67bf5056",
+  "parent_id": "b93ea8a6235646f0",
+  "start": 1791622053881811507,
+  "end": 1791622053883406958,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "82",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "486becfc53bca739",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609379412080523,
-  "end": 1791609379412080523,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "dca8552b9d7c657b",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622053917756941,
+  "end": 1791622053917756941,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1e3c3089a94a54ec",
-  "parent_id": "486becfc53bca739",
-  "start": 1791609379528162292,
-  "end": 1791609379528395091,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "499aea1b8e509746",
+  "parent_id": "dca8552b9d7c657b",
+  "start": 1791622054025774485,
+  "end": 1791622054026033348,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "83",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "c491d18b3f5dcdb3",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609379559833691,
-  "end": 1791609379559833691,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "5f70a04aa2d7e8f2",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622054058039931,
+  "end": 1791622054058039931,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "22843c172e917c27",
-  "parent_id": "e8cc7a7aa7d135d1",
-  "start": 1791609379671409329,
-  "end": 1791609381287355009,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "3b804c5db57b4db9",
+  "parent_id": "8afec924acfe9dfc",
+  "start": 1791622054163907422,
+  "end": 1791622056448662741,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -3325,8 +3325,8 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 5929,
-   "gen_ai.usage.output_tokens": 35,
+   "gen_ai.usage.input_tokens": 5955,
+   "gen_ai.usage.output_tokens": 20,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "tool_calls",
    "gen_ai.response.tool_calls": 1
@@ -3334,169 +3334,169 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e8cc7a7aa7d135d1",
-  "parent_id": "c491d18b3f5dcdb3",
-  "start": 1791609379667729272,
-  "end": 1791609381287757053,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "8afec924acfe9dfc",
+  "parent_id": "5f70a04aa2d7e8f2",
+  "start": 1791622054160240043,
+  "end": 1791622056449048665,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "84",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "670312db410e01c6",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609381318966654,
-  "end": 1791609381318966654,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "cb214bd51f428363",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622056479533384,
+  "end": 1791622056479533384,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "execute_tool unload_skill",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6aeb04d07dbb9fd5",
-  "parent_id": "1603c020e97eee13",
-  "start": 1791609381406355754,
-  "end": 1791609381408010088,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "434b04875a3f5e65",
+  "parent_id": "349cce902d7de75a",
+  "start": 1791622056586129429,
+  "end": 1791622056587765692,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "tool.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "execute_tool",
    "gen_ai.tool.name": "unload_skill",
-   "gen_ai.tool.call.id": "call_j979VV5NQWjcsXtJqpeadWov",
+   "gen_ai.tool.call.id": "call_1B77CbXa6funcfsKSauZ3ByR",
    "tiny_harness.tool.command": "skill_unloaded"
   }
  },
  {
   "name": "RunActivity:invoke_tool",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "1603c020e97eee13",
-  "parent_id": "670312db410e01c6",
-  "start": 1791609381406066114,
-  "end": 1791609381408263280,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "349cce902d7de75a",
+  "parent_id": "cb214bd51f428363",
+  "start": 1791622056585816460,
+  "end": 1791622056588015665,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "85",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d88bbc2048d893d8",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609381442040374,
-  "end": 1791609381442040374,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "245cd8d92d55a408",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622056619249416,
+  "end": 1791622056619249416,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "3d0d0864a04b6af9",
-  "parent_id": "d88bbc2048d893d8",
-  "start": 1791609381537095020,
-  "end": 1791609381543625936,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1ecd9b6b573a8e07",
+  "parent_id": "245cd8d92d55a408",
+  "start": 1791622056716923623,
+  "end": 1791622056723956295,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "86",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "24284eb0bd03c2fe",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609381575506892,
-  "end": 1791609381575506892,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "1065596b05fee396",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622056755011224,
+  "end": 1791622056755011224,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:assemble_context",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8e2d58309cd4c87b",
-  "parent_id": "24284eb0bd03c2fe",
-  "start": 1791609381674903423,
-  "end": 1791609381676489935,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "325faa67b366a96b",
+  "parent_id": "1065596b05fee396",
+  "start": 1791622056850779762,
+  "end": 1791622056852380594,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "87",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "14d6328423f96058",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609381713250656,
-  "end": 1791609381713250656,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7471fd94f60c6b9a",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622056887154995,
+  "end": 1791622056887154995,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:compaction_trigger",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "d0ae6a65ec479889",
-  "parent_id": "14d6328423f96058",
-  "start": 1791609381826129495,
-  "end": 1791609381826360510,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "7da51fa3a02b824a",
+  "parent_id": "7471fd94f60c6b9a",
+  "start": 1791622057001018958,
+  "end": 1791622057001256562,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "88",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "0fe640c56f025435",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609381861708513,
-  "end": 1791609381861708513,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "91a4478a699e1dfd",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622057032981488,
+  "end": 1791622057032981488,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "chat gpt-6.1-sol",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "21ed8ec4119b01d7",
-  "parent_id": "bb4d92560627a65e",
-  "start": 1791609381976031188,
-  "end": 1791609384043839497,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "949a117528cfff59",
+  "parent_id": "9aeb346d8e52215b",
+  "start": 1791622057139049094,
+  "end": 1791622059272911716,
   "status": "UNSET",
   "attributes": {
-   "tiny_harness.task_id": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "tiny_harness.correlation_id": "78693213-fea8-445e-9052-1a2c009ed35a",
+   "tiny_harness.task_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "tiny_harness.correlation_id": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
    "tiny_harness.operation": "llm.invoked",
    "tiny_harness.attempt": 1,
    "gen_ai.operation.name": "chat",
@@ -3504,8 +3504,8 @@
    "gen_ai.request.tools": 17,
    "gen_ai.request.model": "gpt-6.1-sol",
    "gen_ai.response.model": "gpt-6.1-sol",
-   "gen_ai.usage.input_tokens": 5629,
-   "gen_ai.usage.output_tokens": 50,
+   "gen_ai.usage.input_tokens": 5655,
+   "gen_ai.usage.output_tokens": 49,
    "gen_ai.usage.cache_read.input_tokens": 1759,
    "gen_ai.response.finish_reasons": "stop",
    "gen_ai.response.tool_calls": 0
@@ -3513,124 +3513,124 @@
  },
  {
   "name": "RunActivity:invoke_llm",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "bb4d92560627a65e",
-  "parent_id": "0fe640c56f025435",
-  "start": 1791609381972483806,
-  "end": 1791609384044255100,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "9aeb346d8e52215b",
+  "parent_id": "91a4478a699e1dfd",
+  "start": 1791622057135295752,
+  "end": 1791622059273360926,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "89",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "24d4362203f1850f",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609384147475552,
-  "end": 1791609384147475552,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ad1db4f4f048b4f8",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622059308076559,
+  "end": 1791622059308076559,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "96d87a7c29c489c3",
-  "parent_id": "24d4362203f1850f",
-  "start": 1791609384246423578,
-  "end": 1791609384253483016,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "47ea7f60d6c71261",
+  "parent_id": "ad1db4f4f048b4f8",
+  "start": 1791622059408471182,
+  "end": 1791622059415037103,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "90",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:decide_completion",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "6c946538f1ce2447",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609384287017779,
-  "end": 1791609384287017779,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "cd7a2b2cd4634fef",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622059448783463,
+  "end": 1791622059448783463,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:decide_completion",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "8c33dc809e4651f2",
-  "parent_id": "6c946538f1ce2447",
-  "start": 1791609384378108856,
-  "end": 1791609384378377998,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "688bc6111a2a9d6f",
+  "parent_id": "cd7a2b2cd4634fef",
+  "start": 1791622059545016886,
+  "end": 1791622059545294055,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "91",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "e0a45e67ffc1ba5e",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609384407490012,
-  "end": 1791609384407490012,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "19632861b3a1d8a9",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622059577279274,
+  "end": 1791622059577279274,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:emit_event",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "52dee1318678bcfd",
-  "parent_id": "e0a45e67ffc1ba5e",
-  "start": 1791609384495792386,
-  "end": 1791609384496291923,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ed4860fa7ac75ea5",
+  "parent_id": "19632861b3a1d8a9",
+  "start": 1791622059671203427,
+  "end": 1791622059672590043,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "92",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "StartActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "26d39a547f5ec36a",
-  "parent_id": "bc683ac1d2db0ccc",
-  "start": 1791609384526559589,
-  "end": 1791609384526559589,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "4fca585995b58652",
+  "parent_id": "f2163a41733a2f34",
+  "start": 1791622059705467705,
+  "end": 1791622059705467705,
   "status": "UNSET",
   "attributes": {
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  },
  {
   "name": "RunActivity:persist",
-  "trace_id": "7fc3a4853685272ba0d376863bffacc0",
-  "span_id": "01f7c4cca70ef2c3",
-  "parent_id": "26d39a547f5ec36a",
-  "start": 1791609384623329749,
-  "end": 1791609384632654775,
+  "trace_id": "dc30aaa2399adeebeace0ccd6522f996",
+  "span_id": "ca7b258cfefc83ee",
+  "parent_id": "4fca585995b58652",
+  "start": 1791622059802386564,
+  "end": 1791622059811294165,
   "status": "UNSET",
   "attributes": {
    "temporalActivityID": "93",
-   "temporalWorkflowID": "78693213-fea8-445e-9052-1a2c009ed35a",
-   "temporalRunID": "01a1243c-b4d0-7a10-9699-8c99942fcb57"
+   "temporalWorkflowID": "96086ae3-a399-4ba3-9c00-c2057b0ecbbc",
+   "temporalRunID": "01a124fe-1c94-7090-801f-a35e07a0d59e"
   }
  }
 ]

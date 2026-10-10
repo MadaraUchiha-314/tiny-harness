@@ -11,33 +11,33 @@ Timestamps are seconds since the test's start; logs are redacted.
 ## Kill 1: during an idempotent tool activity (`get_order`)
 
 The orders server held `get_order` open (the `slow-get-order` marker) so the kill landed
-inside the `invoke_tool` activity. Killed at **23.1 s**; the activity's
+inside the `invoke_tool` activity. Killed at **24.6 s**; the activity's
 heartbeat stopped, Temporal timed the attempt out after `heartbeat_timeout` (30 s), the
 workflow ran `activity.failed` / `activity.retried` through `dispatch_hooks` and
 scheduled the attempt again, which the new worker ran.
 
 ```text
-[  10.6s] task           TASK_STATE_SUBMITTED     41cabe04-4508-4c7a-9bf6-aea547f1de86
-[  10.6s] status_update  TASK_STATE_WORKING       
-[  86.3s] artifact_update                          a2ui
-[  90.4s] status_update  TASK_STATE_INPUT_REQUIRED For order #48213, please confirm whether you want the $129 refund or a replacement, and the date the damage was reported (policy requires reporting within 14 days of October 6, 2026 delivery). For a refund, please provide a photo of the crack; for a replacement, confirm the full shipping address, since your orders use different addresses.
-[  91.3s] status_update  TASK_STATE_WORKING       
-[ 109.2s] status_update  TASK_STATE_COMPLETED     A replacement blender for order #48213 has been arranged to 14 Harbour Lane, Portsea, with tracking **NB-48213-R1**. No refund was issued, and order #48377 was left unchanged.
+[  12.3s] task           TASK_STATE_SUBMITTED     861c8b61-f51e-4625-afaa-879a09b33288
+[  12.3s] status_update  TASK_STATE_WORKING       
+[  80.1s] artifact_update                          a2ui
+[  84.5s] status_update  TASK_STATE_INPUT_REQUIRED Please confirm this concerns blender order #48213 (not travel-cup order #48377) and that the complaint was made within 14 days of its October 6 delivery. Do you want the full $129 refund or a replacement? For a refund, please supply a photo of the crack first; for a replacement, please confirm the shipping address (the blender's address is 14 Harbour Lane, Portsea).
+[  85.0s] status_update  TASK_STATE_WORKING       
+[  99.9s] status_update  TASK_STATE_COMPLETED     Your replacement blender for order #48213 is shipping to 14 Harbour Lane, Portsea, with tracking **NB-48213-R1**. No refund was issued, and order #48377 was left unchanged.
 ```
 
 Activity attempts from the workflow history (`fetch_history_events`):
 
 | Activity | scheduled | completed | timed out | failed |
 |---|---|---|---|---|
-| `assemble_context` | 16 | 16 | 0 | 0 |
-| `compaction_trigger` | 16 | 16 | 0 | 0 |
+| `assemble_context` | 14 | 14 | 0 | 0 |
+| `compaction_trigger` | 14 | 14 | 0 | 0 |
 | `decide_completion` | 1 | 1 | 0 | 0 |
 | `dispatch_hooks` | 1 | 1 | 0 | 0 |
 | `emit_event` | 5 | 5 | 0 | 0 |
 | `intake` | 2 | 2 | 0 | 0 |
-| `invoke_llm` | 16 | 16 | 0 | 0 |
-| `invoke_tool` | 16 | 15 | 1 | 0 |
-| `persist` | 17 | 17 | 0 | 0 |
+| `invoke_llm` | 14 | 14 | 0 | 0 |
+| `invoke_tool` | 14 | 13 | 1 | 0 |
+| `persist` | 15 | 15 | 0 | 0 |
 | `send_channel_message` | 1 | 1 | 0 | 0 |
 
 Ledger for this task: `get_order, get_order, list_open_orders, ship_replacement` — `get_order` ran twice (the
@@ -46,51 +46,51 @@ timed-out attempt and its retry; it is declared idempotent), `ship_replacement` 
 Worker 1, last operations before the kill:
 
 ```text
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "41cabe04-4508-4
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "41cabe04-4508-4
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.post", "operation": "tool.invoked", "phase": "post", "task_id": "41cabe04-4508
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "41cabe04-4508-4c7
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "41cabe04-4508-4
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "41cabe04-4508-4
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "861c8b61-f51e-4
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "861c8b61-f51e-4
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.post", "operation": "tool.invoked", "phase": "post", "task_id": "861c8b61-f51e
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "861c8b61-f51e-462
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "861c8b61-f51e-4
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "861c8b61-f51e-4
 ```
 
 Worker 2, first operations after restart (the retried `tool.invoked`):
 
 ```text
-{"activity": "invoke_tool", "attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "error.message": "activity Heartbeat timeout", "error.type": "TimeoutError", "level": "WARNING", "logger": "tiny_harness
-{"activity": "invoke_tool", "attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "error.message": "activity Heartbeat timeout", "error.type": "TimeoutError", "level": "INFO", "logger": "tiny_harness.o1
-{"activity": "invoke_tool", "attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "activity.retried.pre", "next_delay_seconds": 0.837192, "operatio
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "41cabe04-4508-4
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.post", "operation": "tool.invoked", "phase": "post", "task_id": "41cabe04-4508
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "41cabe04-4508-4c7
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "41cabe04-4508-4
-{"attempt": 1, "correlation_id": "41cabe04-4508-4c7a-9bf6-aea547f1de86", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "41cabe04-4508-4
+{"activity": "invoke_tool", "attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "error.message": "activity Heartbeat timeout", "error.type": "TimeoutError", "level": "WARNING", "logger": "tiny_harness
+{"activity": "invoke_tool", "attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "error.message": "activity Heartbeat timeout", "error.type": "TimeoutError", "level": "INFO", "logger": "tiny_harness.o1
+{"activity": "invoke_tool", "attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "activity.retried.pre", "next_delay_seconds": 0.98493, "operation
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "861c8b61-f51e-4
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.post", "operation": "tool.invoked", "phase": "post", "task_id": "861c8b61-f51e
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "861c8b61-f51e-462
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "861c8b61-f51e-4
+{"attempt": 1, "correlation_id": "861c8b61-f51e-4625-afaa-879a09b33288", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "861c8b61-f51e-4
 ```
 
 ## Kill 2: while the task waits in `INPUT_REQUIRED`
 
-Killed at **151.9 s**, right after the help request arrived and
+Killed at **142.8 s**, right after the help request arrived and
 before the reply was sent; the reply went to the restarted worker.
 
 ```text
-[ 110.3s] task           TASK_STATE_SUBMITTED     6a3e14c6-993f-4afb-9afb-378407604215
-[ 110.3s] status_update  TASK_STATE_WORKING       
-[ 147.5s] artifact_update                          a2ui
-[ 151.9s] status_update  TASK_STATE_INPUT_REQUIRED Order #48213 is the $129 Nimbus 900 blender, delivered October 6, 2026. Please confirm the damage was reported within 14 days of delivery and choose a $129 refund or replacement. For a refund, please provide the required damage photo; for a replacement, confirm the shipping address (this customer has orders at two different addresses). No refund or shipment has been made.
-[ 163.4s] status_update  TASK_STATE_WORKING       
-[ 180.7s] status_update  TASK_STATE_COMPLETED     Your replacement Nimbus 900 blender for order #48213 is shipping to 14 Harbour Lane, Portsea, with tracking **NB-48213-R1**. No refund was issued, and order #48377 was left unchanged.
+[ 101.0s] task           TASK_STATE_SUBMITTED     f8e0cb05-eb7b-4595-8aa7-c5014a9bda70
+[ 101.0s] status_update  TASK_STATE_WORKING       
+[ 138.5s] artifact_update                          a2ui
+[ 142.8s] status_update  TASK_STATE_INPUT_REQUIRED Please confirm this concerns the Nimbus 900 blender in order #48213 (not travel cup order #48377), and tell me when the damage was reported so I can verify the 14-day window after October 6, 2026 delivery. Would you like the $129 refund or a replacement? For a refund, please provide a photo of the crack; for replacement, please confirm the shipping address (the blender order lists 14 Harbour Lane, Portsea).
+[ 153.8s] status_update  TASK_STATE_WORKING       
+[ 170.0s] status_update  TASK_STATE_COMPLETED     Your replacement for order #48213 is shipping to 14 Harbour Lane, Portsea, with tracking number **NB-48213-R1**. No refund was issued, and order #48377 was left unchanged.
 ```
 
 | Activity | scheduled | completed | timed out | failed |
 |---|---|---|---|---|
-| `assemble_context` | 15 | 15 | 0 | 0 |
-| `compaction_trigger` | 15 | 15 | 0 | 0 |
+| `assemble_context` | 14 | 14 | 0 | 0 |
+| `compaction_trigger` | 14 | 14 | 0 | 0 |
 | `decide_completion` | 1 | 1 | 0 | 0 |
 | `emit_event` | 5 | 5 | 0 | 0 |
 | `intake` | 2 | 2 | 0 | 0 |
-| `invoke_llm` | 15 | 15 | 0 | 0 |
-| `invoke_tool` | 14 | 14 | 0 | 0 |
-| `persist` | 16 | 16 | 0 | 0 |
+| `invoke_llm` | 14 | 14 | 0 | 0 |
+| `invoke_tool` | 13 | 13 | 0 | 0 |
+| `persist` | 15 | 15 | 0 | 0 |
 | `send_channel_message` | 1 | 1 | 0 | 0 |
 
 Ledger for this task: `get_order, list_open_orders, ship_replacement`. No activity was in flight at the
@@ -100,12 +100,12 @@ and resumed on the reply (R12.6, R19.7).
 Worker 3, first operations after restart (the reply's turn):
 
 ```text
-{"attempt": 1, "correlation_id": "6a3e14c6-993f-4afb-9afb-378407604215", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "6a3e14c6-993f-4af
-{"attempt": 1, "correlation_id": "6a3e14c6-993f-4afb-9afb-378407604215", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "6a3e14c6-993f-4
-{"attempt": 1, "correlation_id": "6a3e14c6-993f-4afb-9afb-378407604215", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "6a3e14c6-993f-4
-{"attempt": 1, "correlation_id": "6a3e14c6-993f-4afb-9afb-378407604215", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.post", "operation": "tool.invoked", "phase": "post", "task_id": "6a3e14c6-993f
-{"attempt": 1, "correlation_id": "6a3e14c6-993f-4afb-9afb-378407604215", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "6a3e14c6-993f-4af
-{"attempt": 1, "correlation_id": "6a3e14c6-993f-4afb-9afb-378407604215", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "6a3e14c6-993f-4
+{"attempt": 1, "correlation_id": "f8e0cb05-eb7b-4595-8aa7-c5014a9bda70", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "f8e0cb05-eb7b-459
+{"attempt": 1, "correlation_id": "f8e0cb05-eb7b-4595-8aa7-c5014a9bda70", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "f8e0cb05-eb7b-4
+{"attempt": 1, "correlation_id": "f8e0cb05-eb7b-4595-8aa7-c5014a9bda70", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.pre", "operation": "tool.invoked", "phase": "pre", "task_id": "f8e0cb05-eb7b-4
+{"attempt": 1, "correlation_id": "f8e0cb05-eb7b-4595-8aa7-c5014a9bda70", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "tool.invoked.post", "operation": "tool.invoked", "phase": "post", "task_id": "f8e0cb05-eb7b
+{"attempt": 1, "correlation_id": "f8e0cb05-eb7b-4595-8aa7-c5014a9bda70", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.pre", "operation": "llm.invoked", "phase": "pre", "task_id": "f8e0cb05-eb7b-459
+{"attempt": 1, "correlation_id": "f8e0cb05-eb7b-4595-8aa7-c5014a9bda70", "level": "INFO", "logger": "tiny_harness.o11y", "msg": "llm.invoked.post", "operation": "llm.invoked", "phase": "post", "task_id": "f8e0cb05-eb7b-4
 ```
 
 ## Trace

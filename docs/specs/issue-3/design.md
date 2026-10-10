@@ -891,10 +891,18 @@ class Renderer(Entity):
     def render(self, event: A2AEvent) -> RenderPlan     # placeholder for unsupported kinds (20.4)
 ```
 
-Both renderers are A2A clients of the server and nothing else (20.2): the TUI uses
-`a2a-sdk`'s client over JSON-RPC with streaming; the web app uses the REST binding with
-SSE. Each keeps a `SubscribeToTask` stream per open task, so two surfaces see the same
-events (20.3). Layout, states and interactions are the HTML prototypes in the UI/UX
+Both renderers are A2A clients of the server and nothing else (20.2), each through the
+official SDK of its language: the TUI uses `a2a-sdk`'s client over JSON-RPC with
+streaming; the web app uses `@a2a-js/sdk` 1.3's `ClientFactory` (protocol 1.0), which
+resolves the agent card and picks the JSON-RPC transport the card advertises (the
+approver's requirement of 2026-10-10: no hand-rolled client on any hop, web, TUI or
+agent to agent). The web renderer's look is shadcn (Tailwind v4, the shadcn/ui
+primitives and the June 2026 chat components `MessageScroller`, `Message`, `Bubble`,
+`Marker`; the approver's second request of 2026-10-10: beautiful, minimal, elegant),
+with the A2UI card still drawn by the official renderer inside an outline bubble. Each keeps a `SubscribeToTask` stream per open task, so two surfaces see the same
+events (20.3); the SDK ends a stream at every final event, `INPUT_REQUIRED` included, so
+the web renderer reopens its subscription after a pause while the task is not finished,
+and the bridge's replay runs past an earlier final event to the newest one. Layout, states and interactions are the HTML prototypes in the UI/UX
 inventory below. A2UI (20.5–20.6): **version 0.9.1**, extension URI
 `https://a2ui.org/a2a-extension/a2ui/v0.9.1`, parts of media type
 `application/a2ui+json`, card params `supportedCatalogIds` and `acceptsInlineCatalogs`.
@@ -1258,6 +1266,7 @@ Which types apply, the environment and the evidence plan are `testing-plan.md`'s
 | `typesafe-sdk` | **not added**: the interface only, no client in this work item | Q3 answer |
 | `langfuse` | **not added**: OTLP export reaches Langfuse | R17.5 |
 | `react`, `vite`, `typescript` (web) | web renderer | R20.2 |
+| `@a2a-js/sdk` (web) | the official A2A JavaScript SDK's client: card resolution, JSON-RPC and HTTP+JSON transports, streaming | R20.2, R22.4; replaces the hand-written REST+SSE client of Layer 8 |
 
 ### Stacked pull requests
 

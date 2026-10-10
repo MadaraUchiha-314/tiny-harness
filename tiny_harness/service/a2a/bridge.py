@@ -58,7 +58,12 @@ class PollingEventBridge:
             return None
 
     async def events(self, task_id: str, cursor: int) -> AsyncIterator[A2AEvent]:
-        """Yield from ``cursor`` until a final event, the log closing, or the task vanishing."""
+        """Yield from ``cursor`` until a final event, the log closing, or the task vanishing.
+
+        A final event ends the stream only when it is the newest event in the log: a
+        replay (``SubscribeToTask`` from the start) runs past an earlier ``INPUT_REQUIRED``
+        the task has since left, so a second surface sees the whole task (R20.3).
+        """
         while True:
             page = await self.page(task_id, cursor)
             if page is None:
@@ -67,7 +72,7 @@ class PollingEventBridge:
                 event = entry_event(entry)
                 cursor = entry.seq + 1
                 yield event
-                if is_final(event):
+                if is_final(event) and cursor >= page.next_seq:
                     return
             if page.closed:
                 return

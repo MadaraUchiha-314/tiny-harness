@@ -1,0 +1,39 @@
+# The e2e demo (requirements 21 and 24). Secrets come from the environment only:
+#   export TEMPORAL_API_KEY="$(secret-tool lookup service temporal project tiny-harness)"
+#   export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+#   export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+
+plugins = ["examples/demo"]
+
+[temporal]
+address = "tiny-harness.gtebu.tmprl.cloud:7233"
+namespace = "tiny-harness.gtebu"
+task_queue = "tiny-harness-demo"
+tls = true
+search_attributes = false  # register them on the namespace with tcld, then set true
+
+[openai]
+model = "gpt-6.1-sol"
+timeout = "PT120S"
+max_output_tokens = 2000
+
+[server]
+bind = "127.0.0.1:8080"
+base_url = "http://127.0.0.1:8080"
+ui_dir = "renderers/web/dist"
+cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173", "https://madarauchiha-314.github.io"]  # the Vite dev server and the renderer hosted on the docs site
+
+[heartbeat]
+interval = "PT30S"
+
+[store]
+sqlite_path = "examples/demo/.state/tiny-harness.sqlite3"
+
+[context]
+turn_budget_tokens = 12000
+compaction_fraction = 0.75
+
+[o11y]
+log_level = "INFO"
+trace_file = "examples/demo/.state/trace.jsonl"
+

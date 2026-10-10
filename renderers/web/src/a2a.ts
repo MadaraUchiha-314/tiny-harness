@@ -1,79 +1,56 @@
 /**
- * The A2A 1.0 HTTP+JSON binding (requirement 20.2): `POST /message:stream` and
- * `GET /tasks/{id}:subscribe` as server-sent events, every request with
- * `A2A-Version: 1.0`. Types mirror the protobuf JSON of a2a.v1.
+ * The harness as seen from the browser: the official A2A JavaScript SDK (`@a2a-js/sdk`,
+ * protocol 1.0) and nothing else (requirement 20.2). The SDK resolves the agent card,
+ * picks the JSON-RPC transport the card advertises, sends `A2A-Version` on every request
+ * and parses the event stream; this module only builds messages in the SDK's shapes,
+ * adds the perimeter's participant header, and names the harness's media types.
  */
+import { ClientFactory, JsonRpcTransportFactory, RestTransportFactory, type Client } from "@a2a-js/sdk/client";
+import { Role, TaskState, type Message, type Part, type StreamResponse, type Task } from "@a2a-js/sdk";
 
-export const A2A_VERSION = "1.0";
+export type { Message, Part, StreamResponse, Task };
+export { Role, TaskState };
+
 export const A2UI_MEDIA_TYPE = "application/a2ui+json";
 export const CHANNEL_MEDIA_TYPE = "application/vnd.tiny-harness.channel+json";
 export const TASK_EXT_KEY = "io.github.madarauchiha-314.tiny-harness/task";
+export const PARTICIPANT_HEADER = "X-Participant-Id";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
 
-export interface Part {
-  text?: string;
-  data?: JsonValue;
-  mediaType?: string;
-  filename?: string;
-}
-
-export interface Message {
-  messageId: string;
-  contextId?: string;
-  taskId?: string;
-  role: "ROLE_USER" | "ROLE_AGENT";
-  parts: Part[];
-  metadata?: JsonObject;
-}
-
-export interface TaskStatus {
-  state: string;
-  message?: Message;
-  timestamp?: string;
-}
-
-export interface Task {
-  id: string;
-  contextId: string;
-  status: TaskStatus;
-  artifacts?: Artifact[];
-  metadata?: JsonObject;
-}
-
-export interface Artifact {
-  artifactId: string;
-  name?: string;
-  parts: Part[];
-}
-
-export interface TaskStatusUpdateEvent {
-  taskId: string;
-  contextId: string;
-  status: TaskStatus;
-}
-
-export interface TaskArtifactUpdateEvent {
-  taskId: string;
-  contextId: string;
-  artifact: Artifact;
-  lastChunk?: boolean;
-}
-
-export interface StreamResponse {
-  task?: Task;
-  message?: Message;
-  statusUpdate?: TaskStatusUpdateEvent;
-  artifactUpdate?: TaskArtifactUpdateEvent;
-}
-
-export function stateName(state: string): string {
-  return state.replace(/^TASK_STATE_/, "");
+/** `TASK_STATE_WORKING` → `WORKING`; an unknown number is shown as is. */
+export function stateName(state: TaskState | undefined): string {
+  if (state === undefined) return "—";
+  const name = TaskState[state];
+  return typeof name === "string" ? name.replace(/^TASK_STATE_/, "") : String(state);
 }
 
 export function newId(): string {
   return crypto.randomUUID();
+}
+
+export function textPart(text: string): Part {
+  return { content: { $case: "text", value: text }, metadata: undefined, filename: "", mediaType: "text/plain" };
+}
+
+export function dataPart(data: JsonObject, mediaType: string): Part {
+  return { content: { $case: "data", value: data }, metadata: undefined, filename: "", mediaType };
+}
+
+export function partText(part: Part): string | undefined {
+  return part.content?.$case === "text" ? part.content.value : undefined;
+}
+
+export function partData(part: Part): JsonObject | undefined {
+  if (part.content?.$case !== "data") return undefined;
+  const value: unknown = part.content.value;
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonObject) : undefined;
+}
+
+export function partMediaType(part: Part): string {
+  if (part.content?.$case === "text") return "text/plain";
+  return part.mediaType || "application/octet-stream";
 }
 
 export interface SendOptions {
@@ -84,91 +61,66 @@ export interface SendOptions {
   participant?: string;
 }
 
+/** A user message in the SDK's shape; the participant id rides in the metadata (decision-003). */
 export function userMessage(options: SendOptions): Message {
   const parts: Part[] = options.parts ?? [];
-  if (options.text !== undefined) parts.unshift({ text: options.text });
-  const message: Message = {
+  if (options.text !== undefined) parts.unshift(textPart(options.text));
+  return {
     messageId: newId(),
     contextId: options.contextId,
-    role: "ROLE_USER",
+    taskId: options.taskId ?? "",
+    role: Role.ROLE_USER,
     parts,
+    metadata: options.participant ? { participant_id: options.participant } : undefined,
+    extensions: [],
+    referenceTaskIds: [],
   };
-  if (options.taskId) message.taskId = options.taskId;
-  if (options.participant) message.metadata = { participant_id: options.participant };
-  return message;
 }
 
-/** Parses an SSE body into the JSON of each `data:` event. */
-export async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<StreamResponse> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary >= 0) {
-      const frame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      const data = frame
-        .split("\n")
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.slice(5).trim())
-        .join("\n");
-      if (data) yield JSON.parse(data) as StreamResponse;
-      boundary = buffer.indexOf("\n\n");
-    }
-  }
+/** `fetch` that adds the participant header the perimeter would otherwise set. */
+function fetchWithParticipant(participant: string | undefined): typeof fetch {
+  if (!participant) return fetch;
+  return (input, init) => {
+    const headers = new Headers(init?.headers);
+    headers.set(PARTICIPANT_HEADER, participant);
+    return fetch(input, { ...init, headers });
+  };
 }
 
-export class A2AClient {
+/** The SDK client for one server, built from its agent card on first use. */
+export class HarnessClient {
+  private client: Promise<Client> | null = null;
+
   constructor(
     private readonly baseUrl: string,
     private readonly participant?: string,
   ) {}
 
-  private headers(): Record<string, string> {
-    const headers: Record<string, string> = {
-      "A2A-Version": A2A_VERSION,
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-    };
-    if (this.participant) headers["X-Participant-Id"] = this.participant;
-    return headers;
-  }
-
-  private async *stream(response: Response): AsyncGenerator<StreamResponse> {
-    if (!response.ok || response.body === null) {
-      const text = await response.text().catch(() => "");
-      throw new Error(`A2A request failed: ${response.status} ${text}`.trim());
+  private connect(): Promise<Client> {
+    if (this.client === null) {
+      const fetchImpl = fetchWithParticipant(this.participant);
+      const factory = new ClientFactory({
+        transports: [new JsonRpcTransportFactory({ fetchImpl }), new RestTransportFactory({ fetchImpl })],
+        preferredTransports: ["JSONRPC", "HTTP+JSON"],
+      });
+      this.client = factory.createFromUrl(this.baseUrl);
     }
-    yield* sseEvents(response.body);
+    return this.client;
   }
 
   async *sendMessage(message: Message): AsyncGenerator<StreamResponse> {
-    const response = await fetch(`${this.baseUrl}/message:stream`, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({ message }),
-    });
-    yield* this.stream(response);
+    const client = await this.connect();
+    yield* client.sendMessageStream({ tenant: "", message, configuration: undefined, metadata: undefined });
   }
 
-  async *subscribe(taskId: string): AsyncGenerator<StreamResponse> {
-    const response = await fetch(`${this.baseUrl}/tasks/${encodeURIComponent(taskId)}:subscribe`, {
-      headers: this.headers(),
-    });
-    yield* this.stream(response);
+  /** The task's event log from its start, then live updates, until the signal aborts. */
+  async *subscribe(taskId: string, signal?: AbortSignal): AsyncGenerator<StreamResponse> {
+    const client = await this.connect();
+    yield* client.resubscribeTask({ tenant: "", id: taskId }, signal ? { signal } : {});
   }
 
   async cancel(taskId: string): Promise<Task> {
-    const response = await fetch(`${this.baseUrl}/tasks/${encodeURIComponent(taskId)}:cancel`, {
-      method: "POST",
-      headers: this.headers(),
-      body: "{}",
-    });
-    if (!response.ok) throw new Error(`cancel failed: ${response.status}`);
-    return (await response.json()) as Task;
+    const client = await this.connect();
+    return client.cancelTask({ tenant: "", id: taskId, metadata: undefined });
   }
 }

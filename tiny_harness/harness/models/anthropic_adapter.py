@@ -33,6 +33,7 @@ from tiny_harness.harness.models.llm import (
     ToolCallItem,
     Usage,
 )
+from tiny_harness.harness.models.wire_names import WireNames
 from tiny_harness.harness.tools import ContentPart, ToolCall, ToolDefinition
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
@@ -50,8 +51,9 @@ def _result_text(parts: Sequence[ContentPart]) -> str:
     return "\n".join(chunks)
 
 
-def build_messages(request: LLMRequest) -> list[MessageParam]:
+def build_messages(request: LLMRequest, names: WireNames | None = None) -> list[MessageParam]:
     """Items as Messages API messages, consecutive same-role items merged."""
+    names = names or WireNames(request.tools)
     messages: list[tuple[str, list[JsonObject]]] = []
 
     def push(role: str, block: JsonObject) -> None:
@@ -70,7 +72,7 @@ def build_messages(request: LLMRequest) -> list[MessageParam]:
                 {
                     "type": "tool_use",
                     "id": item.call.call_id,
-                    "name": item.call.name,
+                    "name": names.encode(item.call.name),
                     "input": cast(JsonValue, item.call.arguments),
                 },
             )
@@ -87,28 +89,34 @@ def build_messages(request: LLMRequest) -> list[MessageParam]:
     return [cast(MessageParam, {"role": role, "content": blocks}) for role, blocks in messages]
 
 
-def build_tools(tools: Sequence[ToolDefinition]) -> list[JsonObject]:
+def build_tools(
+    tools: Sequence[ToolDefinition], names: WireNames | None = None
+) -> list[JsonObject]:
+    names = names or WireNames(tools)
     return [
         {
-            "name": t.name,
-            "description": t.description,
+            "name": names.encode(t.name),
+            "description": names.description(t),
             "input_schema": cast(JsonValue, t.input_schema),
         }
         for t in tools
     ]
 
 
-def build_params(request: LLMRequest, *, model: str, max_tokens: int) -> JsonObject:
+def build_params(
+    request: LLMRequest, *, model: str, max_tokens: int, names: WireNames | None = None
+) -> JsonObject:
+    names = names or WireNames(request.tools)
     params: JsonObject = {
         "model": model,
         "max_tokens": request.max_output_tokens or max_tokens,
         "system": [
             {"type": "text", "text": request.instructions, "cache_control": {"type": "ephemeral"}}
         ],
-        "messages": cast(JsonValue, build_messages(request)),
+        "messages": cast(JsonValue, build_messages(request, names)),
     }
     if request.tools:
-        params["tools"] = cast(JsonValue, build_tools(request.tools))
+        params["tools"] = cast(JsonValue, build_tools(request.tools, names))
     if request.response_format is not None:
         params["output_config"] = {
             "format": {"type": "json_schema", "schema": cast(JsonValue, request.response_format)}
@@ -116,7 +124,8 @@ def build_params(request: LLMRequest, *, model: str, max_tokens: int) -> JsonObj
     return params
 
 
-def parse_message(message: Message) -> LLMResponse:
+def parse_message(message: Message, names: WireNames | None = None) -> LLMResponse:
+    names = names or WireNames()
     texts: list[str] = []
     calls: list[ToolCall] = []
     for block in message.content:
@@ -127,7 +136,9 @@ def parse_message(message: Message) -> LLMResponse:
             arguments = (
                 cast(JsonObject, raw) if isinstance(raw, dict) else {"value": cast(JsonValue, raw)}
             )
-            calls.append(ToolCall(call_id=block.id, name=block.name, arguments=arguments))
+            calls.append(
+                ToolCall(call_id=block.id, name=names.decode(block.name), arguments=arguments)
+            )
     stop = message.stop_reason
     if stop == "refusal":
         finish = FinishReason.REFUSAL
@@ -189,22 +200,24 @@ class AnthropicLLM(LLM):
         )
 
     async def invoke(self, request: LLMRequest) -> LLMResponse:
-        params = build_params(request, model=self._model, max_tokens=self._max_tokens)
+        names = WireNames(request.tools)
+        params = build_params(request, model=self._model, max_tokens=self._max_tokens, names=names)
         try:
             created = await self._client.messages.create(**params)  # type: ignore[arg-type]
             message = cast(Message, created)
         except Exception as exc:
             raise translate_error(exc) from exc
-        return parse_message(message)
+        return parse_message(message, names)
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[LLMStreamEvent]:
-        params = build_params(request, model=self._model, max_tokens=self._max_tokens)
+        names = WireNames(request.tools)
+        params = build_params(request, model=self._model, max_tokens=self._max_tokens, names=names)
         try:
             async with self._client.messages.stream(**params) as stream:  # type: ignore[arg-type]
                 async for text in stream.text_stream:
                     yield LLMStreamEvent(kind="text_delta", text=str(cast(object, text)))
                 final_message = cast(Message, await stream.get_final_message())
-                final = parse_message(final_message)
+                final = parse_message(final_message, names)
         except Exception as exc:
             raise translate_error(exc) from exc
         for call in final.tool_calls:

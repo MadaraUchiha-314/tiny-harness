@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from "react";
 import type { JSX } from "react";
+import { SendHorizontalIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 export function Composer(props: { onSend: (text: string) => void; disabled: boolean }): JSX.Element {
   const [text, setText] = useState("");
@@ -11,14 +14,15 @@ export function Composer(props: { onSend: (text: string) => void; disabled: bool
     setText("");
   };
   return (
-    <form className="composer" id="composer" onSubmit={submit}>
-      <label htmlFor="reply" className="visually-hidden">
+    <form id="composer" onSubmit={submit} className="flex items-end gap-2 border-t bg-background px-4 py-3">
+      <label htmlFor="reply" className="sr-only">
         Message
       </label>
-      <textarea
+      <Textarea
         id="reply"
         rows={2}
         placeholder="Message the task…"
+        className="min-h-10 max-h-40 resize-none"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -28,9 +32,10 @@ export function Composer(props: { onSend: (text: string) => void; disabled: bool
           }
         }}
       />
-      <button className="btn" type="submit" disabled={props.disabled}>
+      <Button type="submit" disabled={props.disabled} aria-label="Send">
+        <SendHorizontalIcon />
         Send
-      </button>
+      </Button>
     </form>
   );
 }

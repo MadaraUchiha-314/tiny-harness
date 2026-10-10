@@ -6,14 +6,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Literal, cast
+from typing import cast
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.types import Message, Part, TaskState
 from a2a.utils.errors import InvalidParamsError, TaskNotFoundError, UnsupportedOperationError
-from google.protobuf import json_format, struct_pb2
-from pydantic import BaseModel, ConfigDict, ValidationError
+from google.protobuf import json_format
+from pydantic import ValidationError
 from temporalio.client import Client, WithStartWorkflowOperation
 from temporalio.common import SearchAttributePair, TypedSearchAttributes, WorkflowIDConflictPolicy
 
@@ -28,7 +28,7 @@ from tiny_harness.harness.core import (
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.bridge import EventBridge
-from tiny_harness.service.a2a.card import EVENT_MEDIA_TYPE, SUPPORTED_EXTENSIONS
+from tiny_harness.service.a2a.card import SUPPORTED_EXTENSIONS
 from tiny_harness.service.a2a.task_store import AccessPolicy, asserted_participant
 from tiny_harness.service.durable.models import InboxReceipt, TaskStart, WorkflowConfig
 from tiny_harness.service.durable.workflows import (
@@ -37,49 +37,23 @@ from tiny_harness.service.durable.workflows import (
     TINY_HARNESS_AGENT,
     TaskWorkflow,
 )
+from tiny_harness.service.inbox import EventEnvelope, envelope_of
 
 log = logging.getLogger("tiny_harness.a2a.executor")
 
 
-class EventEnvelope(BaseModel):
-    """The task extension's event part: a ``Task`` payload creates or updates the extension
-    data; status and artifact updates from a remote agent route to its sub-task (R15.1)."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    kind: Literal["task", "status_update", "artifact_update"]
-    payload: JsonObject
-
-
 def redact_message(redactor: Redactor, message: Message) -> Message:
-    """Scrub every text and data part before the message enters Temporal history."""
+    """Scrub the whole message, every string of every field (parts, their metadata, the
+    message metadata, extensions), before it enters Temporal history (abuse case 6)."""
+    raw = json_format.MessageToDict(message)
+    scrubbed = redactor.scrub_value(raw)
     clean = Message()
-    clean.CopyFrom(message)
-    for part in clean.parts:
-        if part.HasField("text"):
-            part.text = redactor.scrub_text(part.text)
-        elif part.HasField("data"):
-            raw = json_format.MessageToDict(part.data)
-            scrubbed = redactor.scrub_value(raw)
-            value = struct_pb2.Value()
-            json_format.ParseDict(cast(JsonObject, scrubbed), value)
-            part.data.CopyFrom(value)
+    json_format.ParseDict(cast(JsonObject, scrubbed), clean)
     return clean
 
 
 def message_text(message: Message) -> str:
     return "\n".join(p.text for p in message.parts if p.HasField("text"))
-
-
-def envelope_of(message: Message) -> EventEnvelope | None:
-    for part in message.parts:
-        if part.HasField("data") and part.media_type == EVENT_MEDIA_TYPE:
-            raw = json_format.MessageToDict(part.data)
-            try:
-                return EventEnvelope.model_validate(raw)
-            except ValidationError as exc:
-                raise InvalidParamsError(message=f"invalid event envelope: {exc}") from exc
-    return None
 
 
 def default_extension(message: Message, agent: str) -> TaskExtensionData:
@@ -155,7 +129,9 @@ class HarnessExecutor(AgentExecutor):
         message.task_id = context.task_id
         message.context_id = context.context_id
         participant = participant_of(message) or asserted_participant(context.call_context)
-        if participant and participant_of(message) is None:
+        if participant is None:  # fail closed (abuse case 4): nothing is created for nobody
+            raise InvalidParamsError(message="no participant asserted")
+        if participant_of(message) is None:
             message.metadata.update({"participant_id": participant})
         envelope = envelope_of(message)
         agent = self._config.agent

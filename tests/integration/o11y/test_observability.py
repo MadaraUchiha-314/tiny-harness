@@ -98,6 +98,7 @@ async def test_one_span_per_operation_with_genai_attributes_crosses_the_workflow
     assert names.count("chat fake-1") == 2, names
     assert names.count("execute_tool orders.get_order") == 1
     assert "invoke_agent tiny-harness" in names and "RunActivity:persist" in names
+    assert names.count("RunActivity:invoke_llm") == 2, names  # one interceptor, not two
     chat = next(s for s in spans if s.name == "chat fake-1")
     assert (chat.attributes or {})["gen_ai.usage.input_tokens"] == 100
     tool_span = next(s for s in spans if s.name == "execute_tool orders.get_order")

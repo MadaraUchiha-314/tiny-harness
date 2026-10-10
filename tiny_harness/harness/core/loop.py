@@ -116,8 +116,9 @@ class Operations(Protocol):
 
     async def ingest(self, task: HarnessTask, state: AgentState, text: str) -> AgentState: ...
 
-    async def drain(self, task: HarnessTask, state: AgentState) -> AgentState:
-        """Top of every turn: fold queued inbox items into the history (R15.3)."""
+    async def drain(self, task: HarnessTask, state: AgentState) -> tuple[HarnessTask, AgentState]:
+        """Top of every turn: fold queued inbox items into the history (R15.3). The task
+        comes back too, because an inbox item may have changed its extension (R15.1)."""
         ...
 
     async def assemble(self, task: HarnessTask, state: AgentState) -> ContextWindow: ...
@@ -186,7 +187,7 @@ class CoreLoop:
         if task.state != TaskState.TASK_STATE_WORKING:
             task = await ops.set_state(task, TaskState.TASK_STATE_WORKING)
         for _ in range(self._max_turns):
-            state = await ops.drain(task, state)
+            task, state = await ops.drain(task, state)
             window = await ops.assemble(task, state)
             compaction: CompactionRecord | None = None
             if await ops.should_compact(task, window):

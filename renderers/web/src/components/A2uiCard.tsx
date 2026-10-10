@@ -11,6 +11,8 @@ import { basicCatalog } from "@a2ui/web_core/v0_9/basic_catalog";
 import { A2uiSurface, type ReactCatalogComponent } from "@a2ui/react/v0_9";
 import type { ActionPayload, Catalog } from "@a2ui/web_core/v0_9";
 import type { JsonObject } from "../a2a";
+import { Badge } from "@/components/ui/badge";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
 
 // The basic catalog is implemented as custom elements, which the React surface hosts;
 // its schema-only static type does not say so, hence the one cast.
@@ -57,12 +59,17 @@ export function A2uiCard(props: {
     }
   }
   return (
-    <div className="ev agent a2ui" data-testid="a2ui">
-      <div className="cat">A2UI · basic catalog · {Array.from(names).join(", ")}</div>
-      {surfaces.length === 0 && <div className="placeholder">A2UI surface pending</div>}
-      {surfaces.map((surface) => (
-        <A2uiSurface key={surface.id} surface={surface} />
-      ))}
-    </div>
+    <Bubble variant="outline" className="w-full max-w-full" data-testid="a2ui">
+      <BubbleContent className="w-full max-w-full">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <Badge variant="secondary">A2UI</Badge>
+          <span className="font-mono text-[0.7rem] text-muted-foreground">basic catalog · {Array.from(names).join(", ")}</span>
+        </div>
+        {surfaces.length === 0 && <div className="text-sm text-muted-foreground">A2UI surface pending</div>}
+        {surfaces.map((surface) => (
+          <A2uiSurface key={surface.id} surface={surface} />
+        ))}
+      </BubbleContent>
+    </Bubble>
   );
 }

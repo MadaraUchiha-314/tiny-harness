@@ -60,6 +60,17 @@ def test_ingress_redaction_covers_text_and_data_parts() -> None:
     assert message.parts[0].text.startswith("Bearer")  # the original is untouched
 
 
+def test_ingress_redaction_covers_message_and_part_metadata() -> None:
+    message = Message(message_id="m2", parts=[Part(text="hello")])
+    message.metadata.update({"participant_id": "alice", "api_key": "sk-abcdefghijklmnop"})
+    message.parts[0].metadata.update({"trace": "Bearer abcdefghijklmnop"})
+    clean = redact_message(Redactor(), message)
+    assert clean.metadata["participant_id"] == "alice"
+    assert clean.metadata["api_key"] == MASK
+    assert clean.parts[0].metadata["trace"] == MASK
+    assert clean.parts[0].text == "hello" and clean.message_id == "m2"
+
+
 def test_default_extension_names_the_reporter_and_the_agent() -> None:
     message = Message(message_id="m1", parts=[Part(text="Refund order 48213\nIt was late")])
     message.metadata.update({"participant_id": "alice"})

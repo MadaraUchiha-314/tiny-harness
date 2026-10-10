@@ -13,6 +13,7 @@ from typing import Protocol, cast
 
 from a2a.types import Message, Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.types import Role as A2ARole
+from a2a.utils.errors import InvalidParamsError
 from google.protobuf import json_format, struct_pb2
 from temporalio import activity
 from temporalio.client import Client, WorkflowExecutionStatus, WorkflowUpdateFailedError
@@ -90,6 +91,7 @@ from tiny_harness.service.durable.models import (
     TriggerIn,
     TriggerOut,
 )
+from tiny_harness.service.inbox import EnvelopeRefused, apply_task_envelope, envelope_of
 
 HEARTBEAT_EVERY = 10.0
 TERMINAL = frozenset(
@@ -176,9 +178,42 @@ class Activities:
         participant = participant_of(arg.message)
         text = "\n".join(p.text for p in arg.message.parts if p.HasField("text"))
         now = datetime.now(UTC)
-        accepted = participant is None or task.ext.is_participant(participant)
-        reason = "" if accepted else "not a participant"
+        # Fail closed (abuse case 4): a message must assert a participant who is on the
+        # task; the executor fills the assertion from the perimeter's header when the
+        # message carries none, so a message with neither is refused here.
+        accepted = participant is not None and task.ext.is_participant(participant)
+        reason = (
+            ""
+            if accepted
+            else ("no participant asserted" if participant is None else "not a participant")
+        )
         ui_action: JsonObject | None = None
+        source: str | None = None
+        updated: Task | None = None
+        if accepted and participant is not None:
+            try:
+                envelope = envelope_of(arg.message)
+            except InvalidParamsError as exc:
+                accepted, reason = False, f"invalid event envelope: {exc.message}"
+            else:
+                if envelope is not None and envelope.kind == "task":
+                    try:
+                        new_ext = apply_task_envelope(task.ext, envelope.payload, actor=participant)
+                    except EnvelopeRefused as exc:
+                        accepted, reason = False, exc.reason
+                    else:
+                        task = task.with_ext(new_ext)
+                        updated = task.proto
+                        changed = ", ".join(sorted(envelope.payload))
+                        text = (
+                            text + "\n" if text else ""
+                        ) + f"[task updated by {participant}: {changed}]"
+                elif envelope is not None:  # a status or artifact update from a participant
+                    source = "agent"
+                    event_json = json.dumps(envelope.payload, sort_keys=True)
+                    text = (
+                        text + "\n" if text else ""
+                    ) + f"[{envelope.kind} from {participant}] {event_json}"
         if accepted:
             try:
                 action = ui_action_of(arg.message)
@@ -233,12 +268,17 @@ class Activities:
         interrupt = False
         if arg.message.HasField("metadata") and "interrupt" in arg.message.metadata.fields:
             interrupt = bool(arg.message.metadata.fields["interrupt"].bool_value)
+        sender = task.ext.participant(participant) if participant else None
+        if sender is not None and sender.kind == "agent":
+            source = "agent"
         return IntakeOut(
             accepted=accepted,
             text=text if accepted else "",
             participant_id=participant,
+            source=source,
             reason=reason,
             interrupt=interrupt,
+            task=updated if accepted else None,
             ui_action=ui_action if accepted else None,
         )
 
@@ -420,7 +460,11 @@ class Activities:
             message.task_id = arg.remote_task_id
         else:
             message.ClearField("task_id")
-        return await _heartbeating(_remote_turn(agent, message), every=self.heartbeat_every)
+        out = await _heartbeating(_remote_turn(agent, message), every=self.heartbeat_every)
+        # The remote agent's text is recorded in history and relayed to the parent: scrub
+        # it like every other activity result (abuse case 6); this activity runs outside
+        # the operation runner, which scrubs the others.
+        return self.engine.runner.redactor.scrub(out)
 
     # --- heartbeat (R16) --------------------------------------------------------------
 

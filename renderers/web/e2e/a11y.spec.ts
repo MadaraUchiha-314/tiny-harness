@@ -23,7 +23,7 @@ test("every control is reachable by keyboard", async ({ page }) => {
   }
   expect(reached.some((l) => l.includes("Cancel task"))).toBe(true);
   expect(reached.some((l) => l.startsWith("textarea"))).toBe(true);
-  expect(reached.some((l) => l.includes("tab-task"))).toBe(true);
+  expect(reached.some((l) => l.includes("trigger-task") || l === "button:Task")).toBe(true);
   expect(reached.some((l) => l.startsWith("button:Send"))).toBe(true);
   await page.getByRole("tab", { name: "Plan" }).focus();
   await page.keyboard.press("Enter");

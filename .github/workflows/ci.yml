@@ -53,6 +53,9 @@ jobs:
       - name: Run integration tests
         run: uv run pytest tests/integration
 
+      - name: Run contract, security and UI tests
+        run: uv run pytest tests/contract tests/security tests/ui
+
   docs:
     name: Docs build
     runs-on: ubuntu-latest

@@ -13,7 +13,7 @@
     {
       "type": "tool_use",
       "id": "toolu_1",
-      "name": "orders.get_order",
+      "name": "orders_get_order",
       "input": {
         "order_id": "48213"
       }

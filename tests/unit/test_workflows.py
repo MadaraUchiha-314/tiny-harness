@@ -104,3 +104,24 @@ def test_docs_deploys_from_main_with_pages_scopes_only() -> None:
         "pages": "write",
         "id-token": "write",
     }
+
+
+def test_a_configured_non_retryable_error_type_is_not_retried() -> None:
+    """
+    Feature: Durable core loop
+    Requirement: docs/specs/issue-3/requirements.md#R19.3
+
+    Scenario: a configured non-retryable error type is not retried
+        Given a retry policy listing an error type as non-retryable
+        When an attempt fails with that type, or with the activity's own non-retryable flag
+        Then the workflow does not schedule another attempt
+        And any other failure is retried
+    """
+    from tiny_harness.config import RetryPolicySpec
+    from tiny_harness.service.durable.models import ErrorInfo
+    from tiny_harness.service.durable.workflows import is_non_retryable
+
+    spec = RetryPolicySpec(non_retryable_error_types=("ProviderError",))
+    assert is_non_retryable(ErrorInfo(type="ProviderError", message="400"), spec)
+    assert is_non_retryable(ErrorInfo(type="Other", message="x", non_retryable=True), spec)
+    assert not is_non_retryable(ErrorInfo(type="RetryableProviderError", message="429"), spec)

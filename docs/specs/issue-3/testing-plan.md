@@ -176,17 +176,17 @@ by the same `Redactor` the harness uses, run over every capture before commit.
 > why under Verification results and either replan this matrix (with the reason) or
 > escalate.
 
-- [ ] T13 — `uv run pre-commit run --all-files` (lint, format, pyright strict, unit tests, markdownlint) and the `Any` grep gate
-- [ ] T1 — `uv run pytest tests/unit -q`
-- [ ] T3 — `uv run pytest tests/contract -q`
-- [ ] T6 — `uv run pytest tests/contract -q -k snapshot`
-- [ ] T8 — `uv run pytest tests/security -q`
-- [ ] T2 — `uv run pytest tests/integration -q` and `the-loop scenarios --glob 'tests/integration/**' --format markdown`
-- [ ] T5 — `bun run --cwd renderers/web test:visual` and `uv run pytest tests/ui -q`
-- [ ] T9 — `bun run --cwd renderers/web test:a11y` and `uv run pytest tests/ui -q -k keys`
-- [ ] T4 — bring-up above, then `uv run pytest tests/e2e -q -m e2e` (runs `examples.demo` end to end, captures screenshots and the trace)
-- [ ] T12 — `uv run pytest tests/e2e -q -m e2e -k crash_recovery` (kills the worker at the two points and restarts it)
-- [ ] T11 — the walkthrough in `evidence/manual-walkthrough.md`, performed and annotated by the owner
+- [x] T13 — `uv run pre-commit run --all-files` (lint, format, pyright strict, unit tests, markdownlint) and the `Any` grep gate
+- [x] T1 — `uv run pytest tests/unit -q`
+- [x] T3 — `uv run pytest tests/contract -q`
+- [x] T6 — `uv run pytest tests/contract -q -k snapshot`
+- [x] T8 — `uv run pytest tests/security -q`
+- [x] T2 — `uv run pytest tests/integration -q` and `the-loop scenarios --glob 'tests/integration/**' --format markdown`
+- [x] T5 — `bun run --cwd renderers/web test:visual` and `uv run pytest tests/ui -q`
+- [x] T9 — `bun run --cwd renderers/web test:a11y` and `uv run pytest tests/ui -q -k keys`
+- [x] T4 — bring-up above, then `uv run pytest tests/e2e -q -m e2e` (runs `examples.demo` end to end, captures screenshots and the trace)
+- [x] T12 — `uv run pytest tests/e2e -q -m e2e -k crash_recovery` (kills the worker at the two points and restarts it)
+- [x] T11 — the walkthrough in `evidence/manual-walkthrough.md`: not performed; closed by the approver's decision of 2026-10-10 to approve the work item without it (recorded in the evidence file)
 
 ## Verification results
 
@@ -194,13 +194,27 @@ by the same `Redactor` the harness uses, run over every capture before commit.
 > `verification`. One row per executed activity: the exact command or procedure, the
 > outcome, and a link to the committed evidence.
 
-_Not yet executed._
+Executed on 2026-10-10 on branch `loop/issue-3-l9-demo` (the head of the stacked
+series, every lower layer merged forward), on the owner's machine: Temporal Cloud namespace
+`tiny-harness.gtebu`, OpenAI `gpt-6.1-sol`, system Chromium. Secrets came from the
+keyring; every capture under `evidence/` was redacted by value before commit.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
+| T13 | `uv run pre-commit run --all-files`; `uv run pyright`; the `Any` grep | all hooks passed; pyright 0 errors; the word `Any` appears only in two docstrings | [gates.md](evidence/gates.md) |
+| T1 | `uv run pytest tests/unit -q` | 200 passed | [unit.md](evidence/unit.md) |
+| T3 | `uv run pytest tests/contract -q` | 29 passed | [contract.md](evidence/contract.md) |
+| T6 | `uv run pytest tests/contract -q -k snapshot` | 14 passed (agent card, task and channel schemas, 12 intrinsic schemas, Settings schema) | [contract.md](evidence/contract.md) |
+| T8 | `uv run pytest tests/security -q` | 24 passed, abuse cases 2–9 | [security.md](evidence/security.md) |
+| T2 | `uv run pytest tests/integration -q`; `the-loop scenarios --root . --glob 'tests/integration/**/*.py' --format markdown` | 32 passed in 51 s; 31 Gherkin scenarios listed | [integration.md](evidence/integration.md) |
+| T5 | `bun run --cwd renderers/web test:visual`; `uv run pytest tests/ui -q`; live captures of both surfaces | 4 passed (new shadcn baselines, Playwright's Chromium); 9 passed (4 snapshots); six states captured per surface plus the two-surface shot | [ui/axe.md](evidence/ui/axe.md), `evidence/ui/web-*.png`, `evidence/ui/tui-*.png`, `evidence/ui/web-multi-turn.gif`, `evidence/ui/tui-multi-turn.gif` |
+| T9 | `bun run --cwd renderers/web test:a11y`; `uv run pytest tests/ui -q -k keys` | 2 passed (no axe violations, every control reachable); 4 passed | [ui/axe.md](evidence/ui/axe.md) |
+| T4 | `uv run pytest tests/e2e -q -m e2e` with the bring-up above (Temporal Cloud, `gpt-6.1-sol`), rerun at the final head after the self-review and critic rounds | 3 passed in 4 min 3 s: SUBMITTED → WORKING → A2UI artifact → INPUT_REQUIRED (card action) → INPUT_REQUIRED (text reply) → COMPLETED; `ship_replacement` once, no refund; 16 chat spans, cached tokens from call 2; no secret in trace or logs | [e2e.md](evidence/e2e.md), [e2e/trace.json](evidence/e2e/trace.json) |
+| T12 | `uv run pytest tests/e2e -q -m e2e -k crash_recovery` (same run) | 2 passed: kill during `get_order` at 24.6 s (attempt timed out, retried on the new worker; `invoke_llm` 14 scheduled / 14 completed, `invoke_tool` 14 / 13 with 1 timed out) and kill in INPUT_REQUIRED at 142.8 s (every activity one attempt); task COMPLETED both times, `ship_replacement` once each | [crash-recovery.md](evidence/crash-recovery.md) |
+| T11 | the walkthrough in `evidence/manual-walkthrough.md` | not performed: the approver approved the work item on 2026-10-10 without it (issue comment), which closes the activity by the owner's decision; the procedure stays in the file for a later run | [manual-walkthrough.md](evidence/manual-walkthrough.md) |
 | | | | |
 
-**Not executed:** none yet.
+**Not executed:** T11, the owner's manual walkthrough, closed by the approver's decision (approved without it on 2026-10-10).
 
 ## Review comments
 

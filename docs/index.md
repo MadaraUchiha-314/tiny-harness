@@ -3,22 +3,22 @@ layout: home
 
 hero:
   name: tiny-harness
-  tagline: A tiny agent harness
+  tagline: A2A 1.0 in and out, MCP tools, skills and plugins, one Temporal workflow per task
   actions:
     - theme: brand
-      text: Local development
-      link: /guide/local-development
+      text: Getting started
+      link: /guide/getting-started
     - theme: alt
-      text: Tech stack
-      link: /guide/tech-stack
+      text: Deployment
+      link: /guide/deployment
     - theme: alt
       text: GitHub
       link: https://github.com/MadaraUchiha-314/tiny-harness
 
 features:
   - title: Guide
-    details: The tools this project uses, how to set up a development environment, and how releases reach PyPI.
-    link: /guide/tech-stack
+    details: Run the demo, deploy the server and workers behind a perimeter, set up a development environment.
+    link: /guide/getting-started
   - title: Architecture
     details: How tiny-harness is put together, and the repository layout.
     link: /architecture/architecture

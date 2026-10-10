@@ -148,6 +148,12 @@ def backoff(spec: RetryPolicySpec, attempt: int) -> timedelta:
     return timedelta(seconds=seconds * (0.8 + 0.4 * workflow.random().random()))
 
 
+def is_non_retryable(info: ErrorInfo, spec: RetryPolicySpec) -> bool:
+    """A failure the policy never retries: flagged by the activity, or of a type the
+    effective policy lists in ``non_retryable_error_types`` (R19.3)."""
+    return info.non_retryable or info.type in spec.non_retryable_error_types
+
+
 def _error_info(exc: ActivityError) -> ErrorInfo:
     cause = exc.cause
     if isinstance(cause, ApplicationError):
@@ -184,9 +190,9 @@ class WorkflowOperations:
     async def ingest(self, task: HarnessTask, state: AgentState, text: str) -> AgentState:
         return state.append(MessageItem(role=MessageRole.USER, text=text))
 
-    async def drain(self, task: HarnessTask, state: AgentState) -> AgentState:
+    async def drain(self, task: HarnessTask, state: AgentState) -> tuple[HarnessTask, AgentState]:
         state, _ = await self._wf.drain(task, state)
-        return state
+        return self._wf.task, state  # a task envelope may have changed the extension
 
     async def assemble(self, task: HarnessTask, state: AgentState) -> ContextWindow:
         window = await self._wf.call(
@@ -450,11 +456,13 @@ class TaskWorkflow:
         self.task = task
         await self.maybe_continue_as_new(task, state)
         self.turns_this_run += 1
-        for note in self.take_notes():
-            state = state.append(MessageItem(role=MessageRole.USER, text=note))
+        for note in self.take_notes():  # sub-task and remote-agent results: data, not orders
+            state = state.append(MessageItem(role=MessageRole.USER, text=note, source="agent"))
         accepted = 0
         while self.mailbox:
-            message = self.mailbox.pop(0)
+            # The message leaves the mailbox only once its intake has completed: an
+            # interrupt or a cancel during intake leaves it for the next drain (R15.5).
+            message = self.mailbox[0]
             out = await self.call(
                 ActivityName.INTAKE,
                 IntakeIn(
@@ -466,10 +474,14 @@ class TaskWorkflow:
                 ),
                 IntakeOut,
             )
+            self.mailbox.pop(0)
             if not out.accepted:
                 self.last_refusal = out.reason or "not accepted"
                 continue
             accepted += 1
+            if out.task is not None:  # a task envelope changed the extension (R15.1)
+                self.task = task = HarnessTask(out.task)
+                self._emit(self.task.proto)
             text = out.text
             pending = self.pending_help
             if pending is not None and out.participant_id == pending.participant_id:
@@ -479,7 +491,10 @@ class TaskWorkflow:
                 text = f"[{out.participant_id}] {out.text}"
             if out.participant_id:
                 self.actor = out.participant_id
-            state = state.append(MessageItem(role=MessageRole.USER, text=text))
+            state = state.append(MessageItem(role=MessageRole.USER, text=text, source=out.source))
+            # Committed now, not at the end of the turn: an interrupt that cancels the
+            # run restarts from ``self.state`` and must not lose what intake accepted.
+            self.state = state
         return state, accepted
 
     async def _await_runner(self, runner: asyncio.Task[object]) -> bool:
@@ -819,6 +834,9 @@ class TaskWorkflow:
             role=A2ARole.ROLE_USER,
             parts=[Part(text=goal)],
         )
+        # The delegating agent is the sender, and a participant of the child: intake
+        # refuses a message that asserts nobody (abuse case 4).
+        first.metadata.update({"participant_id": self.start.config.agent})
         start = TaskStart(
             task=child.proto,
             state=AgentState(task_id=child_id),
@@ -883,7 +901,7 @@ class TaskWorkflow:
                 if isinstance(exc.cause, CancelledError):
                     raise asyncio.CancelledError from exc  # the run was cancelled or interrupted
                 info = _error_info(exc)
-                if info.non_retryable:
+                if is_non_retryable(info, spec):
                     raise ApplicationError(
                         info.message, type=info.type, non_retryable=True
                     ) from exc
@@ -960,6 +978,9 @@ class RemoteTaskWorkflow:
             role=A2ARole.ROLE_USER,
             parts=[Part(text=start.goal)],
         )
+        # This harness is the sender the remote agent sees (it becomes the remote task's
+        # reporter); a message that asserts nobody is refused by a tiny-harness peer.
+        outbound.metadata.update({"participant_id": start.config.agent})
         self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
         while True:
             out = await workflow.execute_activity(

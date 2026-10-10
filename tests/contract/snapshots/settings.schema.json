@@ -124,6 +124,20 @@
           "default": "tiny-harness",
           "title": "Service Name",
           "type": "string"
+        },
+        "trace_file": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "also write every finished span as one JSON line here",
+          "title": "Trace File"
         }
       },
       "title": "O11yConfig",
@@ -408,6 +422,12 @@
           "title": "Namespace",
           "type": "string"
         },
+        "search_attributes": {
+          "default": false,
+          "description": "use the A2AContextId, A2ATaskState and TinyHarnessAgent search attributes; they must be registered on the namespace first (Temporal Cloud: tcld), or every task workflow fails its first task",
+          "title": "Search Attributes",
+          "type": "boolean"
+        },
         "task_queue": {
           "default": "tiny-harness",
           "title": "Task Queue",
@@ -472,7 +492,8 @@
         "langfuse_secret_key": null,
         "log_level": "INFO",
         "otlp_endpoint": null,
-        "service_name": "tiny-harness"
+        "service_name": "tiny-harness",
+        "trace_file": null
       }
     },
     "openai": {

@@ -34,6 +34,12 @@ class TemporalConfig(_Strict):
     api_key: SecretStr = Field(description="from TEMPORAL_API_KEY; never logged")
     task_queue: str = "tiny-harness"
     tls: bool = True
+    search_attributes: bool = Field(
+        default=False,
+        description="use the A2AContextId, A2ATaskState and TinyHarnessAgent search attributes; "
+        "they must be registered on the namespace first (Temporal Cloud: tcld), "
+        "or every task workflow fails its first task",
+    )
 
 
 class OpenAIConfig(_Strict):
@@ -98,6 +104,9 @@ class O11yConfig(_Strict):
     langfuse_secret_key: SecretStr | None = None
     service_name: str = "tiny-harness"
     log_level: str = "INFO"
+    trace_file: Path | None = Field(
+        default=None, description="also write every finished span as one JSON line here"
+    )
 
 
 class RetryPolicySpec(BaseModel, frozen=True, extra="forbid"):

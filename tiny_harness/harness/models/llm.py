@@ -27,9 +27,15 @@ class Role(StrEnum):
 
 
 class MessageItem(BaseModel, frozen=True):
+    """A message in the history. ``source`` names an untrusted origin (``"agent"`` for a
+    sub-task's result, a remote agent's reply or an agent participant's message): the
+    context window renders such text inside the delimited untrusted block, like a tool
+    result, never as an instruction. A human participant's own message has no source."""
+
     kind: Literal["message"] = "message"
     role: Role
     text: str
+    source: str | None = None
 
 
 class ToolCallItem(BaseModel, frozen=True):

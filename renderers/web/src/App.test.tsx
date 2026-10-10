@@ -1,3 +1,4 @@
+import { Role, userMessage } from "./a2a";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
@@ -33,4 +34,12 @@ describe("the web renderer", () => {
     expect(within(task).getByText(/Resolve the damaged-on-arrival/)).toBeInTheDocument();
     expect(within(task).getByText(/support-agent/)).toBeInTheDocument();
   });
+});
+
+it("userMessage builds the SDK's message shape with the participant in the metadata", () => {
+  const message = userMessage({ text: "hello", contextId: "ctx-1", taskId: "t-1", participant: "alice" });
+  expect(message.role).toBe(Role.ROLE_USER);
+  expect(message.taskId).toBe("t-1");
+  expect(message.parts[0]?.content).toEqual({ $case: "text", value: "hello" });
+  expect(message.metadata).toEqual({ participant_id: "alice" });
 });

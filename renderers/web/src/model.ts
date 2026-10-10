@@ -6,14 +6,18 @@
 import {
   A2UI_MEDIA_TYPE,
   CHANNEL_MEDIA_TYPE,
+  Role,
   TASK_EXT_KEY,
+  partData,
+  partMediaType,
+  partText,
   stateName,
   type JsonObject,
-  type JsonValue,
   type Message,
   type Part,
   type StreamResponse,
   type Task,
+  type TaskState,
 } from "./a2a";
 import type { TaskExtensionData } from "./generated/task";
 import type { ChannelMessageData } from "./generated/channel";
@@ -44,11 +48,6 @@ export const emptyView = (): View => ({
   trace: [],
 });
 
-function partMediaType(part: Part): string {
-  if (part.text !== undefined) return "text/plain";
-  return part.mediaType ?? "application/octet-stream";
-}
-
 function readExtension(task: Task): TaskExtensionData | null {
   const raw = task.metadata?.[TASK_EXT_KEY];
   if (raw === undefined || raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -56,25 +55,27 @@ function readExtension(task: Task): TaskExtensionData | null {
 }
 
 function messageItems(message: Message, keyBase: string): Item[] {
-  const role = message.role === "ROLE_USER" ? "user" : "agent";
+  const role = message.role === Role.ROLE_USER ? "user" : "agent";
   const items: Item[] = [];
   const a2ui: JsonObject[] = [];
   message.parts.forEach((part, index) => {
     const key = `${keyBase}:${index}`;
     const media = partMediaType(part);
-    if (part.text !== undefined) {
-      items.push({ kind: "text", role, text: part.text, key });
-    } else if (media === A2UI_MEDIA_TYPE && part.data !== undefined && isObject(part.data)) {
-      a2ui.push(part.data);
-    } else if (media === CHANNEL_MEDIA_TYPE && part.data !== undefined && isObject(part.data)) {
-      const data = part.data as unknown as ChannelMessageData;
-      if (data.kind === "help_request") {
+    const text = partText(part);
+    const data = partData(part);
+    if (text !== undefined) {
+      items.push({ kind: "text", role, text, key });
+    } else if (media === A2UI_MEDIA_TYPE && data !== undefined) {
+      a2ui.push(data);
+    } else if (media === CHANNEL_MEDIA_TYPE && data !== undefined) {
+      const channel = data as unknown as ChannelMessageData;
+      if (channel.kind === "help_request") {
         // The help text already arrived as the text part; mark the item as a help request.
         const last = items[items.length - 1];
         if (last && last.kind === "text") {
           items[items.length - 1] = { kind: "help", text: last.text, key: last.key };
         } else {
-          items.push({ kind: "help", text: data.text ?? "", key });
+          items.push({ kind: "help", text: channel.text ?? "", key });
         }
       }
     } else {
@@ -85,15 +86,11 @@ function messageItems(message: Message, keyBase: string): Item[] {
   return items;
 }
 
-function isObject(value: JsonValue): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** Folds one stream response into the view; pure, so tests can replay fixtures. */
 export function apply(view: View, event: StreamResponse, seq: number): View {
   const next: View = { ...view, items: [...view.items], trace: [...view.trace] };
   const keyBase = `e${seq}`;
-  const pushStatus = (state: string) => {
+  const pushStatus = (state: TaskState | undefined) => {
     const name = stateName(state);
     if (name !== next.state) {
       next.items.push({ kind: "status", state: name, key: `${keyBase}:status` });
@@ -101,28 +98,33 @@ export function apply(view: View, event: StreamResponse, seq: number): View {
     }
     next.state = name;
   };
-  if (event.task) {
-    next.taskId = event.task.id;
-    next.contextId = event.task.contextId;
-    next.ext = readExtension(event.task) ?? next.ext;
-    pushStatus(event.task.status.state);
-    if (event.task.status.message) next.items.push(...messageItems(event.task.status.message, keyBase));
-  } else if (event.statusUpdate) {
-    next.taskId = event.statusUpdate.taskId;
-    next.contextId = event.statusUpdate.contextId;
-    pushStatus(event.statusUpdate.status.state);
-    if (event.statusUpdate.status.message) {
-      next.items.push(...messageItems(event.statusUpdate.status.message, keyBase));
-    }
-  } else if (event.artifactUpdate) {
-    const artifact = event.artifactUpdate.artifact;
+  const payload = event.payload;
+  if (payload === undefined) return next;
+  if (payload.$case === "task") {
+    const task = payload.value;
+    next.taskId = task.id;
+    next.contextId = task.contextId;
+    next.ext = readExtension(task) ?? next.ext;
+    pushStatus(task.status?.state);
+    if (task.status?.message) next.items.push(...messageItems(task.status.message, keyBase));
+  } else if (payload.$case === "statusUpdate") {
+    const update = payload.value;
+    next.taskId = update.taskId;
+    next.contextId = update.contextId;
+    pushStatus(update.status?.state);
+    if (update.status?.message) next.items.push(...messageItems(update.status.message, keyBase));
+  } else if (payload.$case === "artifactUpdate") {
+    const artifact = payload.value.artifact;
+    if (artifact === undefined) return next;
     const a2ui: JsonObject[] = [];
     artifact.parts.forEach((part, index) => {
       const media = partMediaType(part);
-      if (media === A2UI_MEDIA_TYPE && part.data !== undefined && isObject(part.data)) {
-        a2ui.push(part.data);
-      } else if (part.text !== undefined) {
-        next.items.push({ kind: "text", role: "agent", text: part.text, key: `${keyBase}:${index}` });
+      const text = partText(part);
+      const data = partData(part);
+      if (media === A2UI_MEDIA_TYPE && data !== undefined) {
+        a2ui.push(data);
+      } else if (text !== undefined) {
+        next.items.push({ kind: "text", role: "agent", text, key: `${keyBase}:${index}` });
       } else {
         next.items.push({ kind: "placeholder", mediaType: media, key: `${keyBase}:${index}` });
         next.trace.push(`placeholder · ${media}`);
@@ -130,10 +132,10 @@ export function apply(view: View, event: StreamResponse, seq: number): View {
     });
     if (a2ui.length > 0) {
       next.items.push({ kind: "a2ui", messages: a2ui, key: `${keyBase}:a2ui` });
-      next.trace.push(`a2ui · ${artifact.name ?? artifact.artifactId}`);
+      next.trace.push(`a2ui · ${artifact.name || artifact.artifactId}`);
     }
-  } else if (event.message) {
-    next.items.push(...messageItems(event.message, keyBase));
+  } else {
+    next.items.push(...messageItems(payload.value, keyBase));
     next.trace.push("message");
   }
   return next;

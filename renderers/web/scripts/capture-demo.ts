@@ -76,10 +76,19 @@ while (Date.now() - started < 300_000) {
     }
     if (replies < 4 && (await composer.isEnabled())) {
       replies += 1;
-      await composer.fill(REPLY);
-      await composer.press("Enter");
+      // The text reply comes from a second surface: another renderer attached to the task
+      // with ?task=. The first page learns the outcome through its subscription (R20.3).
+      const taskId = (await page.locator("#taskState").getAttribute("data-task")) ?? "";
+      const other = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+      await other.goto(`${base}/ui/?participant=alice&task=${encodeURIComponent(taskId)}`);
+      await other.waitForTimeout(1500);
+      await other.screenshot({ path: join(out, `web-second-surface-${replies}.png`) });
+      const otherComposer = other.getByPlaceholder("Message the task…");
+      await otherComposer.fill(REPLY);
+      await otherComposer.press("Enter");
       await page.waitForTimeout(500);
       await snap(`reply-${replies}`);
+      void other.waitForTimeout(120_000).then(() => other.close().catch(() => {}));
     }
   }
   if (current.includes("COMPLETED") || current.includes("FAILED") || current.includes("CANCELED")) {

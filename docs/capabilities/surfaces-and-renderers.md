@@ -36,13 +36,18 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   tabs on the right and the composer below, every action on a key; it streams the reply
   and keeps a `SubscribeToTask` stream per open task, so a second surface sees the same
   events. `tiny-harness tui --url <server>` starts it.
-- The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app that reaches the
-  server only through the official A2A JavaScript SDK (`@a2a-js/sdk`, protocol 1.0:
-  card resolution, the JSON-RPC transport, `sendMessageStream`, `resubscribeTask`,
-  `cancelTask`), adding `X-Participant-Id`, folds the SDK's events into a pure model,
-  takes the harness URL from `?server=`, the browser's remembered choice or its own
-  origin (a "Harness" field in the header changes it), is published on the docs site
-  under `/ui/` by the docs workflow, and
+- The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app on shadcn
+  (Tailwind v4, the shadcn/ui primitives and the chat components `MessageScroller`,
+  `Message`, `Bubble` and `Marker`) that reaches the server only through the official
+  A2A JavaScript SDK (`@a2a-js/sdk`, protocol 1.0: card resolution, the JSON-RPC
+  transport, `sendMessageStream`, `resubscribeTask`, `cancelTask`), adding
+  `X-Participant-Id`, folds the SDK's events into a pure model, takes the harness URL
+  from `?server=`, the browser's remembered choice or its own origin (a "Harness" field
+  in the header changes it), attaches to an existing task with `?task=`, keeps a
+  `SubscribeToTask` subscription open after a stream ends in a non-terminal state
+  (reopened after a pause, since the SDK ends a stream at every final event) so a reply
+  from another surface shows up, is published on the docs site under `/ui/` by the
+  docs workflow, and
   renders cards with `@a2ui/react`'s `MessageProcessor` and the basic catalog; it is
   served under `/ui` when `ui_dir` points at its build and is covered by Playwright
   visual and axe-core accessibility tests.

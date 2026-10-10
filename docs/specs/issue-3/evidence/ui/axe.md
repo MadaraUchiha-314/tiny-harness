@@ -1,7 +1,9 @@
 # Web renderer: visual and accessibility runs — T5, T9
 
-Playwright on the system Chromium (`TINY_HARNESS_CHROMIUM=/usr/bin/chromium`; CI installs
-Playwright's own). The visual project compares the prototype state (light, dark, phone)
+Playwright's own Chromium (Chrome for Testing 156, `bun x playwright install chromium`),
+as CI uses. The system Chromium 152 crashes its renderer on the shadcn page under
+Playwright's launch flags while rendering the same page fine on its own, so
+`TINY_HARNESS_CHROMIUM` is no longer used for these runs. The visual project compares the prototype state (light, dark, phone)
 and the plan tab against the committed baselines only when `TINY_HARNESS_VISUAL_STRICT=1`;
 otherwise it writes the screenshots for review. The a11y project runs axe-core with the
 `wcag2a` and `wcag2aa` tags on the `INPUT_REQUIRED` state and walks every control with
@@ -54,7 +56,9 @@ the Send button are all reached by Tab; Enter on the Plan tab opens its panel.
 ## Live captures of the demo (this directory)
 
 Taken against the running demo (`python -m examples.demo`, Temporal Cloud, `gpt-6.1-sol`)
-by `renderers/web/scripts/capture-demo.ts` (Playwright) and a Textual pilot script
+by `renderers/web/scripts/capture-demo.ts` (Playwright; the text reply is sent from a
+second renderer attached with `?task=`, and the first renderer reaches `COMPLETED`
+through its subscription: `web-second-surface.png`) and a Textual pilot script
 (`HarnessApp.run_test` with `SdkClient`, screenshots via `save_screenshot`, rasterised by
 `renderers/web/scripts/svg-to-png.ts`). One task per surface; the two surfaces were
 captured one after the other on the same instance.

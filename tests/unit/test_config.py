@@ -36,6 +36,7 @@ def write(tmp_path: Path, text: str = TOML) -> Path:
 def test_loads_toml_and_secrets_with_typed_defaults(tmp_path: Path) -> None:
     settings = Settings.load(write(tmp_path), env=ENV)
     assert settings.temporal.namespace == "tiny-harness.gtebu"
+    assert settings.temporal.api_key is not None
     assert settings.temporal.api_key.get_secret_value() == "tmprl_secret"
     assert settings.openai.model == "gpt-6.1-sol"
     assert settings.anthropic is None
@@ -73,7 +74,7 @@ def test_secrets_never_print(tmp_path: Path) -> None:
     settings = Settings.load(write(tmp_path), env=ENV)
     dumped = settings.model_dump_json()
     assert "tmprl_secret" not in dumped and "sk-secret" not in dumped
-    assert "**********" in repr(settings.temporal.api_key)
+    assert "**********" in repr(settings.temporal.api_key)  # SecretStr | None, set here
 
 
 def test_optional_secrets_fill_their_sections(tmp_path: Path) -> None:

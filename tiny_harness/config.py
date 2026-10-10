@@ -15,9 +15,17 @@ import tomllib
 from collections.abc import Mapping
 from datetime import timedelta
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    SecretStr,
+    ValidationError,
+    model_validator,
+)
 
 from tiny_harness.errors import ConfigError
 
@@ -26,12 +34,41 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class TemporalConfig(_Strict):
-    """Temporal Cloud connection (R19.11). ``api_key`` comes from ``TEMPORAL_API_KEY``."""
+class EmbeddedTemporalConfig(_Strict):
+    """The local Temporal dev server of embedded mode (issue-17 R2-R4). Every key has a
+    default, so ``mode = "embedded"`` alone is a complete Temporal configuration."""
 
-    address: str = Field(description="host:port, e.g. tiny-harness.gtebu.tmprl.cloud:7233")
-    namespace: str = Field(description="the Temporal namespace, e.g. tiny-harness.gtebu")
-    api_key: SecretStr = Field(description="from TEMPORAL_API_KEY; never logged")
+    persist: bool = Field(
+        default=True, description="false: an in-memory server, for tests and throwaway runs"
+    )
+    database_path: Path | None = Field(
+        default=None, description="the server's SQLite file; default: beside store.sqlite_path"
+    )
+    binary_path: Path | None = Field(
+        default=None, description="an existing Temporal CLI binary; set, nothing is downloaded"
+    )
+    download_dir: Path | None = Field(
+        default=None,
+        description="where a downloaded binary is cached; default: the user cache directory",
+    )
+    port: int | None = Field(default=None, description="default: an OS-chosen free port")
+
+
+class TemporalConfig(_Strict):
+    """The Temporal connection (R19.11, issue-17). ``remote`` (the default) is Temporal Cloud
+    or a self-hosted server, with ``api_key`` from ``TEMPORAL_API_KEY``; ``embedded`` starts a
+    local dev server for the process and forbids the remote-only keys."""
+
+    mode: Literal["remote", "embedded"] = "remote"
+    address: str | None = Field(
+        default=None, description="host:port, e.g. tiny-harness.gtebu.tmprl.cloud:7233"
+    )
+    namespace: str | None = Field(
+        default=None, description="the Temporal namespace, e.g. tiny-harness.gtebu"
+    )
+    api_key: SecretStr | None = Field(
+        default=None, description="from TEMPORAL_API_KEY; never logged"
+    )
     task_queue: str = "tiny-harness"
     tls: bool = True
     search_attributes: bool = Field(
@@ -40,6 +77,37 @@ class TemporalConfig(_Strict):
         "they must be registered on the namespace first (Temporal Cloud: tcld), "
         "or every task workflow fails its first task",
     )
+    embedded: EmbeddedTemporalConfig | None = None
+
+    @model_validator(mode="after")
+    def _per_mode(self) -> Self:
+        if self.mode == "remote":
+            for key in ("address", "namespace"):
+                if getattr(self, key) is None:
+                    raise ValueError(f"temporal.{key} is required when temporal.mode is remote")
+            if self.embedded is not None:
+                raise ValueError("temporal.embedded must not be set when temporal.mode is remote")
+            return self
+        for key in ("address", "tls"):
+            if key in self.model_fields_set:
+                raise ValueError(f"temporal.{key} must not be set when temporal.mode is embedded")
+        binary = self.embedded.binary_path if self.embedded is not None else None
+        if binary is not None and not (binary.is_file() and os.access(binary, os.X_OK)):
+            raise ValueError("temporal.embedded.binary_path is not an executable file")
+        return self
+
+    @property
+    def effective_namespace(self) -> str:
+        return self.namespace or "default"
+
+    def database_path(self, store: StoreConfig) -> Path | None:
+        """The embedded server's SQLite file, or ``None`` when it runs in memory."""
+        embedded = self.embedded or EmbeddedTemporalConfig()
+        if not embedded.persist:
+            return None
+        if embedded.database_path is not None:
+            return embedded.database_path.resolve()
+        return (store.sqlite_path.resolve().parent / "temporal.sqlite3").resolve()
 
 
 class OpenAIConfig(_Strict):
@@ -175,7 +243,7 @@ class Settings(_Strict):
 
 # Secrets: (section, field, environment variable). Nothing else reads a secret.
 SECRET_VARIABLES: tuple[tuple[str | None, str, str, bool], ...] = (
-    ("temporal", "api_key", "TEMPORAL_API_KEY", True),
+    ("temporal", "api_key", "TEMPORAL_API_KEY", True),  # remote mode only (issue-17 R1)
     ("openai", "api_key", "OPENAI_API_KEY", True),
     ("anthropic", "api_key", "ANTHROPIC_API_KEY", False),
     ("o11y", "langfuse_public_key", "LANGFUSE_PUBLIC_KEY", False),
@@ -196,6 +264,23 @@ def _read_toml(path: Path) -> dict[str, object]:
         ) from exc
 
 
+TEMPORAL_API_KEY = "TEMPORAL_API_KEY"
+TEMPORAL_MODES = ("remote", "embedded")
+
+
+def _temporal_mode(data: Mapping[str, object]) -> str:
+    """The raw ``temporal.mode``, checked before secrets so a typo is reported as a typo
+    (issue-17 R1.6) and never falls through to either mode."""
+    section = data.get("temporal")
+    mode = section.get("mode", "remote") if isinstance(section, dict) else "remote"  # type: ignore[union-attr]
+    if mode not in TEMPORAL_MODES:
+        raise ConfigError(
+            "invalid configuration: temporal.mode must be 'remote' or 'embedded'",
+            variable="temporal.mode",
+        )
+    return str(mode)  # type: ignore[arg-type]
+
+
 def load_settings[S: Settings](
     path: Path | None = None,
     *,
@@ -210,8 +295,15 @@ def load_settings[S: Settings](
     """
     environment = os.environ if env is None else env
     data: dict[str, object] = _read_toml(path) if path is not None else {}
+    embedded = _temporal_mode(data) == "embedded"
     for section, field, variable, required in SECRET_VARIABLES:
         value = environment.get(variable)
+        if variable == TEMPORAL_API_KEY and embedded:
+            if value:
+                raise ConfigError(
+                    "must not be set when temporal.mode is embedded", variable=variable
+                )
+            continue
         if value is None or value == "":
             if required:
                 raise ConfigError("required secret is not set", variable=variable)
@@ -241,6 +333,7 @@ __all__ = [
     "SECRET_VARIABLES",
     "AnthropicConfig",
     "ContextConfig",
+    "EmbeddedTemporalConfig",
     "HeartbeatConfig",
     "O11yConfig",
     "OpenAIConfig",

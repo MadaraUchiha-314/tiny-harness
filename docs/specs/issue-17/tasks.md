@@ -35,7 +35,7 @@ Conventions for every task:
 
 ## Task list
 
-- [ ] 1. Config: `mode`, `[temporal.embedded]` and per-mode validation
+- [x] 1. Config: `mode`, `[temporal.embedded]` and per-mode validation
   - Add `EmbeddedTemporalConfig` and the new `TemporalConfig` fields (`mode`, optional
     `address` / `namespace` / `api_key`, `embedded`), the `model_validator` enforcing the
     per-mode table (using `model_fields_set` for `tls`), `effective_namespace` and

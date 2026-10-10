@@ -52,7 +52,9 @@ class Runtime:
 
 
 def secret_values(settings: Settings) -> list[SecretStr]:
-    values = [settings.temporal.api_key, settings.openai.api_key, settings.push_key]
+    values = [settings.openai.api_key, settings.push_key]
+    if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
+        values.insert(0, settings.temporal.api_key)
     if settings.anthropic is not None:
         values.append(settings.anthropic.api_key)
     for key in (settings.o11y.langfuse_public_key, settings.o11y.langfuse_secret_key):

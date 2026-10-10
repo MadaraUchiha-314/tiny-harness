@@ -423,7 +423,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 46
   - _Requirements:_ non-functional Documentation, decision-003
   - _Test:_ T13 — `bun run docs:build` green; markdownlint
-- [ ] 48. Capability docs
+- [x] 48. Capability docs
   - One doc per requirement group under `docs/capabilities/` with history rows to this
     spec and decisions 002–004; `capabilities.md` and `architecture.md` updated;
     `evidence/documentation.md` written.

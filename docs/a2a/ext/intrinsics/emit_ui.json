@@ -1,0 +1,62 @@
+{
+  "description": "Send A2UI messages to the surfaces (createSurface, updateComponents, ...).",
+  "execution": "intrinsic",
+  "idempotency": "not_idempotent",
+  "input_schema": {
+    "$defs": {
+      "JsonValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "items": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "array"
+          },
+          {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "description": "Send A2UI messages to the surfaces (createSurface, updateComponents, ...).",
+    "properties": {
+      "messages": {
+        "items": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        "minItems": 1,
+        "title": "Messages",
+        "type": "array"
+      }
+    },
+    "required": [
+      "messages"
+    ],
+    "title": "EmitUiArgs",
+    "type": "object"
+  },
+  "name": "emit_ui",
+  "output_schema": null
+}

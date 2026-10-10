@@ -80,7 +80,7 @@
       "outcome": "",
       "enteredAt": "2026-10-09T22:44:26+00:00",
       "exitedAt": "",
-      "lastBlock": "`validate-artifacts` did not pass:\n- 40 task(s) still unticked (docs/specs/issue-3/tasks.md)",
+      "lastBlock": "`validate-artifacts` did not pass:\n- 32 task(s) still unticked (docs/specs/issue-3/tasks.md)",
       "forced": false
     }
   },
@@ -322,6 +322,16 @@
       "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-7",
       "state": "open",
       "linkedAt": "2026-10-09T22:47:36+00:00",
+      "linkedBy": "session"
+    },
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#8",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 8,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/8",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-8",
+      "state": "open",
+      "linkedAt": "2026-10-09T23:08:13+00:00",
       "linkedBy": "session"
     }
   ],

@@ -160,13 +160,13 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 3 — models and tools (branch `loop/issue-3-l3-models-tools`)
 
-- [ ] 15. LLM interface, request/response models, `FakeLLM`
+- [x] 15. LLM interface, request/response models, `FakeLLM`
   - `harness/models/llm.py`: `LLMRequest`, `LLMResponse`, `Usage`, `LLMModelInfo`,
     `LLM` entity with `invoke`/`stream`; `FakeLLM` scripted for tests.
   - _Depends on:_ 4
   - _Requirements:_ R18.1, R18.6
   - _Test:_ T1 — `tests/unit/models/test_llm_interface.py`; T3 — API snapshot
-- [ ] 16. OpenAI adapter (Responses API)
+- [x] 16. OpenAI adapter (Responses API)
   - `OpenAILLM`: `AsyncOpenAI(max_retries=0)`, `responses.create` with
     `instructions` = static prefix, `input` items, tools as function tools,
     `prompt_cache_key`, `store=False`, `max_output_tokens`; parse `output` items into
@@ -175,26 +175,26 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 15, 8
   - _Requirements:_ R18.1, R18.3, R18.5, R10.3
   - _Test:_ T1 — `tests/unit/models/test_openai.py` on recorded fixtures (`tests/fixtures/openai/`), `test_provider_retries_disabled`, `test_cached_tokens_parsed`
-- [ ] 17. Anthropic adapter (configurable, not exercised e2e)
+- [x] 17. Anthropic adapter (configurable, not exercised e2e)
   - `AnthropicLLM` over `messages.create` with `cache_control` on the static prefix,
     tool use blocks mapped to `ToolCall`.
   - _Depends on:_ 15
   - _Requirements:_ R18.1, R21.4
   - _Test:_ T1 — `tests/unit/models/test_anthropic.py` on recorded fixtures
-- [ ] 18. System One interface and `FakeSystemOne`
+- [x] 18. System One interface and `FakeSystemOne`
   - `harness/models/system_one.py`: question and answer unions mirroring
     `typesafe-sdk`, `SystemOne.decide(..., timeout)`, `FakeSystemOne`; no Jev client.
   - _Depends on:_ 4
   - _Requirements:_ R18.2
   - _Test:_ T1 — `tests/unit/models/test_system_one.py`; T3 — API snapshot
-- [ ] 19. Tool definitions, calls, results, validation
+- [x] 19. Tool definitions, calls, results, validation
   - `harness/tools/`: `Idempotency`, `Execution`, `ToolDefinition`, `ToolCall`,
     `ToolResult(untrusted)`, `WorkflowCommand`, `Tool` entity; `jsonschema` argument
     validation; `ToolNotFoundError`/`ToolArgumentError` as error results.
   - _Depends on:_ 4
   - _Requirements:_ R6.3, R6.4, R6.5, R6.7
   - _Test:_ T8 — `test_unknown_tool_rejected`, `test_injected_tool_call_not_executed`; T1 — argument validation
-- [ ] 20. MCP tool source
+- [x] 20. MCP tool source
   - `McpToolSource` on `mcp.Client` (stdio via `StdioServerParameters`, streamable
     HTTP via URL): list tools, map `annotations.idempotent_hint`/`read_only_hint` to
     `Idempotency`, schema hash at registration, re-list per iteration and
@@ -202,14 +202,14 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 19
   - _Requirements:_ R6.1, R6.2, R6.6, abuse case 8
   - _Test:_ T2 — `Feature: MCP tools`, `Scenario: a stdio MCP server's tools are registered with their schemas`; T8 — `test_schema_drift_refuses_invoke`
-- [ ] 21. Intrinsic tool definitions and argument models
+- [x] 21. Intrinsic tool definitions and argument models
   - The twelve intrinsics' `ToolDefinition`s (`execution=INTRINSIC`) with Pydantic
     argument models and generated JSON schemas committed under `docs/a2a/ext/`;
     registered by the built-in plugin; bodies land in Layer 4.
   - _Depends on:_ 19, 14
   - _Requirements:_ decision-004, R23.1
   - _Test:_ T3 — `tests/contract/test_intrinsic_schemas.py` (schemas match the committed files)
-- [ ] 22. Skill intrinsics
+- [x] 22. Skill intrinsics
   - `list_skills`, `load_skill`, `unload_skill`, `list_skill_resources`,
     `load_skill_resource` bodies: read the skill, connect its `mcp.json` servers,
     register their tools, return `skill_loaded`/`skill_unloaded` commands.

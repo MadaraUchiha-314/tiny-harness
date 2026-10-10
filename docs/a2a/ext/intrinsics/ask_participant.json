@@ -1,0 +1,37 @@
+{
+  "description": "Ask a participant for a small input, opinion or judgement call; the task waits.",
+  "execution": "intrinsic",
+  "idempotency": "not_idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Ask a participant for a small input, opinion or judgement call; the task waits.",
+    "properties": {
+      "options": {
+        "default": [],
+        "description": "Optional closed set of answers",
+        "items": {
+          "type": "string"
+        },
+        "title": "Options",
+        "type": "array"
+      },
+      "participant_id": {
+        "title": "Participant Id",
+        "type": "string"
+      },
+      "question": {
+        "minLength": 1,
+        "title": "Question",
+        "type": "string"
+      }
+    },
+    "required": [
+      "participant_id",
+      "question"
+    ],
+    "title": "AskParticipantArgs",
+    "type": "object"
+  },
+  "name": "ask_participant",
+  "output_schema": null
+}

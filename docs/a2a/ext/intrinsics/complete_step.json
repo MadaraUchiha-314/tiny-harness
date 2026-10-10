@@ -1,0 +1,29 @@
+{
+  "description": "Record a step's output and mark it done.",
+  "execution": "intrinsic",
+  "idempotency": "idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Record a step's output and mark it done.",
+    "properties": {
+      "output": {
+        "description": "What the step produced, in one paragraph",
+        "title": "Output",
+        "type": "string"
+      },
+      "step": {
+        "description": "The step's name",
+        "title": "Step",
+        "type": "string"
+      }
+    },
+    "required": [
+      "step",
+      "output"
+    ],
+    "title": "CompleteStepArgs",
+    "type": "object"
+  },
+  "name": "complete_step",
+  "output_schema": null
+}

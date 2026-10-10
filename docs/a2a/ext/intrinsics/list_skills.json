@@ -1,0 +1,14 @@
+{
+  "description": "List the available skills: names and descriptions.",
+  "execution": "intrinsic",
+  "idempotency": "idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "List the available skills: names and descriptions.",
+    "properties": {},
+    "title": "ListSkillsArgs",
+    "type": "object"
+  },
+  "name": "list_skills",
+  "output_schema": null
+}

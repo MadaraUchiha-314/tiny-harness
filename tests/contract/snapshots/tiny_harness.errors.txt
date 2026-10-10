@@ -11,6 +11,8 @@ class HookTransportError(TinyHarnessError)
 class PlanCycleError(TinyHarnessError)
 class PluginError(TinyHarnessError)
   def __init__(self, message: 'str', *, manifest_path: 'str', **detail: 'str') -> 'None'
+class ProviderError(TinyHarnessError)
+  def __init__(self, message: 'str', *, provider: 'str', status: 'int', **detail: 'str') -> 'None'
 class RegistryConflictError(TinyHarnessError)
 class RetryableProviderError(TinyHarnessError)
   def __init__(self, message: 'str', *, provider: 'str', status: 'int', **detail: 'str') -> 'None'

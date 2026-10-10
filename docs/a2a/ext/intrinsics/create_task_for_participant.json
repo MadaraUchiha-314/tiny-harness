@@ -1,0 +1,52 @@
+{
+  "description": "Create a task assigned to a participant whose work must finish before this one can.",
+  "execution": "intrinsic",
+  "idempotency": "not_idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Create a task assigned to a participant whose work must finish before this one can.",
+    "properties": {
+      "acceptance_criteria": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Acceptance Criteria",
+        "type": "array"
+      },
+      "goal": {
+        "title": "Goal",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "participant_id": {
+        "title": "Participant Id",
+        "type": "string"
+      },
+      "step": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Step"
+      }
+    },
+    "required": [
+      "participant_id",
+      "name",
+      "goal"
+    ],
+    "title": "CreateTaskForParticipantArgs",
+    "type": "object"
+  },
+  "name": "create_task_for_participant",
+  "output_schema": null
+}

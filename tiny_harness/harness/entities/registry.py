@@ -158,6 +158,8 @@ class Registry:
                 return concrete[best]
         if WILDCARD in bucket:
             return bucket[WILDCARD]
+        if ref.version == WILDCARD and None in bucket:
+            return bucket[None]  # "latest" of an unversioned kind is its one entry
         raise VersionNotFoundError(
             "no registered version satisfies the specifier",
             kind=ref.kind.value,

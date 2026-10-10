@@ -1,0 +1,38 @@
+{
+  "description": "Change a participant's role; only an admin may do this.",
+  "execution": "intrinsic",
+  "idempotency": "idempotent",
+  "input_schema": {
+    "$defs": {
+      "ParticipantRole": {
+        "enum": [
+          "assignee",
+          "reporter",
+          "watcher",
+          "admin"
+        ],
+        "title": "ParticipantRole",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Change a participant's role; only an admin may do this.",
+    "properties": {
+      "participant_id": {
+        "title": "Participant Id",
+        "type": "string"
+      },
+      "role": {
+        "$ref": "#/$defs/ParticipantRole"
+      }
+    },
+    "required": [
+      "participant_id",
+      "role"
+    ],
+    "title": "SetParticipantRoleArgs",
+    "type": "object"
+  },
+  "name": "set_participant_role",
+  "output_schema": null
+}

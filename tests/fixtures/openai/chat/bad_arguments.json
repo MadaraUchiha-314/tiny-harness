@@ -1,0 +1,35 @@
+{
+  "id": "chatcmpl-1",
+  "object": "chat.completion",
+  "created": 1760000000,
+  "model": "qwen3:8b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_a",
+            "type": "function",
+            "function": {
+              "name": "orders_get_order",
+              "arguments": "{not json"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls",
+      "logprobs": null
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 812,
+    "completion_tokens": 21,
+    "total_tokens": 833,
+    "prompt_tokens_details": {
+      "cached_tokens": 512
+    }
+  }
+}

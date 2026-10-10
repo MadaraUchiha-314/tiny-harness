@@ -72,7 +72,7 @@ Conventions for every task:
   - _Requirements:_ R5.3; abuse case 4
   - _Test:_ T1 + T8 — malformed Responses bodies (invalid tool-call JSON, wrong types) on
     invoke and stream → `ProviderError` (red: today `json.JSONDecodeError` escapes)
-- [ ] 4. Chat Completions module and dispatch
+- [x] 4. Chat Completions module and dispatch
   - New `tiny_harness/harness/models/openai_chat.py`: `build_messages`,
     `build_chat_params`, `parse_chat`, `ChatStreamAssembler`, the shared finish rule.
   - Recorded fixtures under `tests/fixtures/openai/chat/` (text, tool calls, refusal,
@@ -80,7 +80,8 @@ Conventions for every task:
     fragmented tool-call arguments and a usage chunk).
   - `OpenAILLM.invoke` / `stream` dispatch on `api`; parse failures wrapped as in task 3
     with `detail="unparseable chat_completions response"`.
-  - Export the new public names from `tiny_harness.harness.models`.
+  - The new names stay public in `openai_chat` itself; the package re-exports only
+    `OpenAILLM`, as it does for the Responses helpers.
   - _Depends on:_ 2, 3
   - _Requirements:_ R3.2, R3.3, R3.4, R5.1–R5.3
   - _Test:_ T1 — `tests/unit/models/test_openai_chat.py` (every R3.3 / R3.4 / R5 case in

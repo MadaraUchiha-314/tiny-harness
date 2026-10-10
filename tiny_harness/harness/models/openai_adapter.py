@@ -19,6 +19,8 @@ from urllib.parse import urlsplit
 import httpx2
 import openai
 from openai import AsyncOpenAI, DefaultAsyncHttpxClient, Omit, omit
+from openai.types.chat import ChatCompletionStreamOptionsParam
+from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.responses import (
     Response,
     ResponseCompletedEvent,
@@ -45,30 +47,27 @@ from tiny_harness.harness.models.llm import (
     ToolCallItem,
     Usage,
 )
+from tiny_harness.harness.models.openai_chat import (
+    ChatStreamAssembler,
+    build_chat_params,
+    parse_chat,
+    result_text,
+)
 from tiny_harness.harness.models.wire_names import WireNames
-from tiny_harness.harness.tools import ContentPart, ToolCall, ToolDefinition
+from tiny_harness.harness.tools import ToolCall, ToolDefinition
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
 PROVIDER = "openai"
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 KEYLESS_PLACEHOLDER = "no-key"  # the SDK refuses to build without a key; never sent
 WireApi = Literal["responses", "chat_completions"]
+STREAM_USAGE: ChatCompletionStreamOptionsParam = {"include_usage": True}
 CONTEXT_WINDOWS: dict[str, int] = {
     "gpt-6.1-sol": 1_050_000,
     "gpt-6-astra": 1_050_000,
     "gpt-6-luna": 400_000,
 }
 MIN_CACHEABLE_TOKENS = 1_024
-
-
-def _result_text(parts: Sequence[ContentPart]) -> str:
-    chunks: list[str] = []
-    for part in parts:
-        if part.kind == "text" and part.text is not None:
-            chunks.append(part.text)
-        elif part.data is not None:
-            chunks.append(json.dumps(part.data, sort_keys=True))
-    return "\n".join(chunks)
 
 
 def build_input(request: LLMRequest, names: WireNames | None = None) -> ResponseInputParam:
@@ -92,7 +91,7 @@ def build_input(request: LLMRequest, names: WireNames | None = None) -> Response
                 {
                     "type": "function_call_output",
                     "call_id": item.result.call_id,
-                    "output": _result_text(item.result.content),
+                    "output": result_text(item.result.content),
                 }
             )
     return cast(ResponseInputParam, items)
@@ -287,14 +286,20 @@ class OpenAILLM(LLM):
         )
         self._client = client or openai_client(api_key, base_url=base_url, timeout=timeout)
 
+    @property
+    def _extra_headers(self) -> Mapping[str, str] | None:
+        return cast(Mapping[str, str] | None, self._headers)
+
     async def invoke(self, request: LLMRequest) -> LLMResponse:
         names = WireNames(request.tools)
+        if self._api == "chat_completions":
+            return await self._invoke_chat(request, names)
         params = build_params(
             request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
         )
         try:
             response = await self._client.responses.create(
-                **params, extra_headers=cast(Mapping[str, str] | None, self._headers)
+                **params, extra_headers=self._extra_headers
             )
             return parse_response(response, names)
         except Exception as exc:
@@ -302,12 +307,16 @@ class OpenAILLM(LLM):
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[LLMStreamEvent]:
         names = WireNames(request.tools)
+        if self._api == "chat_completions":
+            async for event in self._stream_chat(request, names):
+                yield event
+            return
         params = build_params(
             request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
         )
         try:
             events = await self._client.responses.create(
-                **params, stream=True, extra_headers=cast(Mapping[str, str] | None, self._headers)
+                **params, stream=True, extra_headers=self._extra_headers
             )
             async for event in events:
                 if isinstance(event, ResponseTextDeltaEvent):
@@ -331,6 +340,39 @@ class OpenAILLM(LLM):
                     )
         except Exception as exc:
             raise translate_error(exc) from exc
+
+    def _chat_params(self, request: LLMRequest, names: WireNames) -> CompletionCreateParamsBase:
+        params = build_chat_params(
+            request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
+        )
+        return cast(CompletionCreateParamsBase, params)
+
+    async def _invoke_chat(self, request: LLMRequest, names: WireNames) -> LLMResponse:
+        try:
+            completion = await self._client.chat.completions.create(
+                **self._chat_params(request, names), extra_headers=self._extra_headers
+            )
+            return parse_chat(completion, names)
+        except Exception as exc:
+            raise translate_error(exc, api="chat_completions") from exc
+
+    async def _stream_chat(
+        self, request: LLMRequest, names: WireNames
+    ) -> AsyncIterator[LLMStreamEvent]:
+        assembler = ChatStreamAssembler(names=names, model=self._model)
+        params = self._chat_params(request, names)
+        params["stream_options"] = STREAM_USAGE
+        try:
+            chunks = await self._client.chat.completions.create(
+                **params, stream=True, extra_headers=self._extra_headers
+            )
+            async for chunk in chunks:
+                for event in assembler.feed(chunk):
+                    yield event
+            for event in assembler.finish():
+                yield event
+        except Exception as exc:
+            raise translate_error(exc, api="chat_completions") from exc
 
 
 __all__ = [

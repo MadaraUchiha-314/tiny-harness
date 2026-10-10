@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-1",
+  "object": "chat.completion",
+  "created": 1760000000,
+  "model": "qwen3:8b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The order qual"
+      },
+      "finish_reason": "length",
+      "logprobs": null
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 812,
+    "completion_tokens": 21,
+    "total_tokens": 833,
+    "prompt_tokens_details": {
+      "cached_tokens": 512
+    }
+  }
+}

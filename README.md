@@ -57,7 +57,8 @@ with `api = "responses"` (the default) or `"chat_completions"`. With a local
 network:
 
 ```sh
-ollama pull qwen3:8b && OLLAMA_CONTEXT_LENGTH=16384 ollama serve &
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve &   # the server first: `pull` talks to it
+ollama pull qwen3:8b
 unset OPENAI_API_KEY TEMPORAL_API_KEY     # a local endpoint needs no key
 export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 uv run python -m examples.demo examples/demo/config.ollama.toml

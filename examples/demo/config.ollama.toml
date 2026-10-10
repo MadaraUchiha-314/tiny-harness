@@ -3,14 +3,16 @@
 # pieces below are on disk. Development and single-host use only — see the deployment
 # guide.
 #
-# Once, with a network:
+# Every run, first:
+#   OLLAMA_CONTEXT_LENGTH=16384 ollama serve   # MUST match context_window_tokens below
+#
+# Once, with a network (with the server above running — `pull` talks to it):
 #   ollama pull qwen3:8b                   # any model with tool calling works; set it below
 #   uv sync                                # the demo's MCP servers run under `uv run`
 #   # the Temporal CLI is downloaded on the first embedded start and cached; or pin
 #   # temporal.embedded.binary_path to one you already have
 #
-# Every run:
-#   OLLAMA_CONTEXT_LENGTH=16384 ollama serve   # MUST match context_window_tokens below
+# Then:
 #   unset OPENAI_API_KEY TEMPORAL_API_KEY
 #   export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 #   uv run python -m examples.demo examples/demo/config.ollama.toml

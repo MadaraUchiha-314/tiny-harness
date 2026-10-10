@@ -59,8 +59,8 @@ so compaction triggers in time.
 demo runs **offline**:
 
 ```sh
-ollama pull qwen3:8b                          # once, with a network; any tool-calling model
 OLLAMA_CONTEXT_LENGTH=16384 ollama serve &    # MUST match context_window_tokens
+ollama pull qwen3:8b                          # once, with a network; any tool-calling model
 unset OPENAI_API_KEY TEMPORAL_API_KEY
 uv run python -m examples.demo examples/demo/config.ollama.toml
 ```

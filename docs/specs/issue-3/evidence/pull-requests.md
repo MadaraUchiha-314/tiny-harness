@@ -12,3 +12,4 @@ Every pull request that delivers this work item, recorded as it is opened.
 | [#11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) | MadaraUchiha-314/tiny-harness | Layer 5: Temporal durable execution, remote agents, A2A server, inbox, heartbeat, CLI (tasks 31–38); base `loop/issue-3-l4-core` | 2026-10-09 | open |
 | [#12](https://github.com/MadaraUchiha-314/tiny-harness/pull/12) | MadaraUchiha-314/tiny-harness | Layer 6: observability plugin (task 39); base `loop/issue-3-l5-service` | 2026-10-09 | open |
 | [#13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13) | MadaraUchiha-314/tiny-harness | Layer 7: A2UI 0.9.1, surface and renderer entities, the Textual TUI (tasks 40–42); base `loop/issue-3-l6-o11y` | 2026-10-09 | open |
+| [#14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) | MadaraUchiha-314/tiny-harness | Layer 8: the web renderer (tasks 43–45); base `loop/issue-3-l7-tui` | 2026-10-09 | open |

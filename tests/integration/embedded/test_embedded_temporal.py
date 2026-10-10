@@ -93,6 +93,43 @@ def dev_servers(port: int) -> list[str]:
     return found
 
 
+def dev_server_pid(port: int) -> int | None:
+    for entry in Path("/proc").glob("[0-9]*/cmdline"):
+        with contextlib.suppress(OSError):
+            line = " ".join(p.decode(errors="replace") for p in entry.read_bytes().split(b"\0"))
+            if "start-dev" in line and f"--port {port}" in line:
+                return int(entry.parent.name)
+    return None
+
+
+def listening_addresses(pid: int) -> list[str]:
+    """Every TCP address ``pid`` listens on, from its socket inodes and ``/proc/net/tcp*``."""
+    inodes: set[str] = set()
+    for fd in Path(f"/proc/{pid}/fd").iterdir():
+        with contextlib.suppress(OSError):
+            target = os.readlink(fd)
+            if target.startswith("socket:["):
+                inodes.add(target[len("socket:[") : -1])
+    addresses: list[str] = []
+    for table, width in (("tcp", 8), ("tcp6", 32)):
+        for row in Path(f"/proc/{pid}/net/{table}").read_text().splitlines()[1:]:
+            fields = row.split()
+            local, state, inode = fields[1], fields[3], fields[9]
+            if state != "0A" or inode not in inodes:  # 0A: LISTEN
+                continue
+            host_hex, port_hex = local.split(":")
+            assert len(host_hex) == width
+            if width == 8:
+                host = socket.inet_ntop(socket.AF_INET, bytes.fromhex(host_hex)[::-1])
+            else:
+                raw = bytes.fromhex(host_hex)
+                host = socket.inet_ntop(
+                    socket.AF_INET6, b"".join(raw[i : i + 4][::-1] for i in range(0, 16, 4))
+                )
+            addresses.append(f"{host}:{int(port_hex, 16)}")
+    return addresses
+
+
 def assert_stopped(port: int) -> None:
     assert not accepts("127.0.0.1", port)
     if Path("/proc").exists():
@@ -133,6 +170,7 @@ async def test_embedded_server_binds_loopback_only(tmp_path: Path) -> None:
         Then the connection is accepted
         When a peer connects to the same port on the host's network address
         Then the connection is refused
+        And every port the dev server listens on is a loopback address
     """
     temporal, store = embedded(tmp_path, persist=False)
     async with EmbeddedTemporal(temporal, store) as client:
@@ -142,6 +180,12 @@ async def test_embedded_server_binds_loopback_only(tmp_path: Path) -> None:
         address = non_loopback_address()
         if address is not None:
             assert not accepts(address, port)
+        pid = dev_server_pid(port) if Path("/proc").exists() else None
+        if pid is not None:  # the frontend, metrics and internal services: all loopback
+            addresses = listening_addresses(pid)
+            assert addresses and all(
+                a.startswith("127.") or a.startswith("::1") for a in addresses
+            ), addresses
 
 
 @pytest.mark.parametrize("exit_path", ["normal", "exception", "cancellation"])

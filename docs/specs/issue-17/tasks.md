@@ -97,7 +97,7 @@ Conventions for every task:
     `Scenario: Embedded server registers search attributes and the heartbeat schedule`;
     T10 — the existing `tests/integration/a2a` suite unchanged (red→green)
 
-- [ ] 5. CLI: per-command embedded behaviour and signal routing
+- [x] 5. CLI: per-command embedded behaviour and signal routing
   - In `cli.dispatch`: `worker` in embedded mode → exit 2; `schedules delete` /
     `tasks purge` with `persist = false` → exit 2; `EmbeddedTemporalError` → exit 1 with
     `embedded Temporal failed to start: <cause>`.

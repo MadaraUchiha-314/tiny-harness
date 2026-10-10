@@ -97,7 +97,7 @@ Conventions for every task:
   - _Test:_ T1 + T8 — runtime unit test: the log line's shape (no path, query or key);
     o11y hook unit test: span attributes; key absent from log, span and a translated
     error (red→green)
-- [ ] 6. Contract snapshots
+- [x] 6. Contract snapshots
   - Regenerate the four snapshots; confirm the diff is additive only.
   - _Depends on:_ 1, 2, 4, 5
   - _Requirements:_ NFR backwards compatibility

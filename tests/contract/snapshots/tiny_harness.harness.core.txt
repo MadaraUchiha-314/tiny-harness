@@ -45,8 +45,8 @@ class HarnessTask(object)
   def with_ext(self, ext: 'TaskExtensionData') -> 'HarnessTask'
   def with_state(self, state: 'int') -> 'HarnessTask'
 model HistoryEntry(id: <class 'int'>, item: InputItem)
-model LLMInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, response: <class 'tiny_harness.harness.models.llm.LLMResponse'>)
-model LLMInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>)
+model LLMInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, model: tiny_harness.harness.models.llm.LLMModelInfo | None = ..., response: <class 'tiny_harness.harness.models.llm.LLMResponse'>)
+model LLMInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, model: tiny_harness.harness.models.llm.LLMModelInfo | None = ...)
 model LoadedSkillRecord(name: <class 'str'>, body: <class 'str'>, tools: tuple[str, ...] = ...)
 class Operations(Protocol)
   def __init__(self, *args, **kwargs)

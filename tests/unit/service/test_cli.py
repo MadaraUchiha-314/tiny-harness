@@ -181,6 +181,15 @@ def test_tui_participant_is_none_when_nothing_can_be_asserted(
     assert tui_participant(parser.parse_args(["tui", "--participant", "  "])) is None
 
 
+def test_tui_participant_strips_the_os_user_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HTTP cannot carry leading or trailing whitespace in a header (critic round 2)."""
+    parser = build_parser()
+    monkeypatch.setattr(getpass, "getuser", lambda: " alice ")
+    assert tui_participant(parser.parse_args(["tui"])) == "alice"
+    monkeypatch.setattr(getpass, "getuser", lambda: "   ")
+    assert tui_participant(parser.parse_args(["tui"])) is None
+
+
 @pytest.mark.parametrize("value", ["josé", "a\nb", "a\rb", "名前", "tab\there"])
 def test_tui_participant_refuses_what_the_header_cannot_carry(
     monkeypatch: pytest.MonkeyPatch, value: str

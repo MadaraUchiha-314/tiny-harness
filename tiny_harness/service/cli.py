@@ -84,7 +84,7 @@ def tui_participant(args: argparse.Namespace) -> str | None:
         participant = args.participant.strip()
     else:
         try:
-            participant = getpass.getuser()
+            participant = getpass.getuser().strip()
         except OSError:
             return None
     valid = participant and participant.isascii() and participant.isprintable()

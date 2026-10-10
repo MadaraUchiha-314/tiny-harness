@@ -54,7 +54,8 @@ executor, the access policy and the web renderer.
   `--participant ID` (`default=None`, help: "the participant id to assert (default: the
   OS user name)").
 - New `tui_participant(args: argparse.Namespace) -> str | None`. It takes
-  `args.participant.strip()` when the flag was given, else `getpass.getuser()` (`None`
+  `args.participant` when the flag was given, else `getpass.getuser()`, stripped either
+  way, since HTTP forbids leading or trailing whitespace in a header (`None`
   when that raises `OSError`, the Python 3.14 contract when no user name can be found).
   It returns `None` unless the id is non-empty printable ASCII (R1.8). The id also rides
   in the `X-Participant-Id` header: httpx sends it as UTF-8, Starlette decodes it as

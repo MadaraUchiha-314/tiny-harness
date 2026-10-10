@@ -206,3 +206,11 @@ def test_the_demo_embedded_config_loads_without_a_temporal_key() -> None:
     settings = Settings.load(demo, env=EMBEDDED_ENV)
     assert settings.temporal.mode == "embedded"
     assert settings.temporal.address is None and settings.temporal.api_key is None
+
+
+@pytest.mark.parametrize("port", [0, -1, 65536])
+def test_an_out_of_range_port_is_a_config_error(tmp_path: Path, port: int) -> None:
+    path = embedded(tmp_path, tail=f"[temporal.embedded]\nport = {port}")
+    with pytest.raises(ConfigError) as info:
+        Settings.load(path, env=EMBEDDED_ENV)
+    assert "temporal.embedded.port" in info.value.variable

@@ -51,7 +51,9 @@ class EmbeddedTemporalConfig(_Strict):
         default=None,
         description="where a downloaded binary is cached; default: the user cache directory",
     )
-    port: int | None = Field(default=None, description="default: an OS-chosen free port")
+    port: int | None = Field(
+        default=None, ge=1, le=65535, description="default: an OS-chosen free port"
+    )
 
 
 class TemporalConfig(_Strict):

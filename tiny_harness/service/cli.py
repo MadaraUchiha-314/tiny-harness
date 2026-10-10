@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     tui.add_argument(
         "--participant",
         default=None,
-        help="the participant id to assert (default: the OS user name)",
+        help="the participant id to assert, printable ASCII (default: the OS user name)",
     )
     schedules = sub.add_parser("schedules", help="manage the heartbeat schedule")
     schedules_sub = schedules.add_subparsers(dest="schedules_command", required=True)

@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "workItem": "issue-3",
+  "currentNode": "implementation",
+  "nodes": {
+    "phase-selection": {
+      "attempts": 1,
+      "outcome": "selected",
+      "enteredAt": "2026-10-09T15:28:08+00:00",
+      "exitedAt": "2026-10-09T15:29:14+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "brainstorming": {
+      "attempts": 0,
+      "outcome": "skipped",
+      "enteredAt": "2026-10-09T15:29:14+00:00",
+      "exitedAt": "2026-10-09T15:29:14+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "requirements-definition": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T15:29:14+00:00",
+      "exitedAt": "2026-10-09T15:48:21+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "requirements-approval": {
+      "attempts": 1,
+      "outcome": "approved",
+      "enteredAt": "2026-10-09T15:48:21+00:00",
+      "exitedAt": "2026-10-09T16:29:25+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "design": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T16:29:25+00:00",
+      "exitedAt": "2026-10-09T16:45:12+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "design-critic-review": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T16:45:12+00:00",
+      "exitedAt": "2026-10-09T17:01:55+00:00",
+      "lastBlock": "`validate-artifacts` did not pass:\n- required artifact is missing (docs/specs/issue-3/evidence/design-critic-review.md)",
+      "forced": false
+    },
+    "test-planning": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T17:01:55+00:00",
+      "exitedAt": "2026-10-09T17:02:31+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "design-approval": {
+      "attempts": 1,
+      "outcome": "approved",
+      "enteredAt": "2026-10-09T17:02:31+00:00",
+      "exitedAt": "2026-10-09T22:40:57+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "tasks-breakdown": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-09T22:40:57+00:00",
+      "exitedAt": "2026-10-09T22:44:26+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "implementation": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-09T22:44:26+00:00",
+      "exitedAt": "",
+      "lastBlock": "",
+      "forced": false
+    }
+  },
+  "decisions": {
+    "phase-selection": {
+      "at": "2026-10-09T15:29:14+00:00",
+      "graph": {
+        "loop": "pdlc-work-item-loop",
+        "workItem": "issue-3",
+        "surface": "pull-request",
+        "sessionPerPr": "cross-repository",
+        "harness": "claude",
+        "model": "claude-fable-5-1",
+        "effort": "high",
+        "claudeArtifact": true,
+        "nodes": [
+          {
+            "id": "phase-selection",
+            "phase": "phase-selection",
+            "skipped": false,
+            "selectable": false,
+            "optIn": false
+          },
+          {
+            "id": "brainstorming",
+            "phase": "brainstorming",
+            "skipped": true,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "requirements-definition",
+            "phase": "requirements-definition",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "requirements-approval",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "design",
+            "phase": "design",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "design-critic-review",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": true
+          },
+          {
+            "id": "test-planning",
+            "phase": "test-planning",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "design-approval",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "tasks-breakdown",
+            "phase": "tasks-breakdown",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "implementation",
+            "phase": "implementation",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "verification",
+            "phase": "verification",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "self-review",
+            "phase": "needs-review",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "critic-review",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "security-review",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "evidence",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "capability-docs",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "reviewer-briefing",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "human-approval",
+            "phase": "",
+            "skipped": false,
+            "selectable": true,
+            "optIn": false
+          },
+          {
+            "id": "complete",
+            "phase": "complete",
+            "skipped": false,
+            "selectable": false,
+            "optIn": false
+          },
+          {
+            "id": "cleanup",
+            "phase": "cleanup",
+            "skipped": false,
+            "selectable": false,
+            "optIn": false
+          },
+          {
+            "id": "escalated",
+            "phase": "",
+            "skipped": false,
+            "selectable": false,
+            "optIn": false
+          }
+        ]
+      },
+      "via": "checklist",
+      "surface": "pull-request",
+      "sessionPerPr": "cross-repository",
+      "harness": "claude",
+      "model": "claude-fable-5-1",
+      "effort": "high",
+      "claudeArtifact": true
+    }
+  },
+  "forced": [],
+  "parked": null,
+  "completions": {
+    "requirements-definition": {
+      "at": "2026-10-09T15:48:21+00:00",
+      "by": "the-loop"
+    },
+    "design": {
+      "at": "2026-10-09T16:45:12+00:00",
+      "by": "the-loop"
+    },
+    "design-critic-review": {
+      "at": "2026-10-09T17:01:55+00:00",
+      "by": "the-loop"
+    },
+    "test-planning": {
+      "at": "2026-10-09T17:02:31+00:00",
+      "by": "the-loop"
+    },
+    "tasks-breakdown": {
+      "at": "2026-10-09T22:44:26+00:00",
+      "by": "the-loop"
+    }
+  },
+  "skips": {
+    "brainstorming": {
+      "via": "selection",
+      "token": "brainstorming",
+      "by": "@MadaraUchiha-314",
+      "reason": "",
+      "at": "2026-10-09T15:29:14+00:00"
+    }
+  },
+  "optIns": {
+    "design-critic-review": {
+      "via": "selection",
+      "token": "design-critic-review",
+      "by": "@MadaraUchiha-314",
+      "at": "2026-10-09T15:29:14+00:00"
+    }
+  },
+  "surface": "pull-request",
+  "sessionPerPr": "cross-repository",
+  "harness": "claude",
+  "model": "claude-fable-5-1",
+  "effort": "high",
+  "claudeArtifact": true,
+  "repos": [],
+  "pullRequests": [
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#6",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 6,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/6",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-6",
+      "state": "open",
+      "linkedAt": "2026-10-09T15:47:49+00:00",
+      "linkedBy": "session"
+    }
+  ],
+  "loop": "pdlc-work-item-loop",
+  "phase": "implementation"
+}

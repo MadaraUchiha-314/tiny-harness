@@ -187,8 +187,9 @@ def parse_response(response: Response, names: WireNames | None = None) -> LLMRes
     )
 
 
-# What parsing a 2xx body can raise: invalid JSON, missing or wrongly typed fields.
-PARSE_ERRORS = (ValueError, KeyError, TypeError, AttributeError, IndexError)
+# What parsing a 2xx body can raise: invalid or too deeply nested JSON, missing or wrongly
+# typed fields.
+PARSE_ERRORS = (ValueError, KeyError, TypeError, AttributeError, IndexError, RecursionError)
 
 
 def translate_error(exc: Exception, *, api: str = "responses") -> Exception:

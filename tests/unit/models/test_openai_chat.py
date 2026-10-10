@@ -289,3 +289,13 @@ async def test_abuse_unparseable_streamed_arguments_are_a_provider_error() -> No
     with pytest.raises(ProviderError):
         async for _ in llm(streaming(body)).stream(request()):
             pass
+
+
+async def test_abuse_deeply_nested_arguments_are_a_provider_error() -> None:
+    body = fixture("tool_calls.json")
+    choices = cast(list[JsonObject], body["choices"])
+    message = cast(JsonObject, choices[0]["message"])
+    calls = cast(list[JsonObject], message["tool_calls"])
+    cast(JsonObject, calls[0]["function"])["arguments"] = "[" * 100_000 + "]" * 100_000
+    with pytest.raises(ProviderError):
+        await llm(lambda _: httpx2.Response(200, json=body)).invoke(request())

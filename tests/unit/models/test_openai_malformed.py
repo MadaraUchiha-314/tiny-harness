@@ -82,3 +82,13 @@ async def test_abuse_unparseable_streamed_tool_arguments_are_a_provider_error() 
         async for _ in events:
             pass
     assert caught.value.status == 200
+
+
+DEEP = "[" * 100_000 + "]" * 100_000  # json.loads raises RecursionError, not ValueError
+
+
+async def test_abuse_deeply_nested_arguments_are_a_provider_error() -> None:
+    body = tool_call_body()
+    cast(list[JsonObject], body["output"])[1]["arguments"] = DEEP
+    with pytest.raises(ProviderError):
+        await llm(lambda _: httpx2.Response(200, json=body)).invoke(request())

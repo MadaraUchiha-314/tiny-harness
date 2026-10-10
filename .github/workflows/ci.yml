@@ -100,3 +100,11 @@ jobs:
         run: |
           bun x playwright test --project=visual
           bun x playwright test --project=a11y
+
+      - name: Keep the screenshots as evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-renderer-screens
+          path: renderers/web/test-results/screens
+          if-no-files-found: ignore

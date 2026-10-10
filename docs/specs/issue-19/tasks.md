@@ -102,7 +102,7 @@ Conventions for every task:
   - _Depends on:_ 1, 2, 4, 5
   - _Requirements:_ NFR backwards compatibility
   - _Test:_ T6 — `uv run pytest tests/contract` (red until regenerated)
-- [ ] 7. Integration scenarios against a scripted endpoint
+- [x] 7. Integration scenarios against a scripted endpoint
   - `tests/integration/compat/`: a `starlette` + `uvicorn` fake OpenAI-compatible server
     on an OS-chosen loopback port serving `/v1/responses` and `/v1/chat/completions`
     from scripted recorded bodies, recording each request's headers; `running_harness`

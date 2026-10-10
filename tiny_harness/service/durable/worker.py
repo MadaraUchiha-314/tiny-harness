@@ -77,14 +77,20 @@ def build_replayer() -> Replayer:
 def build_worker(
     client: Client, activities: Activities, *, task_queue: str, tracing: bool = True
 ) -> Worker:
-    """The worker; ``tracing`` adds Temporal's OpenTelemetry interceptor (R17.4)."""
+    """The worker; ``tracing`` adds Temporal's OpenTelemetry interceptor (R17.4).
+
+    A client interceptor that is also a worker interceptor is prepended to every worker
+    on that client, so a client built by ``connect()`` already traces activities: adding
+    a second one would emit every Start/Run activity span twice.
+    """
+    traced = any(isinstance(i, TracingInterceptor) for i in client.config()["interceptors"])
     return Worker(
         client,
         task_queue=task_queue,
         workflows=list(WORKFLOWS),
         activities=list(activities.all()),
         workflow_runner=workflow_runner(),
-        interceptors=[TracingInterceptor()] if tracing else [],
+        interceptors=[TracingInterceptor()] if tracing and not traced else [],
     )
 
 

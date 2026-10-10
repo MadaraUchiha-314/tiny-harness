@@ -64,7 +64,7 @@ Conventions for every task:
   - _Test:_ T1 + T8 — `tests/unit/models/test_openai_endpoint.py` (URL reached, headers,
     `OPENAI_BASE_URL` ignored, org/project suppressed, 307 refused, model info); T10 —
     existing `tests/unit/models/test_openai.py` unedited (red→green)
-- [ ] 3. Parse-failure wrapping for both APIs
+- [x] 3. Parse-failure wrapping for both APIs
   - Move `parse_response` inside the translating `try` in `invoke`; catch `ValueError`,
     `KeyError`, `TypeError`, `AttributeError`, `IndexError` from parsing in `invoke` and
     `stream` → `ProviderError(status=200, detail="unparseable responses response")`.

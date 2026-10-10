@@ -188,7 +188,17 @@ def parse_response(response: Response, names: WireNames | None = None) -> LLMRes
     )
 
 
-def translate_error(exc: Exception) -> Exception:
+# What parsing a 2xx body can raise: invalid JSON, missing or wrongly typed fields.
+PARSE_ERRORS = (ValueError, KeyError, TypeError, AttributeError, IndexError)
+
+
+def translate_error(exc: Exception, *, api: str = "responses") -> Exception:
+    if isinstance(exc, PARSE_ERRORS):  # a 2xx the mapping cannot read (issue-19 R5.3)
+        return ProviderError(
+            f"unparseable {api} response: {type(exc).__name__}: {exc}",
+            provider=PROVIDER,
+            status=200,
+        )
     if isinstance(exc, openai.RateLimitError | openai.InternalServerError):
         return RetryableProviderError(str(exc), provider=PROVIDER, status=exc.status_code)
     if isinstance(exc, openai.APIConnectionError | openai.APITimeoutError):
@@ -286,9 +296,9 @@ class OpenAILLM(LLM):
             response = await self._client.responses.create(
                 **params, extra_headers=cast(Mapping[str, str] | None, self._headers)
             )
+            return parse_response(response, names)
         except Exception as exc:
             raise translate_error(exc) from exc
-        return parse_response(response, names)
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[LLMStreamEvent]:
         names = WireNames(request.tools)

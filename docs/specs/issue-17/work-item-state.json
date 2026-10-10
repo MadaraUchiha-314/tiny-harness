@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-17",
-  "currentNode": "security-review",
+  "currentNode": "evidence",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -109,10 +109,18 @@
     },
     "security-review": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-10T17:51:44+00:00",
-      "exitedAt": "",
+      "exitedAt": "2026-10-10T18:05:30+00:00",
       "lastBlock": "`validate-artifacts` did not pass:\n- required artifact is missing (docs/specs/issue-17/evidence/security-review.md)",
+      "forced": false
+    },
+    "evidence": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-10T18:05:30+00:00",
+      "exitedAt": "",
+      "lastBlock": "",
       "forced": false
     }
   },
@@ -319,6 +327,10 @@
     },
     "critic-review": {
       "at": "2026-10-10T17:51:44+00:00",
+      "by": "cli"
+    },
+    "security-review": {
+      "at": "2026-10-10T18:05:30+00:00",
       "by": "cli"
     }
   },

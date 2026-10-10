@@ -1,10 +1,16 @@
+---
+type: evidence
+phase: needs-review
+workItem: issue-17
+---
+
 # Self-review: issue-17
 
 Work item: issue-17 · node `self-review` · reviewer `claude/opus-5.5` (the running
 harness) · policy from `the-loop critic policy`: `selfReviewCount: 2`,
 `stopOnNoNewFindings: true`, `escalateOnRepeatFinding: true`.
 
-## Review table
+## Review cycles
 
 | Round | Reviewer | Outcome | Findings → disposition → commit | Link |
 |---|---|---|---|---|

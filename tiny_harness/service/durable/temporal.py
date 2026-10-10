@@ -174,9 +174,13 @@ class EmbeddedTemporal:
         try:
             if database is not None:
                 _owner_only(database)
-            download_dir = _private_download_dir(embedded.download_dir or default_download_dir())
-            if embedded.binary_path is None and not any(download_dir.glob(CACHED_BINARY_GLOB)):
-                log.info("downloading the Temporal CLI dev server to %s", download_dir)
+            download_dir: Path | None = None
+            if embedded.binary_path is None:  # a pinned binary never touches the cache
+                download_dir = _private_download_dir(
+                    embedded.download_dir or default_download_dir()
+                )
+                if not any(download_dir.glob(CACHED_BINARY_GLOB)):
+                    log.info("downloading the Temporal CLI dev server to %s", download_dir)
             with _child_output(self._output):
                 self._environment = await self._start(embedded, database, download_dir)
             if database is not None:
@@ -198,7 +202,7 @@ class EmbeddedTemporal:
         return client
 
     async def _start(
-        self, embedded: EmbeddedTemporalConfig, database: Path | None, download_dir: Path
+        self, embedded: EmbeddedTemporalConfig, database: Path | None, download_dir: Path | None
     ) -> WorkflowEnvironment:
         try:
             return await start_local(
@@ -208,7 +212,7 @@ class EmbeddedTemporal:
                 ip=LOOPBACK,
                 port=embedded.port,
                 ui=False,
-                download_dest_dir=str(download_dir),
+                download_dest_dir=str(download_dir) if download_dir is not None else None,
                 dev_server_existing_path=(
                     str(embedded.binary_path) if embedded.binary_path is not None else None
                 ),

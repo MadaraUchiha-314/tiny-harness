@@ -308,3 +308,19 @@ async def test_a_failure_after_start_stops_the_started_server(
     assert start_local.environments[0].shut_down
     async with EmbeddedTemporal(temporal, store):  # and the lock was released
         pass
+
+
+async def test_a_pinned_binary_never_touches_the_download_dir(
+    tmp_path: Path, start_local: StartLocal
+) -> None:
+    binary = tmp_path / "temporal"
+    binary.write_text("#!/bin/sh\n")
+    binary.chmod(0o755)
+    shared = tmp_path / "shared"  # would be refused if it were used at all
+    shared.mkdir()
+    shared.chmod(0o777)
+    temporal, store = config(tmp_path, binary_path=binary, download_dir=shared / "cache")
+    async with EmbeddedTemporal(temporal, store):
+        pass
+    assert start_local.calls[0]["download_dest_dir"] is None
+    assert not (shared / "cache").exists()

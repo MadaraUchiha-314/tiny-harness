@@ -60,10 +60,18 @@ def _private_download_dir(path: Path) -> Path:
     return path
 
 
-def _private_file(path: Path) -> None:
-    """Create the file ``0600`` if absent, and tighten it (and SQLite's side files) if not."""
-    os.close(os.open(path, os.O_CREAT | os.O_RDWR, 0o600))
-    for candidate in (path, path.with_name(path.name + "-wal"), path.with_name(path.name + "-shm")):
+def _owner_only(database: Path) -> None:
+    """Tighten the database and SQLite's side files to ``0600``.
+
+    The dev server creates its schema only when the file does not exist, so the file cannot
+    be pre-created private; it is tightened before start (when it already exists) and right
+    after start, before any workflow has written to it. SQLite creates the ``-wal`` and
+    ``-shm`` files later with the main file's mode."""
+    for candidate in (
+        database,
+        database.with_name(database.name + "-wal"),
+        database.with_name(database.name + "-shm"),
+    ):
         if candidate.exists():
             candidate.chmod(0o600)
 
@@ -123,11 +131,13 @@ class EmbeddedTemporal:
             self._lock.acquire()
         try:
             if database is not None:
-                _private_file(database)
+                _owner_only(database)
             download_dir = _private_download_dir(embedded.download_dir or default_download_dir())
             if embedded.binary_path is None and not any(download_dir.glob(CACHED_BINARY_GLOB)):
                 log.info("downloading the Temporal CLI dev server to %s", download_dir)
             self._environment = await self._start(embedded, database, download_dir)
+            if database is not None:
+                _owner_only(database)
         except BaseException:
             self._release()
             raise

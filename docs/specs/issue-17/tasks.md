@@ -29,7 +29,7 @@ Conventions for every task:
 
 - pyright strict, zero errors, no `Any`.
 - Integration tests carry the Gherkin docstring with
-  `Requirement: docs/specs/issue-17/requirements.md#requirement-<n>--<slug>`.
+  `Requirement: docs/specs/issue-17/requirements.md#R<n>` (the repository's convention).
 - Embedded tests run with `TEMPORAL_API_KEY` unset.
 - The commit message records the test command and its red→green transition.
 
@@ -66,7 +66,7 @@ Conventions for every task:
     `uv run pytest tests/unit/test_embedded_temporal.py` with `start_local` stubbed
     (red→green)
 
-- [ ] 3. Integration: the real dev server
+- [x] 3. Integration: the real dev server
   - Add `tests/integration/embedded/` with a shared fixture (a `tmp_path` state dir and
     `download_dir` = the suite's `~/.cache/temporalio`).
   - Scenarios: _Embedded mode starts without Temporal credentials_, _Embedded server binds

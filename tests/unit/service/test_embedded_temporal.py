@@ -40,6 +40,10 @@ class StartLocal:
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
+        database = kwargs.get("dev_server_database_filename")
+        if isinstance(database, str) and not Path(database).exists():
+            Path(database).write_bytes(b"")  # the server creates it with the umask's mode
+            Path(database).chmod(0o644)
         config = SimpleNamespace(target_host="127.0.0.1:40123")
         environment = FakeEnvironment(
             SimpleNamespace(service_client=SimpleNamespace(config=config))
@@ -104,7 +108,15 @@ async def test_binary_path_is_passed_through(tmp_path: Path, start_local: StartL
     assert start_local.calls[0]["dev_server_existing_path"] == str(binary)
 
 
-# Abuse case 7 — the database and its lock are private, even when they already existed.
+# Abuse case 7 — the database and its lock are private, new or pre-existing.
+
+
+async def test_a_new_database_is_owner_only(tmp_path: Path, start_local: StartLocal) -> None:
+    temporal, store = config(tmp_path)
+    database = tmp_path / "state" / "temporal.sqlite3"
+    async with EmbeddedTemporal(temporal, store):
+        assert mode(database) == 0o600
+        assert mode(database.with_name("temporal.sqlite3.lock")) == 0o600
 
 
 async def test_database_and_lock_are_owner_only(tmp_path: Path, start_local: StartLocal) -> None:

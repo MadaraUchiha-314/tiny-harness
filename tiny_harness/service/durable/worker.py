@@ -9,6 +9,7 @@ from temporalio.api.enums.v1 import IndexedValueType
 from temporalio.api.operatorservice.v1 import AddSearchAttributesRequest
 from temporalio.client import Client
 from temporalio.common import SearchAttributeKey
+from temporalio.contrib.opentelemetry import TracingInterceptor
 from temporalio.worker import Replayer, Worker
 from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner, SandboxRestrictions
 
@@ -44,6 +45,7 @@ PASSTHROUGH_MODULES = (
     "mcp",  # imported at module level by tools.mcp (never called in a workflow)
     "cryptography",  # persistence.records imports the cipher
     "yaml",  # skills and prompts front matter
+    "opentelemetry",  # Temporal's TracingInterceptor propagates context inside workflows
 )
 
 
@@ -72,13 +74,17 @@ def build_replayer() -> Replayer:
     return Replayer(workflows=list(WORKFLOWS), workflow_runner=workflow_runner())
 
 
-def build_worker(client: Client, activities: Activities, *, task_queue: str) -> Worker:
+def build_worker(
+    client: Client, activities: Activities, *, task_queue: str, tracing: bool = True
+) -> Worker:
+    """The worker; ``tracing`` adds Temporal's OpenTelemetry interceptor (R17.4)."""
     return Worker(
         client,
         task_queue=task_queue,
         workflows=list(WORKFLOWS),
         activities=list(activities.all()),
         workflow_runner=workflow_runner(),
+        interceptors=[TracingInterceptor()] if tracing else [],
     )
 
 

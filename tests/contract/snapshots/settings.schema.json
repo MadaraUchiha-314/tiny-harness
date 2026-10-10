@@ -64,6 +64,14 @@
       "additionalProperties": false,
       "description": "Trace export (R17.5). The Langfuse keys come from ``LANGFUSE_PUBLIC_KEY`` and\n``LANGFUSE_SECRET_KEY`` when set.",
       "properties": {
+        "langfuse_host": {
+          "default": "https://cloud.langfuse.com/",
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Langfuse Host",
+          "type": "string"
+        },
         "langfuse_public_key": {
           "anyOf": [
             {
@@ -92,6 +100,11 @@
           "default": null,
           "title": "Langfuse Secret Key"
         },
+        "log_level": {
+          "default": "INFO",
+          "title": "Log Level",
+          "type": "string"
+        },
         "otlp_endpoint": {
           "anyOf": [
             {
@@ -106,6 +119,11 @@
           ],
           "default": null,
           "title": "Otlp Endpoint"
+        },
+        "service_name": {
+          "default": "tiny-harness",
+          "title": "Service Name",
+          "type": "string"
         }
       },
       "title": "O11yConfig",
@@ -427,9 +445,12 @@
     "o11y": {
       "$ref": "#/$defs/O11yConfig",
       "default": {
+        "langfuse_host": "https://cloud.langfuse.com/",
         "langfuse_public_key": null,
         "langfuse_secret_key": null,
-        "otlp_endpoint": null
+        "log_level": "INFO",
+        "otlp_endpoint": null,
+        "service_name": "tiny-harness"
       }
     },
     "openai": {

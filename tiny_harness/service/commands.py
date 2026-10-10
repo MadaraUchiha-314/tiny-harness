@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import importlib
+import logging
 import sys
 from collections.abc import Awaitable, Callable
 from typing import cast
@@ -16,6 +17,7 @@ from temporalio.service import RPCError
 
 from tiny_harness.config import Settings
 from tiny_harness.harness.persistence import PushTokenCipher, SqliteStore
+from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a import (
     HarnessExecutor,
@@ -40,7 +42,18 @@ def _bind(settings: Settings) -> tuple[str, int]:
     return host or "127.0.0.1", int(port or "8080")
 
 
+def observe(settings: Settings) -> None:
+    """Logging and trace export for one process (R17.1, R17.5)."""
+    from tiny_harness.service.o11y import configure_logging, configure_tracing
+    from tiny_harness.service.runtime import secret_values
+
+    level = logging.getLevelNamesMapping().get(settings.o11y.log_level.upper(), logging.INFO)
+    configure_logging(level=level, redactor=Redactor(secrets=secret_values(settings)))
+    configure_tracing(settings.o11y, service_name=settings.o11y.service_name)
+
+
 async def serve(settings: Settings, *, with_worker: bool = False) -> int:
+    observe(settings)
     client = await connect(settings.temporal)
     runtime = await build_runtime(settings)
     push_store = StorePushConfigStore(runtime.store, PushTokenCipher(settings.push_key))
@@ -89,6 +102,7 @@ async def serve(settings: Settings, *, with_worker: bool = False) -> int:
 
 
 async def worker(settings: Settings) -> int:
+    observe(settings)
     client = await connect(settings.temporal)
     runtime = await build_runtime(settings)
     push_store = StorePushConfigStore(runtime.store, PushTokenCipher(settings.push_key))

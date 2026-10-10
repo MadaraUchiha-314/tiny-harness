@@ -80,7 +80,7 @@
       "outcome": "",
       "enteredAt": "2026-10-09T22:44:26+00:00",
       "exitedAt": "",
-      "lastBlock": "`validate-artifacts` did not pass:\n- 32 task(s) still unticked (docs/specs/issue-3/tasks.md)",
+      "lastBlock": "`validate-artifacts` did not pass:\n- 11 task(s) still unticked (docs/specs/issue-3/tasks.md)",
       "forced": false
     }
   },
@@ -352,6 +352,26 @@
       "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-10",
       "state": "open",
       "linkedAt": "2026-10-09T23:47:06+00:00",
+      "linkedBy": "session"
+    },
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#11",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 11,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/11",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-11",
+      "state": "open",
+      "linkedAt": "2026-10-10T01:16:06+00:00",
+      "linkedBy": "session"
+    },
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#12",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 12,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/12",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-12",
+      "state": "open",
+      "linkedAt": "2026-10-10T01:25:14+00:00",
       "linkedBy": "session"
     }
   ],

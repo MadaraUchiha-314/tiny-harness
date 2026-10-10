@@ -7,7 +7,14 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "MadaraUchiha-314" }]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+    "jsonschema>=4.26.0",
+    "mcp>=2.3.0",
+    "packaging>=26.3",
+    "pydantic>=2.14.0",
+    "pyyaml>=6.0.3",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.14",
@@ -34,16 +41,27 @@ dev = [
     "pre-commit>=4",
     "pyright>=1.1.414",
     "pytest>=8",
-    "pyyaml>=6",
+    "pytest-asyncio>=1.4.0",
     "ruff>=0.13",
+    "types-jsonschema>=4.26.0.20261006",
     "types-pyyaml>=6.0.12.20260906",
 ]
 
 [tool.ruff]
 line-length = 100
+# Never format the locked spec documents' code blocks (docs/specs/<id>/*.md).
+extend-exclude = ["docs"]
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "UP", "B", "SIM", "RUF"]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "RUF", "ANN401", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# R22.2: no `Any` anywhere in tiny_harness; untyped third-party values are parsed at the boundary.
+"typing.Any" = { msg = "Any is banned (requirements R22.2); parse into a typed model at the boundary" }
+"typing_extensions.Any" = { msg = "Any is banned (requirements R22.2)" }
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN401", "TID251"]
 
 [tool.pyright]
 include = ["tiny_harness", "tests"]
@@ -54,6 +72,11 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "e2e: needs the live environment (Temporal Cloud, OpenAI); skipped with a reason when a secret is absent",
+]
 
 [tool.commitizen]
 name = "cz_conventional_commits"

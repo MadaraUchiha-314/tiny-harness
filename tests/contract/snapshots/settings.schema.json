@@ -1,0 +1,457 @@
+{
+  "$defs": {
+    "AnthropicConfig": {
+      "additionalProperties": false,
+      "description": "Anthropic through the Messages API; configurable, not exercised end to end (R21.4).",
+      "properties": {
+        "api_key": {
+          "description": "from ANTHROPIC_API_KEY; never logged",
+          "format": "password",
+          "title": "Api Key",
+          "type": "string",
+          "writeOnly": true
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key",
+        "model"
+      ],
+      "title": "AnthropicConfig",
+      "type": "object"
+    },
+    "ContextConfig": {
+      "additionalProperties": false,
+      "description": "Context window budget and compaction (R10.4) and the history bound (R19.8).",
+      "properties": {
+        "compaction_fraction": {
+          "default": 0.75,
+          "title": "Compaction Fraction",
+          "type": "number"
+        },
+        "history_event_bound": {
+          "default": 10000,
+          "title": "History Event Bound",
+          "type": "integer"
+        },
+        "turn_budget_tokens": {
+          "default": 12000,
+          "title": "Turn Budget Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "ContextConfig",
+      "type": "object"
+    },
+    "HeartbeatConfig": {
+      "additionalProperties": false,
+      "description": "The heartbeat schedule (R16).",
+      "properties": {
+        "interval": {
+          "default": "PT30S",
+          "format": "duration",
+          "title": "Interval",
+          "type": "string"
+        }
+      },
+      "title": "HeartbeatConfig",
+      "type": "object"
+    },
+    "O11yConfig": {
+      "additionalProperties": false,
+      "description": "Trace export (R17.5). The Langfuse keys come from ``LANGFUSE_PUBLIC_KEY`` and\n``LANGFUSE_SECRET_KEY`` when set.",
+      "properties": {
+        "langfuse_public_key": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Langfuse Public Key"
+        },
+        "langfuse_secret_key": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Langfuse Secret Key"
+        },
+        "otlp_endpoint": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Otlp Endpoint"
+        }
+      },
+      "title": "O11yConfig",
+      "type": "object"
+    },
+    "OpenAIConfig": {
+      "additionalProperties": false,
+      "description": "OpenAI through the Responses API (R18.1). ``api_key`` comes from ``OPENAI_API_KEY``.",
+      "properties": {
+        "api_key": {
+          "description": "from OPENAI_API_KEY; never logged",
+          "format": "password",
+          "title": "Api Key",
+          "type": "string",
+          "writeOnly": true
+        },
+        "max_output_tokens": {
+          "default": 2000,
+          "title": "Max Output Tokens",
+          "type": "integer"
+        },
+        "model": {
+          "default": "gpt-6.1-sol",
+          "title": "Model",
+          "type": "string"
+        },
+        "timeout": {
+          "default": "PT1M",
+          "format": "duration",
+          "title": "Timeout",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "OpenAIConfig",
+      "type": "object"
+    },
+    "RetentionConfig": {
+      "additionalProperties": false,
+      "description": "Time to live per store record kind (the personal-data boundary); 30 days by default.",
+      "properties": {
+        "channel_messages": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Channel Messages",
+          "type": "string"
+        },
+        "compactions": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Compactions",
+          "type": "string"
+        },
+        "inbox_audit": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Inbox Audit",
+          "type": "string"
+        },
+        "plans": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Plans",
+          "type": "string"
+        },
+        "push_configs": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Push Configs",
+          "type": "string"
+        },
+        "state": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "State",
+          "type": "string"
+        },
+        "tasks": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Tasks",
+          "type": "string"
+        }
+      },
+      "title": "RetentionConfig",
+      "type": "object"
+    },
+    "RetryPolicies": {
+      "additionalProperties": false,
+      "description": "The default policy and per-activity overrides, keyed by activity name.",
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/RetryPolicySpec",
+          "default": {
+            "backoff_coefficient": 2.0,
+            "initial_interval": "PT1S",
+            "maximum_attempts": 5,
+            "maximum_interval": "PT1M",
+            "non_retryable_error_types": []
+          }
+        },
+        "per_activity": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RetryPolicySpec"
+          },
+          "title": "Per Activity",
+          "type": "object"
+        }
+      },
+      "title": "RetryPolicies",
+      "type": "object"
+    },
+    "RetryPolicySpec": {
+      "additionalProperties": false,
+      "description": "Workflow-managed retry policy for one activity (R19.3): Temporal's fields.",
+      "properties": {
+        "backoff_coefficient": {
+          "default": 2.0,
+          "title": "Backoff Coefficient",
+          "type": "number"
+        },
+        "initial_interval": {
+          "default": "PT1S",
+          "format": "duration",
+          "title": "Initial Interval",
+          "type": "string"
+        },
+        "maximum_attempts": {
+          "default": 5,
+          "title": "Maximum Attempts",
+          "type": "integer"
+        },
+        "maximum_interval": {
+          "default": "PT1M",
+          "format": "duration",
+          "title": "Maximum Interval",
+          "type": "string"
+        },
+        "non_retryable_error_types": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Non Retryable Error Types",
+          "type": "array"
+        }
+      },
+      "title": "RetryPolicySpec",
+      "type": "object"
+    },
+    "ServerConfig": {
+      "additionalProperties": false,
+      "description": "The A2A server (R14). Bind and base URL, transport limits, the event bridge interval.",
+      "properties": {
+        "base_url": {
+          "description": "the URL clients reach the server at; goes in the agent card",
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Base Url",
+          "type": "string"
+        },
+        "bind": {
+          "default": "127.0.0.1:8080",
+          "title": "Bind",
+          "type": "string"
+        },
+        "bridge_interval": {
+          "default": "PT0.25S",
+          "format": "duration",
+          "title": "Bridge Interval",
+          "type": "string"
+        },
+        "max_request_bytes": {
+          "default": 1048576,
+          "title": "Max Request Bytes",
+          "type": "integer"
+        },
+        "rate_limit_per_minute": {
+          "default": 120,
+          "title": "Rate Limit Per Minute",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "base_url"
+      ],
+      "title": "ServerConfig",
+      "type": "object"
+    },
+    "StoreConfig": {
+      "additionalProperties": false,
+      "description": "The default SQLite store (R11.2).",
+      "properties": {
+        "sqlite_path": {
+          "default": "tiny-harness.sqlite3",
+          "format": "path",
+          "title": "Sqlite Path",
+          "type": "string"
+        }
+      },
+      "title": "StoreConfig",
+      "type": "object"
+    },
+    "TemporalConfig": {
+      "additionalProperties": false,
+      "description": "Temporal Cloud connection (R19.11). ``api_key`` comes from ``TEMPORAL_API_KEY``.",
+      "properties": {
+        "address": {
+          "description": "host:port, e.g. tiny-harness.gtebu.tmprl.cloud:7233",
+          "title": "Address",
+          "type": "string"
+        },
+        "api_key": {
+          "description": "from TEMPORAL_API_KEY; never logged",
+          "format": "password",
+          "title": "Api Key",
+          "type": "string",
+          "writeOnly": true
+        },
+        "namespace": {
+          "description": "the Temporal namespace, e.g. tiny-harness.gtebu",
+          "title": "Namespace",
+          "type": "string"
+        },
+        "task_queue": {
+          "default": "tiny-harness",
+          "title": "Task Queue",
+          "type": "string"
+        },
+        "tls": {
+          "default": true,
+          "title": "Tls",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "address",
+        "namespace",
+        "api_key"
+      ],
+      "title": "TemporalConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Everything a harness process needs. Built by ``load_settings``.",
+  "properties": {
+    "anthropic": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnthropicConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "context": {
+      "$ref": "#/$defs/ContextConfig",
+      "default": {
+        "compaction_fraction": 0.75,
+        "history_event_bound": 10000,
+        "turn_budget_tokens": 12000
+      }
+    },
+    "heartbeat": {
+      "$ref": "#/$defs/HeartbeatConfig",
+      "default": {
+        "interval": "PT30S"
+      }
+    },
+    "o11y": {
+      "$ref": "#/$defs/O11yConfig",
+      "default": {
+        "langfuse_public_key": null,
+        "langfuse_secret_key": null,
+        "otlp_endpoint": null
+      }
+    },
+    "openai": {
+      "$ref": "#/$defs/OpenAIConfig"
+    },
+    "plugins": {
+      "default": [],
+      "items": {
+        "format": "path",
+        "type": "string"
+      },
+      "title": "Plugins",
+      "type": "array"
+    },
+    "push_key": {
+      "description": "from TINY_HARNESS_PUSH_KEY; encrypts push-config tokens",
+      "format": "password",
+      "title": "Push Key",
+      "type": "string",
+      "writeOnly": true
+    },
+    "retention": {
+      "$ref": "#/$defs/RetentionConfig",
+      "default": {
+        "channel_messages": "P30D",
+        "compactions": "P30D",
+        "inbox_audit": "P30D",
+        "plans": "P30D",
+        "push_configs": "P30D",
+        "state": "P30D",
+        "tasks": "P30D"
+      }
+    },
+    "retries": {
+      "$ref": "#/$defs/RetryPolicies",
+      "default": {
+        "default": {
+          "backoff_coefficient": 2.0,
+          "initial_interval": "PT1S",
+          "maximum_attempts": 5,
+          "maximum_interval": "PT1M",
+          "non_retryable_error_types": []
+        },
+        "per_activity": {}
+      }
+    },
+    "server": {
+      "$ref": "#/$defs/ServerConfig"
+    },
+    "store": {
+      "$ref": "#/$defs/StoreConfig",
+      "default": {
+        "sqlite_path": "tiny-harness.sqlite3"
+      }
+    },
+    "temporal": {
+      "$ref": "#/$defs/TemporalConfig"
+    }
+  },
+  "required": [
+    "temporal",
+    "openai",
+    "server",
+    "push_key"
+  ],
+  "title": "Settings",
+  "type": "object"
+}

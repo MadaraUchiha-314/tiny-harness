@@ -49,7 +49,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 1 — entities, hooks, configuration, errors (branch `loop/issue-3-l1-entities`)
 
-- [ ] 1. Package layout and dependency baseline
+- [x] 1. Package layout and dependency baseline
   - Create the module tree of `design.md` § Layers and modules (`interaction/`,
     `service/`, `harness/`, `config.py`, `errors.py`, `builtin/`), each with a docstring;
     add the Layer-1 dependencies to `pyproject.toml` (`pydantic`, `pydantic-settings`,
@@ -61,26 +61,26 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ none
   - _Requirements:_ R22.1, R22.2, R22.5
   - _Test:_ T13 — `uv run pre-commit run --all-files` green; `tests/unit/test_layout.py::test_modules_mirror_diagram` (red→green)
-- [ ] 2. Error hierarchy
+- [x] 2. Error hierarchy
   - `errors.py`: `TinyHarnessError` and every subclass of `design.md` § Error handling,
     each with a `code` and a `model_dump`-able detail that never carries a secret.
   - _Depends on:_ 1
   - _Requirements:_ R22.3
   - _Test:_ T1 — `tests/unit/test_errors.py` (codes unique, no secret field); T3 — `tests/contract/test_errors_api.py`
-- [ ] 3. Entity base, `EntityRef`, `TransportProtocol`, `RemoteLocation`
+- [x] 3. Entity base, `EntityRef`, `TransportProtocol`, `RemoteLocation`
   - `harness/entities/base.py` per the design; `version: str | None`; a remote
     location requires a protocol.
   - _Depends on:_ 2
   - _Requirements:_ R1.1, R1.2, R1.4, R1.5
   - _Test:_ T1 — `tests/unit/entities/test_ref.py` (version None allowed, remote without protocol refused); T3 — API snapshot
-- [ ] 4. Registry with PEP 440 resolution
+- [x] 4. Registry with PEP 440 resolution
   - `harness/entities/registry.py`: `add`/`get`/`remove`/`list`, instance | factory |
     remote entries, sherma's `find_best_match` on `packaging.SpecifierSet`, `*` = latest
     concrete, `EntityNotFoundError`/`VersionNotFoundError`/`RegistryConflictError`.
   - _Depends on:_ 3
   - _Requirements:_ R1.2, R1.3, R1.6, R1.7
   - _Test:_ T1 — `tests/unit/entities/test_registry.py` (resolution matrix from sherma's tests, conflict refused, override order); T3
-- [ ] 5. Hook points, contexts and `HookManager`
+- [x] 5. Hook points, contexts and `HookManager`
   - `harness/hooks/`: `Operation`, `Phase`, `HookPoint`, `HookContext` and the full
     context catalogue of the design, `HookAbort`, `HookExecutor` protocol with
     `priority`, `HookManager.run` chain semantics (`None` passes through, returned
@@ -88,20 +88,20 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 4
   - _Requirements:_ R2.1–R2.5, R2.9, R2.10
   - _Test:_ T1 — `tests/unit/hooks/test_manager.py` (order, replacement, abort, single-call veto); T3 — `tests/contract/test_hook_contexts_schema.py` (every context's JSON schema snapshot)
-- [ ] 6. Remote hook executors (JSON-RPC and MCP)
+- [x] 6. Remote hook executors (JSON-RPC and MCP)
   - `JsonRpcHookExecutor(url)` and `McpHookExecutor(server)` ported from sherma with
     Pydantic serialisation of contexts; a transport error raises
     `HookTransportError` (no pass-through).
   - _Depends on:_ 5
   - _Requirements:_ R2.6
   - _Test:_ T1 — `tests/unit/hooks/test_remote.py` with a stub JSON-RPC server and a scripted MCP stdio server; `test_unreachable_remote_hook_raises` (negative, fail-closed)
-- [ ] 7. Providers (HTTP client, clock, random)
+- [x] 7. Providers (HTTP client, clock, random)
   - `harness/hooks/providers.py`: `Providers` with `http_client_factory`, `clock`,
     `random`; a default and a test fake.
   - _Depends on:_ 5
   - _Requirements:_ R2.7
   - _Test:_ T1 — `tests/unit/hooks/test_providers.py`
-- [ ] 8. Configuration models
+- [x] 8. Configuration models
   - `config.py`: every model of `design.md` § Configuration (`Settings`,
     `TemporalConfig`, `OpenAIConfig`, `AnthropicConfig`, `ServerConfig`,
     `HeartbeatConfig`, `StoreConfig`, `O11yConfig`, `RetryPolicySpec`,
@@ -111,7 +111,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 2
   - _Requirements:_ R21.1–R21.3
   - _Test:_ T1 — `tests/unit/test_config.py` (`test_missing_secret_names_variable`, `test_unknown_key_rejected`); T3 — `Settings` JSON schema snapshot
-- [ ] 9. Redactor
+- [x] 9. Redactor
   - `harness/security/redactor.py`: regexes for bearer tokens, `sk-`/`tmprl` shapes,
     `Authorization` headers, configured secret values; `scrub(model)` for Pydantic
     models and `scrub_text`.

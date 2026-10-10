@@ -22,8 +22,9 @@ workItem: issue-3
   sensitive paths `.github/workflows/**` (`ci.yml`, `docs.yml`) and `**/*schema*` (the
   vendored A2UI schemas, the extension schemas under `docs/a2a/ext/`, the schema contract
   tests), which raises the inferred tier 3.
-- **Human sign-off:** requested from @MadaraUchiha-314 on the work item (a sign-off
-  distinct from the PR approval of 2026-10-10); recorded here when given.
+- **Human sign-off:** @MadaraUchiha-314, "security review approved", 2026-10-10
+  ([issue comment](https://github.com/MadaraUchiha-314/tiny-harness/issues/3#issuecomment-6098305723)),
+  distinct from the PR approval of the same day.
 
 ## Checklist
 

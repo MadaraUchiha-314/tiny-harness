@@ -127,7 +127,7 @@ class HarnessApp(App[None]):
                     yield Static("(no plan yet)", id="plan-pane", classes="pane")
                 with TabPane("Trace", id="trace"):
                     yield Static("(no events yet)", id="trace-pane", classes="pane")
-        yield Input(placeholder="Enter to send", id="composer")
+        yield Input(placeholder=f"Enter to send as {self.participant}", id="composer")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -299,10 +299,10 @@ class HarnessApp(App[None]):
         self.apply_event(task)
 
 
-async def run_tui(url: str, *, participant: str | None = None) -> int:
+async def run_tui(url: str, *, participant: str) -> int:
     client = await SdkClient.connect(url, participant=participant)
     try:
-        await HarnessApp(client, url=url, participant=participant or "you").run_async()
+        await HarnessApp(client, url=url, participant=participant).run_async()
     finally:
         await client.close()
     return 0

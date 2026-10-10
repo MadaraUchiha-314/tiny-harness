@@ -27,8 +27,8 @@ overrides: {}
 | T2 | Integration (scenario) | yes | the real `run_tui` path sends a message under the asserted participant and reaches `COMPLETED` (regression, red before the fix); the embedded scenario takes the id from the command | `uv run pytest tests/integration/embedded` |
 | T3 | Contract (OpenAPI / GraphQL SDL) | n/a — no API surface changes; the public-API snapshots do not cover the CLI or `run_tui` | | |
 | T4 | End-to-end | n/a — the e2e suite drives the web renderer, which already asserts a participant; T2 plus T11 cover the TUI path end to end | | |
-| T5 | UI / visual | n/a — the layout does not change; the top bar shows the same field with the real value | | |
-| T6 | Snapshot | yes (regression only) | the existing TUI SVG snapshots still match, since `HarnessApp`'s default is kept | `uv run pytest tests/ui` |
+| T5 | UI / visual | yes | the composer placeholder shows `Enter to send as <participant>`; the regression scenario asserts it on the live app | `uv run pytest tests/integration/embedded` |
+| T6 | Snapshot | yes | the TUI SVG snapshots change only by the composer's `Enter to send as you`; regenerated, and the diff reviewed to contain nothing else | `uv run pytest tests/ui` |
 | T7 | Performance / load | n/a — one string threaded through a call chain | | |
 | T8 | Security / abuse case | yes | abuse case 1 (no participant → refused) and 2 (asserted id gets no extra trust) still hold: the existing refusal and access tests pass unchanged; fail-closed CLI exits are in T1 | `uv run pytest tests/security tests/integration/a2a` |
 | T9 | Accessibility | n/a — no UI change | | |
@@ -44,6 +44,7 @@ overrides: {}
 | T1 | R1.4, R1.5 | `OSError` from `getuser` and a blank flag → exit 2, stderr names `--participant` |
 | T1 | R1.2, R1.6 | `commands.tui(url=…, participant="alice")` → `run_tui(url, participant="alice")` |
 | T2 | R1.2, R1.6, R1.7, R2.1 | `Scenario: TUI sends a message under the asserted participant` |
+| T5 | R1.7 | the regression scenario reads `Enter to send as alice` from the composer |
 | T2 | R1.6, R2.2 | `Scenario: TUI hosts its own harness in embedded mode` (stand-in takes the id from the command) |
 | T8 | abuse cases 1, 2 | existing `no participant asserted` refusal and task-access tests |
 | T11 | R1, R2 | ticket reproduction, remote and embedded |
@@ -75,6 +76,7 @@ overrides: {}
 
 - [ ] T1 — `uv run pytest tests/unit`
 - [ ] T2 — `uv run pytest tests/integration/embedded` (red recorded before the fix)
+- [ ] T5 — composer placeholder assertion inside the T2 regression scenario
 - [ ] T6 — `uv run pytest tests/ui`
 - [ ] T8 — `uv run pytest tests/security tests/integration/a2a`
 - [ ] T11 — ticket reproduction against the demo, remote (`--url`) and embedded

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import getpass
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from tiny_harness.service.cli import (
     SIGTERM_EXIT,
     build_parser,
     main,
+    tui_participant,
 )
 
 TOML = """
@@ -149,3 +151,91 @@ def test_sigterm_cancels_the_command_so_its_cleanup_runs(
     finally:
         signal.signal(signal.SIGTERM, previous)
     assert cleaned == ["finally ran"]
+
+
+# issue-20: the TUI asserts a participant — --participant, else the OS user name (R1).
+
+
+def test_tui_parses_a_participant() -> None:
+    parser = build_parser()
+    assert parser.parse_args(["tui", "--participant", "alice"]).participant == "alice"
+    assert parser.parse_args(["tui"]).participant is None
+
+
+def test_tui_participant_is_the_flag_else_the_os_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(getpass, "getuser", lambda: "osuser")
+    parser = build_parser()
+    assert tui_participant(parser.parse_args(["tui", "--participant", " alice "])) == "alice"
+    assert tui_participant(parser.parse_args(["tui"])) == "osuser"
+
+
+def test_tui_participant_is_none_when_nothing_can_be_asserted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_user() -> str:
+        raise OSError("No username set in the environment")
+
+    monkeypatch.setattr(getpass, "getuser", no_user)
+    parser = build_parser()
+    assert tui_participant(parser.parse_args(["tui"])) is None
+    assert tui_participant(parser.parse_args(["tui", "--participant", "  "])) is None
+
+
+@pytest.mark.parametrize("flag", [["--participant", ""], ["--participant", "   "], []])
+def test_tui_without_a_participant_exits_two_before_connecting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flag: list[str],
+) -> None:
+    from tiny_harness.service import commands
+
+    def no_user() -> str:
+        raise OSError("No username set in the environment")
+
+    async def must_not_run(*_: object, **__: object) -> int:
+        raise AssertionError("the TUI must not start without a participant")
+
+    monkeypatch.setattr(getpass, "getuser", no_user)
+    monkeypatch.setattr(commands, "tui", must_not_run)
+    config = embedded_config(tmp_path, monkeypatch)
+    assert main(["--config", str(config), "tui", *flag]) == CONFIG_EXIT
+    assert "--participant" in capsys.readouterr().err
+
+
+def test_tui_passes_the_resolved_participant_to_the_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tiny_harness.service import commands
+
+    calls: list[tuple[str | None, str]] = []
+
+    async def record(_: object, *, url: str | None, participant: str) -> int:
+        calls.append((url, participant))
+        return 0
+
+    monkeypatch.setattr(getpass, "getuser", lambda: "osuser")
+    monkeypatch.setattr(commands, "tui", record)
+    config = embedded_config(tmp_path, monkeypatch)
+    assert main(["--config", str(config), "tui", "--url", "http://x"]) == 0
+    assert main(["--config", str(config), "tui", "--participant", "alice"]) == 0
+    assert calls == [("http://x", "osuser"), (None, "alice")]
+
+
+async def test_tui_command_hands_the_participant_to_run_tui(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tiny_harness.config import Settings
+    from tiny_harness.interaction import tui as tui_module
+    from tiny_harness.service import commands
+
+    calls: list[tuple[str, str]] = []
+
+    async def fake_run_tui(url: str, *, participant: str) -> int:
+        calls.append((url, participant))
+        return 0
+
+    monkeypatch.setattr(tui_module, "run_tui", fake_run_tui)
+    settings = Settings.load(embedded_config(tmp_path, monkeypatch))
+    assert await commands.tui(settings, url="http://x", participant="alice") == 0
+    assert calls == [("http://x", "alice")]

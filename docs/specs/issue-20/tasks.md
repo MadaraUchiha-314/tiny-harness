@@ -13,11 +13,11 @@ overrides: {}
 
 ## Task list
 
-- [ ] 1. Regression test first: the real `run_tui` path sends a message
+- [x] 1. Regression test first: the real `run_tui` path sends a message
   - New scenario `TUI sends a message under the asserted participant` in
     `tests/integration/embedded/test_cli_embedded.py`: patch only `HarnessApp.run_async`
     to drive the app under Textual's pilot. Call `commands.tui(settings, url=None,
-    participant="alice")`, type a message, expect `COMPLETED` and `alice` in the top bar.
+    participant="alice")`, type a message, expect `COMPLETED` and `alice` in the composer placeholder.
   - Rewrite the existing embedded scenario's stand-in to accept `participant` from the
     command and connect with it (R2.2).
   - Run it on today's code and record the red (`no participant asserted`, or the
@@ -25,7 +25,7 @@ overrides: {}
   - _Depends on:_ none
   - _Requirements:_ R2.1, R2.2
   - _Test:_ T2 — `uv run pytest tests/integration/embedded/test_cli_embedded.py` (red)
-- [ ] 2. CLI: `--participant` and fail-closed resolution
+- [x] 2. CLI: `--participant` and fail-closed resolution
   - Unit tests first in `tests/unit/service/test_cli.py`: parse `--participant`;
     `tui_participant` for flag, blank flag, OS default, `OSError`; `main` exits 2 naming
     `--participant` for a blank flag and for `OSError`.
@@ -34,14 +34,16 @@ overrides: {}
   - _Depends on:_ none
   - _Requirements:_ R1.1, R1.3, R1.4, R1.5
   - _Test:_ T1 — `uv run pytest tests/unit/service/test_cli.py` (red→green)
-- [ ] 3. Thread the participant through `commands.tui` and `run_tui`
+- [x] 3. Thread the participant through `commands.tui` and `run_tui`
   - Unit test first: `commands.tui(settings, url="http://x", participant="alice")` calls
     `run_tui("http://x", participant="alice")`.
   - `commands.tui` takes `participant` and passes it on both paths; `run_tui` makes it a
     required `str` and drops the `or "you"` placeholder.
+  - The composer placeholder reads `Enter to send as <participant>`; regenerate the TUI snapshots
+    (`uv run pytest tests/ui --snapshot-update`) and check the diff is only that text.
   - _Depends on:_ 1, 2
   - _Requirements:_ R1.2, R1.6, R1.7
-  - _Test:_ T1 + T2 — task 1's scenarios go green
+  - _Test:_ T1 + T2 + T5 + T6 — task 1's scenarios go green; snapshots match
 - [ ] 4. Docs: capability doc, README and guide
   - `docs/capabilities/surfaces-and-renderers.md`: the TUI asserts `--participant` or the
     OS user name; history row for issue-20.

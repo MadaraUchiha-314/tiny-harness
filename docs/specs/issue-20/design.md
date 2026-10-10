@@ -74,14 +74,28 @@ executor, the access policy and the web renderer.
 
 - `run_tui(url: str, *, participant: str) -> int`: `participant` becomes required and
   non-optional. `HarnessApp(..., participant=participant)` drops the `or "you"`
-  placeholder (R1.7). `HarnessApp.__init__` keeps its `"you"` default: the UI snapshot
-  tests and the prototype construct it without a client and send nothing.
+  placeholder.
+- `HarnessApp.compose` sets the composer placeholder to
+  `Enter to send as {participant}` (R1.7).
+- `HarnessApp.__init__` keeps its `"you"` default: the UI snapshot tests and the
+  prototype construct it without a client and send nothing.
 
 ## UI/UX design
 
-No new visual design. The top bar already shows `HarnessApp.participant`; it will now
-show the id that is actually asserted. No new widget, layout or key is added, so there
-are no artifacts under `design/`.
+One text change, no new layout. Today `HarnessApp.participant` is stored but never
+rendered, so a person cannot see who they are acting as. The composer's placeholder
+becomes `Enter to send as <participant>`:
+
+```text
+▊Enter to send as alice▎
+```
+
+This matters more now that the id can be defaulted silently from the OS user name. The
+first draft appended `as <participant>` to the top bar instead. The regenerated snapshots
+showed it pushing the task state (`INPUT_REQUIRED`) off the right edge at 110 columns,
+so it moved to the composer, which has room. No widget, key or layout is added, so there
+are no artifacts under `design/`. The four TUI SVG snapshots change by exactly this text
+and are regenerated.
 
 ## Data models
 

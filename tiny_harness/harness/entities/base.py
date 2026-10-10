@@ -26,6 +26,7 @@ class EntityKind(StrEnum):
     HOOK = "hook"
     CHANNEL = "channel"
     RENDERER = "renderer"
+    SURFACE = "surface"
     STORE = "store"
     AGENT = "agent"
 

@@ -152,6 +152,10 @@ class Operations(Protocol):
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask: ...
 
+    async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
+        """``emit_ui``: deliver validated A2UI messages to the surfaces (R20.5)."""
+        ...
+
     async def fail(self, task: HarnessTask, reason: str) -> HarnessTask: ...
 
 
@@ -230,6 +234,8 @@ class CoreLoop:
             return link_subtask(task, ref, str(step) if step else None), state, waiting
         if command.kind == "wait_for_reply":
             return task, state, {**command.payload, "call_id": command.call_id}
+        if command.kind == "ui_emitted":
+            await self._ops.emit_ui(task, command)
         return task, state, waiting
 
     async def _finish(self, task: HarnessTask, state: AgentState, text: str) -> Outcome:

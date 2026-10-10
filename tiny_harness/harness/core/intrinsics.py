@@ -32,6 +32,7 @@ from tiny_harness.harness.tools.intrinsics import (
     definition,
 )
 from tiny_harness.harness.tools.models import Tool, ToolCall, ToolResult, WorkflowCommand
+from tiny_harness.interaction.a2ui import A2UIValidationError, parse_server_message
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
 _CURRENT_TASK: ContextVar[HarnessTask | None] = ContextVar("tiny_harness_task", default=None)
@@ -195,11 +196,17 @@ class _CoreIntrinsic(Tool):
                 result=ToolResult.text(cid, f"{a.participant_id} is now {a.role.value}"),
             )
         a = cast(EmitUiArgs, args)
+        validated: list[JsonObject] = []
+        for raw in a.messages:
+            try:
+                validated.append(parse_server_message(dict(raw)).payload())
+            except A2UIValidationError as exc:
+                return ToolResult.error(cid, exc.code, str(exc))
         return WorkflowCommand(
             kind="ui_emitted",
             call_id=cid,
-            payload={"messages": cast(JsonValue, list(a.messages))},
-            result=ToolResult.text(cid, f"{len(a.messages)} UI message(s) emitted"),
+            payload={"messages": cast(JsonValue, validated)},
+            result=ToolResult.text(cid, f"{len(validated)} UI message(s) emitted"),
         )
 
 

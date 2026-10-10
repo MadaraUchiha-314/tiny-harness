@@ -14,7 +14,6 @@ from google.protobuf import json_format
 
 from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.persistence import Filter, PushConfigRecord, PushTokenCipher, Store
-from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.durable.models import EventEntry, entry_event
 
 
@@ -94,12 +93,9 @@ class PushSink:
         self._store = store
         self._sender = BasePushNotificationSender(client or httpx.AsyncClient(timeout=10), store)
 
-    async def deliver(self, task_id: str, context_id: str, entry_payload: object) -> None:
-        if not isinstance(entry_payload, dict):
-            return
-        payload: JsonObject = entry_payload  # type: ignore[assignment]
-        kind = "status_update" if "status" in payload and "taskId" in payload else "task"
-        entry = EventEntry(seq=0, kind=kind, payload=payload)  # type: ignore[arg-type]
+    async def deliver(self, task_id: str, context_id: str, entry: EventEntry) -> None:
+        if entry.kind == "message":
+            return  # push notifications carry task state, not conversation messages
         event: A2AEvent = entry_event(entry)
         await self._sender.send_notification(task_id, event)  # type: ignore[arg-type]
 

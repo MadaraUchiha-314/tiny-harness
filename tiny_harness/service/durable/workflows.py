@@ -20,14 +20,23 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import timedelta
-from typing import Final
+from typing import Final, cast
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy, SearchAttributeKey
 from temporalio.exceptions import ActivityError, ApplicationError, CancelledError
 
 with workflow.unsafe.imports_passed_through():
-    from a2a.types import Message, Part, Task, TaskState, TaskStatus, TaskStatusUpdateEvent
+    from a2a.types import (
+        Artifact,
+        Message,
+        Part,
+        Task,
+        TaskArtifactUpdateEvent,
+        TaskState,
+        TaskStatus,
+        TaskStatusUpdateEvent,
+    )
     from a2a.types import Role as A2ARole
     from google.protobuf import struct_pb2
 
@@ -62,6 +71,12 @@ with workflow.unsafe.imports_passed_through():
         ToolCall,
         ToolResult,
         WorkflowCommand,
+    )
+    from tiny_harness.interaction.a2ui import (
+        A2UI_MEDIA_TYPE,
+        ServerMessage,
+        SurfaceRegistry,
+        parse_server_message,
     )
     from tiny_harness.jsontypes import JsonObject
     from tiny_harness.service.durable.models import (
@@ -271,6 +286,9 @@ class WorkflowOperations:
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
         return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
 
+    async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
+        await self._wf.emit_ui(task, command)
+
     async def fail(self, task: HarnessTask, reason: str) -> HarnessTask:
         return await self._wf.set_status(task, TaskState.TASK_STATE_FAILED, text=reason)
 
@@ -295,6 +313,8 @@ class TaskWorkflow:
         self.interrupted = False
         self.closed = False
         self.turns_this_run = 0
+        self.last_refusal = ""
+        self.surfaces = SurfaceRegistry()
         self._redactor = Redactor()
 
     # --- handlers ------------------------------------------------------------------
@@ -392,6 +412,13 @@ class TaskWorkflow:
                 # Waiting for a reply: a refused message must not wake the loop (abuse case 4).
                 self.state, accepted = await self.drain(self.task, self.state)
                 if accepted == 0 and self.waiting_for_reply():
+                    # The sender is a participant (strangers never reach the workflow), so
+                    # the stream they opened ends with the unchanged state and the reason.
+                    self.task = await self.set_status(
+                        self.task,
+                        self.task.state,
+                        text=f"message not accepted: {self.last_refusal}",
+                    )
                     continue
             runner = asyncio.create_task(loop.run(self.task, self.state, None))
             if not await self._await_runner(runner):
@@ -418,7 +445,8 @@ class TaskWorkflow:
 
     async def drain(self, task: HarnessTask, state: AgentState) -> tuple[AgentState, int]:
         """Top of a turn (R15.3): roll over if due, fold notes and accepted inbox messages
-        into the history; returns how many messages intake accepted."""
+        into the history; returns how many messages intake accepted. The last refusal's
+        reason is kept in ``last_refusal`` for the waiting path."""
         self.task = task
         await self.maybe_continue_as_new(task, state)
         self.turns_this_run += 1
@@ -434,10 +462,12 @@ class TaskWorkflow:
                     correlation_id=self.correlation_id,
                     task=task.proto,
                     message=message,
+                    surfaces=self.surfaces,
                 ),
                 IntakeOut,
             )
             if not out.accepted:
+                self.last_refusal = out.reason or "not accepted"
                 continue
             accepted += 1
             text = out.text
@@ -540,6 +570,7 @@ class TaskWorkflow:
         self.children = list(start.children)
         self.notes = [*start.notes, *self.notes]
         self.attempts = dict(start.attempt_counters)
+        self.surfaces = start.surfaces
 
     def _snapshot(self, task: HarnessTask, state: AgentState) -> TaskStart:
         return self.start.model_copy(
@@ -555,6 +586,7 @@ class TaskWorkflow:
                 "children": tuple(self.children),
                 "notes": tuple(self.notes),
                 "attempt_counters": dict(self.attempts),
+                "surfaces": self.surfaces,
             }
         )
 
@@ -579,7 +611,9 @@ class TaskWorkflow:
 
     # --- events ------------------------------------------------------------------
 
-    def _emit(self, event: Task | Message | TaskStatusUpdateEvent) -> EventEntry:
+    def _emit(
+        self, event: Task | Message | TaskStatusUpdateEvent | TaskArtifactUpdateEvent
+    ) -> EventEntry:
         entry = event_entry(self.next_seq, event)
         self.events.append(entry)
         self.next_seq += 1
@@ -671,6 +705,31 @@ class TaskWorkflow:
             call_id=str(help.get("call_id", "")),
         )
         return await self.set_status(task, TaskState.TASK_STATE_INPUT_REQUIRED, message=message)
+
+    async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
+        """``emit_ui`` (R20.5): the validated A2UI messages become one A2A message event
+        with ``application/a2ui+json`` parts; the surfaces they create are remembered."""
+        raw = command.payload.get("messages")
+        payloads = [cast(JsonObject, m) for m in raw] if isinstance(raw, list) else []
+        parts: list[Part] = []
+        for payload in payloads:
+            parsed: ServerMessage = parse_server_message(payload)
+            self.surfaces = self.surfaces.apply(parsed)
+            value = struct_pb2.Value()
+            value.struct_value.update(payload)
+            parts.append(Part(data=value, media_type=A2UI_MEDIA_TYPE))
+        if not parts:
+            return
+        # The A2A SDK refuses a Message once a task exists ("task mode"), so the UI
+        # travels as an artifact update: one artifact per emit_ui call, final chunk.
+        event = TaskArtifactUpdateEvent(
+            task_id=task.id,
+            context_id=task.context_id,
+            artifact=Artifact(artifact_id=f"a2ui:{self.next_seq}", name="a2ui", parts=parts),
+            last_chunk=True,
+        )
+        entry = self._emit(event)
+        await self._deliver(entry)
 
     async def persist(self, compaction: CompactionRecord | None, *, final: bool = False) -> None:
         await self.call(

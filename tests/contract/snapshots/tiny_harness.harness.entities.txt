@@ -2,7 +2,7 @@
 WILDCARD = str
 class Entity(ABC)
   def __init__(self, ref: 'EntityRef') -> 'None'
-enum EntityKind: PROMPT='prompt', SKILL='skill', TOOL='tool', LLM='llm', SYSTEM_ONE='system_one', HOOK='hook', CHANNEL='channel', RENDERER='renderer', STORE='store', AGENT='agent'
+enum EntityKind: PROMPT='prompt', SKILL='skill', TOOL='tool', LLM='llm', SYSTEM_ONE='system_one', HOOK='hook', CHANNEL='channel', RENDERER='renderer', SURFACE='surface', STORE='store', AGENT='agent'
 model EntityRef(kind: <enum 'EntityKind'>, id: <class 'str'>, version: str | None = ...)
 Fetcher = _CallableGenericAlias
 class Registry(object)

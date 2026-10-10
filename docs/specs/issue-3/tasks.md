@@ -357,7 +357,7 @@ abuse cases are tests like any other (`reference/security.md`).
 
 ### Layer 7 — A2UI and the TUI renderer (branch `loop/issue-3-l7-tui`)
 
-- [ ] 40. A2UI models, vendored schemas, `emit_ui`, action intake
+- [x] 40. A2UI models, vendored schemas, `emit_ui`, action intake
   - `interaction/a2ui/`: the six message models, vendored 0.9.1 schemas with
     attribution, `jsonschema` validation, the A2UI extension declaration in the card
     (`supportedCatalogIds`, `acceptsInlineCatalogs`), `emit_ui` body, action intake
@@ -365,13 +365,13 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 29, 36
   - _Requirements:_ R20.5, abuse case 9
   - _Test:_ T1 — `tests/unit/a2ui/test_messages.py` (valid/invalid payloads); T8 — `test_unknown_a2ui_action_discarded`; T6 — card snapshot gains the extension
-- [ ] 41. Surface and renderer entities
+- [x] 41. Surface and renderer entities
   - `interaction/surface.py`, `renderer.py`: `Modality`, `Surface`, `Renderer` with
     `supported` and placeholder `RenderPlan`.
   - _Depends on:_ 4
   - _Requirements:_ R20.1, R20.4, R20.8
   - _Test:_ T1 — `tests/unit/interaction/test_renderer.py` (placeholder for unsupported kind)
-- [ ] 42. TUI renderer (Textual)
+- [x] 42. TUI renderer (Textual)
   - `interaction/tui/`: the app of `design/tui-renderer.html` (conversation pane,
     task/plan/trace tabs, composer, key bindings), an `a2a-sdk` client over JSON-RPC
     with streaming and `A2A-Version: 1.0`, `SubscribeToTask` per open task, the basic

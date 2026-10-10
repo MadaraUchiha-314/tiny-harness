@@ -80,7 +80,7 @@ Conventions for every task:
   - _Test:_ T2, T7, T8 (abuse cases 1, 6; two-process lock) —
     `env -u TEMPORAL_API_KEY uv run pytest tests/integration/embedded` (red→green)
 
-- [ ] 4. `running_harness` / `serve` (`service/process.py`) and the public API
+- [x] 4. `running_harness` / `serve` (`service/process.py`) and the public API
   - Move the body of `commands.serve` into `running_harness`. It opens `temporal_client`,
     builds the runtime, runs the worker (forced on in embedded mode, with the INFO line),
     and runs uvicorn as a task with a readiness wait on `server.started` (re-raising if

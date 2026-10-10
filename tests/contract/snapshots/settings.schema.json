@@ -46,6 +46,75 @@
       "title": "ContextConfig",
       "type": "object"
     },
+    "EmbeddedTemporalConfig": {
+      "additionalProperties": false,
+      "description": "The local Temporal dev server of embedded mode (issue-17 R2-R4). Every key has a\ndefault, so ``mode = \"embedded\"`` alone is a complete Temporal configuration.",
+      "properties": {
+        "binary_path": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "an existing Temporal CLI binary; set, nothing is downloaded",
+          "title": "Binary Path"
+        },
+        "database_path": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the server's SQLite file; default: beside store.sqlite_path",
+          "title": "Database Path"
+        },
+        "download_dir": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where a downloaded binary is cached; default: the user cache directory",
+          "title": "Download Dir"
+        },
+        "persist": {
+          "default": true,
+          "description": "false: an in-memory server, for tests and throwaway runs",
+          "title": "Persist",
+          "type": "boolean"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "default: an OS-chosen free port",
+          "title": "Port"
+        }
+      },
+      "title": "EmbeddedTemporalConfig",
+      "type": "object"
+    },
     "HeartbeatConfig": {
       "additionalProperties": false,
       "description": "The heartbeat schedule (R16).",
@@ -403,24 +472,68 @@
     },
     "TemporalConfig": {
       "additionalProperties": false,
-      "description": "Temporal Cloud connection (R19.11). ``api_key`` comes from ``TEMPORAL_API_KEY``.",
+      "description": "The Temporal connection (R19.11, issue-17). ``remote`` (the default) is Temporal Cloud\nor a self-hosted server, with ``api_key`` from ``TEMPORAL_API_KEY``; ``embedded`` starts a\nlocal dev server for the process and forbids the remote-only keys.",
       "properties": {
         "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "host:port, e.g. tiny-harness.gtebu.tmprl.cloud:7233",
-          "title": "Address",
-          "type": "string"
+          "title": "Address"
         },
         "api_key": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "from TEMPORAL_API_KEY; never logged",
-          "format": "password",
-          "title": "Api Key",
-          "type": "string",
-          "writeOnly": true
+          "title": "Api Key"
+        },
+        "embedded": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EmbeddedTemporalConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mode": {
+          "default": "remote",
+          "enum": [
+            "remote",
+            "embedded"
+          ],
+          "title": "Mode",
+          "type": "string"
         },
         "namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "the Temporal namespace, e.g. tiny-harness.gtebu",
-          "title": "Namespace",
-          "type": "string"
+          "title": "Namespace"
         },
         "search_attributes": {
           "default": false,
@@ -439,11 +552,6 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "address",
-        "namespace",
-        "api_key"
-      ],
       "title": "TemporalConfig",
       "type": "object"
     }

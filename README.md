@@ -32,7 +32,7 @@ export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)
 export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 bun install --cwd renderers/web && bun run --cwd renderers/web build
 uv run python -m examples.demo            # A2A server + worker, web renderer at /ui
-uv run tiny-harness tui --url http://127.0.0.1:8080
+uv run tiny-harness tui --url http://127.0.0.1:8080   # as your OS user; --participant <id> to choose
 ```
 
 No Temporal account? Run it with an **embedded Temporal**: the harness starts a local

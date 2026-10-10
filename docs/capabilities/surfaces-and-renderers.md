@@ -36,6 +36,12 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   tabs on the right and the composer below, every action on a key; it streams the reply
   and keeps a `SubscribeToTask` stream per open task, so a second surface sees the same
   events. `tiny-harness tui --url <server>` starts it.
+- The TUI SHALL assert a participant on every message and action it sends, as the
+  `X-Participant-Id` header and the `participant_id` metadata: `--participant <id>`, else
+  the OS user name. IF neither yields an id (a blank `--participant`, or no OS user name)
+  THEN `tiny-harness tui` SHALL exit 2 naming `--participant` before it connects. The
+  composer shows the asserted id (`Enter to send as <id>`). The id is self-asserted
+  (decision-003); the server's refusal of a message that asserts nobody is unchanged.
 - The web renderer SHALL be a Vite + React 19 + TypeScript (strict) app on shadcn
   (Tailwind v4, the shadcn/ui primitives and the chat components `MessageScroller`,
   `Message`, `Bubble` and `Marker`) that reaches the server only through the official
@@ -64,3 +70,4 @@ under `docs/specs/issue-3/design/`.
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | A2UI 0.9.1, surface and renderer entities, the Textual TUI (Layer 7); the web renderer (Layer 8) | [spec](../specs/issue-3/), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13), [PR #14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) |
+| issue-20 | The TUI asserts a participant (`--participant`, else the OS user name) so it can send at all | [spec](../specs/issue-20/), [PR #21](https://github.com/MadaraUchiha-314/tiny-harness/pull/21) |

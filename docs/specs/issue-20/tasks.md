@@ -44,7 +44,7 @@ overrides: {}
   - _Depends on:_ 1, 2
   - _Requirements:_ R1.2, R1.6, R1.7
   - _Test:_ T1 + T2 + T5 + T6 — task 1's scenarios go green; snapshots match
-- [ ] 4. Docs: capability doc, README and guide
+- [x] 4. Docs: capability doc, README and guide
   - `docs/capabilities/surfaces-and-renderers.md`: the TUI asserts `--participant` or the
     OS user name; history row for issue-20.
   - `README.md`, `docs/guide/getting-started.md`: mention `--participant`.

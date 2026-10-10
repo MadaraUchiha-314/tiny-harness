@@ -55,7 +55,9 @@ The process prints the two surfaces:
 
 - **Web renderer** at `http://127.0.0.1:8080/ui/`: type the complaint in the composer and
   watch the stream.
-- **TUI** in another terminal: `uv run tiny-harness tui --url http://127.0.0.1:8080`.
+- **TUI** in another terminal: `uv run tiny-harness tui --url http://127.0.0.1:8080`. It
+  sends as your OS user name; `--participant <id>` asserts another id. The id is
+  self-asserted, like the web renderer's `?participant=`.
 
 Both are A2A clients of the same server through the official SDKs (`a2a-sdk` for the
 TUI, `@a2a-js/sdk` for the web), so a task started in one shows up in the other. The web

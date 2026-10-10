@@ -1,0 +1,19 @@
+# tiny_harness.harness.prompts
+BUILTIN_NAMESPACE_DIR = PosixPath
+SECTION_ORDER = tuple
+SYSTEM_PROMPT_ID = str
+class PromptEntity(Entity)
+  def __init__(self, ref: 'EntityRef', text: 'str', *, extends: 'str | None' = None, sections: 'tuple[PromptSection, ...] | None' = None) -> 'None'
+  def section(self, name: 'str') -> 'str | None'
+class PromptError(TinyHarnessError)
+model PromptFrontMatter(id: str | None = ..., extends: str | None = ...)
+model PromptSection(name: <class 'str'>, body: <class 'str'>)
+class SystemPrompt(object)
+  def __init__(self, base: 'PromptEntity', extensions: 'Iterable[PromptEntity]' = ()) -> 'None'
+  property base
+  def render(self, only: 'Iterable[str] | None' = None) -> 'str'
+  def sections(self) -> 'tuple[PromptSection, ...]'
+def default_system_prompt_path() -> pathlib.Path
+def load_default_system_prompt() -> tiny_harness.harness.prompts.entity.PromptEntity
+def parse_sections(body: 'str') -> 'tuple[PromptSection, ...]'
+def split_front_matter(text: 'str') -> 'tuple[Mapping[str, object], str]'

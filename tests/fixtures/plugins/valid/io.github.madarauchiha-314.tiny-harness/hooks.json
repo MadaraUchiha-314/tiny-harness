@@ -1,0 +1,6 @@
+{
+  "hooks": [
+    { "name": "audit", "priority": 100, "import_path": "tests.fixtures.plugins.hooks:audit", "points": ["llm.invoked.pre", "tool.invoked.pre"] },
+    { "name": "policy-rpc", "url": "https://hooks.example.com/rpc" }
+  ]
+}

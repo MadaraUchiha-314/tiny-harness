@@ -1,0 +1,13 @@
+# tiny_harness.harness.skills
+RESOURCE_DIRS = tuple
+class Skill(Entity)
+  def __init__(self, ref: 'EntityRef', front_matter: 'SkillFrontMatter', body: 'str', root: 'Path') -> 'None'
+  property description
+  property name
+  def resource(self, kind: 'str', name: 'str') -> 'SkillResource'
+  def resources(self) -> 'Sequence[SkillResource]'
+model SkillFrontMatter(name: <class 'str'>, description: <class 'str'>, license: str | None = ..., compatibility: typing.Annotated[str, StringConstraints(strip_whitespace=None, to_upper=None, to_lower=None, strict=None, min_length=None, max_length=500, pattern=None, ascii_only=None)] | None = ..., metadata: dict[str, str] = ..., allowed_tools: tuple[str, ...] = ...)
+class SkillLoader(object)
+  def load(self, directory: 'Path', *, version: 'str | None' = None) -> 'Skill'
+model SkillResource(kind: typing.Literal['scripts', 'references', 'assets'], name: <class 'str'>, path: <class 'pathlib.Path'>)
+def skills_index(skills: 'Sequence[Skill]') -> 'str'

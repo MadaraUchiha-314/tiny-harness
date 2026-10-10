@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tiny-harness-builtin",
+  "version": "0.1.0",
+  "description": "tiny-harness's opinionated defaults: the system prompt, the intrinsic tools and the default hook bodies. Loaded first; every registration is overridable by a later plugin.",
+  "license": "Apache-2.0"
+}

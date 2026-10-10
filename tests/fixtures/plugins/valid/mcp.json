@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "orders": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "orders", "--data", "${PLUGIN_DATA}/orders", "--root", "${PLUGIN_ROOT}"],
+      "env": { "CONFIG": "${PLUGIN_ROOT}/config.json" },
+      "cwd": "${PLUGIN_ROOT}"
+    },
+    "policy": { "type": "streamable-http", "url": "https://policy.example.com/mcp", "headers": { "X-Team": "support" } },
+    "legacy": { "type": "sse", "url": "https://legacy.example.com/sse" }
+  }
+}

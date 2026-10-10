@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "outside": { "type": "stdio", "command": "python", "cwd": "./../../outside" },
+    "data-escape": { "type": "stdio", "command": "python", "cwd": "${PLUGIN_DATA}/../elsewhere" },
+    "inside": { "type": "stdio", "command": "python", "cwd": "./bin" }
+  }
+}

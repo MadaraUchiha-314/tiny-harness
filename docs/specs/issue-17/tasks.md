@@ -140,7 +140,7 @@ Conventions for every task:
   - _Test:_ T12 — `bun run --cwd docs docs:build`; markdownlint via
     `uv run pre-commit run --all-files`
 
-- [ ] 8. Regression sweep
+- [x] 8. Regression sweep
   - Run CI's exact commands on the branch. Fix any break in remote mode (expected:
     none). Confirm `examples/demo/config.toml` is untouched.
   - _Depends on:_ 1–7
@@ -148,7 +148,7 @@ Conventions for every task:
   - _Test:_ T10 — `uv run pre-commit run --all-files` and
     `uv run pytest tests/integration tests/contract tests/security tests/ui`
 
-- [ ] 9. Record the PR in `evidence/pull-requests.md`
+- [x] 9. Record the PR in `evidence/pull-requests.md`
   - Update #18's row: it now carries the implementation as well as the spec chain.
   - _Depends on:_ 8
   - _Requirements:_ —

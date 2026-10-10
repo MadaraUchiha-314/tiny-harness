@@ -148,6 +148,12 @@ def backoff(spec: RetryPolicySpec, attempt: int) -> timedelta:
     return timedelta(seconds=seconds * (0.8 + 0.4 * workflow.random().random()))
 
 
+def is_non_retryable(info: ErrorInfo, spec: RetryPolicySpec) -> bool:
+    """A failure the policy never retries: flagged by the activity, or of a type the
+    effective policy lists in ``non_retryable_error_types`` (R19.3)."""
+    return info.non_retryable or info.type in spec.non_retryable_error_types
+
+
 def _error_info(exc: ActivityError) -> ErrorInfo:
     cause = exc.cause
     if isinstance(cause, ApplicationError):
@@ -883,7 +889,7 @@ class TaskWorkflow:
                 if isinstance(exc.cause, CancelledError):
                     raise asyncio.CancelledError from exc  # the run was cancelled or interrupted
                 info = _error_info(exc)
-                if info.non_retryable:
+                if is_non_retryable(info, spec):
                     raise ApplicationError(
                         info.message, type=info.type, non_retryable=True
                     ) from exc

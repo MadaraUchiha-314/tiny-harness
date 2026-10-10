@@ -456,8 +456,8 @@ class TaskWorkflow:
         self.task = task
         await self.maybe_continue_as_new(task, state)
         self.turns_this_run += 1
-        for note in self.take_notes():
-            state = state.append(MessageItem(role=MessageRole.USER, text=note))
+        for note in self.take_notes():  # sub-task and remote-agent results: data, not orders
+            state = state.append(MessageItem(role=MessageRole.USER, text=note, source="agent"))
         accepted = 0
         while self.mailbox:
             # The message leaves the mailbox only once its intake has completed: an
@@ -488,7 +488,7 @@ class TaskWorkflow:
                 text = f"[{out.participant_id}] {out.text}"
             if out.participant_id:
                 self.actor = out.participant_id
-            state = state.append(MessageItem(role=MessageRole.USER, text=text))
+            state = state.append(MessageItem(role=MessageRole.USER, text=text, source=out.source))
             # Committed now, not at the end of the turn: an interrupt that cancels the
             # run restarts from ``self.state`` and must not lose what intake accepted.
             self.state = state
@@ -831,6 +831,9 @@ class TaskWorkflow:
             role=A2ARole.ROLE_USER,
             parts=[Part(text=goal)],
         )
+        # The delegating agent is the sender, and a participant of the child: intake
+        # refuses a message that asserts nobody (abuse case 4).
+        first.metadata.update({"participant_id": self.start.config.agent})
         start = TaskStart(
             task=child.proto,
             state=AgentState(task_id=child_id),
@@ -972,6 +975,9 @@ class RemoteTaskWorkflow:
             role=A2ARole.ROLE_USER,
             parts=[Part(text=start.goal)],
         )
+        # This harness is the sender the remote agent sees (it becomes the remote task's
+        # reporter); a message that asserts nobody is refused by a tiny-harness peer.
+        outbound.metadata.update({"participant_id": start.config.agent})
         self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
         while True:
             out = await workflow.execute_activity(

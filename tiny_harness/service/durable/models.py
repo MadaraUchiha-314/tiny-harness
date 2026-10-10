@@ -199,6 +199,7 @@ class IntakeOut(_Frozen):
     accepted: bool
     text: str = ""
     participant_id: str | None = None
+    source: str | None = None  # "agent" when the sender is an agent: framed as untrusted
     reason: str = ""
     interrupt: bool = False
     task: TaskProto | None = None

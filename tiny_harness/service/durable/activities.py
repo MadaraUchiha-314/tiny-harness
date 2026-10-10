@@ -240,10 +240,12 @@ class Activities:
         interrupt = False
         if arg.message.HasField("metadata") and "interrupt" in arg.message.metadata.fields:
             interrupt = bool(arg.message.metadata.fields["interrupt"].bool_value)
+        sender = task.ext.participant(participant) if participant else None
         return IntakeOut(
             accepted=accepted,
             text=text if accepted else "",
             participant_id=participant,
+            source="agent" if sender is not None and sender.kind == "agent" else None,
             reason=reason,
             interrupt=interrupt,
             ui_action=ui_action if accepted else None,

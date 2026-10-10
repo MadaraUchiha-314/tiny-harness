@@ -88,20 +88,17 @@ class ContextWindow(BaseModel, frozen=True):
         )
 
 
+def render_untrusted_text(text: str, source: str) -> str:
+    """Text from an untrusted source inside the delimited block with the fixed preamble."""
+    return f'<untrusted source="{source}">\n{UNTRUSTED_PREAMBLE}\n{text}\n</untrusted>'
+
+
 def render_untrusted(result: ToolResult) -> ToolResult:
     """The same result with its text wrapped in the delimited untrusted block (R6.5)."""
     parts: list[ContentPart] = []
     for part in result.content:
         if part.kind == "text" and part.text is not None:
-            parts.append(
-                ContentPart(
-                    kind="text",
-                    text=(
-                        f'<untrusted source="tool">\n{UNTRUSTED_PREAMBLE}\n'
-                        f"{part.text}\n</untrusted>"
-                    ),
-                )
-            )
+            parts.append(ContentPart(kind="text", text=render_untrusted_text(part.text, "tool")))
         else:
             parts.append(part)
     return result.model_copy(update={"content": tuple(parts)})
@@ -235,6 +232,11 @@ class ContextWindowManager:
             item = entry.item
             if isinstance(item, ToolResultItem):
                 item = ToolResultItem(result=render_untrusted(item.result))
+            elif isinstance(item, MessageItem) and item.source:
+                # Agent-sourced messages are data, framed like tool results (abuse case 2).
+                item = item.model_copy(
+                    update={"text": render_untrusted_text(item.text, item.source)}
+                )
             input_items.append(item)
             history_chars += _chars(item)
         tool_defs = tuple(sorted(tools, key=lambda t: t.name))
@@ -280,4 +282,5 @@ __all__ = [
     "render_plan",
     "render_task",
     "render_untrusted",
+    "render_untrusted_text",
 ]

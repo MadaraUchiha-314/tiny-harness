@@ -214,7 +214,7 @@ keyring; every capture under `evidence/` was redacted by value before commit.
 | T11 | the walkthrough in `evidence/manual-walkthrough.md` | not yet performed by the owner; stays unticked | [manual-walkthrough.md](evidence/manual-walkthrough.md) |
 | | | | |
 
-**Not executed:** none yet.
+**Not executed:** T11, the owner's manual walkthrough (awaiting the owner).
 
 ## Review comments
 

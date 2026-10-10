@@ -1,11 +1,12 @@
 """Prompt entities and the system prompt (R4).
 
-The default system prompt is a markdown file shipped with the package (4.4),
-``tiny_harness/builtin/systemprompt.md``, parsed into named sections by its ``##``
-headings: ``role``, ``task``, ``participants``, ``tools``, ``skills``, ``rules``. A plugin
-replaces the whole file (``systemprompt.md`` in its namespace directory) or extends one
-section with a prompt file whose front matter says ``extends: <section>`` (4.2). The
-context window manager renders the stable sections first (4.3, 10.3).
+The default system prompt is a markdown file shipped with the package (4.4), the
+built-in plugin's ``io.github.madarauchiha-314.tiny-harness/systemprompt.md``, parsed
+into named sections by its ``##`` headings: ``role``, ``task``, ``participants``,
+``tools``, ``skills``, ``rules``. A plugin replaces the whole file (``systemprompt.md``
+in its namespace directory) or extends one section with a prompt file whose front
+matter says ``extends: <section>`` (4.2). The context window manager renders the stable
+sections first (4.3, 10.3).
 """
 
 from __future__ import annotations

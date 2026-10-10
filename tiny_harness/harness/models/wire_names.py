@@ -51,5 +51,13 @@ class WireNames:
     def decode(self, wire: str) -> str:
         return self._to_registry.get(wire, wire)
 
+    def description(self, tool: ToolDefinition) -> str:
+        """The tool's description, naming the registry name when the wire name differs,
+        so a skill or prompt that names the tool as the registry does still matches."""
+        wire = self.encode(tool.name)
+        if wire == tool.name:
+            return tool.description
+        return f"{tool.description} (registry name: {tool.name})"
+
 
 __all__ = ["MAX_WIRE_LENGTH", "WireNames", "sanitize"]

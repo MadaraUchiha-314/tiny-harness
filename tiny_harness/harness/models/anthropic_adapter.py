@@ -96,7 +96,7 @@ def build_tools(
     return [
         {
             "name": names.encode(t.name),
-            "description": t.description,
+            "description": names.description(t),
             "input_schema": cast(JsonValue, t.input_schema),
         }
         for t in tools

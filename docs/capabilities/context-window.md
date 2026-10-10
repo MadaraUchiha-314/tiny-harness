@@ -17,9 +17,10 @@ three `in` hook points. Lives in `tiny_harness/harness/core/context.py`,
   `data`, a JSON object whose named subsets a plugin may describe with a JSON schema. A
   write to a described subset SHALL be validated before it is accepted.
 - The context SHALL be assembled in a declared order: the static sections (system
-  prompt, participant roles, skills index) and the tool definitions form the cached
-  prefix and go in the provider's `instructions`; the per-task sections (task, plan) and
-  the per-turn sections (state summary, history, tool results) go in the input.
+  prompt, participant roles, skills index) go in the provider's `instructions` and,
+  with the tool definitions sent as the request's tool list, form the cached prefix;
+  the per-task sections (task, plan) and the per-turn sections (state summary, history,
+  tool results) go in the input.
 - For OpenAI, `prompt_cache_key` SHALL be the task id and the request SHALL be
   `store=false`; the usage of every call SHALL record cached tokens.
 - Tool results and other untrusted content SHALL be rendered inside a delimited block

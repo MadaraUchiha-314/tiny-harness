@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
+from typing import IO, cast
 
 import httpx
 from a2a.client import Client, ClientConfig, create_client
@@ -40,6 +40,8 @@ REPO = Path(__file__).resolve().parents[2]
 DEMO = REPO / "examples" / "demo"
 LOGS = Path.home() / ".cache" / "tiny-harness-logs" / "e2e"
 SECRET_VARIABLES = tuple(variable for _, _, variable, _ in config.SECRET_VARIABLES)
+
+SEND_DEADLINE_SECONDS = 600.0  # one message's stream, kill-and-restart included
 
 COMPLAINT = (
     "Refund order #48213: the customer says the blender arrived cracked. "
@@ -89,6 +91,7 @@ class Demo:
     config: Path = field(init=False)
     server: subprocess.Popen[bytes] | None = None
     worker: subprocess.Popen[bytes] | None = None
+    logs: list[IO[bytes]] = field(default_factory=lambda: list[IO[bytes]]())
     workers_started: int = 0
     started: float = field(default_factory=time.monotonic)
     push_key: str = field(
@@ -166,6 +169,7 @@ class Demo:
 
     def _spawn(self, verb: list[str], log: str) -> subprocess.Popen[bytes]:
         handle = (self.root / log).open("ab")
+        self.logs.append(handle)
         return subprocess.Popen(
             [
                 sys.executable,
@@ -218,7 +222,11 @@ class Demo:
                     proc.wait(15)
                 except subprocess.TimeoutExpired:
                     proc.kill()
+                    proc.wait(15)
         self.worker = self.server = None
+        for handle in self.logs:
+            handle.close()
+        self.logs.clear()
 
     def read_log(self, name: str) -> str:
         path = self.root / name
@@ -334,7 +342,8 @@ class Driver:
 
     async def client(self) -> Client:
         if self._client is None:
-            self._http = httpx.AsyncClient(timeout=httpx.Timeout(300, read=None))
+            # A model turn is under a minute; a silence of 3 min on the stream is a hang.
+            self._http = httpx.AsyncClient(timeout=httpx.Timeout(300, read=180))
             self._client = await create_client(
                 self.demo.base_url,
                 client_config=ClientConfig(
@@ -382,12 +391,13 @@ class Driver:
         """Stream one message's responses; returns the last task state seen."""
         state: int | None = None
         client = await self.client()
-        async for response in client.send_message(SendMessageRequest(message=message)):
-            event = self._record(response)
-            if on_event is not None:
-                on_event(event)
-            if event.state is not None:
-                state = event.state
+        async with asyncio.timeout(SEND_DEADLINE_SECONDS):
+            async for response in client.send_message(SendMessageRequest(message=message)):
+                event = self._record(response)
+                if on_event is not None:
+                    on_event(event)
+                if event.state is not None:
+                    state = event.state
         return state
 
     async def run(

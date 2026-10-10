@@ -101,7 +101,7 @@ def build_tools(
         {
             "type": "function",
             "name": names.encode(t.name),
-            "description": t.description,
+            "description": names.description(t),
             "parameters": cast(JsonValue, t.input_schema),
             "strict": False,
         }

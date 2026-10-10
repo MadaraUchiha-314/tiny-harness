@@ -30,9 +30,9 @@ pytestmark = [pytest.mark.e2e, pytest.mark.asyncio(loop_scope="module")]
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def demo() -> AsyncIterator[Demo]:
     instance = Demo.create("crash")
-    await instance.start_server()
-    instance.start_worker()
     try:
+        await instance.start_server()
+        instance.start_worker()
         yield instance
     finally:
         instance.stop()
@@ -128,11 +128,13 @@ async def test_a_worker_killed_during_an_idempotent_tool_activity_resumes_on_res
         await asyncio.sleep(2)
         demo.start_worker()
 
+    chaos = asyncio.create_task(kill_during_get_order())
     try:
-        chaos = asyncio.create_task(kill_during_get_order())
         state = await driver.run(on_event=lambda e: print(e.line()), act_on_card=False)
         await chaos
     finally:
+        if not chaos.done():
+            chaos.cancel()
         marker.unlink(missing_ok=True)
         await driver.close()
     assert driver.task_id is not None

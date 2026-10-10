@@ -29,8 +29,8 @@ pytestmark = [pytest.mark.e2e, pytest.mark.asyncio(loop_scope="module")]
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def demo() -> AsyncIterator[Demo]:
     instance = Demo.create("demo")
-    await instance.start_server(with_worker=True)
     try:
+        await instance.start_server(with_worker=True)
         yield instance
     finally:
         instance.stop()
@@ -56,6 +56,7 @@ async def test_the_demo_task_runs_to_a_terminal_state_through_both_surfaces(demo
         await driver.close()
     demo.write_evidence("transcript.txt", driver.transcript())
     demo.write_evidence("final-task.json", json.dumps(final, indent=2))
+    assert state == TaskState.TASK_STATE_COMPLETED, driver.transcript()
     demo.write_evidence("trace.jsonl", demo.trace_file.read_text())
     demo.write_evidence("orders-ledger.jsonl", demo.ledger_file.read_text())
 
@@ -68,7 +69,6 @@ async def test_the_demo_task_runs_to_a_terminal_state_through_both_surfaces(demo
         cast(JsonObject, p["createSurface"]) for p in driver.a2ui_parts if "createSurface" in p
     ]
     assert any(s.get("catalogId") == BASIC_CATALOG_ID for s in surfaces)
-    assert state == TaskState.TASK_STATE_COMPLETED, driver.transcript()
     assert TASK_EXT_KEY in cast(JsonObject, final["metadata"])
 
     tools = [row["tool"] for row in demo.ledger()]

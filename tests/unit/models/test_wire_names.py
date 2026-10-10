@@ -28,6 +28,10 @@ def test_wire_names_are_provider_safe_and_decode_to_the_registry_name() -> None:
     assert names.decode(wire) == "demo-support/orders.get_order"
     assert names.encode("ask_participant") == "ask_participant"
     assert sanitize("a b/c.d") == "a_b_c_d"
+    assert names.description(tool("demo-support/orders.get_order")) == (
+        "d (registry name: demo-support/orders.get_order)"
+    )
+    assert names.description(tool("ask_participant")) == "d"
 
 
 def test_colliding_names_get_distinct_wire_names() -> None:

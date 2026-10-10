@@ -14,7 +14,8 @@ model by name and loaded in full only when it asks. Lives in
 
 ### System prompt
 
-- The default system prompt SHALL be `tiny_harness/builtin/systemprompt.md`, parsed into
+- The default system prompt SHALL be the built-in plugin's
+  `io.github.madarauchiha-314.tiny-harness/systemprompt.md`, parsed into
   the sections `role`, `task`, `participants`, `tools`, `skills` and `rules` by its `##`
   headings.
 - A plugin SHALL replace the whole prompt with a `systemprompt.md` in its namespace

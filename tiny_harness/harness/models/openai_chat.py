@@ -183,7 +183,8 @@ class ChatStreamAssembler:
 
     Text is yielded as it arrives; tool-call fragments are accumulated by ``index`` and
     yielded once the stream ends, followed by ``done`` with the assembled response —
-    Chat Completions marks no single call as finished.
+    Chat Completions marks no single call as finished. A stream that ends without a
+    ``finish_reason`` is unparseable: no call and no ``done`` is reported from it.
     """
 
     names: WireNames
@@ -218,6 +219,8 @@ class ChatStreamAssembler:
         return events
 
     def finish(self) -> Sequence[LLMStreamEvent]:
+        if self._reason is None:  # empty or cut off: nothing may be reported as complete
+            raise ValueError("the stream ended without a finish_reason")
         calls = tuple(
             ToolCall(
                 call_id=partial.call_id or f"call_{index}",

@@ -299,3 +299,19 @@ async def test_abuse_deeply_nested_arguments_are_a_provider_error() -> None:
     cast(JsonObject, calls[0]["function"])["arguments"] = "[" * 100_000 + "]" * 100_000
     with pytest.raises(ProviderError):
         await llm(lambda _: httpx2.Response(200, json=body)).invoke(request())
+
+
+async def test_abuse_an_empty_stream_is_a_provider_error() -> None:
+    with pytest.raises(ProviderError):
+        async for _ in llm(streaming("data: [DONE]\n\n")).stream(request()):
+            pass
+
+
+async def test_abuse_a_truncated_stream_emits_no_call_and_is_a_provider_error() -> None:
+    lines = (FIXTURES / "stream.sse").read_text().split("\n\n")
+    cut = "\n\n".join(lines[:5]) + "\n\ndata: [DONE]\n\n"  # ends mid tool call
+    seen: list[str] = []
+    with pytest.raises(ProviderError):
+        async for event in llm(streaming(cut)).stream(request()):
+            seen.append(event.kind)
+    assert "tool_call" not in seen and "done" not in seen

@@ -190,9 +190,9 @@ class WorkflowOperations:
     async def ingest(self, task: HarnessTask, state: AgentState, text: str) -> AgentState:
         return state.append(MessageItem(role=MessageRole.USER, text=text))
 
-    async def drain(self, task: HarnessTask, state: AgentState) -> AgentState:
+    async def drain(self, task: HarnessTask, state: AgentState) -> tuple[HarnessTask, AgentState]:
         state, _ = await self._wf.drain(task, state)
-        return state
+        return self._wf.task, state  # a task envelope may have changed the extension
 
     async def assemble(self, task: HarnessTask, state: AgentState) -> ContextWindow:
         window = await self._wf.call(
@@ -479,6 +479,9 @@ class TaskWorkflow:
                 self.last_refusal = out.reason or "not accepted"
                 continue
             accepted += 1
+            if out.task is not None:  # a task envelope changed the extension (R15.1)
+                self.task = task = HarnessTask(out.task)
+                self._emit(self.task.proto)
             text = out.text
             pending = self.pending_help
             if pending is not None and out.participant_id == pending.participant_id:

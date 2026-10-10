@@ -154,8 +154,8 @@ class InProcessOperations:
             extract=lambda post: post.state,
         )
 
-    async def drain(self, task: HarnessTask, state: AgentState) -> AgentState:
-        return state  # no inbox in-process; the Temporal host drains its mailbox here
+    async def drain(self, task: HarnessTask, state: AgentState) -> tuple[HarnessTask, AgentState]:
+        return task, state  # no inbox in-process; the Temporal host drains its mailbox here
 
     async def tool_definitions(self) -> tuple[ToolDefinition, ...]:
         definitions: list[ToolDefinition] = []

@@ -54,7 +54,7 @@ class Operations(Protocol)
   def compact(self, task: 'HarnessTask', state: 'AgentState', window: 'ContextWindow') -> 'tuple[AgentState, CompactionRecord]'
   def complete(self, task: 'HarnessTask', text: 'str') -> 'HarnessTask'
   def decide_completion(self, task: 'HarnessTask') -> 'TaskCompleteIn'
-  def drain(self, task: 'HarnessTask', state: 'AgentState') -> 'AgentState'
+  def drain(self, task: 'HarnessTask', state: 'AgentState') -> 'tuple[HarnessTask, AgentState]'
   def emit_ui(self, task: 'HarnessTask', command: 'WorkflowCommand') -> 'None'
   def extract(self, task: 'HarnessTask', response: 'LLMResponse') -> 'tuple[ToolCall, ...]'
   def fail(self, task: 'HarnessTask', reason: 'str') -> 'HarnessTask'

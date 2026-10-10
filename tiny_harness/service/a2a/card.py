@@ -13,9 +13,9 @@ from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
 from tiny_harness.harness.core import TASK_EXT_MEDIA_TYPE, TASK_EXT_URI
 from tiny_harness.interaction.a2ui import BASIC_CATALOG_ID
+from tiny_harness.service.inbox import EVENT_MEDIA_TYPE
 
 A2UI_MEDIA_TYPE: Final = "application/a2ui+json"
-EVENT_MEDIA_TYPE: Final = "application/vnd.tiny-harness.event+json"
 PROTOCOL_VERSION: Final = "1.0"
 
 EXTENSION_DESCRIPTIONS: Final[dict[str, str]] = {

@@ -430,7 +430,7 @@ abuse cases are tests like any other (`reference/security.md`).
   - _Depends on:_ 47
   - _Requirements:_ the-loop's capability-docs gate
   - _Test:_ T13 — markdownlint; the `capability-docs` node's gate
-- [ ] 49. Verification run and evidence
+- [x] 49. Verification run and evidence
   - Execute `testing-plan.md`'s activities in order, record each command, outcome and
     evidence under `evidence/` (redacted), tick the activities, fill Verification
     results.

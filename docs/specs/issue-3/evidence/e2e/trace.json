@@ -1,0 +1,3815 @@
+[
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "8cca06ba67c687669fe40447fda9a3a8",
+  "span_id": "5080b6ca59271aaa",
+  "parent_id": "",
+  "start": 1791607325444343099,
+  "end": 1791607326251640841,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "24def4fa0b4f8ffc89bcddb0026d86c0",
+  "span_id": "e494f358391d4376",
+  "parent_id": "",
+  "start": 1791607326252295605,
+  "end": 1791607326254045608,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "0321f14c4a1954243ba997bd8f73fb4f",
+  "span_id": "10e41ce4d5937be3",
+  "parent_id": "",
+  "start": 1791607326431213764,
+  "end": 1791607327198955671,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "db6dfed69ed83f81a7750a372002bf70",
+  "span_id": "5995ecf05f6f7401",
+  "parent_id": "",
+  "start": 1791607327199477144,
+  "end": 1791607327201113256,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "HandleUpdate:inbox",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "28e0eec626f93ff5",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607328824313642,
+  "end": 1791607328824313642,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d52aa10654741c8c",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607328824313642,
+  "end": 1791607328824313642,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "254a7464d646c744",
+  "parent_id": "51dbfbc623cdc703",
+  "start": 1791607328780750924,
+  "end": 1791607328921497170,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d08f2babf1cd9481",
+  "parent_id": "d52aa10654741c8c",
+  "start": 1791607328919302413,
+  "end": 1791607328922174935,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "1",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:intake",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "710575207be35086",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607328954876408,
+  "end": 1791607328954876408,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "invoke_agent tiny-harness",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ef94b0245279966e",
+  "parent_id": "34ee5792353df9e2",
+  "start": 1791607329076743884,
+  "end": 1791607329077142580,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "request.received",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "invoke_agent",
+   "gen_ai.agent.name": "tiny-harness"
+  }
+ },
+ {
+  "name": "RunActivity:intake",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "34ee5792353df9e2",
+  "parent_id": "710575207be35086",
+  "start": 1791607329076378073,
+  "end": 1791607329080694061,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "2",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e0e506b5b57b2515",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607329114232807,
+  "end": 1791607329114232807,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "9a08a575b5f31e45",
+  "parent_id": "e0e506b5b57b2515",
+  "start": 1791607329204227779,
+  "end": 1791607329205269361,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "3",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ccf689290415b55a",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607329239613227,
+  "end": 1791607329239613227,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b7f86d80d081ea9b",
+  "parent_id": "ccf689290415b55a",
+  "start": 1791607329363471439,
+  "end": 1791607329363732982,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "4",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c7e6ddc347432732",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607329395907144,
+  "end": 1791607329395907144,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3b1825c8b8211bff",
+  "parent_id": "840668461f9f1635",
+  "start": 1791607329511130616,
+  "end": 1791607332153581249,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 1821,
+   "gen_ai.usage.output_tokens": 85,
+   "gen_ai.usage.cache_read.input_tokens": 0,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "840668461f9f1635",
+  "parent_id": "c7e6ddc347432732",
+  "start": 1791607329509315948,
+  "end": 1791607332154186959,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "5",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e4f134fa5bca5107",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607332192932357,
+  "end": 1791607332192932357,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool create_plan",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b32e11a1a418d0b7",
+  "parent_id": "e0d1d2ff71fd7056",
+  "start": 1791607332283663655,
+  "end": 1791607332289572469,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "create_plan",
+   "gen_ai.tool.call.id": "call_yjHmiIIMIfRyefxvrG1AWAEq",
+   "tiny_harness.tool.command": "attach_plan"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e0d1d2ff71fd7056",
+  "parent_id": "e4f134fa5bca5107",
+  "start": 1791607332283262792,
+  "end": 1791607332289959859,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "6",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "91e542ac3fc5b2c9",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607332321672682,
+  "end": 1791607332321672682,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a98d4b8d8bc8aed7",
+  "parent_id": "91e542ac3fc5b2c9",
+  "start": 1791607332418511796,
+  "end": 1791607332425387445,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "7",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "72f2f7b871c050f3",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607332458226552,
+  "end": 1791607332458226552,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5b15791c5979e2d0",
+  "parent_id": "72f2f7b871c050f3",
+  "start": 1791607332545921745,
+  "end": 1791607332547335712,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "8",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "470aa6310b74005c",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607332584484849,
+  "end": 1791607332584484849,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2e2ac82e1e379b24",
+  "parent_id": "470aa6310b74005c",
+  "start": 1791607332679789162,
+  "end": 1791607332680032938,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "9",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "32e13c13b57fdc88",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607332710205924,
+  "end": 1791607332710205924,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "818899fa4c976c13",
+  "parent_id": "c9471d1ef53fb441",
+  "start": 1791607332804853306,
+  "end": 1791607334206057332,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 1977,
+   "gen_ai.usage.output_tokens": 19,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c9471d1ef53fb441",
+  "parent_id": "32e13c13b57fdc88",
+  "start": 1791607332803151861,
+  "end": 1791607334206497367,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "10",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8bbfdd12ac63cb25",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607334242523553,
+  "end": 1791607334242523553,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool load_skill",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8e44ae5b36e9c348",
+  "parent_id": "cb51e1ee6c678d3e",
+  "start": 1791607334336956191,
+  "end": 1791607334339027408,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "load_skill",
+   "gen_ai.tool.call.id": "call_Et5gqspyqrHgTZCEUIok3cuX",
+   "tiny_harness.tool.command": "skill_loaded"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "cb51e1ee6c678d3e",
+  "parent_id": "8bbfdd12ac63cb25",
+  "start": 1791607334336614550,
+  "end": 1791607334339273153,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "11",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5ee77d29762c72d6",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607334370421674,
+  "end": 1791607334370421674,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1da9a42399c75f5a",
+  "parent_id": "5ee77d29762c72d6",
+  "start": 1791607334500086968,
+  "end": 1791607334506225334,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "12",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5d095c8f7dfbda93",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607334537962150,
+  "end": 1791607334537962150,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b13b36a0db82c637",
+  "parent_id": "5d095c8f7dfbda93",
+  "start": 1791607334626888867,
+  "end": 1791607334628170174,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "13",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "acd21ef0a4223ced",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607334663742983,
+  "end": 1791607334663742983,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b9d28f8177fe37ac",
+  "parent_id": "acd21ef0a4223ced",
+  "start": 1791607334766453747,
+  "end": 1791607334766739335,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "14",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3c897e8e04c2ba27",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607334796284292,
+  "end": 1791607334796284292,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5a72af5d3e2d10dd",
+  "parent_id": "0b2e28d29da470e1",
+  "start": 1791607334903832661,
+  "end": 1791607336418924212,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 2777,
+   "gen_ai.usage.output_tokens": 23,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0b2e28d29da470e1",
+  "parent_id": "3c897e8e04c2ba27",
+  "start": 1791607334901412980,
+  "end": 1791607336419360693,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "15",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "69aafa1bbb06bd11",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607336451278878,
+  "end": 1791607336451278878,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d5ff0c18ba606fb6",
+  "parent_id": "bcc1204777a2a4ec",
+  "start": 1791607336542795648,
+  "end": 1791607337312283036,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3f21986216f04cf7",
+  "parent_id": "bcc1204777a2a4ec",
+  "start": 1791607337312737224,
+  "end": 1791607337314712194,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "143d2e52d2e176de",
+  "parent_id": "bcc1204777a2a4ec",
+  "start": 1791607337491592346,
+  "end": 1791607338286204277,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/call get_order",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0b0efb3204bdb335",
+  "parent_id": "bcc1204777a2a4ec",
+  "start": 1791607338287115584,
+  "end": 1791607338289744775,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/call",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5e216adb3523af7c",
+  "parent_id": "bcc1204777a2a4ec",
+  "start": 1791607338290483375,
+  "end": 1791607338292315283,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "3"
+  }
+ },
+ {
+  "name": "execute_tool demo-support/orders.get_order",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "bcc1204777a2a4ec",
+  "parent_id": "06dc17c0f108e102",
+  "start": 1791607336539559125,
+  "end": 1791607338481309398,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "demo-support/orders.get_order",
+   "gen_ai.tool.call.id": "call_drr24YJXSqrFAbgDRYFgh3yu",
+   "tiny_harness.tool.is_error": false
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "06dc17c0f108e102",
+  "parent_id": "69aafa1bbb06bd11",
+  "start": 1791607336539250315,
+  "end": 1791607338481691224,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "16",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1916973df0a843d2",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607338514589245,
+  "end": 1791607338514589245,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2e8192a5bc283aae",
+  "parent_id": "1916973df0a843d2",
+  "start": 1791607338602904626,
+  "end": 1791607338609353057,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "17",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d26fcecd913fd9d1",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607338639552948,
+  "end": 1791607338639552948,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1e055b087dc761d5",
+  "parent_id": "d26fcecd913fd9d1",
+  "start": 1791607338752727325,
+  "end": 1791607338754249930,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "18",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c5830d2f13286266",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607338790050151,
+  "end": 1791607338790050151,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "72703ba35d9556ee",
+  "parent_id": "c5830d2f13286266",
+  "start": 1791607338921633983,
+  "end": 1791607338921871113,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "19",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ec8380cc13a13501",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607338954497457,
+  "end": 1791607338954497457,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4a765d4c77bbc435",
+  "parent_id": "6a21482f1793323b",
+  "start": 1791607339051407789,
+  "end": 1791607340462325272,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 3032,
+   "gen_ai.usage.output_tokens": 23,
+   "gen_ai.usage.cache_read.input_tokens": 2774,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6a21482f1793323b",
+  "parent_id": "ec8380cc13a13501",
+  "start": 1791607339049259837,
+  "end": 1791607340462869826,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "20",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "34341ab834fb1117",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607340495553650,
+  "end": 1791607340495553650,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3a31b0b43918fffd",
+  "parent_id": "503e669be664a09a",
+  "start": 1791607340591153849,
+  "end": 1791607341351636685,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "960065906253f68e",
+  "parent_id": "503e669be664a09a",
+  "start": 1791607341352141727,
+  "end": 1791607341353679738,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1cf8379e7b91fa41",
+  "parent_id": "503e669be664a09a",
+  "start": 1791607341531311320,
+  "end": 1791607342290331790,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/call lookup",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "653c545fa109cf13",
+  "parent_id": "503e669be664a09a",
+  "start": 1791607342290844486,
+  "end": 1791607342293565485,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/call",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6f1f8ee8e64620bd",
+  "parent_id": "503e669be664a09a",
+  "start": 1791607342293965470,
+  "end": 1791607342295704237,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "3"
+  }
+ },
+ {
+  "name": "execute_tool demo-support/policy.lookup",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "503e669be664a09a",
+  "parent_id": "ff6302d98c5296bf",
+  "start": 1791607340586990186,
+  "end": 1791607342463962429,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "demo-support/policy.lookup",
+   "gen_ai.tool.call.id": "call_2rpNLRGdl8PcJH76KwTfey64",
+   "tiny_harness.tool.is_error": false
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ff6302d98c5296bf",
+  "parent_id": "34341ab834fb1117",
+  "start": 1791607340586665800,
+  "end": 1791607342464698516,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "21",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5e7b0bc19741f0a0",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607342498533548,
+  "end": 1791607342498533548,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "71122e44984a441a",
+  "parent_id": "5e7b0bc19741f0a0",
+  "start": 1791607342593498691,
+  "end": 1791607342599735077,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "22",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3ebf6907d8fbff3f",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607342631006566,
+  "end": 1791607342631006566,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "04be3119757c352d",
+  "parent_id": "3ebf6907d8fbff3f",
+  "start": 1791607342725358234,
+  "end": 1791607342726671162,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "23",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "23e151f24dc26ba7",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607342764092260,
+  "end": 1791607342764092260,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "fedc325e058dfba0",
+  "parent_id": "23e151f24dc26ba7",
+  "start": 1791607342877938313,
+  "end": 1791607342878192584,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "24",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "788095a288afa94e",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607342912444828,
+  "end": 1791607342912444828,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3b898fb6976315bf",
+  "parent_id": "a092459bd1bf7134",
+  "start": 1791607343008270282,
+  "end": 1791607347400955763,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 3230,
+   "gen_ai.usage.output_tokens": 154,
+   "gen_ai.usage.cache_read.input_tokens": 3029,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a092459bd1bf7134",
+  "parent_id": "788095a288afa94e",
+  "start": 1791607343006023870,
+  "end": 1791607347401523355,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "25",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2442165cbf5ef279",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607347435785322,
+  "end": 1791607347435785322,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool create_plan",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "be7a57ad5705d945",
+  "parent_id": "ba376bc1071ed276",
+  "start": 1791607347526771628,
+  "end": 1791607347531771080,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "create_plan",
+   "gen_ai.tool.call.id": "call_LG3m9SfYTIyqnSUfJOkkebU2",
+   "tiny_harness.tool.command": "attach_plan"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ba376bc1071ed276",
+  "parent_id": "2442165cbf5ef279",
+  "start": 1791607347526391469,
+  "end": 1791607347532039044,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "26",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1fea4d86f55c8622",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607347565009512,
+  "end": 1791607347565009512,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "13eba67655f54863",
+  "parent_id": "1fea4d86f55c8622",
+  "start": 1791607347660463074,
+  "end": 1791607347666767764,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "27",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4c1ce47ea38cd638",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607347698316056,
+  "end": 1791607347698316056,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "aa8d47a87f312de5",
+  "parent_id": "4c1ce47ea38cd638",
+  "start": 1791607347803698809,
+  "end": 1791607347805099997,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "28",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "271b6a00058b88d5",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607347850577229,
+  "end": 1791607347850577229,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d04a914876c93a98",
+  "parent_id": "271b6a00058b88d5",
+  "start": 1791607347970107103,
+  "end": 1791607347970351508,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "29",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "72d505e5c87a4541",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607348000338387,
+  "end": 1791607348000338387,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "52fe14988e02a760",
+  "parent_id": "2605e2cc27e92bad",
+  "start": 1791607348106963555,
+  "end": 1791607349744893375,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 3464,
+   "gen_ai.usage.output_tokens": 24,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2605e2cc27e92bad",
+  "parent_id": "72d505e5c87a4541",
+  "start": 1791607348104465603,
+  "end": 1791607349745306670,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "30",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "bda6b6ef779ac3ce",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607349778836938,
+  "end": 1791607349778836938,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ec1ef3235c7b9ba3",
+  "parent_id": "b6cd85074ae3adb0",
+  "start": 1791607349872023194,
+  "end": 1791607350650497591,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "fbca6e9ee7fa86c6",
+  "parent_id": "b6cd85074ae3adb0",
+  "start": 1791607350651551197,
+  "end": 1791607350654570874,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3049a0a808aef4ab",
+  "parent_id": "b6cd85074ae3adb0",
+  "start": 1791607350832178258,
+  "end": 1791607351600039895,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/call list_open_orders",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "23bf043d5307388f",
+  "parent_id": "b6cd85074ae3adb0",
+  "start": 1791607351600460633,
+  "end": 1791607351602933691,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/call",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "53d44556ac3b8367",
+  "parent_id": "b6cd85074ae3adb0",
+  "start": 1791607351603293921,
+  "end": 1791607351604928611,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "3"
+  }
+ },
+ {
+  "name": "execute_tool demo-support/orders.list_open_orders",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b6cd85074ae3adb0",
+  "parent_id": "41d2ed17dc31d25d",
+  "start": 1791607349869474241,
+  "end": 1791607351773515714,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "demo-support/orders.list_open_orders",
+   "gen_ai.tool.call.id": "call_nUdBTF8KCPafQm2w3nzEZGNd",
+   "tiny_harness.tool.is_error": false
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "41d2ed17dc31d25d",
+  "parent_id": "bda6b6ef779ac3ce",
+  "start": 1791607349869174288,
+  "end": 1791607351773810362,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "31",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b2e3e589e210ae01",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607351808875828,
+  "end": 1791607351808875828,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3b657c7915ef708f",
+  "parent_id": "b2e3e589e210ae01",
+  "start": 1791607351904869719,
+  "end": 1791607351911176540,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "32",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "dfbebf91192ecc9b",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607351942261551,
+  "end": 1791607351942261551,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0b19c2d847418a8a",
+  "parent_id": "dfbebf91192ecc9b",
+  "start": 1791607352030375927,
+  "end": 1791607352031838597,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "33",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ef59e8397305db5d",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607352067662621,
+  "end": 1791607352067662621,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e43a742dbf7d70f5",
+  "parent_id": "ef59e8397305db5d",
+  "start": 1791607352170232614,
+  "end": 1791607352170483343,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "34",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6f0803efa6c25441",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607352201102153,
+  "end": 1791607352201102153,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e001bba6cd5def15",
+  "parent_id": "4e6998f750309050",
+  "start": 1791607352298267070,
+  "end": 1791607355740916815,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 3931,
+   "gen_ai.usage.output_tokens": 113,
+   "gen_ai.usage.cache_read.input_tokens": 3461,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4e6998f750309050",
+  "parent_id": "6f0803efa6c25441",
+  "start": 1791607352295681067,
+  "end": 1791607355741348038,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "35",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d0e1de6d9882d280",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607355776715589,
+  "end": 1791607355776715589,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool complete_step",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1ccedcee9900f37c",
+  "parent_id": "135f24d36bd3000b",
+  "start": 1791607355889712531,
+  "end": 1791607355892082107,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "complete_step",
+   "gen_ai.tool.call.id": "call_w26WaMvVu1r42KLJb5QXjsJP",
+   "tiny_harness.tool.command": "complete_step"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "135f24d36bd3000b",
+  "parent_id": "d0e1de6d9882d280",
+  "start": 1791607355889361260,
+  "end": 1791607355892451329,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "36",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1d625f6c88d951e4",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607355926096719,
+  "end": 1791607355926096719,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "405ddeb8ca3c2288",
+  "parent_id": "1d625f6c88d951e4",
+  "start": 1791607356019017878,
+  "end": 1791607356026478103,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "37",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "905a8ac0d594a8c9",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607356065636347,
+  "end": 1791607356065636347,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6702efbd49c27eb7",
+  "parent_id": "905a8ac0d594a8c9",
+  "start": 1791607356184976163,
+  "end": 1791607356186446437,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "38",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4805b44dbc74544c",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607356221442577,
+  "end": 1791607356221442577,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "01c1252e38b18782",
+  "parent_id": "4805b44dbc74544c",
+  "start": 1791607356337439092,
+  "end": 1791607356337666311,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "39",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6f852384aa386bc0",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607356369796059,
+  "end": 1791607356369796059,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5a173024bdfc89ba",
+  "parent_id": "cf969b6de4344d27",
+  "start": 1791607356497883623,
+  "end": 1791607358941717916,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 4154,
+   "gen_ai.usage.output_tokens": 83,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "cf969b6de4344d27",
+  "parent_id": "6f852384aa386bc0",
+  "start": 1791607356494989617,
+  "end": 1791607358942145822,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "40",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3b5762d064f822bc",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607358973937454,
+  "end": 1791607358973937454,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool complete_step",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8c4fdee9f34f0b51",
+  "parent_id": "e0f133b95e9989b5",
+  "start": 1791607359064282860,
+  "end": 1791607359066783434,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "complete_step",
+   "gen_ai.tool.call.id": "call_fnACzLj779AJlXYuOdzHFvpF",
+   "tiny_harness.tool.command": "complete_step"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e0f133b95e9989b5",
+  "parent_id": "3b5762d064f822bc",
+  "start": 1791607359063911692,
+  "end": 1791607359067121362,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "41",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "cea609dcd4203fd2",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607359099713268,
+  "end": 1791607359099713268,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0ea9350bf2490638",
+  "parent_id": "cea609dcd4203fd2",
+  "start": 1791607359223225935,
+  "end": 1791607359229993206,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "42",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b94022fb1f7e6db5",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607359261633042,
+  "end": 1791607359261633042,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "548d61154d9f275b",
+  "parent_id": "b94022fb1f7e6db5",
+  "start": 1791607359360080245,
+  "end": 1791607359361534311,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "43",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "babe4b9b0071f143",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607359394533294,
+  "end": 1791607359394533294,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f57d3f4933467b3a",
+  "parent_id": "babe4b9b0071f143",
+  "start": 1791607359529020543,
+  "end": 1791607359529257642,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "44",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1916a725ad899e67",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607359560084755,
+  "end": 1791607359560084755,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6c6745917d2c2fc5",
+  "parent_id": "20bcd8432daba231",
+  "start": 1791607359703433021,
+  "end": 1791607364400231004,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 4352,
+   "gen_ai.usage.output_tokens": 270,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "20bcd8432daba231",
+  "parent_id": "1916a725ad899e67",
+  "start": 1791607359700611183,
+  "end": 1791607364400677318,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "45",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0f570f5da9e172dc",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607364437670915,
+  "end": 1791607364437670915,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool emit_ui",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "101197e299e28238",
+  "parent_id": "705eb68d343d8b4c",
+  "start": 1791607364550301960,
+  "end": 1791607364561614675,
+  "status": "ERROR",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "emit_ui",
+   "gen_ai.tool.call.id": "call_ehxY0HHJmf4N2vQADRUyfKCf",
+   "tiny_harness.tool.is_error": true
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "705eb68d343d8b4c",
+  "parent_id": "0f570f5da9e172dc",
+  "start": 1791607364549810826,
+  "end": 1791607364561973421,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "46",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8bc5880127aa0346",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607364599741569,
+  "end": 1791607364599741569,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f056b3aadf744cb7",
+  "parent_id": "8bc5880127aa0346",
+  "start": 1791607364697032031,
+  "end": 1791607364703226434,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "47",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "669798ec89ba5421",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607364734420103,
+  "end": 1791607364734420103,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1e10ca0f29140e85",
+  "parent_id": "669798ec89ba5421",
+  "start": 1791607364833239290,
+  "end": 1791607364834734575,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "48",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5591fd7a82ac551e",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607364888889316,
+  "end": 1791607364888889316,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f014c2a9841bde99",
+  "parent_id": "5591fd7a82ac551e",
+  "start": 1791607364992897365,
+  "end": 1791607364993250886,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "49",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b141795c9678dc78",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607365025341130,
+  "end": 1791607365025341130,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "7782babdbb3c072f",
+  "parent_id": "5415d41bed9fdd97",
+  "start": 1791607365126768625,
+  "end": 1791607369835786641,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 4742,
+   "gen_ai.usage.output_tokens": 293,
+   "gen_ai.usage.cache_read.input_tokens": 4349,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5415d41bed9fdd97",
+  "parent_id": "b141795c9678dc78",
+  "start": 1791607365123574395,
+  "end": 1791607369836228822,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "50",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "23e300bf8b22e575",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607369869606370,
+  "end": 1791607369869606370,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool emit_ui",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "eeee8c273140f690",
+  "parent_id": "54522c249d09a73e",
+  "start": 1791607369961209075,
+  "end": 1791607370007418581,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "emit_ui",
+   "gen_ai.tool.call.id": "call_yxzmn5ZgK5yZaWKVukeYG2Xs",
+   "tiny_harness.tool.command": "ui_emitted"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "54522c249d09a73e",
+  "parent_id": "23e300bf8b22e575",
+  "start": 1791607369960718975,
+  "end": 1791607370007829803,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "51",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f75d236a7c16a1fe",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607370040770508,
+  "end": 1791607370040770508,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3e629caf40f80538",
+  "parent_id": "f75d236a7c16a1fe",
+  "start": 1791607370175636057,
+  "end": 1791607370176337511,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "52",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c3db1edfe49680c2",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607370209323616,
+  "end": 1791607370209323616,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e7c243bde840886c",
+  "parent_id": "c3db1edfe49680c2",
+  "start": 1791607370303535972,
+  "end": 1791607370310622185,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "53",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0c565de647af8042",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607370344146675,
+  "end": 1791607370344146675,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c4d73feaddc7be0c",
+  "parent_id": "0c565de647af8042",
+  "start": 1791607370484745256,
+  "end": 1791607370486469736,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "54",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a6e9d3d2ff0df8f1",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607370522337216,
+  "end": 1791607370522337216,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b1f6750b0dd35c0c",
+  "parent_id": "a6e9d3d2ff0df8f1",
+  "start": 1791607370632430220,
+  "end": 1791607370632661306,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "55",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "7bfa36f446f3a0ba",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607370667170186,
+  "end": 1791607370667170186,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d5ccc1a2e950f8e2",
+  "parent_id": "c19586f224fbddb5",
+  "start": 1791607370773523047,
+  "end": 1791607375216304309,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 5073,
+   "gen_ai.usage.output_tokens": 109,
+   "gen_ai.usage.cache_read.input_tokens": 4739,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c19586f224fbddb5",
+  "parent_id": "7bfa36f446f3a0ba",
+  "start": 1791607370770095908,
+  "end": 1791607375216887205,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "56",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "227d814f516970f0",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607375250853074,
+  "end": 1791607375250853074,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool ask_participant",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e81b2b800193e387",
+  "parent_id": "5ed15a4caa8e23a9",
+  "start": 1791607375351363480,
+  "end": 1791607375354466701,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "ask_participant",
+   "gen_ai.tool.call.id": "call_U10uvJCQnQn2GnbKlvHs8JbQ",
+   "tiny_harness.tool.command": "wait_for_reply"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5ed15a4caa8e23a9",
+  "parent_id": "227d814f516970f0",
+  "start": 1791607375351003891,
+  "end": 1791607375354727878,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "57",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "0c41c6aac9b481cf",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607375389254921,
+  "end": 1791607375389254921,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "25ad011c9871ac35",
+  "parent_id": "0c41c6aac9b481cf",
+  "start": 1791607375499609308,
+  "end": 1791607375505974941,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "58",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:send_channel_message",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "880195133af95166",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607375538136694,
+  "end": 1791607375538136694,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:send_channel_message",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "94b01600c7c10692",
+  "parent_id": "880195133af95166",
+  "start": 1791607375629347593,
+  "end": 1791607375631655238,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "59",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4ca4d8038b4534bc",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607375663514853,
+  "end": 1791607375663514853,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "238e8b3fa0bd964b",
+  "parent_id": "4ca4d8038b4534bc",
+  "start": 1791607375751318978,
+  "end": 1791607375753497049,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "60",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "HandleUpdate:inbox",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "acb655d80d582bf2",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607376054644271,
+  "end": 1791607376054644271,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:intake",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6f1f6c41cf251164",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607376054644271,
+  "end": 1791607376054644271,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "400c10d110f98624",
+  "parent_id": "51dbfbc623cdc703",
+  "start": 1791607376028009859,
+  "end": 1791607376153715609,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54"
+  }
+ },
+ {
+  "name": "invoke_agent tiny-harness",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "549f265610aa36c5",
+  "parent_id": "aea509614f83f254",
+  "start": 1791607376169177493,
+  "end": 1791607376169429674,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "request.received",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "invoke_agent",
+   "gen_ai.agent.name": "tiny-harness"
+  }
+ },
+ {
+  "name": "RunActivity:intake",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "aea509614f83f254",
+  "parent_id": "6f1f6c41cf251164",
+  "start": 1791607376168245271,
+  "end": 1791607376171662179,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "61",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b9ac507ae88cb6d9",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607376201860111,
+  "end": 1791607376201860111,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "204e4b5fd78c5beb",
+  "parent_id": "b9ac507ae88cb6d9",
+  "start": 1791607376328917206,
+  "end": 1791607376329463703,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "62",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b902910a21a2a760",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607376361612675,
+  "end": 1791607376361612675,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "3c294fff7b6c16b4",
+  "parent_id": "b902910a21a2a760",
+  "start": 1791607376460908386,
+  "end": 1791607376462478754,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "63",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1a3cceb786eee977",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607376494066878,
+  "end": 1791607376494066878,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6e52407cf3dacbe6",
+  "parent_id": "1a3cceb786eee977",
+  "start": 1791607376602255322,
+  "end": 1791607376602563859,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "64",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "9bb7470fa4a40e78",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607376633065557,
+  "end": 1791607376633065557,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "69d71448cb0e4fea",
+  "parent_id": "6ab9722013b7cb94",
+  "start": 1791607376737166339,
+  "end": 1791607379758093985,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 5357,
+   "gen_ai.usage.output_tokens": 84,
+   "gen_ai.usage.cache_read.input_tokens": 5070,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "6ab9722013b7cb94",
+  "parent_id": "9bb7470fa4a40e78",
+  "start": 1791607376733810605,
+  "end": 1791607379758494822,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "65",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "66e404316baccf0d",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607379791061190,
+  "end": 1791607379791061190,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool ask_participant",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e5a1e63b8fe6155a",
+  "parent_id": "68b3b09abd40fe4b",
+  "start": 1791607379883287335,
+  "end": 1791607379886632517,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "ask_participant",
+   "gen_ai.tool.call.id": "call_uwOIuTwXdidCzaZLXvXLiDZ2",
+   "tiny_harness.tool.command": "wait_for_reply"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "68b3b09abd40fe4b",
+  "parent_id": "66e404316baccf0d",
+  "start": 1791607379882873522,
+  "end": 1791607379887016445,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "66",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "bb75e1caeb9796b8",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607379920088086,
+  "end": 1791607379920088086,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b252eede68c07618",
+  "parent_id": "bb75e1caeb9796b8",
+  "start": 1791607380017402427,
+  "end": 1791607380024252671,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "67",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:send_channel_message",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a2ceb385fe9fb700",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607380059110560,
+  "end": 1791607380059110560,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:send_channel_message",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4bfa97e5c16407ff",
+  "parent_id": "a2ceb385fe9fb700",
+  "start": 1791607380150485636,
+  "end": 1791607380152856638,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "68",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d7e932d400b07d85",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607380187901609,
+  "end": 1791607380187901609,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "81a591c0a93ded1a",
+  "parent_id": "d7e932d400b07d85",
+  "start": 1791607380277236099,
+  "end": 1791607380277894475,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "69",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "HandleUpdate:inbox",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b550255e129bb430",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607380776963928,
+  "end": 1791607380776963928,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:intake",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f4ff61191741ba73",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607380776963928,
+  "end": 1791607380776963928,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartUpdateWithStartWorkflow:TaskWorkflow",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c55b17c72eee497c",
+  "parent_id": "51dbfbc623cdc703",
+  "start": 1791607380750172831,
+  "end": 1791607380857983282,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54"
+  }
+ },
+ {
+  "name": "invoke_agent tiny-harness",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "711cf0308b54a694",
+  "parent_id": "2ebfc04e46236ff5",
+  "start": 1791607380860143884,
+  "end": 1791607380860404455,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "request.received",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "invoke_agent",
+   "gen_ai.agent.name": "tiny-harness"
+  }
+ },
+ {
+  "name": "RunActivity:intake",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2ebfc04e46236ff5",
+  "parent_id": "f4ff61191741ba73",
+  "start": 1791607380859729446,
+  "end": 1791607380862796477,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "70",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "45be084a57b48aea",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607380892916354,
+  "end": 1791607380892916354,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "aade69dd3af8ac03",
+  "parent_id": "45be084a57b48aea",
+  "start": 1791607381021884573,
+  "end": 1791607381022343596,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "71",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f4b8eed6b41209b9",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607381055191275,
+  "end": 1791607381055191275,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8c224d2dff300c85",
+  "parent_id": "f4b8eed6b41209b9",
+  "start": 1791607381147762704,
+  "end": 1791607381149386265,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "72",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b17e27cec5799c95",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607381184409769,
+  "end": 1791607381184409769,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a0d5a0135e25d6c3",
+  "parent_id": "b17e27cec5799c95",
+  "start": 1791607381311312580,
+  "end": 1791607381311672721,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "73",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c4a19dd046f599d0",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607381364504420,
+  "end": 1791607381364504420,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "17d931549247000a",
+  "parent_id": "d5efe38c0c2841a8",
+  "start": 1791607381475158102,
+  "end": 1791607384403195088,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 5631,
+   "gen_ai.usage.output_tokens": 101,
+   "gen_ai.usage.cache_read.input_tokens": 5354,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d5efe38c0c2841a8",
+  "parent_id": "c4a19dd046f599d0",
+  "start": 1791607381471513423,
+  "end": 1791607384403636810,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "74",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "bf677f066f677a4f",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607384437813782,
+  "end": 1791607384437813782,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool complete_step",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e7a7ca6c92060913",
+  "parent_id": "eda88fb2ab8f2b93",
+  "start": 1791607384535661451,
+  "end": 1791607384537958600,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "complete_step",
+   "gen_ai.tool.call.id": "call_ywIEgqJtjehg7k73n7wGrCeP",
+   "tiny_harness.tool.command": "complete_step"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "eda88fb2ab8f2b93",
+  "parent_id": "bf677f066f677a4f",
+  "start": 1791607384535108203,
+  "end": 1791607384538468948,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "75",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2d8e54ab42e54601",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607384570763401,
+  "end": 1791607384570763401,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5a7eb97a19213db7",
+  "parent_id": "2d8e54ab42e54601",
+  "start": 1791607384664822755,
+  "end": 1791607384671535899,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "76",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c56361c477cde66d",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607384704003202,
+  "end": 1791607384704003202,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a8d87f2cb71d2d6f",
+  "parent_id": "c56361c477cde66d",
+  "start": 1791607384794925274,
+  "end": 1791607384796526880,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "77",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f189520e69d1c1a9",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607384827239155,
+  "end": 1791607384827239155,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f3fe11e0fffdae73",
+  "parent_id": "f189520e69d1c1a9",
+  "start": 1791607384941156328,
+  "end": 1791607384941388327,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "78",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "e11004950bc43ec5",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607384975047749,
+  "end": 1791607384975047749,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a24bd76c2b744fd4",
+  "parent_id": "80f14239a9ebb9be",
+  "start": 1791607385077591440,
+  "end": 1791607386787823863,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 5865,
+   "gen_ai.usage.output_tokens": 33,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "80f14239a9ebb9be",
+  "parent_id": "e11004950bc43ec5",
+  "start": 1791607385073898334,
+  "end": 1791607386788275573,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "79",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1892fe2bfdbd94b4",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607386827226838,
+  "end": 1791607386827226838,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "062ea684de5b5600",
+  "parent_id": "60f066abf75babe0",
+  "start": 1791607386924751953,
+  "end": 1791607387685643724,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5984ea6aa4e3914b",
+  "parent_id": "60f066abf75babe0",
+  "start": 1791607387686144893,
+  "end": 1791607387687796819,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send server/discover",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "96a07a35ac7a4d8b",
+  "parent_id": "60f066abf75babe0",
+  "start": 1791607387867209592,
+  "end": 1791607388627534365,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "server/discover",
+   "jsonrpc.request.id": "1"
+  }
+ },
+ {
+  "name": "MCP send tools/call ship_replacement",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "70273f154f14b280",
+  "parent_id": "60f066abf75babe0",
+  "start": 1791607388627958798,
+  "end": 1791607388630364943,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/call",
+   "jsonrpc.request.id": "2"
+  }
+ },
+ {
+  "name": "MCP send tools/list",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4830d32916d4d1a8",
+  "parent_id": "60f066abf75babe0",
+  "start": 1791607388630687974,
+  "end": 1791607388632329153,
+  "status": "UNSET",
+  "attributes": {
+   "mcp.method.name": "tools/list",
+   "jsonrpc.request.id": "3"
+  }
+ },
+ {
+  "name": "execute_tool demo-support/orders.ship_replacement",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "60f066abf75babe0",
+  "parent_id": "776ef8666d9ae336",
+  "start": 1791607386922105136,
+  "end": 1791607388799258515,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "demo-support/orders.ship_replacement",
+   "gen_ai.tool.call.id": "call_dDzzHizTFnw7R2w4CZgZU0fE",
+   "tiny_harness.tool.is_error": false
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "776ef8666d9ae336",
+  "parent_id": "1892fe2bfdbd94b4",
+  "start": 1791607386921792193,
+  "end": 1791607388799545120,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "80",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "745eadd20f816600",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607388831835916,
+  "end": 1791607388831835916,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "dc5df59e48d3bfe9",
+  "parent_id": "745eadd20f816600",
+  "start": 1791607388937155419,
+  "end": 1791607388946952438,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "81",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "33e85b9706f2d505",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607388978646334,
+  "end": 1791607388978646334,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8251f37235d20aa8",
+  "parent_id": "33e85b9706f2d505",
+  "start": 1791607389085109430,
+  "end": 1791607389086718355,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "82",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d81665195c6541bc",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607389121465524,
+  "end": 1791607389121465524,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "652b54f42233e37b",
+  "parent_id": "d81665195c6541bc",
+  "start": 1791607389227789980,
+  "end": 1791607389228027022,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "83",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "cad44d9a43af7725",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607389259902211,
+  "end": 1791607389259902211,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "a6a789196fbd9b73",
+  "parent_id": "1ef4666fcfc041bf",
+  "start": 1791607389380945194,
+  "end": 1791607391665888865,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 6001,
+   "gen_ai.usage.output_tokens": 66,
+   "gen_ai.usage.cache_read.input_tokens": 5862,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1ef4666fcfc041bf",
+  "parent_id": "cad44d9a43af7725",
+  "start": 1791607389376937934,
+  "end": 1791607391666306762,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "84",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "75b28bc42cf0a8a7",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607391696472762,
+  "end": 1791607391696472762,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool complete_step",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "4dcdf8e350b272c0",
+  "parent_id": "1d3f65db50fc8f1d",
+  "start": 1791607391790473453,
+  "end": 1791607391792726416,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "complete_step",
+   "gen_ai.tool.call.id": "call_3HLw4u2A82wBPvOQRYJJs8Dl",
+   "tiny_harness.tool.command": "complete_step"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "1d3f65db50fc8f1d",
+  "parent_id": "75b28bc42cf0a8a7",
+  "start": 1791607391790159119,
+  "end": 1791607391792981941,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "85",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "5b525aa45facad3f",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607391826307033,
+  "end": 1791607391826307033,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "d43f161207c1a907",
+  "parent_id": "5b525aa45facad3f",
+  "start": 1791607391930676046,
+  "end": 1791607391937731467,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "86",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "770eeedaef40d698",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607391998294102,
+  "end": 1791607391998294102,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c6cbe6558b3ad480",
+  "parent_id": "770eeedaef40d698",
+  "start": 1791607392108352996,
+  "end": 1791607392110190899,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "87",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "ab3c702583854e2b",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607392147400506,
+  "end": 1791607392147400506,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "cce9b59a34400db5",
+  "parent_id": "ab3c702583854e2b",
+  "start": 1791607392278106667,
+  "end": 1791607392278336101,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "88",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b6e0075fb66d265c",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607392315352311,
+  "end": 1791607392315352311,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "aea5d6c6da0d49ec",
+  "parent_id": "fc1e42dfb177b004",
+  "start": 1791607392461337139,
+  "end": 1791607394537421077,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 6165,
+   "gen_ai.usage.output_tokens": 30,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "tool_calls",
+   "gen_ai.response.tool_calls": 1
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "fc1e42dfb177b004",
+  "parent_id": "b6e0075fb66d265c",
+  "start": 1791607392457313459,
+  "end": 1791607394537843026,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "89",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2c2a4346563fc01a",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607394570927462,
+  "end": 1791607394570927462,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "execute_tool unload_skill",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "90e3e1a75edbb2e7",
+  "parent_id": "b01da24bf0949398",
+  "start": 1791607394660988461,
+  "end": 1791607394662681346,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "tool.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "execute_tool",
+   "gen_ai.tool.name": "unload_skill",
+   "gen_ai.tool.call.id": "call_7oGzdYmm4L6x3BZE9sZ72tJo",
+   "tiny_harness.tool.command": "skill_unloaded"
+  }
+ },
+ {
+  "name": "RunActivity:invoke_tool",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "b01da24bf0949398",
+  "parent_id": "2c2a4346563fc01a",
+  "start": 1791607394660699958,
+  "end": 1791607394662925001,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "90",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "033bd522d29650c4",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607394695528113,
+  "end": 1791607394695528113,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "2da0e006e5b616df",
+  "parent_id": "033bd522d29650c4",
+  "start": 1791607394789395347,
+  "end": 1791607394795883853,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "91",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "fdcf27475cd50c0f",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607394826554225,
+  "end": 1791607394826554225,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:assemble_context",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c3f6024f113f2814",
+  "parent_id": "fdcf27475cd50c0f",
+  "start": 1791607394920761524,
+  "end": 1791607394922449629,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "92",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8f7ebe129d79b784",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607394960123366,
+  "end": 1791607394960123366,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:compaction_trigger",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "dc9ff4b559806850",
+  "parent_id": "8f7ebe129d79b784",
+  "start": 1791607395070470587,
+  "end": 1791607395070703623,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "93",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "569c48bae6cb5f24",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607395101417043,
+  "end": 1791607395101417043,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "chat gpt-6.1-sol",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "9616ae18246dee67",
+  "parent_id": "f239f8687dc6b7ed",
+  "start": 1791607395211464649,
+  "end": 1791607397649794800,
+  "status": "UNSET",
+  "attributes": {
+   "tiny_harness.task_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.correlation_id": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "tiny_harness.operation": "llm.invoked",
+   "tiny_harness.attempt": 1,
+   "gen_ai.operation.name": "chat",
+   "gen_ai.provider.name": "tiny_harness",
+   "gen_ai.request.tools": 17,
+   "gen_ai.request.model": "gpt-6.1-sol",
+   "gen_ai.response.model": "gpt-6.1-sol",
+   "gen_ai.usage.input_tokens": 5865,
+   "gen_ai.usage.output_tokens": 45,
+   "gen_ai.usage.cache_read.input_tokens": 1707,
+   "gen_ai.response.finish_reasons": "stop",
+   "gen_ai.response.tool_calls": 0
+  }
+ },
+ {
+  "name": "RunActivity:invoke_llm",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "f239f8687dc6b7ed",
+  "parent_id": "569c48bae6cb5f24",
+  "start": 1791607395207764905,
+  "end": 1791607397650348536,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "94",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "9c3851c2327e1a0f",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607397686121503,
+  "end": 1791607397686121503,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8c9b9eea3963a6cd",
+  "parent_id": "9c3851c2327e1a0f",
+  "start": 1791607397823604151,
+  "end": 1791607397834069732,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "95",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:decide_completion",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "74b4a66752bda5c3",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607397865128069,
+  "end": 1791607397865128069,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:decide_completion",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "8ab34a8fb74e161f",
+  "parent_id": "74b4a66752bda5c3",
+  "start": 1791607397954842421,
+  "end": 1791607397955113376,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "96",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "9339700c0ba5c4a9",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607397988170462,
+  "end": 1791607397988170462,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:emit_event",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "c008c40b79213af7",
+  "parent_id": "9339700c0ba5c4a9",
+  "start": 1791607398076436397,
+  "end": 1791607398077085840,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "97",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "StartActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "039d6d657055e909",
+  "parent_id": "254a7464d646c744",
+  "start": 1791607398113195331,
+  "end": 1791607398113195331,
+  "status": "UNSET",
+  "attributes": {
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ },
+ {
+  "name": "RunActivity:persist",
+  "trace_id": "30b606f37552a15518a374eb303f19c3",
+  "span_id": "42a7f588be316b1f",
+  "parent_id": "039d6d657055e909",
+  "start": 1791607398208293959,
+  "end": 1791607398216905825,
+  "status": "UNSET",
+  "attributes": {
+   "temporalActivityID": "98",
+   "temporalWorkflowID": "9dd85bf0-c7e7-4192-b632-0fb593515c54",
+   "temporalRunID": "01a1241e-5029-7a38-8f0b-284a6a3180f4"
+  }
+ }
+]

@@ -58,6 +58,7 @@ class PullChannel(Channel):
 
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def local_env() -> AsyncIterator[WorkflowEnvironment]:
+    CACHE.mkdir(parents=True, exist_ok=True)
     async with await WorkflowEnvironment.start_local(  # pyright: ignore[reportUnknownMemberType]
         data_converter=pydantic_data_converter, download_dest_dir=str(CACHE)
     ) as environment:

@@ -185,6 +185,7 @@ async def send(
 
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def env() -> AsyncIterator[WorkflowEnvironment]:
+    CACHE.mkdir(parents=True, exist_ok=True)  # the server binary is cached across runs
     async with await WorkflowEnvironment.start_time_skipping(
         data_converter=pydantic_data_converter, download_dest_dir=str(CACHE)
     ) as environment:

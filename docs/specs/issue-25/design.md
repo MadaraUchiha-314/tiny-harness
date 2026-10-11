@@ -540,7 +540,7 @@ rule with an executor of their own.
   - `models: list[str] | None`, the selectable models. When it is unset, the only
     selectable model is `model`.
   - `reasoning_effort: Literal["low", "medium", "high"] | None`, the default effort.
-  
+
   `[anthropic]` gains the same two keys. A validator fails closed (exit 2, `openai.models`)
   when `models` is empty or does not contain `model` (R7.1).
 - **`ModelCatalog`** is built in `build_runtime` from the provider in use:
@@ -548,9 +548,15 @@ rule with an executor of their own.
   the adapter's table, overridden by `context_window_tokens`.
 - **`LLMRequest` gains `model: str | None = None` and
   `reasoning_effort: Literal["low", "medium", "high"] | None = None`.**
-  - `ContextWindow.request` fills both from the task: `ext.model or catalog.default` and
-    `ext.reasoning_effort or catalog.default_effort`.
-  - The compaction and help requests use the defaults.
+  - **Every model call of a task uses its settings** (R7.3, R8.3). A single helper,
+    `catalog.settings_for(task) -> (model, effort)`, returns
+    `ext.model or catalog.default` and `ext.reasoning_effort or catalog.default_effort`.
+    All three request builders call it:
+    - `ContextWindow.request` (`core/context.py:82`), the turn.
+    - The compaction summary request (`core/compaction.py:139`).
+    - The help-routing request (`channels/help.py:68`).
+
+    The defaults are used only when the task sets nothing.
   - Each adapter uses `request.model or self._model`.
 - **Provider mapping** (R8.3, R8.5). Each mapping is sent **only** when the effort is set,
   so an unset effort keeps requests byte-identical:
@@ -578,7 +584,7 @@ rule with an executor of their own.
   - `ctrl+d` Complete and `ctrl+c` Cancel (both shown in the footer, R5.5).
   - `f4` returns to the parent task.
   - `enter` on a sub-task row opens it (R9.4).
-  
+
   A binding acts only while the open task is non-terminal. Otherwise it shows a notice.
 - **Top bar.** It shows `STATE · sub-state`, e.g. `INPUT_REQUIRED · awaiting-next-message`
   (R5.7).

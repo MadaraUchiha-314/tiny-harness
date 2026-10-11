@@ -55,7 +55,7 @@ check for rows an earlier version wrote. The rest are `n/a` with a reason.
 | T2 | R2.1, R2.2 | `Scenario: push notification configs receive status updates` (rewritten: token reaches the webhook; stored token equals the supplied one) |
 | T2 | R2.1, R2.3 | `Scenario: a push config's credentials round-trip through get, list and delete` |
 | T2, T10 | R4.1, R4.2 | `Scenario: a push config stored encrypted by an earlier version is dropped, not delivered` |
-| T2 | R1.2, R5.3 | `Scenario: serve starts in embedded mode` (existing CLI test) runs with no `TINY_HARNESS_PUSH_KEY` |
+| T2 | R1.2, R5.3 | the existing embedded CLI scenarios (`test_sigterm_to_serve_in_embedded_mode_leaves_no_dev_server`, `test_admin_commands_act_on_persisted_embedded_state`) start their subprocesses with no `TINY_HARNESS_PUSH_KEY` |
 | T3 | R1.4 | settings schema snapshot diff: `push_key` removed from `properties` and `required` |
 | T4 | R1.2, R5.3 | the Ollama demo completes a task; the demo's environment has no `TINY_HARNESS_PUSH_KEY` |
 | T8 | abuse 1 | new SQLite file mode `0600` |
@@ -101,22 +101,33 @@ committing.
 
 ## Verification activities
 
-- [ ] T1 — `uv run pytest tests/unit`
-- [ ] T2 / T10 — `uv run pytest tests/integration`
-- [ ] T3 — `uv run pytest tests/contract`
-- [ ] T4 — `TINY_HARNESS_OLLAMA_MODEL=qwen3:1.7b uv run pytest tests/e2e/test_demo_ollama.py -s -rs` with `TINY_HARNESS_PUSH_KEY` unset
-- [ ] T8 — `uv run pytest tests/security`
-- [ ] T11 — embedded `tiny-harness serve` with `TINY_HARNESS_PUSH_KEY` set, a fresh `[store] sqlite_path`; capture the warning and `stat -c %a` of the new file
-- [ ] T12 — `uv run pre-commit run --all-files`
-- [ ] docs/deps — the two `grep` checks of the trace table
+- [x] T1 — `uv run pytest tests/unit`
+- [x] T2 / T10 — `uv run pytest tests/integration`
+- [x] T3 — `uv run pytest tests/contract`
+- [x] T4 — `TINY_HARNESS_OLLAMA_MODEL=qwen3:1.7b uv run pytest tests/e2e/test_demo_ollama.py -s -rs` with `TINY_HARNESS_PUSH_KEY` unset
+- [x] T8 — `uv run pytest tests/security`
+- [x] T11 — embedded `tiny-harness serve` with `TINY_HARNESS_PUSH_KEY` set, a fresh `[store] sqlite_path`; capture the warning and `stat -c %a` of the new file
+- [x] T12 — `uv run pre-commit run --all-files`
+- [x] docs/deps — the two `grep` checks of the trace table
 
 ## Verification results
 
-_Not yet executed._
+Executed at `34dccbc` on 2026-10-11. Every activity ran and passed. Temporary files went
+under the home directory (`TMPDIR`), because the machine's `/tmp` was at its per-user
+quota for reasons unrelated to this change.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 | `env -u TINY_HARNESS_PUSH_KEY uv run pytest tests/unit -q` | 358 passed | [unit.md](evidence/unit.md) |
+| T2 / T10 | `env -u TINY_HARNESS_PUSH_KEY uv run pytest tests/integration -v` | 56 passed, incl. the three push scenarios and the legacy-row upgrade case | [integration.md](evidence/integration.md) |
+| T3 | `uv run pytest tests/contract -q` | 30 passed; snapshot diff limited to `push_key`, `PushTokenCipher`, `PushConfigRecord` | [contract.md](evidence/contract.md) |
+| T4 | `TINY_HARNESS_OLLAMA_MODEL=qwen3:1.7b uv run pytest tests/e2e/test_demo_ollama.py -s -rs`, no push, OpenAI or Temporal key | 1 passed; task `COMPLETED` in 384 s | [e2e-ollama.md](evidence/e2e-ollama.md) |
+| T8 | `uv run pytest tests/security -v` | 27 passed; abuse cases 1–4 covered | [security.md](evidence/security.md) |
+| T11 | scripted embedded `serve` with the variable set and a fresh store path | 1 warning, value not logged, store files `600`, clean exit | [manual.md](evidence/manual.md) |
+| T12 | `uv run pre-commit run --all-files`; `bun run docs:build` | all hooks pass; docs site builds | [regression.md](evidence/regression.md) |
+| docs/deps | the two `grep` checks | only deliberate mentions remain; no `cryptography` import or dependency | [documentation.md](evidence/documentation.md) |
+
+**Not executed:** none.
 
 ## Review comments
 

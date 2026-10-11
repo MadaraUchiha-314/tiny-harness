@@ -518,6 +518,14 @@ flowchart TD
 - `reply`: emit an agent `Message` on the task with metadata `{"command": name}` and
   re-emit the current status, so a stream ends cleanly. The task's state does not change
   (R6.2, R6.6, R10.2).
+- **Order and the spawn confirmation.** The workflow applies `settings`, then `spawn`,
+  then emits the reply. The handler runs before the child exists, so it cannot know the
+  child's id; `spawn_child` allocates it (`parent.N`, `workflows.py:768`). When `spawn` is
+  set, the workflow therefore appends a line it composes itself from the returned
+  `TaskRef`: `Created sub-task <id>.` It also sets the reply message's metadata to
+  `{"command": name, "task_ref": <id>}`, so a renderer can link the id without parsing
+  text (R9.1, R9.4). This is a plain concatenation, never a template, so a handler's
+  reply cannot inject formatting.
 - A handler exception (R6.6): the activity catches it, logs it with the command name and
   the task id, and returns `reply = "/<name> failed: <message>"` with no settings and no
   spawn.

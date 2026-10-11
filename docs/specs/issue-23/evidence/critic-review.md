@@ -16,7 +16,7 @@ reviewer is told so in the PR briefing.
 
 | Round | Reviewer | Outcome | Findings → disposition | Link |
 |-------|----------|---------|------------------------|------|
-| 1 | `[codex/gpt-6.1-sol]` (`the-loop critic run codex`, `THE_LOOP_SERVICE_LOCAL=1`, `--timeout 900`) | **unavailable** — `codex did not finish (ran 900s, the-loop's limit 900.0s)`; `output` empty, no token usage reported | — | [PR #24 comment](https://github.com/MadaraUchiha-314/tiny-harness/pull/24) |
+| 1 | `[codex/gpt-6.1-sol]` (`the-loop critic run codex`, `THE_LOOP_SERVICE_LOCAL=1`, `--timeout 900`) | **unavailable** — `codex did not finish (ran 900s, the-loop's limit 900.0s)`; `output` empty, no token usage reported | — | [PR #24 comment](https://github.com/MadaraUchiha-314/tiny-harness/pull/24#issuecomment-6112801146) |
 
 ## Cause and what was done
 

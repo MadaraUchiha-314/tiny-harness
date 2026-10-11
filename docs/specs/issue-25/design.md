@@ -634,8 +634,8 @@ the rendered output at the design-approval gate.
 
 | Artifact | Type | Location / link | Covers (screen · requirement) | Status |
 |----------|------|-----------------|-------------------------------|--------|
-| `design/tui-task-controls.html` | html-prototype | [`design/tui-task-controls.html`](design/tui-task-controls.html) | TUI: sub-state in the top bar, Complete/Cancel keys, `/` completion, sub-task open/back · R5, R6.7, R9.4 | draft |
-| `design/web-task-controls.html` | html-prototype | [`design/web-task-controls.html`](design/web-task-controls.html) | Web UI: Complete/Cancel buttons, sub-state badge, command listbox, sub-task links, parent link · R5, R6.7, R9.4 | draft |
+| `design/tui-task-controls.html` | html-prototype | `docs/specs/issue-25/design/tui-task-controls.html` (open in a browser; not routed by the docs site) | TUI: sub-state in the top bar, Complete/Cancel keys, `/` completion, sub-task open/back · R5, R6.7, R9.4 | draft |
+| `design/web-task-controls.html` | html-prototype | `docs/specs/issue-25/design/web-task-controls.html` (open in a browser; not routed by the docs site) | Web UI: Complete/Cancel buttons, sub-state badge, command listbox, sub-task links, parent link · R5, R6.7, R9.4 | draft |
 
 - **Flows and states.** Both prototypes walk the same five states:
   1. A reply arrives, and the task shows `INPUT_REQUIRED · awaiting-next-message`.

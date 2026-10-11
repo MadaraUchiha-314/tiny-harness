@@ -2,9 +2,9 @@
 
 Every command loads ``Settings`` first; a missing secret or an unknown key exits with
 the variable's name on stderr and status 2 (R21.2, R21.3). Secrets come only from the
-environment (``TEMPORAL_API_KEY`` in remote mode, ``OPENAI_API_KEY``,
-``TINY_HARNESS_PUSH_KEY``). In embedded Temporal mode (issue-17) a command that cannot work
-also exits 2 before anything starts, and a dev server that fails to start exits 1.
+environment (``TEMPORAL_API_KEY`` in remote mode, ``OPENAI_API_KEY``). In embedded
+Temporal mode (issue-17) a command that cannot work also exits 2 before anything starts,
+and a dev server that fails to start exits 1.
 """
 
 from __future__ import annotations

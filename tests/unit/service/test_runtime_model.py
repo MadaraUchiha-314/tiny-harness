@@ -77,16 +77,31 @@ async def test_abuse_a_translated_error_does_not_carry_the_key() -> None:
 
 
 def test_an_exported_openai_base_url_is_warned_about_without_its_value() -> None:
-    from tiny_harness.service.runtime import ignored_environment_warning
+    from tiny_harness.service.runtime import ignored_environment_warnings
 
-    line = ignored_environment_warning({"OPENAI_BASE_URL": "http://proxy.internal/v1"})
-    assert line is not None
+    (line,) = ignored_environment_warnings({"OPENAI_BASE_URL": "http://proxy.internal/v1"})
     assert "OPENAI_BASE_URL" in line and "[openai] base_url" in line
     assert "proxy.internal" not in line
 
 
-@pytest.mark.parametrize("env", [{}, {"OPENAI_BASE_URL": ""}])
-def test_no_warning_without_the_variable(env: dict[str, str]) -> None:
-    from tiny_harness.service.runtime import ignored_environment_warning
+# issue-23 R1.3, abuse case 3: a leftover push key is reported, its value never echoed.
+def test_an_exported_push_key_is_warned_about_without_its_value() -> None:
+    from tiny_harness.service.runtime import ignored_environment_warnings
 
-    assert ignored_environment_warning(env) is None
+    (line,) = ignored_environment_warnings({"TINY_HARNESS_PUSH_KEY": "cHVzaC1rZXktdmFsdWU="})
+    assert line.startswith("TINY_HARNESS_PUSH_KEY is set and ignored")
+    assert "store" in line and "cHVzaC1rZXktdmFsdWU=" not in line
+
+
+def test_both_ignored_variables_are_reported() -> None:
+    from tiny_harness.service.runtime import ignored_environment_warnings
+
+    env = {"OPENAI_BASE_URL": "http://x/v1", "TINY_HARNESS_PUSH_KEY": "k"}
+    assert len(ignored_environment_warnings(env)) == 2
+
+
+@pytest.mark.parametrize("env", [{}, {"OPENAI_BASE_URL": ""}, {"TINY_HARNESS_PUSH_KEY": ""}])
+def test_no_warning_without_the_variable(env: dict[str, str]) -> None:
+    from tiny_harness.service.runtime import ignored_environment_warnings
+
+    assert ignored_environment_warnings(env) == ()

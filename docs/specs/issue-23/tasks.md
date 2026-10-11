@@ -35,7 +35,7 @@ overrides: {}
   - _Depends on:_ 1
   - _Requirements:_ R2.1–R2.4, R3.1, R4.1, R4.2
   - _Test:_ T2/T10 — `uv run pytest tests/integration/a2a` (red→green)
-- [ ] 3. `Settings` without `push_key`; the ignored-variable warning
+- [x] 3. `Settings` without `push_key`; the ignored-variable warning
   - Tests first: `tests/unit/test_config*.py` load with no `TINY_HARNESS_PUSH_KEY`;
     `tests/unit/service/test_cli.py` no longer expects it among the required secrets;
     `tests/unit/service/test_runtime_model.py` covers `ignored_environment_warnings`

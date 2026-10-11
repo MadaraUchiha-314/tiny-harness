@@ -9,10 +9,8 @@ every secret value before it leaves the process.
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import os
-import secrets
 import shutil
 import signal
 import socket
@@ -96,9 +94,6 @@ class Demo:
     logs: list[IO[bytes]] = field(default_factory=lambda: list[IO[bytes]]())
     workers_started: int = 0
     started: float = field(default_factory=time.monotonic)
-    push_key: str = field(
-        default_factory=lambda: base64.b64encode(secrets.token_bytes(32)).decode()
-    )
 
     @classmethod
     def create(cls, name: str, *, embedded: bool = False, ollama_model: str | None = None) -> Demo:
@@ -186,9 +181,9 @@ class Demo:
         return time.monotonic() - self.started
 
     def env(self) -> dict[str, str]:
-        """The processes' environment: the caller's, plus a push key when none is exported."""
+        """The processes' environment: the caller's, without a push key (issue-23 R5.3)."""
         env = dict(os.environ)
-        env.setdefault("TINY_HARNESS_PUSH_KEY", self.push_key)
+        env.pop("TINY_HARNESS_PUSH_KEY", None)
         if self.embedded:  # the proof: embedded mode runs with no Temporal key at all
             env.pop("TEMPORAL_API_KEY", None)
         if self.ollama_model is not None:  # issue-19: a local model needs no OpenAI key

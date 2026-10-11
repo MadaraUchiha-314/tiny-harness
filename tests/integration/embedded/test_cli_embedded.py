@@ -8,7 +8,6 @@ client, the admin commands act on the persisted state, and a SIGTERM leaves noth
 from __future__ import annotations
 
 import asyncio
-import base64
 import contextlib
 import logging
 import os
@@ -251,11 +250,10 @@ async def test_sigterm_to_serve_in_embedded_mode_leaves_no_dev_server(tmp_path: 
             ]
         )
     )
-    env = {k: v for k, v in os.environ.items() if k != "TEMPORAL_API_KEY"}
-    env.update(
-        OPENAI_API_KEY="sk-unused",
-        TINY_HARNESS_PUSH_KEY=base64.b64encode(os.urandom(32)).decode(),
-    )
+    # issue-23: no TINY_HARNESS_PUSH_KEY either; nothing reads it
+    unused = ("TEMPORAL_API_KEY", "TINY_HARNESS_PUSH_KEY")
+    env = {k: v for k, v in os.environ.items() if k not in unused}
+    env.update(OPENAI_API_KEY="sk-unused")
     entry = "from tiny_harness.service.cli import main; raise SystemExit(main())"
     process = subprocess.Popen(
         [sys.executable, "-c", entry, "--config", str(config), "serve"],
@@ -326,11 +324,10 @@ async def test_sigterm_to_programmatic_serve_leaves_no_dev_server(tmp_path: Path
             ]
         )
     )
-    env = {k: v for k, v in os.environ.items() if k != "TEMPORAL_API_KEY"}
-    env.update(
-        OPENAI_API_KEY="sk-unused",
-        TINY_HARNESS_PUSH_KEY=base64.b64encode(os.urandom(32)).decode(),
-    )
+    # issue-23: no TINY_HARNESS_PUSH_KEY either; nothing reads it
+    unused = ("TEMPORAL_API_KEY", "TINY_HARNESS_PUSH_KEY")
+    env = {k: v for k, v in os.environ.items() if k not in unused}
+    env.update(OPENAI_API_KEY="sk-unused")
     program = (
         "import asyncio, sys\n"
         "from pathlib import Path\n"

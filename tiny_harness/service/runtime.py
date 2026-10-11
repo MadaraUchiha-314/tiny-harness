@@ -64,20 +64,32 @@ def model_endpoint_line(llm: LLM) -> str | None:
     return f"model endpoint {info.endpoint} api={info.api} model={info.model}"
 
 
-def ignored_environment_warning(env: Mapping[str, str]) -> str | None:
-    """``OPENAI_BASE_URL`` no longer redirects the model (issue-19 R1.3); say so rather than
-    ignore it silently. The value is never echoed."""
-    if not env.get("OPENAI_BASE_URL"):
-        return None
-    return "OPENAI_BASE_URL is set and ignored; the model endpoint is [openai] base_url"
+# Variables an operator may still export that nothing reads; each is reported, never
+# echoed (issue-19 R1.3, issue-23 R1.3).
+IGNORED_VARIABLES = (
+    ("OPENAI_BASE_URL", "the model endpoint is [openai] base_url"),
+    (
+        "TINY_HARNESS_PUSH_KEY",
+        "push-notification credentials are protected at rest by the store",
+    ),
+)
+
+
+def ignored_environment_warnings(env: Mapping[str, str]) -> tuple[str, ...]:
+    """One line per ignored variable that is set, so none is ignored silently."""
+    return tuple(
+        f"{variable} is set and ignored; {reason}"
+        for variable, reason in IGNORED_VARIABLES
+        if env.get(variable)
+    )
 
 
 def secret_values(settings: Settings) -> list[SecretStr]:
-    values = [settings.push_key]
-    if settings.openai.api_key is not None:  # absent for a keyless endpoint (issue-19 R2.2)
-        values.insert(0, settings.openai.api_key)
+    values: list[SecretStr] = []
     if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
-        values.insert(0, settings.temporal.api_key)
+        values.append(settings.temporal.api_key)
+    if settings.openai.api_key is not None:  # absent for a keyless endpoint (issue-19 R2.2)
+        values.append(settings.openai.api_key)
     if settings.anthropic is not None:
         values.append(settings.anthropic.api_key)
     for key in (settings.o11y.langfuse_public_key, settings.o11y.langfuse_secret_key):
@@ -153,8 +165,7 @@ async def build_runtime(
     line = model_endpoint_line(model)
     if line is not None:
         log.info("%s", line)
-    ignored = ignored_environment_warning(os.environ)
-    if ignored is not None:
+    for ignored in ignored_environment_warnings(os.environ):
         log.warning("%s", ignored)
     records = store or SqliteStore(settings.store.sqlite_path)
     engine = InProcessOperations(

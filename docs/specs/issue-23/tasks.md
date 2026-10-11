@@ -56,7 +56,7 @@ overrides: {}
   - _Depends on:_ none
   - _Requirements:_ R3.2
   - _Test:_ T8 — `uv run pytest tests/security` (red→green)
-- [ ] 5. Drop the `cryptography` dependency
+- [x] 5. Drop the `cryptography` dependency
   - Remove it from `pyproject.toml` and `PASSTHROUGH_MODULES`; `uv lock`.
   - _Depends on:_ 1, 2
   - _Requirements:_ R5.4

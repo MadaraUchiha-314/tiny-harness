@@ -43,7 +43,6 @@ PASSTHROUGH_MODULES = (
     "anyio",
     "sniffio",
     "mcp",  # imported at module level by tools.mcp (never called in a workflow)
-    "cryptography",  # persistence.records imports the cipher
     "yaml",  # skills and prompts front matter
     "opentelemetry",  # Temporal's TracingInterceptor propagates context inside workflows
 )

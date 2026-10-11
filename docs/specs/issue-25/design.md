@@ -205,6 +205,13 @@ def ensure_default_config(home: Path | None = None) -> tuple[Path, bool]:
   - The executor's first-message path sets `conversation`.
   - `spawn_child` sets `delegated` for `spawn_subtask` and `conversation` for `/sub-task`.
   - Participant tasks keep `mode="participant"` and never reach `CoreLoop`.
+  - **The three fields are server-controlled.** No participant payload may set them. A
+    `task` envelope is the existing way to create or edit a task's extension
+    (`extension_from_envelope`, `apply_task_envelope`). If one carries `lifecycle`,
+    `model` or `reasoning_effort`, the system refuses the whole envelope:
+    `UnsupportedOperationError` from the executor on a first message, and "not accepted"
+    from `intake` on an existing task. Only `/model` and `/effort` change the settings,
+    after their allowlist check. Only the server sets `lifecycle`.
 - **`CoreLoop._finish` (R3.1, R3.4).**
 
   ```python
@@ -640,6 +647,9 @@ hook. The arguments are never logged.
     sender's message, framed like any other participant text.
   - **Control envelope.** It is validated with `extra="forbid"` and a closed `action`
     literal.
+  - **Task envelope.** It is refused when it sets a server-controlled field
+    (`lifecycle`, `model`, `reasoning_effort`). The model allowlist therefore has one
+    entry point, `/model`, and cannot be bypassed when a task is created.
   - **Paths.** The home path comes from `Path.home()`, never from input. The file is
     opened with `O_NOFOLLOW | O_EXCL`, which rules out symlink substitution (abuse
     case 7).
@@ -669,7 +679,7 @@ hook. The arguments are never logged.
 
 | Abuse case | Mechanism | Negative test |
 |------------|-----------|---------------|
-| 1 unlisted model | exact membership in `ModelCatalog.selectable` | `/model evil-model` refused, model unchanged |
+| 1 unlisted model | exact membership in `ModelCatalog.selectable`; server-controlled `model` in task envelopes | `/model evil-model` refused, model unchanged; a first-message `task` envelope with `model` refused, no task created |
 | 2 bad effort | closed literal | `/effort extreme` refused |
 | 3 non-member | `AccessPolicy` before the workflow | command, complete and cancel from a non-member → task not found |
 | 4 watcher | `intake` role check; executor cancel check; built-in `pre` executor | watcher complete / cancel / `/model x` / `/sub-task` refused, state unchanged |

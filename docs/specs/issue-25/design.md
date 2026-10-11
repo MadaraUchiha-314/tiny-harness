@@ -351,7 +351,7 @@ sequenceDiagram
   C->>W: "/model gpt-6-astra"
   W->>I: intake
   I->>I: parse "/<name> <args>"; name registered?<br/>no → ordinary message (R6.3)
-  I-->>W: IntakeOut(command=CommandCall(name, args))
+  I-->>W: IntakeOut(command=CommandCall(name, args))<br/>(_dispatch, before CoreLoop starts)
   W->>R: run_command(CommandIn: call, sender, role, task snapshot, children)
   R->>H: pre (scrubbed) → in (body for name) → post
   H-->>R: CommandResult(reply, settings?, spawn?)
@@ -459,6 +459,39 @@ flowchart LR
 `https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1`, carries
 `params = {"commands": [CommandSpec…]}`. Clients read it from the card they already
 fetch, so no new endpoint is needed. The schema is `docs/a2a/ext/commands.json`.
+
+**Dispatch in the workflow: intake before the loop.** Today a mailbox item wakes `run`,
+which starts `CoreLoop.run`. That sets `WORKING` and calls the model whatever was in the
+mailbox (`workflows.py:414`, `loop.py:190`). The workflow therefore gains a dispatcher
+that runs **before** the loop and **at every drain point inside it**:
+
+```mermaid
+flowchart TD
+  wake["run: mailbox / notes / cancel"] --> d["_dispatch(): intake each pending item"]
+  d -- "command" --> rc["run_command activity → apply result<br/>reply + current status re-emitted"]
+  d -- "control complete" --> cc["_complete(actor)"]
+  d -- "ordinary message" --> q["accepted queue"]
+  d -- "not accepted" --> na["today's 'message not accepted' path"]
+  rc & na --> any{"accepted queue or notes non-empty?"}
+  q --> any
+  any -- "no" --> wait["back to waiting — loop NOT started,<br/>state unchanged (R6.2, R10.2)"]
+  any -- "yes" --> loop["CoreLoop.run(accepted)"]
+  loop -- "drain point each turn" --> d2["_dispatch(): commands run inline,<br/>only ordinary messages returned to the loop"]
+```
+
+- `_dispatch()` is workflow code. It calls `intake` per message and, for a command,
+  `run_command`; both are activities. Commands and controls are consumed there. Only
+  ordinary messages go into the queue that `CoreLoop`'s drain reads.
+- `run` starts `CoreLoop.run` only when that queue (or the child-done notes) is
+  non-empty. A command-only wake re-emits the current status, so the stream ends cleanly
+  and an `INPUT_REQUIRED` task stays `INPUT_REQUIRED` (R6.2, R10.2).
+- **During a running turn**, the loop's drain op calls the same `_dispatch()`:
+  - A command found there runs immediately. Its settings apply from the *next* model
+    request, and its reply is emitted, while the turn's state stays `WORKING`.
+  - A control found there has already set the interrupt (validated above), so
+    `_await_runner` cuts the turn and `_complete` runs after it.
+- The help-reply path (`pending_help`) is unchanged: `_dispatch()` matches a reply to a
+  pending question before it is queued, as `drain` does today.
 
 **Applying results (workflow, deterministic).**
 

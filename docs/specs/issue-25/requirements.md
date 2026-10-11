@@ -43,9 +43,11 @@ This work item does five things:
    participant completes it, cancels it, or keeps talking.
 3. **Both UIs get task controls.** The TUI and the Web UI have explicit **Complete** and
    **Cancel** controls.
-4. **Slash commands.** `/<name>` runs a command registered in code: `/model`, `/effort`,
-   `/sub-task` and `/status` to start with. A `/<name>` that matches no registered
-   command goes to the harness as an ordinary message.
+4. **Slash commands.** `/<name>` runs a registered command: `/model`, `/effort`,
+   `/sub-task` and `/status` to start with. A command runs through a new
+   `command.invoked` hook operation, so code, a plugin or a remote hook executor can add
+   or override one the same way it extends any other operation. A `/<name>` that matches
+   no registered command goes to the harness as an ordinary message.
 5. **The SDK keeps parity.** Everything the CLI gains is also available to code that
    imports `tiny_harness`, and the SDK gets none of the CLI's file-system side effects.
 
@@ -232,6 +234,41 @@ the model understanding a request.
 8. The built-in commands of Requirements 7–10 SHALL be registered through the same
    registry, and an SDK user SHALL be able to build a harness without them.
 
+### Requirement 6a — Commands through the hook system
+
+**User story:** As a plugin author, I want to add or change commands through the hook
+system, so that commands extend like every other harness operation and need no code in
+the harness.
+
+#### Acceptance criteria (EARS)
+
+1. The hook catalogue SHALL include the operation `command.invoked` with the phases
+   `pre`, `in` and `post`, whose context carries the command name, its argument text,
+   the task reference and the sender.
+2. WHEN a registered command runs THEN the system SHALL run it through the
+   `command.invoked` hook chain, with the command's body as the `in` phase.
+3. The built-in commands SHALL be `in` executors that the built-in plugin registers at
+   the default priority, so that an executor with a lower priority that sets the
+   context's result replaces a built-in command's body.
+4. WHEN a `pre` executor on `command.invoked` returns a replacement THEN the command
+   SHALL run with it. WHEN a `pre` executor raises a typed abort THEN the command SHALL be
+   refused with the abort's reason as the reply, and the task's state SHALL be
+   unchanged.
+5. WHEN a `post` executor returns a replacement THEN it SHALL be the command's reply.
+6. A plugin SHALL be able to declare commands (name, description, argument hint) in its
+   `io.github.madarauchiha-314.tiny-harness/` directory, with each body a hook executor
+   declared in its `hooks.json`, local or remote (JSON-RPC 2.0 or MCP) as for any other
+   hook point.
+7. Registering a command from code (Requirement 6.1) SHALL declare the command and
+   register its `in` executor, so that a command registered from code and one declared
+   by a plugin behave the same.
+8. IF a plugin declares a command whose name is invalid or already declared, or whose
+   body has no `in` executor THEN the system SHALL skip that command and record the
+   reason in the plugin's load report, as for any failed component.
+9. WHEN a remote command executor fails or answers out of contract THEN the system SHALL
+   raise `HookTransportError` as for any remote hook, reply with the failure on the task
+   and leave the task's state unchanged.
+
 ### Requirement 7 — `/model`
 
 **User story:** As a user, I want to switch the model for my task, so that I can trade
@@ -335,7 +372,7 @@ second-class citizen.
   justified in `design.md`.
 - **Documentation.** The README, the getting-started guide and the affected capability
   docs (`configuration`, `tasks-and-plans`, `a2a-server`, `surfaces-and-renderers`,
-  `models`) SHALL describe the new behaviour.
+  `models`, `hooks`, `plugins`) SHALL describe the new behaviour.
 
 ## Security considerations
 
@@ -351,7 +388,10 @@ cost or state, and the local file being redirected.
   input**. Model output stays untrusted, as today.
 - **Trust boundaries & data:**
   - *Message text → command handler.* A participant's text now selects code to run and
-    passes it arguments. Handlers run in-process with the harness's privileges.
+    passes it arguments. Handlers run in-process with the harness's privileges, or in
+    a remote hook executor the operator's plugin names (Requirement 6a). Plugins and
+    their executors are operator-installed and as trusted as today's hooks; the
+    argument text they receive is not.
   - *Message text → model selection and effort.* A participant can now change which model
     is called and how much it reasons, which changes the operator's cost.
   - *Participant → task state.* A participant can now end a task as completed, and
@@ -386,6 +426,10 @@ cost or state, and the local file being redirected.
      configuration.
   9. WHEN the text after `/` is not a registered command THEN the system SHALL treat the
      message as ordinary untrusted input to the model, as it treats any message today.
+  10. WHEN a command runs through a remote hook executor THEN the system SHALL send the
+      argument text only after the redactor has scrubbed the context, as for every hook,
+      and SHALL treat the executor's reply as untrusted text to show, never as a state
+      change it did not make through the hook contract.
 - **Fail closed:**
   - A command, completion or cancellation SHALL be refused when the sender's identity is
     missing, when the sender is not on the task, or when the sender's role does not
@@ -401,8 +445,8 @@ cost or state, and the local file being redirected.
   `ui_dir`, as today.
 - Controls for other task states (`rejected`, `auth-required`, pause/resume). The
   sub-state schema leaves room for them.
-- Commands defined in configuration or by plugins rather than in code. The registry is
-  built so that this can come later.
+- Commands defined in the configuration file. Commands come from code or from plugins
+  (Requirement 6a).
 - Switching provider (OpenAI ↔ Anthropic) through `/model`. `/model` selects among the
   configured provider's models.
 - A `TINY_HARNESS_HOME`-style environment variable for the default location.

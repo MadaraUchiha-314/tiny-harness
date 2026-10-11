@@ -1,9 +1,12 @@
-"""Push notification configs (R15.6) in the store, tokens encrypted at rest (finding 1),
-and the sink the ``emit_event`` activity delivers through."""
+"""Push notification configs (R15.6) in the store, and the sink the ``emit_event``
+activity delivers through. The client's credential is kept as supplied; protecting it at
+rest is the store's job (issue-23)."""
 
 from __future__ import annotations
 
+import logging
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import httpx
@@ -11,16 +14,18 @@ from a2a.server.context import ServerCallContext
 from a2a.server.tasks import BasePushNotificationSender, PushNotificationConfigStore
 from a2a.types import AuthenticationInfo, TaskPushNotificationConfig
 from google.protobuf import json_format
+from pydantic import SecretStr
 
 from tiny_harness.harness.agents import A2AEvent
-from tiny_harness.harness.persistence import Filter, PushConfigRecord, PushTokenCipher, Store
+from tiny_harness.harness.persistence import Filter, PushConfigRecord, Store
 from tiny_harness.service.durable.models import EventEntry, entry_event
+
+log = logging.getLogger(__name__)
 
 
 class StorePushConfigStore(PushNotificationConfigStore):
-    def __init__(self, store: Store, cipher: PushTokenCipher) -> None:
+    def __init__(self, store: Store) -> None:
         self._store = store
-        self._cipher = cipher
 
     async def set_info(
         self,
@@ -40,27 +45,37 @@ class StorePushConfigStore(PushNotificationConfigStore):
                 created_at=datetime.now(UTC),
                 config_id=config_id,
                 url=notification_config.url,
-                token_ciphertext=self._cipher.encrypt(notification_config.token)
-                if notification_config.token
-                else "",
-                authentication_ciphertext=self._cipher.encrypt(auth) if auth else "",
+                token=SecretStr(notification_config.token),
+                authentication=SecretStr(auth),
             )
         )
-        return self._decode(await self._store.get(PushConfigRecord, f"{task_id}:{config_id}"))
+        record = await self._store.get(PushConfigRecord, f"{task_id}:{config_id}")
+        live = await self._live([record] if record is not None else [])
+        return live[0] if live else None
 
-    def _decode(self, record: PushConfigRecord | None) -> TaskPushNotificationConfig | None:
-        if record is None:
-            return None
-        config = TaskPushNotificationConfig(
-            id=record.config_id, task_id=record.task_id, url=record.url
-        )
-        if record.token_ciphertext:
-            config.token = self._cipher.decrypt(record.token_ciphertext)
-        if record.authentication_ciphertext:
-            json_format.Parse(
-                self._cipher.decrypt(record.authentication_ciphertext), config.authentication
+    async def _live(self, records: Sequence[PushConfigRecord]) -> list[TaskPushNotificationConfig]:
+        """Decode the records; drop a row an earlier version stored encrypted under the
+        removed ``TINY_HARNESS_PUSH_KEY`` — never deliver it (issue-23 R4)."""
+        configs: list[TaskPushNotificationConfig] = []
+        for record in records:
+            if record.legacy:
+                await self._store.delete(PushConfigRecord, record.id)
+                log.warning(
+                    "push config %s for task %s was stored encrypted by an earlier version; "
+                    "dropped, the client must register it again",
+                    record.config_id,
+                    record.task_id,
+                )
+                continue
+            config = TaskPushNotificationConfig(
+                id=record.config_id, task_id=record.task_id, url=record.url
             )
-        return config
+            if token := record.token.get_secret_value():
+                config.token = token
+            if auth := record.authentication.get_secret_value():
+                json_format.Parse(auth, config.authentication)
+            configs.append(config)
+        return configs
 
     async def get_info(
         self, task_id: str, context: ServerCallContext | None = None
@@ -68,8 +83,7 @@ class StorePushConfigStore(PushNotificationConfigStore):
         return await self.get_info_for_dispatch(task_id)
 
     async def get_info_for_dispatch(self, task_id: str) -> list[TaskPushNotificationConfig]:
-        records = await self._store.query(PushConfigRecord, Filter(task_id=task_id))
-        return [c for c in (self._decode(r) for r in records) if c is not None]
+        return await self._live(await self._store.query(PushConfigRecord, Filter(task_id=task_id)))
 
     async def delete_info(
         self,
@@ -85,7 +99,7 @@ class StorePushConfigStore(PushNotificationConfigStore):
 
 
 class PushSink:
-    """The ``emit_event`` activity's sink: decrypts the config and posts the event (R15.6)."""
+    """The ``emit_event`` activity's sink: reads the configs and posts the event (R15.6)."""
 
     def __init__(
         self, store: StorePushConfigStore, client: httpx.AsyncClient | None = None

@@ -23,7 +23,6 @@ from temporalio.client import Client
 from uvicorn.config import LOGGING_CONFIG
 
 from tiny_harness.config import Settings
-from tiny_harness.harness.persistence import PushTokenCipher
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a import (
@@ -125,7 +124,7 @@ async def running_harness(
         contextlib.AsyncExitStack() as stack,
     ):
         runtime = await build_runtime(settings)
-        push_store = StorePushConfigStore(runtime.store, PushTokenCipher(settings.push_key))
+        push_store = StorePushConfigStore(runtime.store)
         push_http = httpx.AsyncClient(timeout=10)
         stack.push_async_callback(push_http.aclose)
         bridge = PollingEventBridge(client, interval=settings.server.bridge_interval)

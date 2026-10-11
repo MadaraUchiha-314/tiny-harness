@@ -13,11 +13,11 @@ from typing import cast
 
 import httpx
 from a2a.server.tasks import BasePushNotificationSender
-from pydantic import HttpUrl, SecretStr
+from pydantic import HttpUrl
 from temporalio.client import Client
 
 from tiny_harness.config import ServerConfig
-from tiny_harness.harness.persistence import PushTokenCipher, SqliteStore
+from tiny_harness.harness.persistence import SqliteStore
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a import (
@@ -32,14 +32,12 @@ from tiny_harness.service.a2a import (
 from tiny_harness.service.a2a.card import AgentDescription
 from tiny_harness.service.durable.models import WorkflowConfig
 
-PUSH_KEY = SecretStr("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
-
 
 def handler() -> HarnessRequestHandler:
     """A handler over a client that is never called: /ui and /_monitor reach no workflow."""
     client = cast(Client, object())
     store = SqliteStore(":memory:")
-    push_store = StorePushConfigStore(store, PushTokenCipher(PUSH_KEY))
+    push_store = StorePushConfigStore(store)
     bridge = PollingEventBridge(client)
     return HarnessRequestHandler(
         bridge=bridge,

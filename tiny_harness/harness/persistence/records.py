@@ -3,24 +3,20 @@
 Temporal history is the replay source; the store is the read model that outlives the
 workflow: task records on every state change, plans when attached or changed, the state
 summary per turn, channel messages before delivery, inbox audit rows, compaction records
-and push-notification configs. No record field is a credential, with one encrypted
-exception: a push config's client-supplied callback token, stored AES-GCM encrypted
-under ``TINY_HARNESS_PUSH_KEY`` and decrypted only inside the ``emit_event`` activity.
+and push-notification configs. No record field is a credential, with one exception: a
+push config's client-supplied callback credential, held as ``SecretStr`` so it is masked
+wherever a record is printed, and protected at rest by the store (issue-23).
 """
 
 from __future__ import annotations
 
-import base64
-import os
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
 from a2a.types import Task
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_serializer
 
-from tiny_harness.errors import ConfigError
 from tiny_harness.harness.core import (
     AgentState,
     CompactionRecord,
@@ -111,13 +107,27 @@ class CompactionStoreRecord(RecordBase, frozen=True):
 
 
 class PushConfigRecord(RecordBase, frozen=True):
-    """A push-notification config; ``token`` and ``authentication`` are ciphertext."""
+    """A push-notification config; ``token`` and ``authentication`` (the A2A
+    ``AuthenticationInfo`` as proto JSON) are the client's callback credential, kept as
+    supplied and revealed only when the store serialises the record."""
 
     kind: Literal["push_configs"] = "push_configs"
     config_id: str
     url: str
-    token_ciphertext: str = ""
-    authentication_ciphertext: str = ""
+    token: SecretStr = SecretStr("")
+    authentication: SecretStr = SecretStr("")
+    # Written by 0.5.x and earlier, encrypted under a key that no longer exists; read
+    # only to recognise such a row so it is dropped rather than delivered (issue-23 R4).
+    token_ciphertext: str = Field(default="", exclude=True)
+    authentication_ciphertext: str = Field(default="", exclude=True)
+
+    @field_serializer("token", "authentication", when_used="json")
+    def _reveal(self, value: SecretStr) -> str:
+        return value.get_secret_value()
+
+    @property
+    def legacy(self) -> bool:
+        return bool(self.token_ciphertext or self.authentication_ciphertext)
 
 
 type Record = (
@@ -148,34 +158,6 @@ def kind_of(record: RecordBase) -> RecordKind:
     raise TypeError(f"unknown record type {type(record).__name__}")
 
 
-class PushTokenCipher:
-    """AES-GCM for push-config credentials at rest (design.md § Security design)."""
-
-    def __init__(self, key: SecretStr) -> None:
-        try:
-            raw = base64.b64decode(key.get_secret_value(), validate=True)
-        except ValueError as exc:
-            raise ConfigError("push key must be base64", variable="TINY_HARNESS_PUSH_KEY") from exc
-        if len(raw) not in (16, 24, 32):
-            raise ConfigError(
-                "push key must decode to 16, 24 or 32 bytes", variable="TINY_HARNESS_PUSH_KEY"
-            )
-        self._aead = AESGCM(raw)
-
-    def encrypt(self, plaintext: str) -> str:
-        if not plaintext:
-            return ""
-        nonce = os.urandom(12)
-        sealed = self._aead.encrypt(nonce, plaintext.encode(), None)
-        return base64.b64encode(nonce + sealed).decode()
-
-    def decrypt(self, ciphertext: str) -> str:
-        if not ciphertext:
-            return ""
-        blob = base64.b64decode(ciphertext)
-        return self._aead.decrypt(blob[:12], blob[12:], None).decode()
-
-
 class Filter(BaseModel, frozen=True):
     """A query: by context, by task, newer than ``since``, at most ``limit`` rows."""
 
@@ -193,7 +175,6 @@ __all__ = [
     "InboxAuditRecord",
     "PlanRecord",
     "PushConfigRecord",
-    "PushTokenCipher",
     "Record",
     "RecordBase",
     "RecordKind",

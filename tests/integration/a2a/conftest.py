@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import os
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -14,7 +12,7 @@ from a2a.client import ClientConfig, create_client
 from a2a.client.client import Client as A2AClient
 from a2a.server.tasks import BasePushNotificationSender
 from a2a.types import AgentCard
-from pydantic import HttpUrl, SecretStr
+from pydantic import HttpUrl
 from starlette.applications import Starlette
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -22,7 +20,6 @@ from temporalio.worker import Worker
 from tests.integration.durable.conftest import Harness, env
 from tiny_harness.config import ServerConfig
 from tiny_harness.harness.models import LLMResponse
-from tiny_harness.harness.persistence import PushTokenCipher
 from tiny_harness.service.a2a import (
     HarnessExecutor,
     HarnessRequestHandler,
@@ -35,8 +32,6 @@ from tiny_harness.service.a2a import (
 )
 from tiny_harness.service.a2a.card import AgentDescription
 from tiny_harness.service.durable.models import WorkflowConfig
-
-PUSH_KEY = SecretStr(base64.b64encode(os.urandom(32)).decode())
 
 
 @dataclass
@@ -107,7 +102,7 @@ async def make_server(
         return httpx.Response(200)
 
     push_http = httpx.AsyncClient(transport=httpx.MockTransport(capture))
-    push_store = StorePushConfigStore(h.store, PushTokenCipher(PUSH_KEY))
+    push_store = StorePushConfigStore(h.store)
     bridge = PollingEventBridge(environment.client, interval=timedelta(milliseconds=50))
     card = build_agent_card(AgentDescription(), "http://harness")
     executor = HarnessExecutor(
@@ -129,7 +124,7 @@ async def make_server(
     return Server(harness=h, app=app, card=card, worker=worker, handler=handler, pushes=pushes)
 
 
-__all__ = ["PUSH_KEY", "Server", "env", "make_server"]
+__all__ = ["Server", "env", "make_server"]
 
 
 @pytest_asyncio.fixture(loop_scope="module")

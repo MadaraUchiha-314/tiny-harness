@@ -13,7 +13,7 @@ overrides: {}
 
 ## Task list
 
-- [ ] 1. `PushConfigRecord` holds the credential as supplied
+- [x] 1. `PushConfigRecord` holds the credential as supplied
   - Tests first: `tests/security/test_push_token.py` rewritten — JSON round-trip of
     `token`/`authentication`; stored row has them as supplied and no ciphertext keys;
     `repr`/`str`/`model_dump()` mask them; a record validated from 0.5.x-shaped JSON
@@ -23,7 +23,7 @@ overrides: {}
   - _Depends on:_ none
   - _Requirements:_ R2.1, R3.1, R4.1
   - _Test:_ T1/T8 — `uv run pytest tests/security/test_push_token.py` (red→green)
-- [ ] 2. `StorePushConfigStore` without a cipher; legacy rows dropped
+- [x] 2. `StorePushConfigStore` without a cipher; legacy rows dropped
   - Tests first in `tests/integration/a2a/test_server.py`: rewrite `push notification
     configs receive status updates` (stored token equals the supplied one); add
     `a push config's credentials round-trip through get, list and delete` and `a push
@@ -49,7 +49,7 @@ overrides: {}
   - _Depends on:_ 2
   - _Requirements:_ R1.1–R1.3, R5.3
   - _Test:_ T1 — `uv run pytest tests/unit` (red→green); T2 — `uv run pytest tests/integration/embedded`
-- [ ] 4. `SqliteStore` creates a new file `0600`
+- [x] 4. `SqliteStore` creates a new file `0600`
   - Test first in `tests/security/test_push_token.py` (or a sibling store test): a new
     path ends at mode `0600`; an existing file's mode is unchanged.
   - `os.open(..., O_CREAT | O_EXCL | O_WRONLY, 0o600)` before `sqlite3.connect`.

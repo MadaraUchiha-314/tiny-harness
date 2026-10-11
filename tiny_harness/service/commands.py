@@ -15,7 +15,7 @@ import httpx
 from temporalio.service import RPCError
 
 from tiny_harness.config import Settings
-from tiny_harness.harness.persistence import PushTokenCipher, SqliteStore
+from tiny_harness.harness.persistence import SqliteStore
 from tiny_harness.service.a2a import PushSink, StorePushConfigStore
 from tiny_harness.service.durable.activities import Activities
 from tiny_harness.service.durable.temporal import temporal_client
@@ -36,7 +36,7 @@ async def worker(settings: Settings) -> int:
     observe(settings)
     async with temporal_client(settings) as client:
         runtime = await build_runtime(settings)
-        push_store = StorePushConfigStore(runtime.store, PushTokenCipher(settings.push_key))
+        push_store = StorePushConfigStore(runtime.store)
         activities = Activities(
             runtime.engine,
             sink=PushSink(push_store, httpx.AsyncClient(timeout=10)),

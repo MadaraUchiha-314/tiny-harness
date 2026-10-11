@@ -76,7 +76,7 @@ One TOML file, validated into typed models; unknown keys are rejected. The demo'
 | top level | `plugins = ["path", …]`, `agents = [{id, url, version}]` | plugin directories (Agent Plugins manifests) and remote A2A agents registered at startup |
 | `[temporal]` | `mode`, `address`, `namespace`, `task_queue`, `tls`, `search_attributes` | `mode` is `remote` (the default: `address` and `namespace` required) or `embedded` (`address` and `tls` refused, `namespace` defaults to `default`); any other value refuses to start. In remote mode, `search_attributes = true` only after `A2AContextId`, `A2ATaskState` and `TinyHarnessAgent` are registered on the namespace (`tcld`), otherwise every workflow fails its first task; in embedded mode they are registered at startup |
 | `[temporal.embedded]` | `persist`, `database_path`, `binary_path`, `download_dir`, `port` | embedded mode only (refused in remote mode); every key optional. `persist = true` keeps state in `database_path` (default `temporal.sqlite3` beside the store, `0600`); `binary_path` pins an installed Temporal CLI and disables downloads; otherwise the CLI is downloaded once into `download_dir` (default `~/.cache/tiny-harness/temporal`, `0700`; a directory, or a cached binary in it, that is not owned by this user or that others can write is refused); `port` defaults to a free one |
-| `[openai]` | `model`, `timeout`, `max_output_tokens` | the Responses API |
+| `[openai]` | `base_url`, `api`, `model`, `timeout`, `max_output_tokens`, `context_window_tokens` | `base_url` points the adapter at any OpenAI-compatible server (default `https://api.openai.com/v1`; the `OPENAI_BASE_URL` variable is ignored, with a startup WARNING when it is set); it must be `http` or `https`, carry no `user:password@`, and use `https` to send `OPENAI_API_KEY` to anything but a loopback host. `api` is `responses` (the default) or `chat_completions`; Chat Completions sends `max_tokens`, so use the Responses API for OpenAI's own reasoning models. `context_window_tokens` overrides the model's window for compaction (default: the adapter's table, else 400 000). A custom endpoint's redirects are not followed |
 | `[anthropic]` | `model` | optional; the Messages API, not exercised end to end |
 | `[server]` | `bind`, `base_url`, `max_request_bytes`, `rate_limit_per_minute`, `bridge_interval`, `cors_origins`, `ui_dir` | `base_url` is what the agent card advertises; `ui_dir` serves a built web renderer under `/ui` |
 | `[heartbeat]` | `interval` | the schedule's tick |
@@ -91,7 +91,7 @@ One TOML file, validated into typed models; unknown keys are rejected. The demo'
 | Variable | Used by | Required |
 |----------|---------|----------|
 | `TEMPORAL_API_KEY` | server, worker | in `remote` mode; **refused** in `embedded` mode |
-| `OPENAI_API_KEY` | worker | yes |
+| `OPENAI_API_KEY` | worker | yes, unless `[openai] base_url` is set; then optional, and sent to that endpoint |
 | `TINY_HARNESS_PUSH_KEY` | server, worker | yes; 16, 24 or 32 bytes, base64; AES-GCM key for push-notification tokens at rest |
 | `ANTHROPIC_API_KEY` | worker | when `[anthropic]` is configured |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | server, worker | when exporting to Langfuse |

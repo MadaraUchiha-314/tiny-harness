@@ -12,3 +12,4 @@ feedback. Each entry links a detailed record (`learning-<nnn>.md`).
 | [005](learning-005.md) | A browser used for visual tests must be the one CI uses | system-feedback | 2026-10-10 |
 | [006](learning-006.md) | SIGTERM in an asyncio process must cancel the main task, not raise | system-feedback | 2026-10-10 |
 | [007](learning-007.md) | The Temporal dev server initialises only a missing database file | system-feedback | 2026-10-10 |
+| [008](learning-008.md) | VitePress parses angle brackets in a code span that wraps lines | system-feedback | 2026-10-10 |

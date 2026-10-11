@@ -216,14 +216,61 @@
     },
     "OpenAIConfig": {
       "additionalProperties": false,
-      "description": "OpenAI through the Responses API (R18.1). ``api_key`` comes from ``OPENAI_API_KEY``.",
+      "description": "OpenAI, or any OpenAI-compatible server at ``base_url`` (R18.1, issue-19).\n\n``api_key`` comes from ``OPENAI_API_KEY`` and may be absent only with a ``base_url``\n(a local server needs none). It is declared before ``base_url`` so the endpoint's\nvalidator can see it.",
       "properties": {
+        "api": {
+          "default": "responses",
+          "enum": [
+            "responses",
+            "chat_completions"
+          ],
+          "title": "Api",
+          "type": "string"
+        },
         "api_key": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "from OPENAI_API_KEY; never logged",
-          "format": "password",
-          "title": "Api Key",
-          "type": "string",
-          "writeOnly": true
+          "title": "Api Key"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "an OpenAI-compatible endpoint; default https://api.openai.com/v1",
+          "title": "Base Url"
+        },
+        "context_window_tokens": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the model's window; default: the adapter's table",
+          "title": "Context Window Tokens"
         },
         "max_output_tokens": {
           "default": 2000,
@@ -242,9 +289,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "api_key"
-      ],
       "title": "OpenAIConfig",
       "type": "object"
     },

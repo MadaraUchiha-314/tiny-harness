@@ -16,7 +16,8 @@ the spec chain lives under `docs/specs/issue-3/`.
 - **Temporal** owns the whole request lifecycle: one workflow per task, every model and
   tool call an activity, workflow-managed retries, a durable event log, continue-as-new.
 - **Plugins** (Agent Plugins manifests) bring MCP servers, skills, hooks and prompt
-  extensions; models are OpenAI (Responses API) and Anthropic adapters.
+  extensions; models are OpenAI (Responses API, or any OpenAI-compatible server such as
+  Ollama over Responses or Chat Completions) and Anthropic adapters.
 - **Two renderers**: a Textual TUI and a React web renderer on the official A2UI
   renderer, each an A2A client through the official SDK of its language; the web
   renderer is also hosted at
@@ -49,6 +50,20 @@ uv run tiny-harness --config examples/demo/config.embedded.toml tui   # or: TUI 
 
 Embedded mode is `[temporal] mode = "embedded"` in any configuration; it is for
 development and single-host use, not production.
+
+No OpenAI account either? Point the OpenAI adapter at any **OpenAI-compatible server**
+with `[openai] base_url` — Ollama, OpenRouter, vLLM, LM Studio — and choose its wire API
+with `api = "responses"` (the default) or `"chat_completions"`. With a local
+[Ollama](https://ollama.com) and embedded Temporal, the demo runs with no key and no
+network:
+
+```sh
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve &   # the server first: `pull` talks to it
+ollama pull qwen3:8b
+unset OPENAI_API_KEY TEMPORAL_API_KEY     # a local endpoint needs no key
+export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
+uv run python -m examples.demo examples/demo/config.ollama.toml
+```
 
 See [getting started](https://madarauchiha-314.github.io/tiny-harness/guide/getting-started)
 for what happens next and

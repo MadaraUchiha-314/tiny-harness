@@ -89,6 +89,7 @@ class Demo:
     port: int
     task_queue: str
     embedded: bool = False  # issue-17: an embedded Temporal, no Temporal credentials
+    ollama_model: str | None = None  # issue-19: a local Ollama, no OpenAI key, offline
     config: Path = field(init=False)
     server: subprocess.Popen[bytes] | None = None
     worker: subprocess.Popen[bytes] | None = None
@@ -100,7 +101,7 @@ class Demo:
     )
 
     @classmethod
-    def create(cls, name: str, *, embedded: bool = False) -> Demo:
+    def create(cls, name: str, *, embedded: bool = False, ollama_model: str | None = None) -> Demo:
         suffix = uuid.uuid4().hex[:8]
         root = LOGS / f"{name}-{suffix}"
         if root.exists():
@@ -110,7 +111,8 @@ class Demo:
             root=root,
             port=free_port(),
             task_queue=f"tiny-harness-e2e-{suffix}",
-            embedded=embedded,
+            embedded=embedded or ollama_model is not None,
+            ollama_model=ollama_model,
         )
         demo.config = root / "config.toml"
         demo.config.write_text(demo.config_text())
@@ -136,9 +138,7 @@ class Demo:
                 f'task_queue = "{self.task_queue}"',
                 "search_attributes = false",
                 "[openai]",
-                'model = "gpt-6.1-sol"',
-                'timeout = "PT120S"',
-                "max_output_tokens = 2000",
+                *self.openai_lines(),
                 "[server]",
                 f'bind = "127.0.0.1:{self.port}"',
                 f'base_url = "{base}"',
@@ -152,6 +152,19 @@ class Demo:
                 "",
             ]
         )
+
+    def openai_lines(self) -> list[str]:
+        """``[openai]``: OpenAI itself, or examples/demo/config.ollama.toml's local Ollama."""
+        if self.ollama_model is None:
+            return ['model = "gpt-6.1-sol"', 'timeout = "PT120S"', "max_output_tokens = 2000"]
+        return [
+            f'base_url = "{OLLAMA_URL}/v1"',
+            'api = "chat_completions"',
+            f'model = "{self.ollama_model}"',
+            "context_window_tokens = 16384",
+            'timeout = "PT600S"',
+            "max_output_tokens = 2000",
+        ]
 
     @property
     def base_url(self) -> str:
@@ -178,6 +191,9 @@ class Demo:
         env.setdefault("TINY_HARNESS_PUSH_KEY", self.push_key)
         if self.embedded:  # the proof: embedded mode runs with no Temporal key at all
             env.pop("TEMPORAL_API_KEY", None)
+        if self.ollama_model is not None:  # issue-19: a local model needs no OpenAI key
+            env.pop("OPENAI_API_KEY", None)
+            env.pop("OPENAI_BASE_URL", None)
         return env
 
     # --- processes -----------------------------------------------------------------------
@@ -343,6 +359,25 @@ def confirm_action(parts: list[JsonObject]) -> Action | None:
     )
 
 
+OLLAMA_URL = "http://127.0.0.1:11434"
+OLLAMA_MODEL = "qwen3:8b"  # examples/demo/config.ollama.toml's; TINY_HARNESS_OLLAMA_MODEL overrides
+
+
+def ollama_unavailable(model: str, tags: JsonObject | None) -> str | None:
+    """Why the Ollama e2e cannot run, given ``GET /api/tags`` (``None``: no answer)."""
+    if tags is None:
+        return f"e2e environment absent: no Ollama answering at {OLLAMA_URL}"
+    entries = tags.get("models")
+    names = (
+        {str(cast(JsonObject, m).get("name")) for m in entries}
+        if isinstance(entries, list)
+        else set[str]()
+    )
+    if model not in names and f"{model}:latest" not in names:
+        return f"e2e environment absent: Ollama model {model} is not pulled"
+    return None
+
+
 class Driver:
     """Sends messages for one task and keeps the transcript."""
 
@@ -357,9 +392,11 @@ class Driver:
 
     async def client(self) -> Client:
         if self._client is None:
-            # A model turn is under a minute; a silence of 3 min on the stream is a hang.
+            # A model turn is under a minute; a silence of 3 min on the stream is a hang. A
+            # local model on a CPU (issue-19) is allowed the adapter's own 10 min timeout.
+            read = 600 if self.demo.ollama_model is not None else 180
             self._http = httpx.AsyncClient(
-                timeout=httpx.Timeout(300, read=180), headers={"X-Participant-Id": "alice"}
+                timeout=httpx.Timeout(300, read=read), headers={"X-Participant-Id": "alice"}
             )
             self._client = await create_client(
                 self.demo.base_url,
@@ -408,7 +445,8 @@ class Driver:
         """Stream one message's responses; returns the last task state seen."""
         state: int | None = None
         client = await self.client()
-        async with asyncio.timeout(SEND_DEADLINE_SECONDS):
+        local = self.demo.ollama_model is not None  # several slow local turns per message
+        async with asyncio.timeout(SEND_DEADLINE_SECONDS * (3 if local else 1)):
             async for response in client.send_message(SendMessageRequest(message=message)):
                 event = self._record(response)
                 if on_event is not None:
@@ -453,12 +491,15 @@ class Driver:
 
 __all__ = [
     "COMPLAINT",
+    "OLLAMA_MODEL",
+    "OLLAMA_URL",
     "REPLY",
     "Demo",
     "Driver",
     "Event",
     "action_message",
     "confirm_action",
+    "ollama_unavailable",
     "redact",
     "user_message",
 ]

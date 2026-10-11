@@ -10,7 +10,9 @@ deployment tunes them without code.
 
 from __future__ import annotations
 
+import ipaddress
 import os
+import re
 import tomllib
 from collections.abc import Mapping
 from datetime import timedelta
@@ -23,7 +25,10 @@ from pydantic import (
     Field,
     HttpUrl,
     SecretStr,
+    StrictInt,
     ValidationError,
+    ValidationInfo,
+    field_validator,
     model_validator,
 )
 
@@ -112,13 +117,67 @@ class TemporalConfig(_Strict):
         return (store.sqlite_path.resolve().parent / "temporal.sqlite3").resolve()
 
 
-class OpenAIConfig(_Strict):
-    """OpenAI through the Responses API (R18.1). ``api_key`` comes from ``OPENAI_API_KEY``."""
+_ABSOLUTE_HTTP_URL = re.compile(r"https?://[^/?#\s]+", re.IGNORECASE)
 
-    api_key: SecretStr = Field(description="from OPENAI_API_KEY; never logged")
+
+def _is_loopback_host(host: str) -> bool:
+    """``localhost`` or a literal loopback address. Never resolved: what a name resolves to
+    is what an attacker controls (issue-19 abuse case 2)."""
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host.strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+class OpenAIConfig(_Strict):
+    """OpenAI, or any OpenAI-compatible server at ``base_url`` (R18.1, issue-19).
+
+    ``api_key`` comes from ``OPENAI_API_KEY`` and may be absent only with a ``base_url``
+    (a local server needs none). It is declared before ``base_url`` so the endpoint's
+    validator can see it.
+    """
+
+    api_key: SecretStr | None = Field(default=None, description="from OPENAI_API_KEY; never logged")
+    base_url: HttpUrl | None = Field(
+        default=None,
+        description="an OpenAI-compatible endpoint; default https://api.openai.com/v1",
+    )
+    api: Literal["responses", "chat_completions"] = "responses"
     model: str = "gpt-6.1-sol"
     timeout: timedelta = timedelta(seconds=60)
     max_output_tokens: int = 2_000
+    context_window_tokens: StrictInt | None = Field(
+        default=None, gt=0, description="the model's window; default: the adapter's table"
+    )
+
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def _endpoint_is_absolute(cls, value: object) -> object:
+        """``HttpUrl`` would normalize ``https:example.com`` into an absolute URL; R1.4 asks
+        for one as written: ``http://`` or ``https://`` followed by a host."""
+        if isinstance(value, str) and not _ABSOLUTE_HTTP_URL.match(value):
+            raise ValueError("must be an absolute http:// or https:// URL")
+        return value
+
+    @field_validator("base_url")
+    @classmethod
+    def _endpoint_is_safe(cls, url: HttpUrl | None, info: ValidationInfo) -> HttpUrl | None:
+        if url is None:
+            return url
+        if url.username is not None or url.password is not None:
+            raise ValueError("must not carry credentials; OPENAI_API_KEY holds the key")
+        key = info.data.get("api_key")
+        if url.scheme == "http" and key is not None and not _is_loopback_host(url.host or ""):
+            raise ValueError("must use https to send OPENAI_API_KEY to a non-loopback host")
+        return url
+
+    @model_validator(mode="after")
+    def _key_or_endpoint(self) -> Self:
+        if self.api_key is None and self.base_url is None:
+            raise ValueError("api_key (OPENAI_API_KEY) is required unless base_url is set")
+        return self
 
 
 class AnthropicConfig(_Strict):
@@ -267,6 +326,7 @@ def _read_toml(path: Path) -> dict[str, object]:
 
 
 TEMPORAL_API_KEY = "TEMPORAL_API_KEY"
+OPENAI_API_KEY = "OPENAI_API_KEY"
 TEMPORAL_MODES = ("remote", "embedded")
 
 
@@ -281,6 +341,13 @@ def _temporal_mode(data: Mapping[str, object]) -> str:
             variable="temporal.mode",
         )
     return str(mode)  # type: ignore[arg-type]
+
+
+def _openai_base_url_set(data: Mapping[str, object]) -> bool:
+    """Whether the raw ``[openai]`` names an endpoint: then ``OPENAI_API_KEY`` is optional
+    (issue-19 R2.2)."""
+    section = data.get("openai")
+    return isinstance(section, dict) and section.get("base_url") is not None  # type: ignore[union-attr]
 
 
 def load_settings[S: Settings](
@@ -298,6 +365,7 @@ def load_settings[S: Settings](
     environment = os.environ if env is None else env
     data: dict[str, object] = _read_toml(path) if path is not None else {}
     embedded = _temporal_mode(data) == "embedded"
+    keyless_ok = _openai_base_url_set(data)
     for section, field, variable, required in SECRET_VARIABLES:
         value = environment.get(variable)
         if variable == TEMPORAL_API_KEY and embedded:
@@ -307,7 +375,7 @@ def load_settings[S: Settings](
                 )
             continue
         if value is None or value == "":
-            if required:
+            if required and not (variable == OPENAI_API_KEY and keyless_ok):
                 raise ConfigError("required secret is not set", variable=variable)
             continue
         if section is None:

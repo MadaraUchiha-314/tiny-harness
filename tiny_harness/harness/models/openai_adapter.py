@@ -11,12 +11,16 @@ other provider error as ``ProviderError``.
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import timedelta
-from typing import cast
+from typing import Literal, cast
+from urllib.parse import urlsplit
 
+import httpx2
 import openai
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, DefaultAsyncHttpxClient, Omit, omit
+from openai.types.chat import ChatCompletionStreamOptionsParam
+from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.responses import (
     Response,
     ResponseCompletedEvent,
@@ -43,27 +47,27 @@ from tiny_harness.harness.models.llm import (
     ToolCallItem,
     Usage,
 )
+from tiny_harness.harness.models.openai_chat import (
+    ChatStreamAssembler,
+    build_chat_params,
+    parse_chat,
+    result_text,
+)
 from tiny_harness.harness.models.wire_names import WireNames
-from tiny_harness.harness.tools import ContentPart, ToolCall, ToolDefinition
+from tiny_harness.harness.tools import ToolCall, ToolDefinition
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
 PROVIDER = "openai"
+DEFAULT_BASE_URL = "https://api.openai.com/v1"
+KEYLESS_PLACEHOLDER = "no-key"  # the SDK refuses to build without a key; never sent
+WireApi = Literal["responses", "chat_completions"]
+STREAM_USAGE: ChatCompletionStreamOptionsParam = {"include_usage": True}
 CONTEXT_WINDOWS: dict[str, int] = {
     "gpt-6.1-sol": 1_050_000,
     "gpt-6-astra": 1_050_000,
     "gpt-6-luna": 400_000,
 }
 MIN_CACHEABLE_TOKENS = 1_024
-
-
-def _result_text(parts: Sequence[ContentPart]) -> str:
-    chunks: list[str] = []
-    for part in parts:
-        if part.kind == "text" and part.text is not None:
-            chunks.append(part.text)
-        elif part.data is not None:
-            chunks.append(json.dumps(part.data, sort_keys=True))
-    return "\n".join(chunks)
 
 
 def build_input(request: LLMRequest, names: WireNames | None = None) -> ResponseInputParam:
@@ -87,7 +91,7 @@ def build_input(request: LLMRequest, names: WireNames | None = None) -> Response
                 {
                     "type": "function_call_output",
                     "call_id": item.result.call_id,
-                    "output": _result_text(item.result.content),
+                    "output": result_text(item.result.content),
                 }
             )
     return cast(ResponseInputParam, items)
@@ -183,7 +187,18 @@ def parse_response(response: Response, names: WireNames | None = None) -> LLMRes
     )
 
 
-def translate_error(exc: Exception) -> Exception:
+# What parsing a 2xx body can raise: invalid or too deeply nested JSON, missing or wrongly
+# typed fields.
+PARSE_ERRORS = (ValueError, KeyError, TypeError, AttributeError, IndexError, RecursionError)
+
+
+def translate_error(exc: Exception, *, api: str = "responses") -> Exception:
+    if isinstance(exc, PARSE_ERRORS):  # a 2xx the mapping cannot read (issue-19 R5.3)
+        return ProviderError(
+            f"unparseable {api} response: {type(exc).__name__}: {exc}",
+            provider=PROVIDER,
+            status=200,
+        )
     if isinstance(exc, openai.RateLimitError | openai.InternalServerError):
         return RetryableProviderError(str(exc), provider=PROVIDER, status=exc.status_code)
     if isinstance(exc, openai.APIConnectionError | openai.APITimeoutError):
@@ -193,51 +208,117 @@ def translate_error(exc: Exception) -> Exception:
     return exc
 
 
+def openai_client(
+    api_key: SecretStr | None,
+    *,
+    base_url: str | None,
+    timeout: timedelta,
+    transport: httpx2.AsyncBaseTransport | None = None,
+) -> AsyncOpenAI:
+    """The SDK client for an endpoint (issue-19 design § client construction).
+
+    ``base_url`` is always passed, so the SDK never reads ``OPENAI_BASE_URL``. A custom
+    endpoint also gets no ``OpenAI-Organization`` / ``OpenAI-Project`` headers from the
+    environment and no redirects, so every request stays on the configured host. A missing
+    key is replaced by a placeholder the adapter strips from each request.
+    """
+    http_client: httpx2.AsyncClient | None = None
+    default_headers: Mapping[str, str | Omit] | None = None
+    if base_url is not None:
+        http_client = DefaultAsyncHttpxClient(follow_redirects=False, transport=transport)
+        default_headers = {"OpenAI-Organization": omit, "OpenAI-Project": omit}
+    elif transport is not None:
+        http_client = DefaultAsyncHttpxClient(transport=transport)
+    return AsyncOpenAI(
+        api_key=api_key.get_secret_value() if api_key is not None else KEYLESS_PLACEHOLDER,
+        base_url=base_url or DEFAULT_BASE_URL,
+        timeout=timeout.total_seconds(),
+        max_retries=0,
+        default_headers=cast(Mapping[str, str], default_headers),
+        http_client=http_client,
+    )
+
+
+def endpoint_origin(base_url: str | None) -> str:
+    """``scheme://host[:port]`` of the endpoint: what logs and spans may show of it."""
+    parts = urlsplit(base_url or DEFAULT_BASE_URL)
+    host = parts.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    port = f":{parts.port}" if parts.port is not None else ""
+    return f"{parts.scheme}://{host}{port}"
+
+
 class OpenAILLM(LLM):
-    """``gpt-6.1-sol`` by default (the ticket's "GPT 6.1"); no SDK retries (R18.3)."""
+    """``gpt-6.1-sol`` on OpenAI by default (the ticket's "GPT 6.1"), or any model on any
+    OpenAI-compatible ``base_url`` (issue-19); no SDK retries (R18.3)."""
 
     def __init__(
         self,
-        api_key: SecretStr,
+        api_key: SecretStr | None,
         *,
         model: str = "gpt-6.1-sol",
         timeout: timedelta = timedelta(seconds=60),
         max_output_tokens: int = 2_000,
+        base_url: str | None = None,
+        api: WireApi = "responses",
+        context_window_tokens: int | None = None,
         client: AsyncOpenAI | None = None,
     ) -> None:
+        if api_key is None and base_url is None:
+            raise ValueError("an api_key is required unless base_url is set")
         super().__init__(
             EntityRef(kind=EntityKind.LLM, id=f"openai/{model}", version=None),
             LLMModelInfo(
                 provider=PROVIDER,
                 model=model,
-                context_window_tokens=CONTEXT_WINDOWS.get(model, 400_000),
+                context_window_tokens=context_window_tokens or CONTEXT_WINDOWS.get(model, 400_000),
                 min_cacheable_tokens=MIN_CACHEABLE_TOKENS,
+                endpoint=endpoint_origin(base_url),
+                api=api,
             ),
         )
         self._model = model
+        self._api: WireApi = api
         self._max_output_tokens = max_output_tokens
-        self._client = client or AsyncOpenAI(
-            api_key=api_key.get_secret_value(), timeout=timeout.total_seconds(), max_retries=0
+        # A keyless endpoint: strip the placeholder's Authorization header from each call.
+        self._headers: dict[str, str | Omit] | None = (
+            {"Authorization": omit} if api_key is None else None
         )
+        self._client = client or openai_client(api_key, base_url=base_url, timeout=timeout)
+
+    @property
+    def _extra_headers(self) -> Mapping[str, str] | None:
+        return cast(Mapping[str, str] | None, self._headers)
 
     async def invoke(self, request: LLMRequest) -> LLMResponse:
         names = WireNames(request.tools)
+        if self._api == "chat_completions":
+            return await self._invoke_chat(request, names)
         params = build_params(
             request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
         )
         try:
-            response = await self._client.responses.create(**params)
+            response = await self._client.responses.create(
+                **params, extra_headers=self._extra_headers
+            )
+            return parse_response(response, names)
         except Exception as exc:
             raise translate_error(exc) from exc
-        return parse_response(response, names)
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[LLMStreamEvent]:
         names = WireNames(request.tools)
+        if self._api == "chat_completions":
+            async for event in self._stream_chat(request, names):
+                yield event
+            return
         params = build_params(
             request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
         )
         try:
-            events = await self._client.responses.create(**params, stream=True)
+            events = await self._client.responses.create(
+                **params, stream=True, extra_headers=self._extra_headers
+            )
             async for event in events:
                 if isinstance(event, ResponseTextDeltaEvent):
                     yield LLMStreamEvent(kind="text_delta", text=event.delta)
@@ -261,14 +342,51 @@ class OpenAILLM(LLM):
         except Exception as exc:
             raise translate_error(exc) from exc
 
+    def _chat_params(self, request: LLMRequest, names: WireNames) -> CompletionCreateParamsBase:
+        params = build_chat_params(
+            request, model=self._model, max_output_tokens=self._max_output_tokens, names=names
+        )
+        return cast(CompletionCreateParamsBase, params)
+
+    async def _invoke_chat(self, request: LLMRequest, names: WireNames) -> LLMResponse:
+        try:
+            completion = await self._client.chat.completions.create(
+                **self._chat_params(request, names), extra_headers=self._extra_headers
+            )
+            return parse_chat(completion, names)
+        except Exception as exc:
+            raise translate_error(exc, api="chat_completions") from exc
+
+    async def _stream_chat(
+        self, request: LLMRequest, names: WireNames
+    ) -> AsyncIterator[LLMStreamEvent]:
+        assembler = ChatStreamAssembler(names=names, model=self._model)
+        params = self._chat_params(request, names)
+        params["stream_options"] = STREAM_USAGE
+        try:
+            chunks = await self._client.chat.completions.create(
+                **params, stream=True, extra_headers=self._extra_headers
+            )
+            async for chunk in chunks:
+                for event in assembler.feed(chunk):
+                    yield event
+            for event in assembler.finish():
+                yield event
+        except Exception as exc:
+            raise translate_error(exc, api="chat_completions") from exc
+
 
 __all__ = [
     "CONTEXT_WINDOWS",
+    "DEFAULT_BASE_URL",
     "MIN_CACHEABLE_TOKENS",
     "OpenAILLM",
+    "WireApi",
     "build_input",
     "build_params",
     "build_tools",
+    "endpoint_origin",
+    "openai_client",
     "parse_response",
     "translate_error",
 ]

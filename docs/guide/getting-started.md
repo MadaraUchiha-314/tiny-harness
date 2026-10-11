@@ -44,6 +44,32 @@ over the TUI. The same configuration drives the programmatic entry point,
 `tiny_harness.service.running_harness(settings)`. Embedded mode is for development and
 single-host use; see [deployment](deployment#embedded-temporal-is-not-a-production-deployment).
 
+### No OpenAI account: any OpenAI-compatible server
+
+The OpenAI adapter talks to any server that implements OpenAI's API. Set
+`[openai] base_url` to the server (`http://127.0.0.1:11434/v1` for a local Ollama,
+`https://openrouter.ai/api/v1` for OpenRouter), `model` to a name that server knows, and
+`api` to `"chat_completions"` when the server implements only Chat Completions (the
+default, `"responses"`, is OpenAI's Responses API). `OPENAI_API_KEY` becomes optional
+with a `base_url` — a local Ollama needs none — and when it is set it is sent to that
+server. Set `context_window_tokens` to the window the server actually gives the model,
+so compaction triggers in time.
+
+`examples/demo/config.ollama.toml` combines this with embedded Temporal, so the whole
+demo runs **offline**:
+
+```sh
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve &    # MUST match context_window_tokens
+ollama pull qwen3:8b                          # once, with a network; any tool-calling model
+unset OPENAI_API_KEY TEMPORAL_API_KEY
+uv run python -m examples.demo examples/demo/config.ollama.toml
+```
+
+A fully offline run also needs what the first embedded run downloads — the Temporal CLI
+(or `temporal.embedded.binary_path`) — and the demo's MCP servers' environment
+(`uv sync`) already on disk. The startup log names where model calls go:
+`model endpoint http://127.0.0.1:11434 api=chat_completions model=qwen3:8b`.
+
 ## Run the demo
 
 ```sh

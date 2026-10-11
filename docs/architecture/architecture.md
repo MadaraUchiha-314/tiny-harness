@@ -110,7 +110,8 @@ tests/integration     per layer boundary, Temporal's time-skipping test server; 
 tests/contract        public API snapshots, the agent card, the extension schemas
 tests/security        one negative test per abuse case
 tests/ui              TUI snapshots and keys
-tests/e2e             the demo on Temporal Cloud + OpenAI; skipped without the secrets
+tests/e2e             the demo on Temporal Cloud + OpenAI, embedded Temporal, or a local
+                      Ollama; each skips with the reason when its environment is absent
 docs/                 VitePress site + the-loop's specs, capabilities, decisions
 .github/workflows/    ci.yml (PRs), release.yml (PyPI), docs.yml (Pages)
 ```

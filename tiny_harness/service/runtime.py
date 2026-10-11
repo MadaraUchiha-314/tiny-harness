@@ -4,6 +4,8 @@ and the in-process engine the activities run over."""
 
 from __future__ import annotations
 
+import logging
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -33,6 +35,8 @@ from tiny_harness.service.durable.models import WorkflowConfig
 from tiny_harness.service.o11y.plugin import executor as o11y_executor
 from tiny_harness.service.o11y.plugin import o11y_plugin
 
+log = logging.getLogger("tiny_harness.runtime")
+
 AGENT_ID = "tiny-harness"
 
 
@@ -51,8 +55,27 @@ class Runtime:
     reports: list[LoadReport] = field(default_factory=lambda: list[LoadReport]())
 
 
+def model_endpoint_line(llm: LLM) -> str | None:
+    """Where model calls go, for the startup log: the origin only — never the path, the
+    query or the key (issue-19 NFR observability, abuse case 5)."""
+    info = llm.info
+    if info.endpoint is None:
+        return None
+    return f"model endpoint {info.endpoint} api={info.api} model={info.model}"
+
+
+def ignored_environment_warning(env: Mapping[str, str]) -> str | None:
+    """``OPENAI_BASE_URL`` no longer redirects the model (issue-19 R1.3); say so rather than
+    ignore it silently. The value is never echoed."""
+    if not env.get("OPENAI_BASE_URL"):
+        return None
+    return "OPENAI_BASE_URL is set and ignored; the model endpoint is [openai] base_url"
+
+
 def secret_values(settings: Settings) -> list[SecretStr]:
-    values = [settings.openai.api_key, settings.push_key]
+    values = [settings.push_key]
+    if settings.openai.api_key is not None:  # absent for a keyless endpoint (issue-19 R2.2)
+        values.insert(0, settings.openai.api_key)
     if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
         values.insert(0, settings.temporal.api_key)
     if settings.anthropic is not None:
@@ -116,12 +139,23 @@ async def build_runtime(
         await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
     system_prompt = await render_system_prompt(registry)
     index = skills_index(await skills.skills())
+    openai_config = settings.openai
+    base_url = str(openai_config.base_url) if openai_config.base_url is not None else None
     model = llm or OpenAILLM(
-        settings.openai.api_key,
-        model=settings.openai.model,
-        timeout=settings.openai.timeout,
-        max_output_tokens=settings.openai.max_output_tokens,
+        openai_config.api_key,
+        model=openai_config.model,
+        timeout=openai_config.timeout,
+        max_output_tokens=openai_config.max_output_tokens,
+        base_url=base_url,
+        api=openai_config.api,
+        context_window_tokens=openai_config.context_window_tokens,
     )
+    line = model_endpoint_line(model)
+    if line is not None:
+        log.info("%s", line)
+    ignored = ignored_environment_warning(os.environ)
+    if ignored is not None:
+        log.warning("%s", ignored)
     records = store or SqliteStore(settings.store.sqlite_path)
     engine = InProcessOperations(
         registry=registry,

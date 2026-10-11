@@ -5,11 +5,7 @@ model CompactionStoreRecord(id: <class 'str'>, context_id: <class 'str'>, task_i
 model Filter(context_id: str | None = ..., task_id: str | None = ..., since: datetime.datetime | None = ..., limit: <class 'int'> = ...)
 model InboxAuditRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['inbox_audit'] = ..., message_id: <class 'str'>, participant_id: str | None, accepted: <class 'bool'>, reason: <class 'str'> = ...)
 model PlanRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['plans'] = ..., plan: <class 'tiny_harness.harness.core.task.Plan'>, turn: <class 'int'>)
-model PushConfigRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['push_configs'] = ..., config_id: <class 'str'>, url: <class 'str'>, token_ciphertext: <class 'str'> = ..., authentication_ciphertext: <class 'str'> = ...)
-class PushTokenCipher(object)
-  def __init__(self, key: 'SecretStr') -> 'None'
-  def decrypt(self, ciphertext: 'str') -> 'str'
-  def encrypt(self, plaintext: 'str') -> 'str'
+model PushConfigRecord(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>, kind: typing.Literal['push_configs'] = ..., config_id: <class 'str'>, url: <class 'str'>, token: <class 'pydantic.types.SecretStr'> = ..., authentication: <class 'pydantic.types.SecretStr'> = ..., token_ciphertext: <class 'str'> = ..., authentication_ciphertext: <class 'str'> = ...)
 Record = TypeAliasType
 model RecordBase(id: <class 'str'>, context_id: <class 'str'>, task_id: <class 'str'>, created_at: <class 'datetime.datetime'>)
 enum RecordKind: TASKS='tasks', PLANS='plans', STATE='state', CHANNEL_MESSAGES='channel_messages', INBOX_AUDIT='inbox_audit', COMPACTIONS='compactions', PUSH_CONFIGS='push_configs'

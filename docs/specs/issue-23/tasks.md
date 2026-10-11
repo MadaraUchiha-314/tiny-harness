@@ -62,7 +62,7 @@ overrides: {}
   - _Requirements:_ R5.4
   - _Test:_ T2 — `uv run pytest tests/integration` (the worker sandbox still imports
     the workflow); `grep -rn cryptography pyproject.toml tiny_harness` empty
-- [ ] 6. Contract snapshots
+- [x] 6. Contract snapshots
   - `UPDATE_API_SNAPSHOTS=1 uv run pytest tests/contract`, review the diff: only
     `push_key` (settings schema, config), `PushTokenCipher` and `PushConfigRecord`
     (persistence) change.

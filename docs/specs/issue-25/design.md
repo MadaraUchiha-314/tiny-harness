@@ -113,8 +113,16 @@ stateDiagram-v2
 ```
 
 A **delegated** task (`spawn_subtask`) keeps today's diagram: turn end, then
-`task.complete.in`, then `COMPLETED`, or a wait for its children. A **participant** task
-(`create_task_for_participant`) keeps `_run_participant` unchanged.
+`task.complete.in`, then `COMPLETED`, or a wait for its children.
+
+A **participant** task (`create_task_for_participant`) keeps its rule, "the assignee's
+answer completes it", but its message handling goes through the same `_dispatch()` first
+(Commands § Dispatch).
+
+- A command runs and replies, and the task stays `INPUT_REQUIRED`. `/status` and
+  `/model` are therefore not mistaken for the assignee's answer (`workflows.py:536`).
+- A control `complete` runs `_complete`.
+- Only an *ordinary* message from the assignee completes the task, as today.
 
 ## Components & interfaces
 

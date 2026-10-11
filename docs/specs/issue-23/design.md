@@ -194,9 +194,9 @@ class PushConfigRecord(RecordBase, frozen=True):
 
 ## Security design
 
-How each requirements-phase boundary is enforced:
+How each requirements-phase trust boundary is enforced:
 
-| Boundary / abuse case | Enforcement |
+| Trust boundary / abuse case | Enforcement |
 |---|---|
 | `Store` → disk (the moved boundary) | `SqliteStore` creates a new file `0600` with `O_EXCL` (no window where it exists with umask permissions; R3.2). The deployment guide names an encrypting `Store` plugin or an encrypted volume for at-rest encryption (R3.3). |
 | Abuse 1: another local user reads the store | `0600` on the database file; SQLite gives `-wal`/`-shm` the same mode. |

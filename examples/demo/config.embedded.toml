@@ -4,7 +4,6 @@
 # and single-host use only — see the deployment guide.
 #   unset TEMPORAL_API_KEY
 #   export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
-#   export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 #   uv run python -m examples.demo examples/demo/config.embedded.toml
 
 plugins = ["examples/demo"]

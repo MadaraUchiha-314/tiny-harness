@@ -6,7 +6,6 @@ blender arrived cracked. Check the order and propose a resolution."
 ```bash
 export TEMPORAL_API_KEY="$(secret-tool lookup service temporal project tiny-harness)"
 export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
-export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 bun install --cwd renderers/web && bun run --cwd renderers/web build
 uv run python -m examples.demo          # server + worker, web renderer at /ui
 uv run tiny-harness tui --url http://127.0.0.1:8080

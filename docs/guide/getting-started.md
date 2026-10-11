@@ -16,7 +16,6 @@ cracked. Check the order and propose a resolution."*
 ```sh
 export TEMPORAL_API_KEY="$(secret-tool lookup service temporal project tiny-harness)"
 export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
-export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"   # encrypts push-config tokens at rest
 ```
 
 A missing variable stops the process at startup with the variable's name; there is no

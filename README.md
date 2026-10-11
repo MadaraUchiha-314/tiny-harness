@@ -30,7 +30,6 @@ the spec chain lives under `docs/specs/issue-3/`.
 ```sh
 export TEMPORAL_API_KEY="$(secret-tool lookup service temporal project tiny-harness)"
 export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
-export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 bun install --cwd renderers/web && bun run --cwd renderers/web build
 uv run python -m examples.demo            # A2A server + worker, web renderer at /ui
 uv run tiny-harness tui --url http://127.0.0.1:8080   # as your OS user; --participant <id> to choose
@@ -43,7 +42,6 @@ stops it on exit, so only the OpenAI key is needed:
 ```sh
 unset TEMPORAL_API_KEY                    # refused in embedded mode
 export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
-export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 uv run python -m examples.demo examples/demo/config.embedded.toml
 uv run tiny-harness --config examples/demo/config.embedded.toml tui   # or: TUI hosting it all
 ```
@@ -61,7 +59,6 @@ network:
 OLLAMA_CONTEXT_LENGTH=16384 ollama serve &   # the server first: `pull` talks to it
 ollama pull qwen3:8b
 unset OPENAI_API_KEY TEMPORAL_API_KEY     # a local endpoint needs no key
-export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 uv run python -m examples.demo examples/demo/config.ollama.toml
 ```
 

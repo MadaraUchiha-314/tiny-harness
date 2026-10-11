@@ -69,7 +69,7 @@ overrides: {}
   - _Depends on:_ 1, 3
   - _Requirements:_ R1.4
   - _Test:_ T3 — `uv run pytest tests/contract`
-- [ ] 7. Documentation and capability docs
+- [x] 7. Documentation and capability docs
   - README, `docs/guide/getting-started.md`, `docs/guide/deployment.md` (env row out;
     push-credential paragraph; upgrade note), `examples/demo/README.md` and the three
     `config*.toml` headers, `docs/capabilities/configuration.md`,

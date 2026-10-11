@@ -14,7 +14,6 @@
 #
 # Then:
 #   unset OPENAI_API_KEY TEMPORAL_API_KEY
-#   export TINY_HARNESS_PUSH_KEY="$(openssl rand -base64 32)"
 #   uv run python -m examples.demo examples/demo/config.ollama.toml
 
 plugins = ["examples/demo"]

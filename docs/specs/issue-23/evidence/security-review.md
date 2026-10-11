@@ -12,6 +12,18 @@ risk tier is **4**: the diff touches `tests/contract/snapshots/settings.schema.j
 human security sign-off is therefore required before completion; it is requested on
 PR #24 and recorded below when given.
 
+## Security review (gate)
+
+- **Mechanism:** the-loop checklist (the built-in `security-review` skill could not
+  start on this machine; see Mechanism below).
+- **Outcome:** pass, with no open finding. **Escalated** for a decision: the change
+  accepts a residual risk (credentials stored in clear at rest).
+- **Findings:** none. Verifying the checklist corrected one claim in `design.md` (no
+  per-task ownership check guards push-config operations; the perimeter does, as
+  before). That was a wording fix, not a vulnerability.
+- **Human sign-off:** **pending.** Risk tier 4 (sensitive path `**/*schema*`, plus a
+  security control removed). Requested from @MadaraUchiha-314 on PR #24.
+
 ## Mechanism
 
 the-loop's checklist (`reference/security.md`), verified against

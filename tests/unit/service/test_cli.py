@@ -46,7 +46,7 @@ def test_missing_secret_exits_non_zero_with_the_variable_name(
 ) -> None:
     config = tmp_path / "config.toml"
     config.write_text(TOML)
-    for variable in ("TEMPORAL_API_KEY", "OPENAI_API_KEY", "TINY_HARNESS_PUSH_KEY"):
+    for variable in ("TEMPORAL_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(variable, raising=False)
     assert main(["--config", str(config), "worker"]) == CONFIG_EXIT
     assert "TEMPORAL_API_KEY" in capsys.readouterr().err
@@ -75,7 +75,7 @@ def embedded_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra: str 
     config.write_text(EMBEDDED.format(extra=extra, store=tmp_path / "state" / "db.sqlite3"))
     monkeypatch.delenv("TEMPORAL_API_KEY", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    monkeypatch.setenv("TINY_HARNESS_PUSH_KEY", "cHVzaC1rZXk=")
+    monkeypatch.delenv("TINY_HARNESS_PUSH_KEY", raising=False)  # issue-23: never needed
     return config
 
 

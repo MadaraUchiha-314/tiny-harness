@@ -14,7 +14,6 @@ from tiny_harness.errors import ConfigError
 
 ENV = {
     "OPENAI_API_KEY": "sk-secret",
-    "TINY_HARNESS_PUSH_KEY": "cHVzaC1rZXk=",
 }
 KEYLESS_ENV = {k: v for k, v in ENV.items() if k != "OPENAI_API_KEY"}
 
@@ -176,7 +175,7 @@ def test_secret_values_include_the_key_only_when_it_is_set(tmp_path: Path) -> No
     keyed = load(tmp_path, 'base_url = "https://openrouter.ai/api/v1"')
     keyless = load(tmp_path, 'base_url = "http://127.0.0.1:11434/v1"', env=KEYLESS_ENV)
     assert "sk-secret" in [v.get_secret_value() for v in secret_values(keyed)]
-    assert [v.get_secret_value() for v in secret_values(keyless)] == ["cHVzaC1rZXk="]
+    assert secret_values(keyless) == []
 
 
 # R6.1 — the shipped offline configuration.

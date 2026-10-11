@@ -11,7 +11,6 @@ from tiny_harness.errors import ConfigError
 ENV = {
     "TEMPORAL_API_KEY": "tmprl_secret",
     "OPENAI_API_KEY": "sk-secret",
-    "TINY_HARNESS_PUSH_KEY": "cHVzaC1rZXk=",
 }
 
 TOML = """
@@ -31,6 +30,14 @@ def write(tmp_path: Path, text: str = TOML) -> Path:
     path = tmp_path / "config.toml"
     path.write_text(text)
     return path
+
+
+# issue-23 R1.1, R1.2: no push key is read, required or kept.
+def test_no_push_key_is_read_or_required(tmp_path: Path) -> None:
+    assert "push_key" not in Settings.model_fields
+    assert Settings.load(write(tmp_path), env=ENV).temporal.namespace == "tiny-harness.gtebu"
+    with_key = Settings.load(write(tmp_path), env={**ENV, "TINY_HARNESS_PUSH_KEY": "x"})
+    assert "push_key" not in with_key.model_dump()
 
 
 def test_loads_toml_and_secrets_with_typed_defaults(tmp_path: Path) -> None:

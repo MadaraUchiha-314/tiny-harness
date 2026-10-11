@@ -7,12 +7,18 @@ The harness is an A2A 1.0 server: every verb, streaming through the durable even
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from a2a.types import (
+    AuthenticationInfo,
     CancelTaskRequest,
+    DeleteTaskPushNotificationConfigRequest,
+    GetTaskPushNotificationConfigRequest,
     GetTaskRequest,
+    ListTaskPushNotificationConfigsRequest,
     ListTasksRequest,
     Message,
     Part,
@@ -20,6 +26,7 @@ from a2a.types import (
     SendMessageRequest,
     StreamResponse,
     SubscribeToTaskRequest,
+    Task,
     TaskPushNotificationConfig,
     TaskState,
 )
@@ -30,6 +37,7 @@ from temporalio.testing import WorkflowEnvironment
 from tests.integration.a2a.conftest import Server, make_server
 from tiny_harness.harness.core import TASK_EXT_KEY
 from tiny_harness.harness.models import scripted
+from tiny_harness.harness.persistence import Filter, PushConfigRecord
 from tiny_harness.harness.tools import ToolCall
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -209,10 +217,8 @@ async def test_push_notification_configs_receive_status_updates(env: WorkflowEnv
         Given a task waiting in a tool activity and a push config registered for it
         When the task completes
         Then the config's URL receives the COMPLETED status update with the token header
-        And the token is not stored in clear
+        And the store holds the token as the client supplied it (issue-23 R2.2, R3.1)
     """
-    from tiny_harness.harness.persistence import Filter, PushConfigRecord
-
     tq, task_id, context_id = ids()
     server = await make_server(
         env, [scripted("", tool_calls=[GET_ORDER]), scripted("Refunded.")], task_queue=tq
@@ -244,7 +250,134 @@ async def test_push_notification_configs_receive_status_updates(env: WorkflowEnv
     assert completed and completed[0].url.host == "push.test"
     assert completed[0].headers.get("X-A2A-Notification-Token") == "t0k3n-secret"
     records = await server.harness.store.query(PushConfigRecord, Filter(task_id=task_id))
-    assert records and "t0k3n-secret" not in records[0].token_ciphertext
+    assert records and records[0].token.get_secret_value() == "t0k3n-secret"
+
+
+async def start_gated_task(server: Server, context_id: str) -> tuple[str, asyncio.Event]:
+    """A task held in its tool activity until the test sets the returned gate."""
+    gate = server.harness.get_order.gate = asyncio.Event()
+    responses = [
+        e
+        async for e in server.blocking().send_message(
+            SendMessageRequest(
+                message=user_message("refund 48213", context_id=context_id),
+                configuration=SendMessageConfiguration(return_immediately=True),
+            )
+        )
+    ]
+    assert responses
+    return responses[0].task.id, gate
+
+
+async def wait_for_state(server: Server, task_id: str, state: TaskState) -> Task:
+    task = await server.a2a().get_task(GetTaskRequest(id=task_id))
+    for _ in range(100):
+        if task.status.state == state:
+            break
+        await asyncio.sleep(0.1)
+        task = await server.a2a().get_task(GetTaskRequest(id=task_id))
+    return task
+
+
+async def test_push_config_credentials_round_trip(env: WorkflowEnvironment) -> None:
+    """
+    Feature: A2A server
+    Requirement: docs/specs/issue-23/requirements.md#R2
+
+    Scenario: a push config's credentials round-trip through get, list and delete
+        Given a task and a push config registered with a token and an authentication
+        When the client gets it, lists the task's configs and then deletes it
+        Then get and list return the same url, token and authentication
+        And after the delete the task has no push config, in the API or the store
+    """
+    tq, _, context_id = ids()
+    server = await make_server(
+        env, [scripted("", tool_calls=[GET_ORDER]), scripted("Refunded.")], task_queue=tq
+    )
+    async with server:
+        task_id, gate = await start_gated_task(server, context_id)
+        auth = AuthenticationInfo(scheme="Bearer", credentials="cr3d")
+        await server.a2a().create_task_push_notification_config(
+            TaskPushNotificationConfig(
+                task_id=task_id,
+                id="cfg-1",
+                url="http://push.test/hook",
+                token="t0k3n-secret",
+                authentication=auth,
+            )
+        )
+        got = await server.a2a().get_task_push_notification_config(
+            GetTaskPushNotificationConfigRequest(task_id=task_id, id="cfg-1")
+        )
+        listed = await server.a2a().list_task_push_notification_configs(
+            ListTaskPushNotificationConfigsRequest(task_id=task_id)
+        )
+        await server.a2a().delete_task_push_notification_config(
+            DeleteTaskPushNotificationConfigRequest(task_id=task_id, id="cfg-1")
+        )
+        after = await server.a2a().list_task_push_notification_configs(
+            ListTaskPushNotificationConfigsRequest(task_id=task_id)
+        )
+        gate.set()
+    for config in (got, *listed.configs):
+        assert (config.url, config.token) == ("http://push.test/hook", "t0k3n-secret")
+        assert config.authentication == auth
+    assert len(listed.configs) == 1 and not after.configs
+    assert not await server.harness.store.query(PushConfigRecord, Filter(task_id=task_id))
+
+
+class LegacyPushConfigRecord(PushConfigRecord, frozen=True):
+    """The 0.5.x row shape: the field re-declared without ``exclude``, so it is written."""
+
+    token_ciphertext: str = ""
+
+
+async def test_legacy_push_config_is_dropped(
+    env: WorkflowEnvironment, caplog: pytest.LogCaptureFixture
+) -> None:
+    """
+    Feature: A2A server
+    Requirement: docs/specs/issue-23/requirements.md#R4
+
+    Scenario: a push config stored encrypted by an earlier version is dropped, not delivered
+        Given a task with a push config row in the 0.5.x shape, its token AES-GCM ciphertext
+        When the client lists the task's push configs and the task completes
+        Then the list is empty and nothing is posted to the config's URL
+        And the row is deleted with a warning naming the task and config, not the ciphertext
+    """
+    tq, _, context_id = ids()
+    server = await make_server(
+        env, [scripted("", tool_calls=[GET_ORDER]), scripted("Refunded.")], task_queue=tq
+    )
+    ciphertext = "bGVnYWN5LW5vbmNlLWFuZC1jaXBoZXJ0ZXh0"
+    async with server:
+        task_id, gate = await start_gated_task(server, context_id)
+        await server.harness.store.put(
+            LegacyPushConfigRecord.model_validate(
+                {
+                    "id": f"{task_id}:old",
+                    "context_id": "",
+                    "task_id": task_id,
+                    "created_at": datetime.now(UTC),
+                    "config_id": "old",
+                    "url": "http://legacy.test/hook",
+                    "token_ciphertext": ciphertext,
+                }
+            )
+        )
+        with caplog.at_level(logging.WARNING):
+            listed = await server.a2a().list_task_push_notification_configs(
+                ListTaskPushNotificationConfigsRequest(task_id=task_id)
+            )
+            gate.set()
+            task = await wait_for_state(server, task_id, TaskState.TASK_STATE_COMPLETED)
+    assert task.status.state == TaskState.TASK_STATE_COMPLETED
+    assert not listed.configs
+    assert not [r for r in server.pushes if r.url.host == "legacy.test"]
+    assert not await server.harness.store.query(PushConfigRecord, Filter(task_id=task_id))
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("old" in w and task_id in w and "earlier version" in w for w in warnings)
+    assert not any(ciphertext in w for w in warnings)
 
 
 async def test_cancel_emits_canceled(env: WorkflowEnvironment) -> None:

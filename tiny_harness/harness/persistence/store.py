@@ -10,7 +10,9 @@ never reports its operation complete. ``sweep`` applies the retention policy per
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
+import os
 import sqlite3
 import threading
 from abc import abstractmethod
@@ -69,6 +71,10 @@ class SqliteStore(Store):
         self._path = str(path)
         if self._path != ":memory:":
             Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+            # A push config holds a client's callback credential (issue-23 R3.2): a new
+            # database file is the owner's alone; SQLite gives -wal/-shm the same mode.
+            with contextlib.suppress(FileExistsError):
+                os.close(os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(self._path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")

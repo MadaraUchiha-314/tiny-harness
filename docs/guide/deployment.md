@@ -92,7 +92,6 @@ One TOML file, validated into typed models; unknown keys are rejected. The demo'
 |----------|---------|----------|
 | `TEMPORAL_API_KEY` | server, worker | in `remote` mode; **refused** in `embedded` mode |
 | `OPENAI_API_KEY` | worker | yes, unless `[openai] base_url` is set; then optional, and sent to that endpoint |
-| `TINY_HARNESS_PUSH_KEY` | server, worker | yes; 16, 24 or 32 bytes, base64; AES-GCM key for push-notification tokens at rest |
 | `ANTHROPIC_API_KEY` | worker | when `[anthropic]` is configured |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | server, worker | when exporting to Langfuse |
 
@@ -106,6 +105,30 @@ export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)
 
 Every configured secret value is redacted from log lines, span attributes, persisted
 messages and the context window; a secret never appears in a workflow payload.
+
+`TINY_HARNESS_PUSH_KEY` is no longer read (issue-23). A process that still has it set logs a
+`WARNING` saying so, without the value; unset it.
+
+### Push-notification credentials
+
+An A2A client that registers a push-notification config hands the harness a `token`
+and an `authentication` for its own webhook. The store keeps them **as the client
+supplied them**; tiny-harness applies no encryption of its own, and protecting them at
+rest is the store's job:
+
+- The default SQLite store creates a **new** database file readable and writable by its
+  owner only (`0600`), and SQLite gives its `-wal` and `-shm` files the same mode. A file
+  that already exists keeps its mode: `chmod 600` it, and keep its directory and
+  backups as private as the file.
+- For encryption at rest, use a `Store` plugin over a database that encrypts, or put
+  `[store] sqlite_path` on an encrypted volume.
+- Push configs expire with `[retention] push_configs` (30 days by default).
+
+**Upgrading from 0.5 or earlier.** Those versions stored push-config credentials
+AES-GCM encrypted under `TINY_HARNESS_PUSH_KEY`. Without the key they cannot be read, so
+the first read of such a config deletes it and logs a `WARNING` naming the task and the
+config id; it never receives a notification. Clients that registered push
+notifications before the upgrade must register them again.
 
 ## Embedded Temporal is not a production deployment
 

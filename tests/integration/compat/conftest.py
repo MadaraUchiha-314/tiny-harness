@@ -4,9 +4,7 @@ real OpenAI adapter at it: embedded Temporal, no Temporal credentials, no OpenAI
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
-import os
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -14,7 +12,6 @@ from pathlib import Path
 
 import pytest_asyncio
 import uvicorn
-from pydantic import SecretStr
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -145,7 +142,6 @@ def compat_settings(tmp_path: Path, *, base_url: str, api: str) -> Settings:
             },
             "retries": {"default": {"initial_interval": "PT0.2S", "maximum_attempts": 3}},
             "store": {"sqlite_path": str(tmp_path / "state" / "tiny-harness.sqlite3")},
-            "push_key": SecretStr(base64.b64encode(os.urandom(32)).decode()),
         }
     )
 

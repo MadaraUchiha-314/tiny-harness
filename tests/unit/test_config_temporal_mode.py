@@ -14,7 +14,6 @@ from tiny_harness.errors import ConfigError
 ENV = {
     "TEMPORAL_API_KEY": "tmprl_secret",
     "OPENAI_API_KEY": "sk-secret",
-    "TINY_HARNESS_PUSH_KEY": "cHVzaC1rZXk=",
 }
 EMBEDDED_ENV = {k: v for k, v in ENV.items() if k != "TEMPORAL_API_KEY"}
 
@@ -195,7 +194,7 @@ def test_secret_values_skip_the_absent_temporal_key(tmp_path: Path) -> None:
 
     settings = Settings.load(embedded(tmp_path), env=EMBEDDED_ENV)
     values = [value.get_secret_value() for value in secret_values(settings)]
-    assert values == ["sk-secret", "cHVzaC1rZXk="]
+    assert values == ["sk-secret"]
 
 
 # R6.4 — the demo ships an embedded configuration that needs no Temporal account.

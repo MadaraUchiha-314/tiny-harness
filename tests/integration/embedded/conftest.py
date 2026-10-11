@@ -3,16 +3,13 @@ Temporal credentials, and a scripted model in place of OpenAI."""
 
 from __future__ import annotations
 
-import base64
 import functools
-import os
 import socket
 import uuid
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from pydantic import SecretStr
 
 from tests.integration.durable.conftest import CACHE
 from tiny_harness.config import Settings
@@ -43,7 +40,6 @@ def embedded_settings(tmp_path: Path) -> Settings:
                 "bridge_interval": "PT0.05S",
             },
             "store": {"sqlite_path": str(tmp_path / "state" / "tiny-harness.sqlite3")},
-            "push_key": SecretStr(base64.b64encode(os.urandom(32)).decode()),
         }
     )
 

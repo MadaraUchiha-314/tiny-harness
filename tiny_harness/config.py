@@ -293,9 +293,6 @@ class Settings(_Strict):
     retries: RetryPolicies = RetryPolicies()
     context: ContextConfig = ContextConfig()
     retention: RetentionConfig = RetentionConfig()
-    push_key: SecretStr = Field(
-        description="from TINY_HARNESS_PUSH_KEY; encrypts push-config tokens"
-    )
 
     @classmethod
     def load(cls, path: Path | None = None, *, env: Mapping[str, str] | None = None) -> Self:
@@ -309,7 +306,6 @@ SECRET_VARIABLES: tuple[tuple[str | None, str, str, bool], ...] = (
     ("anthropic", "api_key", "ANTHROPIC_API_KEY", False),
     ("o11y", "langfuse_public_key", "LANGFUSE_PUBLIC_KEY", False),
     ("o11y", "langfuse_secret_key", "LANGFUSE_SECRET_KEY", False),
-    (None, "push_key", "TINY_HARNESS_PUSH_KEY", True),
 )
 
 

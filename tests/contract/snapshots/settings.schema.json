@@ -662,13 +662,6 @@
       "title": "Plugins",
       "type": "array"
     },
-    "push_key": {
-      "description": "from TINY_HARNESS_PUSH_KEY; encrypts push-config tokens",
-      "format": "password",
-      "title": "Push Key",
-      "type": "string",
-      "writeOnly": true
-    },
     "retention": {
       "$ref": "#/$defs/RetentionConfig",
       "default": {
@@ -710,8 +703,7 @@
   "required": [
     "temporal",
     "openai",
-    "server",
-    "push_key"
+    "server"
   ],
   "title": "Settings",
   "type": "object"

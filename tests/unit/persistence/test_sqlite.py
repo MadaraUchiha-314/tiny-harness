@@ -117,10 +117,17 @@ async def test_sweep_deletes_expired_rows_per_kind() -> None:
 
 
 def test_no_record_has_a_credential_field() -> None:
-    from tiny_harness.harness.persistence import RECORD_TYPES
+    from pydantic import SecretStr
 
+    from tiny_harness.harness.persistence import RECORD_TYPES, PushConfigRecord
+
+    # The one exception: a push config's callback credential, masked as SecretStr (issue-23).
+    credentials = {"token", "authentication"}
     for record_type in RECORD_TYPES.values():
-        for name in record_type.model_fields:
+        for name, info in record_type.model_fields.items():
             assert not any(s in name for s in ("secret", "password", "api_key")), name
-            # the only token-shaped field is ciphertext by construction
-            assert "token" not in name or name.endswith("_ciphertext"), name
+            if record_type is PushConfigRecord and name in credentials:
+                assert info.annotation is SecretStr, name
+                continue
+            # the 0.5.x ciphertext fields are read-only and never written back
+            assert "token" not in name or (name.endswith("_ciphertext") and info.exclude), name

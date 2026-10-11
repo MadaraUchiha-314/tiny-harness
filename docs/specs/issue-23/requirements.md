@@ -177,9 +177,9 @@ or trust boundary.
   - `Store` → disk: this is where the boundary moves. Protection of the credential at
     rest becomes the `Store` implementation's and the filesystem's (R3), backed by
     owner-only permissions on a new SQLite file (R3.2).
-  - Temporal history, logs and traces: unchanged — the credential is read only inside
-    the server process's `emit_event` sink and never placed in a workflow payload, log
-    field or span.
+  - Temporal history, logs and traces: unchanged — the credential is read from the
+    store only by the A2A push-config handlers and the `emit_event` activity's sink, and
+    is never placed in a workflow payload, log field or span.
 - **Abuse cases (EARS):**
   1. WHEN a local user other than the store file's owner tries to read a newly created
      SQLite store THEN the operating system SHALL deny it (mode `0600`, R3.2).

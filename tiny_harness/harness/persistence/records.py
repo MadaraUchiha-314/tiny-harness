@@ -1,4 +1,4 @@
-"""The records the store holds (R11.1, R11.4, R11.5) and the push-token cipher.
+"""The records the store holds (R11.1, R11.4, R11.5).
 
 Temporal history is the replay source; the store is the read model that outlives the
 workflow: task records on every state change, plans when attached or changed, the state

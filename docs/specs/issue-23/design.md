@@ -203,7 +203,7 @@ How each requirements-phase trust boundary is enforced:
 | Abuse 2: credential in logs, spans, Temporal payloads | `token`/`authentication` are `SecretStr`: `repr`, `str` and `model_dump()` (python mode) show `**********`; only JSON serialisation (the store's write path) reveals them. The record is never a workflow payload: the sink reads it from the store in-process. The new warnings carry only ids. |
 | Abuse 3: `TINY_HARNESS_PUSH_KEY` value echoed | the warning text is a constant naming the variable; the value is never read into a variable. |
 | Abuse 4: ciphertext sent to the webhook | a `legacy` row never decodes to a `TaskPushNotificationConfig`; it is deleted before the sender sees the list. |
-| A2A request → store | unchanged: the a2a-sdk handler validates the config; the task-ownership checks of issue-3 still apply. |
+| A2A request → store | unchanged: the a2a-sdk default handler validates the config and serves it for an existing task; access control is the deployment's perimeter (deployment guide § The perimeter is required), as before. |
 | Fail closed | an uninterpretable (legacy) row is dropped, never best-effort delivered. |
 
 No new dependency; one removed (`cryptography`), shrinking the supply chain. The

@@ -212,6 +212,11 @@ def ensure_default_config(home: Path | None = None) -> tuple[Path, bool]:
   otherwise.
   - The executor's first-message path sets `conversation`.
   - `spawn_child` sets `delegated` for `spawn_subtask` and `conversation` for `/sub-task`.
+  - `spawn_child` also copies the parent's `model` and `reasoning_effort` into **every
+    local child** it builds (`workflows.py:798`). That covers agent `spawn_subtask` and
+    `/sub-task` children alike, so new sub-tasks inherit the parent's settings (R7.3).
+    A remote child gets neither, because its model is the remote agent's. A participant
+    task gets neither, because it makes no model call.
   - Participant tasks keep `mode="participant"` and never reach `CoreLoop`.
   - **The three fields are server-controlled.** No participant payload may set them. A
     `task` envelope is the existing way to create or edit a task's extension

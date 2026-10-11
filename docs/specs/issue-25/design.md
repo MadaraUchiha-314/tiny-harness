@@ -428,11 +428,23 @@ flowchart LR
   `command.invoked.in`.
 - **Plugin.** The loader reads `<ns>/commands.json`, which has the shape
   `{"commands": [{name, description, argument_hint, hook}]}`. Each entry's `hook` names a
-  `HookDef` in the same plugin's `hooks.json`. The loader registers that executor through
-  `_ForCommand`.
+  `HookDef` in the same plugin's `hooks.json`. That `HookDef` is **command-owned**.
+  - **Resolve before registering.** `PluginLoader.load` resolves `commands.json` *before*
+    its hook loop (`loader.py:315`). The hook loop then skips every command-owned
+    `HookDef`, and only the command step registers it, wrapped in
+    `_ForCommand(name, executor)`.
+  - A command-owned executor is therefore never on `command.invoked.in` unfiltered. It
+    cannot see another command's arguments, run twice, or set a result first.
+  - A command-owned `HookDef` MUST declare exactly `points: ["command.invoked.in"]`.
+    Otherwise the command and its hook are skipped together, so a hook cannot be both a
+    filtered command body and an unfiltered executor elsewhere. A plugin that wants a
+    `pre` or `post` executor on `command.invoked` declares a separate, ordinary `HookDef`.
+    Ordinary `HookDef`s see every command, which is how policy hooks are meant to work.
+  - Two commands may not name the same `hook`; the second is skipped.
   - Skipped with a `SkippedComponent(kind="command", …)` in the load report (R6a.8): an
     invalid name, a name already registered without `override`, a `hook` naming no
-    `HookDef`, or a `HookDef` whose points omit `command.invoked.in`.
+    `HookDef`, a `HookDef` whose points are not exactly `command.invoked.in`, or a `hook`
+    already owned by another command.
   - `ComponentKind` gains `command`. `commands.json` gets a JSON Schema under
     `docs/plugins/commands.json`.
 - **Built-ins (R6.8, R6a.3).** The built-in plugin registers the four built-ins at
@@ -700,7 +712,7 @@ hook. The arguments are never logged.
 | 7 symlink / foreign owner | `lstat` + owner check + `O_NOFOLLOW \| O_EXCL` | home or file as a symlink, or owned by another uid → exit 2, nothing written |
 | 8 permissions | `mkdir(0o700)`, `open(…, 0o600)` | created modes asserted |
 | 9 unregistered `/name` | parser falls through to an ordinary message | `/unknown hi` reaches the model as text |
-| 10 remote executor | runner redactor; `_ForCommand` filtering | a remote executor sees only its own command, scrubbed |
+| 10 remote executor | runner redactor; command-owned hooks registered only through `_ForCommand` | a remote executor sees only its own command, scrubbed; a command-owned hook with extra points is skipped |
 
 ## Testing strategy
 

@@ -289,8 +289,9 @@ sequenceDiagram
   participant D as decide_completion activity
   C->>X: SendMessage(control: complete, X-Participant-Id)
   X->>X: access policy (not on task → TaskNotFound)<br/>terminal? → UnsupportedOperation naming the state
-  X->>W: inbox update (interrupt = true for control)
-  W->>W: cut the running turn, if any
+  X->>W: inbox update (control)
+  W->>W: validator: sender on task, role ≠ watcher?<br/>no → update rejected, nothing interrupted
+  W->>W: handler: set interrupt → cut the running turn, if any
   W->>I: intake(message)
   I->>I: actor on task? role ≠ watcher?
   I-->>W: IntakeOut(control=complete) or not accepted
@@ -307,12 +308,23 @@ sequenceDiagram
   `the task is in a terminal state (TASK_STATE_COMPLETED)`, which names the state for
   messages, commands and completions alike. `cancel` gains the same check before it
   signals.
-- **Inbox update.** The handler marks a control message as an interrupt, the same flag
-  `metadata.interrupt` sets. `_await_runner` then cuts a turn in progress (R5.2).
+- **Inbox update: authorize first, then interrupt.** The `inbox` update's **validator**
+  is workflow code, deterministic, and already runs before the handler (it refuses a
+  `closed` workflow today).
+  - For a control message it also checks the asserted `participant_id` against the
+    workflow's in-memory `task.ext.participants`.
+  - It rejects the update when the sender is missing, not on the task, or only a
+    `watcher`. The executor surfaces that rejection as an A2A error, and no handler runs.
+  - Only a control message that passes sets the interrupt flag. That is the same flag
+    `metadata.interrupt` sets, so `_await_runner` cuts a turn in progress (R5.2).
+  - A refused completion can therefore never interrupt a turn (abuse case 4). This
+    covers direct inbox updates too, because the validator guards the update itself, not
+    the executor.
 - **`intake`.** It parses the envelope:
   - The actor must be on the task (today's rule).
-  - A `watcher` is refused (abuse case 4). This uses the existing "message not accepted"
-    path, which re-emits the current state.
+  - A `watcher` is refused (abuse case 4). This repeats the validator's check as defence
+    in depth, through the existing "message not accepted" path, which re-emits the
+    current state.
   - Otherwise it returns `IntakeOut.control = "complete"`, writes an audit row, and adds
     nothing to the model history.
 - **Workflow `_complete(actor)`.**
@@ -682,7 +694,7 @@ hook. The arguments are never logged.
 | 1 unlisted model | exact membership in `ModelCatalog.selectable`; server-controlled `model` in task envelopes | `/model evil-model` refused, model unchanged; a first-message `task` envelope with `model` refused, no task created |
 | 2 bad effort | closed literal | `/effort extreme` refused |
 | 3 non-member | `AccessPolicy` before the workflow | command, complete and cancel from a non-member → task not found |
-| 4 watcher | `intake` role check; executor cancel check; built-in `pre` executor | watcher complete / cancel / `/model x` / `/sub-task` refused, state unchanged |
+| 4 watcher | inbox-update validator (before any interrupt) + `intake` role check; executor cancel check; built-in `pre` executor | watcher complete / cancel / `/model x` / `/sub-task` refused, state unchanged; a watcher's complete during a running turn leaves the turn running |
 | 5 hostile arguments | opaque strings, per-command validation, never executed | `/sub-task $(rm -rf ~)`, `/model ../../x`, control characters → stored or refused, nothing executed |
 | 6 sub-task flood | limits middleware | 429 past `rate_limit_per_minute` with `/sub-task` |
 | 7 symlink / foreign owner | `lstat` + owner check + `O_NOFOLLOW \| O_EXCL` | home or file as a symlink, or owned by another uid → exit 2, nothing written |

@@ -181,7 +181,7 @@ negative test.
   - _Test:_ T1 `tests/unit/plugins/test_commands_json.py`; T8
     `tests/security/test_remote_command_executor.py` (sees only its own command,
     scrubbed)
-- [ ] 13. Built-in commands and the role `pre` executor
+- [x] 13. Built-in commands and the role `pre` executor
   - `/model`, `/effort`, `/sub-task` and `/status`, as pure handlers over
     `CommandInvokedIn` + `ModelCatalog`.
   - The built-in `pre` executor at priority 100 refuses `/model <x>`, `/effort <x>` and

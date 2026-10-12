@@ -120,15 +120,23 @@ async def build_runtime(
     llm: LLM | None = None,
     store: Store | None = None,
     data_root: Path | None = None,
+    builtin_commands: bool = True,
 ) -> Runtime:
+    """Assemble the harness. ``builtin_commands=False`` builds it without ``/model``,
+    ``/effort``, ``/sub-task`` and ``/status`` (issue-25 R6.8)."""
     registry = Registry()
     hooks = HookManager()
     registrar = RegistryRegistrar(registry)
     commands = CommandRegistry(hooks)  # plugins declare commands into it (issue-25 R6a.6)
+    catalog = ModelCatalog.from_settings(settings)  # the selectable models and defaults (R7, R8)
     root = (data_root or settings.store.sqlite_path.resolve().parent / "plugin-data").resolve()
     reports = [
         await load_builtin(
-            hook_manager=hooks, registrar=registrar, data_root=root, commands=commands
+            hook_manager=hooks,
+            registrar=registrar,
+            data_root=root,
+            commands=commands,
+            catalog=catalog if builtin_commands else None,
         )
     ]
     registrar.override = True
@@ -177,7 +185,6 @@ async def build_runtime(
     for ignored in ignored_environment_warnings(os.environ):
         log.warning("%s", ignored)
     records = store or SqliteStore(settings.store.sqlite_path)
-    catalog = ModelCatalog.from_settings(settings)  # the selectable models and defaults (R7, R8)
     engine = InProcessOperations(
         registry=registry,
         hooks=hooks,

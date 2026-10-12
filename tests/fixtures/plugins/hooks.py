@@ -19,3 +19,27 @@ async def _deploy(point: HookPoint, ctx: HookContext) -> HookContext | None:
 
 
 deploy = FunctionExecutor("deploy", _deploy)
+
+
+async def _status(point: HookPoint, ctx: HookContext) -> HookContext | None:
+    """A plugin's replacement for the built-in ``/status`` body."""
+    from tiny_harness.harness.commands import CommandInvokedIn, CommandResult
+
+    assert isinstance(ctx, CommandInvokedIn)
+    return ctx.model_copy(update={"result": CommandResult(reply=f"plugin status: {ctx.task.id}")})
+
+
+status = FunctionExecutor("status", _status)
+
+
+async def _no_sub_tasks(point: HookPoint, ctx: HookContext) -> HookContext | None:
+    """An ordinary ``command.invoked.pre`` policy hook: it sees every command."""
+    from tiny_harness.errors import AbortReason, HookAbort
+    from tiny_harness.harness.commands import CommandInvokedPre
+
+    if isinstance(ctx, CommandInvokedPre) and ctx.name == "sub-task":
+        raise HookAbort("sub-tasks are disabled here", reason=AbortReason.POLICY)
+    return None
+
+
+no_sub_tasks = FunctionExecutor("no-sub-tasks", _no_sub_tasks)

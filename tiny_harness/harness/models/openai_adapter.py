@@ -118,7 +118,7 @@ def build_params(
 ) -> ResponseCreateParamsBase:
     names = names or WireNames(request.tools)
     params: JsonObject = {
-        "model": model,
+        "model": request.model or model,
         "instructions": request.instructions,
         "input": cast(JsonValue, build_input(request, names)),
         "store": False,
@@ -128,6 +128,8 @@ def build_params(
         params["tools"] = cast(JsonValue, build_tools(request.tools, names))
     if request.cache_key:
         params["prompt_cache_key"] = request.cache_key
+    if request.reasoning_effort is not None:  # only when set: unset stays byte-identical
+        params["reasoning"] = {"effort": request.reasoning_effort}
     if request.response_format is not None:
         params["text"] = {
             "format": {
@@ -360,7 +362,7 @@ class OpenAILLM(LLM):
     async def _stream_chat(
         self, request: LLMRequest, names: WireNames
     ) -> AsyncIterator[LLMStreamEvent]:
-        assembler = ChatStreamAssembler(names=names, model=self._model)
+        assembler = ChatStreamAssembler(names=names, model=request.model or self._model)
         params = self._chat_params(request, names)
         params["stream_options"] = STREAM_USAGE
         try:

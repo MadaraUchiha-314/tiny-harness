@@ -17,7 +17,7 @@ model AcceptanceCriterion(text: <class 'str'>, met: <class 'bool'> = ...)
 model AgentState(task_id: <class 'str'>, history: tuple[tiny_harness.harness.core.state.HistoryEntry, ...] = ..., next_history_id: <class 'int'> = ..., summary: <class 'str'> = ..., loaded_skills: tuple[tiny_harness.harness.core.state.LoadedSkillRecord, ...] = ..., data: <class 'tiny_harness.harness.core.state.SchemaValidated'> = ..., last_usage: tiny_harness.harness.models.llm.Usage | None = ..., last_context_chars: <class 'int'> = ..., turn: <class 'int'> = ...)
 model CompactionKeepIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., sections: tuple[str, ...], result: tuple[str, ...] | None = ...)
 model CompactionRecord(task_id: <class 'str'>, turn: <class 'int'>, removed_ids: tuple[int, ...], summary: <class 'str'>, tokens_before: <class 'int'>, tokens_after: <class 'int'>, at: <class 'datetime.datetime'>)
-model CompactionSummariseIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., previous_summary: <class 'str'>, history: <class 'str'>, removed_ids: tuple[int, ...], result: str | None = ...)
+model CompactionSummariseIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., previous_summary: <class 'str'>, history: <class 'str'>, removed_ids: tuple[int, ...], model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ..., result: str | None = ...)
 model CompactionTriggerIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., estimated_tokens: <class 'int'>, budget: <class 'int'>, fraction: <class 'float'>, result: bool | None = ...)
 class Compactor(object)
   def __init__(self, *, hooks: 'HookManager', manager: 'ContextWindowManager', llm: 'LLM', now: 'type[datetime]' = <class 'datetime.datetime'>) -> 'None'
@@ -26,7 +26,7 @@ class Compactor(object)
   def should_compact(self, window: 'ContextWindow', model: 'LLMModelInfo', *, task_id: 'str', correlation_id: 'str') -> 'bool'
 enum CompletionDecision: WAIT='wait', COMPLETE='complete', FAIL='fail'
 model ContextSection(name: <class 'str'>, stability: <enum 'Stability'>, never_compact: <class 'bool'>, content: <class 'str'>)
-model ContextWindow(sections: tuple[tiny_harness.harness.core.context.ContextSection, ...], tools: tuple[tiny_harness.harness.tools.models.ToolDefinition, ...], input: tuple[InputItem, ...], estimated_tokens: <class 'int'>, chars: <class 'int'>)
+model ContextWindow(sections: tuple[tiny_harness.harness.core.context.ContextSection, ...], tools: tuple[tiny_harness.harness.tools.models.ToolDefinition, ...], input: tuple[InputItem, ...], estimated_tokens: <class 'int'>, chars: <class 'int'>, model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ...)
 class ContextWindowManager(object)
   def __init__(self, *, turn_budget_tokens: 'int' = 12000, compaction_fraction: 'float' = 0.75) -> 'None'
   def assemble(self, *, task: 'HarnessTask', state: 'AgentState', system_prompt: 'str', skills_index: 'str', tools: 'Sequence[ToolDefinition]') -> 'ContextWindow'

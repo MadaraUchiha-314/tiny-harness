@@ -21,7 +21,7 @@ from tiny_harness.harness.core import ContextWindowManager
 from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
 from tiny_harness.harness.hooks import HookManager
-from tiny_harness.harness.models import LLM, OpenAILLM
+from tiny_harness.harness.models import LLM, ModelCatalog, OpenAILLM
 from tiny_harness.harness.persistence import RecordKind, SqliteStore, Store
 from tiny_harness.harness.plugins import LoadReport, McpStdioServer, PluginLoader
 from tiny_harness.harness.plugins.loader import prepare_stdio
@@ -168,6 +168,7 @@ async def build_runtime(
     for ignored in ignored_environment_warnings(os.environ):
         log.warning("%s", ignored)
     records = store or SqliteStore(settings.store.sqlite_path)
+    catalog = ModelCatalog.from_settings(settings)  # the selectable models and defaults (R7, R8)
     engine = InProcessOperations(
         registry=registry,
         hooks=hooks,
@@ -180,10 +181,11 @@ async def build_runtime(
             compaction_fraction=settings.context.compaction_fraction,
         ),
         redactor=redactor,
+        catalog=catalog,
     )
     engine.sources = sources
     await engine.bind()
-    register_help_default(hooks, model)
+    register_help_default(hooks, model, catalog)
     return Runtime(
         settings=settings,
         registry=registry,

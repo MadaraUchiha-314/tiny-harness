@@ -147,6 +147,44 @@ async def test_the_chat_span_names_the_model_endpoint_and_wire_api() -> None:
     assert chat["tiny_harness.llm.api"] == "chat_completions"
 
 
+async def chat_span(request: LLMRequest) -> dict[str, object]:
+    exporter = InMemorySpanExporter()
+    provider = configure_tracing(O11yConfig(), exporter=exporter, set_global=False)
+    hooks = HookManager()
+    hooks.register(O11yExecutor(provider=provider))
+
+    async def llm(ctx: LLMInvokedPre) -> LLMResponse:
+        return scripted("hi", model="served-model")
+
+    await OperationRunner(hooks).run(
+        Operation.LLM_INVOKED,
+        LLMInvokedPre(task_id="t-1", correlation_id="c-1", request=request),
+        llm,
+        make_post=lambda p, r: LLMInvokedPost(
+            task_id=p.task_id,
+            correlation_id=p.correlation_id,
+            request=p.request,
+            model=p.model,
+            response=r,
+        ),
+        extract=lambda post: post.response,
+    )
+    return dict(exporter.get_finished_spans()[0].attributes or {})
+
+
+async def test_the_chat_span_names_the_requested_model_and_effort() -> None:
+    """issue-25 NFR observability: the per-request model and the effort, when set."""
+    chosen = await chat_span(
+        LLMRequest(instructions="", input=(), model="model-b", reasoning_effort="high")
+    )
+    assert chosen["gen_ai.request.model"] == "model-b"
+    assert chosen["gen_ai.response.model"] == "served-model"
+    assert chosen["tiny_harness.llm.reasoning_effort"] == "high"
+    unset = await chat_span(LLMRequest(instructions="", input=()))
+    assert unset["gen_ai.request.model"] == "served-model"
+    assert "tiny_harness.llm.reasoning_effort" not in unset
+
+
 def test_langfuse_headers_are_basic_auth() -> None:
     headers = langfuse_headers("pk-lf-1", "sk-lf-2")
     assert headers == {"Authorization": "Basic cGstbGYtMTpzay1sZi0y"}

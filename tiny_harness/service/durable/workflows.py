@@ -317,19 +317,16 @@ class WorkflowOperations:
         return await self._wf.set_status(task, state)
 
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
-        task = await self._wf.ask(task, help)
-        await self._wf.persist(None)  # the store holds the parked state too (R3.6)
-        return task
+        return await self._wf.ask(task, help)
 
     async def await_next_message(self, task: HarnessTask, text: str) -> HarnessTask:
-        task = await self._wf.set_status(
+        return await self._wf.set_status(
             task,
             TaskState.TASK_STATE_INPUT_REQUIRED,
             text=text,
             sub_state=SubState.AWAITING_NEXT_MESSAGE,
+            persist=True,
         )
-        await self._wf.persist(None)
-        return task
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
         return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
@@ -461,8 +458,8 @@ class TaskWorkflow:
                 self.task,
                 TaskState.TASK_STATE_INPUT_REQUIRED,
                 sub_state=SubState.AWAITING_NEXT_MESSAGE,
+                persist=True,
             )
-            await self.persist(None)
         loop = CoreLoop(WorkflowOperations(self), max_turns=start.config.max_turns)
         while True:
             await workflow.wait_condition(self._ready)
@@ -712,10 +709,13 @@ class TaskWorkflow:
         text: str | None = None,
         message: Message | None = None,
         sub_state: SubState | None = None,
+        persist: bool = False,
     ) -> HarnessTask:
         """Move the task to ``state`` and log the update. ``sub_state`` is written to both
         documented places, ``Task.metadata`` and the status update's metadata (R4.1);
-        without one, a stale sub-state is cleared (R3.3)."""
+        without one, a stale sub-state is cleared (R3.3). ``persist`` stores the new state
+        before anyone can see it (R3.6): a parked task is idle, so a client that reacts
+        to the update never finds the store write still in flight."""
         status = TaskStatus(state=state, timestamp=workflow.now())  # type: ignore[arg-type]
         if message is None and text:
             message = text_message(task, text, message_id=f"{task.id}:status:{self.next_seq}")
@@ -723,7 +723,8 @@ class TaskWorkflow:
             status.message.CopyFrom(message)
         updated = task.with_state(state, sub_state)
         updated.proto.status.CopyFrom(status)
-        self.task = updated
+        if persist:
+            await self.persist(None, task=updated)
         event = TaskStatusUpdateEvent(task_id=task.id, context_id=task.context_id, status=status)
         if sub_state is not None:
             event.metadata.fields[STATUS_EXT_KEY].CopyFrom(
@@ -735,6 +736,7 @@ class TaskWorkflow:
                 [A2A_TASK_STATE.value_set(updated.state_name)]
             )
         await self._deliver(entry)
+        self.task = updated  # visible to the ``task`` query once its I/O is done
         return updated
 
     async def ask(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
@@ -786,6 +788,7 @@ class TaskWorkflow:
             TaskState.TASK_STATE_INPUT_REQUIRED,
             message=message,
             sub_state=SubState.AWAITING_ANSWER,
+            persist=True,
         )
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
@@ -813,13 +816,20 @@ class TaskWorkflow:
         entry = self._emit(event)
         await self._deliver(entry)
 
-    async def persist(self, compaction: CompactionRecord | None, *, final: bool = False) -> None:
+    async def persist(
+        self,
+        compaction: CompactionRecord | None,
+        *,
+        final: bool = False,
+        task: HarnessTask | None = None,
+    ) -> None:
+        current = task or self.task
         await self.call(
             ActivityName.PERSIST,
             PersistIn(
-                task_id=self.task.id,
+                task_id=current.id,
                 correlation_id=self.correlation_id,
-                task=self.task.proto,
+                task=current.proto,
                 state=self.state,
                 compaction=compaction,
                 events=tuple(self.events) if final else (),

@@ -87,10 +87,12 @@ def build_chat_params(
 ) -> JsonObject:
     names = names or WireNames(request.tools)
     params: JsonObject = {
-        "model": model,
+        "model": request.model or model,
         "messages": cast(JsonValue, build_messages(request, names)),
         "max_tokens": request.max_output_tokens or max_output_tokens,
     }
+    if request.reasoning_effort is not None:  # only when set: unset stays byte-identical
+        params["reasoning_effort"] = request.reasoning_effort
     if request.tools:
         params["tools"] = [
             {

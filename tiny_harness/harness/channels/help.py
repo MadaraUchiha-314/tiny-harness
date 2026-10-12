@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from typing import cast
 
+from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.channels.models import (
     HelpDecision,
     HelpNeed,
@@ -27,7 +28,7 @@ from tiny_harness.harness.hooks import (
     Operation,
     Phase,
 )
-from tiny_harness.harness.models import LLM, LLMRequest, MessageItem, Role
+from tiny_harness.harness.models import LLM, LLMRequest, MessageItem, ModelCatalog, Role
 from tiny_harness.jsontypes import JsonObject, JsonSchema
 
 HELP_DECIDED = HookPoint(operation=Operation.HELP_DECIDED, phase=Phase.IN)
@@ -45,6 +46,8 @@ class HelpDecidedIn(HookContext):
     task_text: str
     participants_text: str
     objection: str | None = None
+    model: str | None = None  # the task's choice; the catalog fills in the defaults
+    reasoning_effort: ReasoningEffort | None = None
     result: HelpDecision | None = None
 
 
@@ -53,7 +56,7 @@ def decision_schema() -> JsonSchema:
     return schema
 
 
-def register_default(hooks: HookManager, llm: LLM) -> None:
+def register_default(hooks: HookManager, llm: LLM, catalog: ModelCatalog | None = None) -> None:
     async def body(point: HookPoint, ctx: HookContext) -> HookContext | None:
         assert isinstance(ctx, HelpDecidedIn)
         if ctx.result is not None:
@@ -64,11 +67,17 @@ def register_default(hooks: HookManager, llm: LLM) -> None:
         )
         if ctx.objection:
             prompt += f"\n\nYour previous decision was rejected: {ctx.objection}"
+        # The help request is one of the task's model calls (issue-25 R7.3, R8.3).
+        model, effort = (
+            catalog.settings_for(ctx) if catalog is not None else (ctx.model, ctx.reasoning_effort)
+        )
         response = await llm.invoke(
             LLMRequest(
                 instructions=DECISION_INSTRUCTIONS,
                 input=(MessageItem(role=Role.USER, text=prompt),),
                 response_format=decision_schema(),
+                model=model,
+                reasoning_effort=effort,
             )
         )
         raw = cast(object, json.loads(response.output_text or "{}"))
@@ -94,6 +103,8 @@ async def decide(
         need=need,
         task_text=render_task(task),
         participants_text=render_participants(task),
+        model=task.ext.model,
+        reasoning_effort=task.ext.reasoning_effort,
     )
     out = await hooks.run(HELP_DECIDED, ctx)
     decision = out.result or HelpDecision(

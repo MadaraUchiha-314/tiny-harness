@@ -45,9 +45,11 @@ from tiny_harness.harness.hooks import (
 )
 from tiny_harness.harness.models import (
     LLM,
+    LLMModelInfo,
     LLMRequest,
     LLMResponse,
     MessageItem,
+    ModelCatalog,
     Role,
     extract_tool_calls,
 )
@@ -105,6 +107,7 @@ class InProcessOperations:
         redactor: Redactor | None = None,
         correlation_id: str = "local",
         actor: str | None = None,
+        catalog: ModelCatalog | None = None,
     ) -> None:
         self.registry = registry
         self.hooks = hooks
@@ -113,6 +116,12 @@ class InProcessOperations:
         self.system_prompt = system_prompt
         self.skills_index = skills_index
         self.manager = manager or ContextWindowManager()
+        # Without a configured catalog the adapter's own model and window are the defaults.
+        self.catalog = catalog or ModelCatalog(
+            default=llm.info.model,
+            selectable=(llm.info.model,),
+            fallback_window=llm.info.context_window_tokens,
+        )
         self.compactor = Compactor(hooks=hooks, manager=self.manager, llm=llm)
         self.runner = OperationRunner(hooks, redactor)
         self.invoker = ToolInvoker(registry)
@@ -169,17 +178,30 @@ class InProcessOperations:
         self._ctx(task)
         for source in self.sources:  # one re-list per server per iteration (abuse case 8)
             source.begin_iteration()
-        return self.manager.assemble(
+        window = self.manager.assemble(
             task=task,
             state=state,
             system_prompt=self.system_prompt,
             skills_index=self.skills_index,
             tools=await self.tool_definitions(),
         )
+        model, effort = self.catalog.settings_for(task.ext)  # issue-25 R7.3, R8.3
+        return window.model_copy(update={"model": model, "reasoning_effort": effort})
+
+    def model_info(self, model: str | None) -> LLMModelInfo:
+        """The adapter's info for ``model``: its name and its context window, so the
+        compaction budget follows the task's model."""
+        chosen = model or self.catalog.default
+        return self.llm.info.model_copy(
+            update={"model": chosen, "context_window_tokens": self.catalog.context_window(chosen)}
+        )
 
     async def should_compact(self, task: HarnessTask, window: ContextWindow) -> bool:
         return await self.compactor.should_compact(
-            window, self.llm.info, task_id=task.id, correlation_id=self.correlation_id
+            window,
+            self.model_info(window.model),
+            task_id=task.id,
+            correlation_id=self.correlation_id,
         )
 
     async def compact(
@@ -194,7 +216,7 @@ class InProcessOperations:
             task_id=task.id,
             correlation_id=self.correlation_id,
             request=request,
-            model=self.llm.info,
+            model=self.model_info(request.model),
         )
 
         async def body(ctx: LLMInvokedPre) -> LLMResponse:

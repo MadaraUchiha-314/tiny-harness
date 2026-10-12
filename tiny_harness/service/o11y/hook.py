@@ -133,6 +133,10 @@ class O11yExecutor:
             attributes["gen_ai.operation.name"] = "chat"
             attributes["gen_ai.provider.name"] = "tiny_harness"
             attributes["gen_ai.request.tools"] = len(ctx.request.tools)
+            if ctx.request.model:
+                attributes["gen_ai.request.model"] = ctx.request.model
+            if ctx.request.reasoning_effort:
+                attributes["tiny_harness.llm.reasoning_effort"] = ctx.request.reasoning_effort
             if ctx.model is not None:
                 attributes.update(_endpoint_attributes(ctx.model.endpoint, ctx.model.api))
             kind = SpanKind.CLIENT
@@ -160,7 +164,8 @@ class O11yExecutor:
         if isinstance(ctx, LLMInvokedPost):
             response = ctx.response
             span.update_name(span_name(point, ctx, model=response.model))
-            attributes["gen_ai.request.model"] = response.model
+            # The model asked for: the task's (issue-25 R7.3), else what answered.
+            attributes["gen_ai.request.model"] = ctx.request.model or response.model
             attributes["gen_ai.response.model"] = response.model
             attributes["gen_ai.usage.input_tokens"] = response.usage.input_tokens
             attributes["gen_ai.usage.output_tokens"] = response.usage.output_tokens

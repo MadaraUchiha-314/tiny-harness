@@ -112,7 +112,7 @@ negative test.
   - _Depends on:_ 3, 6
   - _Requirements:_ R3.4, R7.3, R9.2
   - _Test:_ T2 `Scenario: Sub-tasks inherit the parent's model and effort`
-- [ ] 8. Per-request model and effort through every model call
+- [x] 8. Per-request model and effort through every model call
   - `LLMRequest.model` and `LLMRequest.reasoning_effort`.
   - The request builders (`context.py`, `compaction.py`, `help.py`) use `settings_for`.
   - The adapters map effort: Responses `reasoning`, Chat `reasoning_effort`, Anthropic

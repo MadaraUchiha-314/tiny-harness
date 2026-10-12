@@ -1,6 +1,6 @@
 /**
  * Generates TypeScript types from the committed extension schemas (requirement 22.2):
- * docs/a2a/ext/task.json and channel.json are the source of truth; the output under
+ * docs/a2a/ext/task.json, channel.json, status.json and commands.json are the source of truth; the output under
  * src/generated/ is rebuilt on every build and never committed.
  */
 import { compileFromFile } from "json-schema-to-typescript";
@@ -15,6 +15,8 @@ const out = join(here, "../src/generated");
 const schemas: Array<[string, string]> = [
   ["docs/a2a/ext/task.json", "task.ts"],
   ["docs/a2a/ext/channel.json", "channel.ts"],
+  ["docs/a2a/ext/status.json", "status.ts"],
+  ["docs/a2a/ext/commands.json", "commands.ts"],
 ];
 
 await mkdir(out, { recursive: true });

@@ -237,7 +237,7 @@ negative test.
   - _Requirements:_ R5.5–5.7, R6.7, R9.4
   - _Test:_ T5/T6 `tests/ui/test_tui_keys.py`, `tests/ui/test_tui_snapshots.py` (new
     states); T9 keys only
-- [ ] 18. Web UI: controls, sub-state, command listbox, sub-task links
+- [x] 18. Web UI: controls, sub-state, command listbox, sub-task links
   - `a2a.ts`: `complete` and `commands`.
   - `model.ts`: `subState`.
   - The header: Complete, Cancel, the sub-state badge and ← Parent, in an `actions`

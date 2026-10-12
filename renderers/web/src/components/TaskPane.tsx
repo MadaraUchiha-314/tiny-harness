@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TaskExtensionData } from "../generated/task";
 import { cn } from "@/lib/utils";
+import { TaskLink } from "./TaskLink";
 
 function Heading(props: { children: string }): JSX.Element {
   return <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{props.children}</h2>;
@@ -13,7 +14,11 @@ function Empty(props: { children: string }): JSX.Element {
   return <p className="font-mono text-xs text-muted-foreground">{props.children}</p>;
 }
 
-export function TaskPane(props: { ext: TaskExtensionData | null; trace: string[] }): JSX.Element {
+export function TaskPane(props: {
+  ext: TaskExtensionData | null;
+  trace: string[];
+  onOpen: (taskId: string) => void;
+}): JSX.Element {
   const { ext, trace } = props;
   return (
     <aside aria-label="Task" className="flex min-h-0 min-w-0 flex-col border-l bg-background">
@@ -73,14 +78,32 @@ export function TaskPane(props: { ext: TaskExtensionData | null; trace: string[]
                   ))}
                 </ul>
               </div>
-              {ext.sub_tasks && ext.sub_tasks.length > 0 && (
-                <div>
-                  <Heading>Sub-tasks</Heading>
-                  <p className="font-mono text-xs">
-                    {ext.sub_tasks.map((t) => (t.agent ? `${t.agent.id}/` : "") + t.task_id).join(" · ")}
-                  </p>
-                </div>
-              )}
+              <div>
+                <Heading>Settings</Heading>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                  <dt className="text-muted-foreground">Model</dt>
+                  <dd className="font-mono text-xs leading-5">{ext.model ?? "default"}</dd>
+                  <dt className="text-muted-foreground">Effort</dt>
+                  <dd className="font-mono text-xs leading-5">{ext.reasoning_effort ?? "provider default"}</dd>
+                </dl>
+              </div>
+              <div>
+                <Heading>Sub-tasks</Heading>
+                {ext.sub_tasks && ext.sub_tasks.length > 0 ? (
+                  <ul className="flex flex-col gap-1.5">
+                    {ext.sub_tasks.map((t) => (
+                      <li key={t.task_id} className="flex flex-wrap items-baseline gap-x-2">
+                        <TaskLink taskId={t.task_id} onOpen={props.onOpen} className="font-mono text-xs break-all">
+                          {t.task_id}
+                        </TaskLink>
+                        {t.agent ? <span className="font-mono text-xs text-muted-foreground">{t.agent.id}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Empty>none</Empty>
+                )}
+              </div>
             </>
           )}
         </TabsContent>

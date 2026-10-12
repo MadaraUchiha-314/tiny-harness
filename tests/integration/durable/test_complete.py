@@ -10,6 +10,7 @@ task finishes ``COMPLETED`` for every subscriber, or the refusal names what is o
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 
 import pytest
@@ -302,3 +303,108 @@ async def test_a_refused_completion_still_answers_a_message_taken_with_it(
         await close(handle)
     assert parked(SubState.AWAITING_NEXT_MESSAGE)(answered)
     assert len(h.llm.requests) == 1
+
+
+async def test_a_command_cut_with_its_turn_still_finishes_and_replies(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Commands during a turn (critic A1)
+    Requirement: docs/specs/issue-25/requirements.md#R6
+
+    Scenario: an interrupt that cuts the turn does not cut a command it is running
+        Given a turn blocked in a tool call, and "/slow" sent meanwhile
+        When the turn resumes and "/slow" is running, and an interrupting message arrives
+        Then the turn is cut, but "/slow" runs to the end and its reply is logged
+    """
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def slow(ctx: CommandInvokedIn) -> CommandResult:
+        entered.set()
+        await release.wait()
+        return CommandResult(reply="slow done")
+
+    h = Harness([scripted("", tool_calls=[GET_ORDER]), scripted("Stopped.")])
+    h.commands.register(CommandSpec(name="slow", description="Slow"), slow)
+    await h.bind()
+    h.get_order.gate = asyncio.Event()
+    tq, tid = queue(), task_id()
+    async with h.worker(env.client, tq):
+        handle = await send(
+            env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
+        )
+        await asyncio.wait_for(h.get_order.released.wait(), timeout=30)
+        await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox, message("/slow", task_id=tid, message_id="m2")
+        )
+        h.get_order.gate.set()
+        await asyncio.wait_for(entered.wait(), timeout=30)
+        stop = message("stop", task_id=tid, message_id="m3")
+        stop.metadata.update({"interrupt": True})
+        await handle.execute_update(TaskWorkflow.inbox, stop)  # pyright: ignore[reportUnknownMemberType]
+        release.set()
+        await until(
+            handle,
+            lambda t: (
+                bool(t.proto.status.message.parts)
+                and t.proto.status.message.parts[0].text == "Stopped."
+            ),
+        )
+        page = await handle.query(TaskWorkflow.events_since, 0)
+        await close(handle)
+    texts = [json.dumps(e.payload) for e in page.events]
+    assert any("slow done" in t for t in texts), "the command's reply was lost with the turn"
+
+
+async def test_a_sub_task_note_survives_a_cut_turn_and_a_rollover(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Participant /sub-task notes the parent (critic A4)
+    Requirement: docs/specs/issue-25/requirements.md#R9
+
+    Scenario: the creation note outlives the cut turn and continue-as-new
+        Given a turn blocked in a tool call, a small history bound, and "/fork" sent meanwhile
+        When "/fork" spawns its sub-task while an interrupting message cuts the turn
+        And the workflow rolls over before its next turn
+        Then the next model request still carries the creation note
+    """
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def slow_fork(ctx: CommandInvokedIn) -> CommandResult:
+        entered.set()
+        await release.wait()
+        return CommandResult(reply="", spawn=SpawnIntent(goal="look at the ledger"))
+
+    h = Harness([scripted("", tool_calls=[GET_ORDER]), scripted("Stopped.")])
+    h.commands.register(CommandSpec(name="fork", description="Fork"), slow_fork)
+    await h.bind()
+    h.get_order.gate = asyncio.Event()
+    tq, tid = queue(), task_id()
+    async with h.worker(env.client, tq):
+        handle = await send(
+            env.client,
+            tq,
+            start(task(tid), history_event_bound=30),
+            message("refund 48213", task_id=tid, message_id="m1"),
+        )
+        await asyncio.wait_for(h.get_order.released.wait(), timeout=30)
+        await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox, message("/fork", task_id=tid, message_id="m2")
+        )
+        h.get_order.gate.set()
+        await asyncio.wait_for(entered.wait(), timeout=30)
+        stop = message("stop", task_id=tid, message_id="m3")
+        stop.metadata.update({"interrupt": True})
+        await handle.execute_update(TaskWorkflow.inbox, stop)  # pyright: ignore[reportUnknownMemberType]
+        release.set()
+        await until(
+            handle,
+            lambda t: (
+                bool(t.proto.status.message.parts)
+                and t.proto.status.message.parts[0].text == "Stopped."
+            ),
+        )
+        await close(handle)
+    texts = [getattr(item, "text", "") for item in h.llm.requests[-1].input]
+    assert any(f"created sub-task {tid}.1" in t for t in texts), texts

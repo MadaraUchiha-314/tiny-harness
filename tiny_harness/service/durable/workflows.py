@@ -368,6 +368,8 @@ class TaskWorkflow:
         self.children: list[ChildRef] = []
         self.notes: list[str] = []
         self.history_notes: list[str] = []
+        self.command_run: asyncio.Task[None] | None = None  # a command a cut turn left running
+        self.unanswered = False  # an accepted message no finished turn has answered yet
         self.attempts: dict[str, int] = {}
         self.cancel_reason: str | None = None
         self.interrupted = False
@@ -508,7 +510,7 @@ class TaskWorkflow:
             self.handled, self.last_refusal = 0, ""
             # Roll over before intake, so a rollover carries the messages still in the
             # mailbox and the new run wakes for them (R19.8).
-            await self.maybe_continue_as_new(self.task, self.state)
+            await self.maybe_continue_as_new(self.task, self._fold_history_notes(self.state))
             self.turns_this_run += 1
             # Intake before the loop (issue-25 R6.2): commands and controls are consumed
             # here, and only ordinary messages or the notes start a turn.
@@ -517,10 +519,10 @@ class TaskWorkflow:
                 done = await self._complete()
                 if done is not None:
                     return done
-                if accepted == 0 and not self.notes:
+                if accepted == 0 and not self.notes and not self.unanswered:
                     continue
                 # A message taken in the same intake still gets its turn (critic A2).
-            elif accepted == 0 and not self.notes:
+            elif accepted == 0 and not self.notes and not self.unanswered:
                 if self.last_refusal and self.handled == 0:
                     # The sender is a participant (strangers never reach the workflow), so
                     # the stream they opened ends with the unchanged state and the reason;
@@ -541,6 +543,7 @@ class TaskWorkflow:
             except ApplicationError as exc:
                 return await self._finish(TaskState.TASK_STATE_FAILED, text=exc.message)
             self.task, self.state = outcome.task, outcome.state
+            self.unanswered = False  # the finished turn saw every accepted message
             if outcome.kind in ("waiting_for_reply", "waiting_for_children", "waiting_for_message"):
                 continue
             return await self._finish(None)
@@ -551,6 +554,8 @@ class TaskWorkflow:
             or bool(self.notes)
             or self.cancel_reason is not None
             or self.completion_by is not None
+            # A cut turn may have taken a message into the history (critic A1): answer it.
+            or self.unanswered
         )
 
     def waiting_for_reply(self) -> bool:
@@ -560,6 +565,7 @@ class TaskWorkflow:
         """Top of a turn (R15.3): roll over if due, fold notes into the history, then
         dispatch the mailbox; returns how many ordinary messages intake accepted."""
         self.task = task
+        state = self._fold_history_notes(state)
         if self.fresh_run:
             self.fresh_run = False
         else:
@@ -578,14 +584,10 @@ class TaskWorkflow:
         while self.mailbox:
             out = await self._classify()
             if out is None:
-                for note in self.history_notes:  # e.g. a participant's /sub-task (R9)
-                    state = state.append(
-                        MessageItem(role=MessageRole.USER, text=note, source="agent")
-                    )
-                self.history_notes = []
-                self.state = state
+                state = self._fold_history_notes(state)
                 continue
             accepted += 1
+            self.unanswered = True
             if out.task is not None:  # a task envelope changed the extension (R15.1)
                 self.task = HarnessTask(out.task)
                 self._emit(self.task.proto)
@@ -603,6 +605,16 @@ class TaskWorkflow:
             # run restarts from ``self.state`` and must not lose what intake accepted.
             self.state = state
         return state, accepted
+
+    def _fold_history_notes(self, state: AgentState) -> AgentState:
+        """Add pending history notes (a participant's /sub-task, R9) to ``state`` without
+        starting a turn. Called after every intake and before every rollover, so a note
+        is never lost to continue-as-new (critic A4)."""
+        for note in self.history_notes:
+            state = state.append(MessageItem(role=MessageRole.USER, text=note, source="agent"))
+        self.history_notes = []
+        self.state = state
+        return state
 
     async def _classify(self) -> IntakeOut | None:
         """Intake the oldest mailbox message; consume it when it is refused, a command or
@@ -626,7 +638,12 @@ class TaskWorkflow:
             return None
         if out.command is not None:
             self.handled += 1
-            await self._run_command(out.command, out.participant_id or "")
+            # Shielded: cutting the turn this intake runs in must not cut the command, whose
+            # message is already consumed; ``_await_runner`` lets it finish (critic A1).
+            run = asyncio.create_task(self._run_command(out.command, out.participant_id or ""))
+            self.command_run = run
+            await asyncio.shield(run)
+            self.command_run = None
             return None
         if out.control is not None:
             self.handled += 1
@@ -644,6 +661,9 @@ class TaskWorkflow:
         runner.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await runner
+        if self.command_run is not None:  # finish the command the cut interrupted (A1)
+            await self.command_run
+            self.command_run = None
         return False
 
     async def _run_participant(self) -> Task:
@@ -767,6 +787,7 @@ class TaskWorkflow:
         self.pending_help = start.pending_help
         self.children = list(start.children)
         self.notes = [*start.notes, *self.notes]
+        self.unanswered = start.unanswered
         self.attempts = dict(start.attempt_counters)
         self.surfaces = start.surfaces
 
@@ -783,6 +804,7 @@ class TaskWorkflow:
                 "pending_help": self.pending_help,
                 "children": tuple(self.children),
                 "notes": tuple(self.notes),
+                "unanswered": self.unanswered,
                 "attempt_counters": dict(self.attempts),
                 "surfaces": self.surfaces,
             }

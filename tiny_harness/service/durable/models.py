@@ -167,6 +167,7 @@ class TaskStart(_Frozen):
     pending_help: HelpRequest | None = None
     children: tuple[ChildRef, ...] = ()
     notes: tuple[str, ...] = ()
+    unanswered: bool = False  # the history holds a message no finished turn has answered
     attempt_counters: dict[str, int] = Field(default_factory=dict)
     parent_workflow_id: str | None = None
     surfaces: SurfaceRegistry = SurfaceRegistry()

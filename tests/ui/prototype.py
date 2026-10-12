@@ -30,6 +30,7 @@ from tiny_harness.harness.core import (
     Role,
     Step,
     StepState,
+    SubState,
     TaskExtensionData,
     TaskRef,
 )
@@ -309,8 +310,9 @@ def command_reply(text: str, *, command: str, task_ref: str | None = None) -> Me
 
 def sub_task_events() -> list[A2AEvent]:
     """What ``/sub-task Draft the reply`` streams back: the command's reply on the
-    re-emitted status update, then the parent with its new sub-task."""
-    ref = TaskRef(task_id=SUB_TASK_ID)
+    re-emitted status update, then the parent with its new sub-task, whose row carries
+    the state the sub-task told it (R5.6)."""
+    ref = TaskRef(task_id=SUB_TASK_ID, state="INPUT_REQUIRED", sub_state=SubState(AWAITING_NEXT))
     return [
         parked(
             command_reply(

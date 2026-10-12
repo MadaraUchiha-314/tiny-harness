@@ -7,7 +7,7 @@ issue-25: ``complete`` sends the same control envelope any A2A client can (R5.1)
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Protocol
 
 import httpx
@@ -180,8 +180,10 @@ class ScriptedClient:
         *,
         commands: Sequence[CommandSpec] = (),
         tasks: Sequence[Task] = (),
+        follow: Mapping[str, Sequence[A2AEvent]] | None = None,
     ) -> None:
         self._scripts = [list(s) for s in scripts]
+        self._streams = {k: list(v) for k, v in (follow or {}).items()}
         self._commands = tuple(commands)
         self._tasks = {t.id: t for t in tasks}
         self.sent: list[str] = []
@@ -207,8 +209,9 @@ class ScriptedClient:
         return self._replay(self._next())
 
     def subscribe(self, task_id: str) -> EventSource:
+        """``follow``'s events for ``task_id``, once; then an empty stream."""
         self.subscribed.append(task_id)
-        return self._replay(self._next())
+        return self._replay(self._streams.pop(task_id, []))
 
     async def cancel(self, task_id: str) -> Task:
         self.cancelled.append(task_id)

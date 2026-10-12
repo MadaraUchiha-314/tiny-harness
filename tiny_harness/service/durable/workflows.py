@@ -433,18 +433,26 @@ class TaskWorkflow:
 
     @workflow.signal
     async def child_done(self, done: ChildDone) -> None:
-        """A child's state change; terminal states resolve it, others are relayed (R7.3)."""
+        """A child's state change; terminal states resolve it (R7.3). Every change
+        updates the child's row, which the parent shows on its own stream once idle
+        (issue-25 R5.6); only an ending or a remote child's turn becomes a note for the
+        model, so a local child parking or resuming never wakes it."""
         terminal = done.state_name in TERMINAL_NAMES
+        remote = False
         for i, child in enumerate(self.children):
             if child.task_id == done.task_id:
+                remote = child.kind == "remote"
                 self.children[i] = child.model_copy(
                     update={
                         "done": terminal,
                         "state_name": done.state_name,
+                        "sub_state": done.sub_state,
                         "summary": done.summary,
                     }
                 )
-        self.notes.append(f"Sub-task {done.task_id} is {done.state_name}: {done.summary}".strip())
+        if terminal or remote:
+            note = f"Sub-task {done.task_id} is {done.state_name}: {done.summary}"
+            self.notes.append(note.strip())
 
     @workflow.query(name="task")
     def task_query(self) -> Task:
@@ -501,9 +509,12 @@ class TaskWorkflow:
             )
         loop = CoreLoop(WorkflowOperations(self), max_turns=start.config.max_turns)
         while True:
-            await workflow.wait_condition(self._ready)
+            await workflow.wait_condition(lambda: self._ready() or self._rows() is not None)
             if self.cancel_reason is not None:
                 return await self._finish(TaskState.TASK_STATE_CANCELED, text=self.cancel_reason)
+            await self._show_sub_tasks()
+            if not self._ready():
+                continue
             # No turn runs here, so an interrupt has nothing to cut; one that arrives from
             # now on cuts the turn this wake starts.
             self.interrupted = False
@@ -557,6 +568,43 @@ class TaskWorkflow:
             # A cut turn may have taken a message into the history (critic A1): answer it.
             or self.unanswered
         )
+
+    def _rows(self) -> HarnessTask | None:
+        """The task with each sub-task row showing its child's last state; ``None`` when
+        every row already does."""
+        children = {c.task_id: c for c in self.children}
+        refs: list[TaskRef] = []
+        for ref in self.task.ext.sub_tasks:
+            child = children.get(ref.task_id)
+            if child is not None and (ref.state, ref.sub_state) != (
+                child.state_name,
+                child.sub_state,
+            ):
+                ref = ref.model_copy(
+                    update={"state": child.state_name, "sub_state": child.sub_state}
+                )
+            refs.append(ref)
+        if tuple(refs) == self.task.ext.sub_tasks:
+            return None
+        return self.task.with_ext(self.task.ext.model_copy(update={"sub_tasks": tuple(refs)}))
+
+    async def _show_sub_tasks(self) -> None:
+        """Log the task with its sub-task rows current (issue-25 R5.6), so a client
+        following the parent sees them change without following each child.
+
+        Only while nothing waits on an answer: the ``Task`` event repeats the parent's
+        state, and a parked one (``INPUT_REQUIRED``) logged after a message was taken
+        but before the turn that answers it would end that message's stream. With no
+        message pending, the next message's stream starts after it."""
+        if self.mailbox or self.unanswered or self.completion_by is not None:
+            return
+        updated = self._rows()
+        if updated is None:
+            return
+        self.task = updated
+        entry = self._emit(updated.proto)
+        await self.persist(None)
+        await self._deliver(entry)
 
     def waiting_for_reply(self) -> bool:
         return self.pending_help is not None
@@ -893,7 +941,19 @@ class TaskWorkflow:
             )
         await self._deliver(entry)
         self.task = updated  # visible to the ``task`` query once its I/O is done
+        if self.start.parent_workflow_id and not updated.is_terminal:
+            await self._tell_parent(updated)  # a terminal state is told by ``_finish``
         return updated
+
+    async def _tell_parent(self, task: HarnessTask) -> None:
+        """A sub-task tells its parent each state change, so the parent's row for it stays
+        current (issue-25 R5.6). A parent that has closed has no row to update."""
+        handle = workflow.get_external_workflow_handle(self.start.parent_workflow_id or "")
+        with contextlib.suppress(ApplicationError):
+            await handle.signal(
+                "child_done",
+                ChildDone(task_id=task.id, state_name=task.state_name, sub_state=task.sub_state),
+            )
 
     async def ask(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
         participant_id = str(help.get("participant_id", ""))

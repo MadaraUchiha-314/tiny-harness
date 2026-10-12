@@ -11,10 +11,11 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import httpx
 import pytest
-from a2a.types import TaskState
+from a2a.types import Task, TaskState
 from pydantic import HttpUrl
 from temporalio.testing import WorkflowEnvironment
 
@@ -43,6 +44,7 @@ from tiny_harness.harness.plugins import (
     PluginLoader,
     PluginManifest,
 )
+from tiny_harness.service.durable.models import entry_event
 from tiny_harness.service.durable.workflows import TaskWorkflow
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -160,6 +162,60 @@ async def test_sub_task_notifies_the_parent_without_a_model_turn(
     note = next(i for i, t in enumerate(texts) if f"created sub-task {child_id}" in t)
     assert "alice" in texts[note] and '"check the ledger"' in texts[note]
     assert note < texts.index("[alice] any news?")
+
+
+async def test_the_parent_stream_carries_each_sub_task_state_change(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Built-in commands
+    Requirement: docs/specs/issue-25/requirements.md#R5
+
+    Scenario: a sub-task's state changes reach the parent's own stream
+        Given a conversation task awaiting the next message, with a /sub-task
+        When the sub-task parks, takes a message, works and parks again
+        Then the parent's event log shows its row in each state the sub-task reached
+        And the parent itself stays parked: a sub-task parking or resuming never
+            calls the parent's model
+    """
+    h = await with_builtins(Harness([scripted("Refunded."), scripted("Ledger checked.")]))
+    tq, tid = ids()
+    child_id = f"{tid}.1"
+    async with h.worker(env.client, tq):
+        handle = await send(
+            env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
+        )
+        await awaiting_next_message(handle)
+        await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox,
+            message("/sub-task check the ledger", task_id=tid, message_id="m2"),
+        )
+
+        def row(state: str) -> Callable[[HarnessTask], bool]:
+            def check(t: HarnessTask) -> bool:
+                refs = t.ext.sub_tasks
+                return len(refs) == 1 and refs[0].state == state
+
+            return check
+
+        parent = await until(handle, row("INPUT_REQUIRED"))
+        assert parent.ext.sub_tasks[0].sub_state is SubState.AWAITING_NEXT_MESSAGE
+        child = env.client.get_workflow_handle(child_id, result_type=Task)
+        await child.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox, message("check it", task_id=child_id, message_id="c1")
+        )
+        await until(child, replied("Ledger checked."))
+        parent = await until(handle, row("INPUT_REQUIRED"))
+        page = await handle.query(TaskWorkflow.events_since, 0)
+        snapshots = [
+            HarnessTask(cast(Task, entry_event(x))) for x in page.events if x.kind == "task"
+        ]
+        relayed = [t.ext.sub_tasks[0].state for t in snapshots if t.ext.sub_tasks]
+        assert "WORKING" in relayed and relayed[-1] == "INPUT_REQUIRED"
+        assert parent.state == TaskState.TASK_STATE_INPUT_REQUIRED
+        await close(handle)  # first: a sub-task's ending would wake the parent's model
+        await close(child)
+    assert len(h.llm.requests) == 2  # the parent's first turn and the sub-task's
 
 
 async def test_model_and_effort_commands_change_the_next_model_request(

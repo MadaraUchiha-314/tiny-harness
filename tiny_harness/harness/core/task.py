@@ -52,6 +52,10 @@ class TaskRef(BaseModel, frozen=True):
 
     task_id: str
     agent: EntityRef | None = None
+    state: str | None = None
+    """The sub-task's last state its parent heard of (``WORKING``, ``INPUT_REQUIRED``…);
+    ``None`` until the parent relays one (issue-25 R5.6)."""
+    sub_state: SubState | None = None
 
 
 class AcceptanceCriterion(BaseModel, frozen=True):

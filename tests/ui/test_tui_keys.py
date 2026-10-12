@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 
-from a2a.types import Task, TaskState
+from a2a.types import Task, TaskState, TaskStatusUpdateEvent
 from a2a.utils.errors import UnsupportedOperationError
 from textual.pilot import Pilot
 from textual.widgets import Button, Input, ListView, Static, TabbedContent
@@ -238,7 +238,12 @@ async def test_slash_suggests_commands_and_the_hint_lists_them() -> None:
 
 async def test_sub_task_reply_adds_a_row_enter_opens_it_and_f4_returns() -> None:
     """R9.4: ``/sub-task`` replies with the id and a row; Enter opens it, F4 goes back."""
-    client = ScriptedClient(scripts=[sub_task_events(), [sub_task()]], commands=COMMANDS)
+    client = ScriptedClient(
+        scripts=[sub_task_events()],
+        commands=COMMANDS,
+        tasks=[sub_task()],
+        follow={SUB_TASK_ID: [sub_task()]},
+    )
     app = HarnessApp(client)
     async with app.run_test(size=(110, 36)) as pilot:
         app.feed(conversation_events())
@@ -249,7 +254,9 @@ async def test_sub_task_reply_adds_a_row_enter_opens_it_and_f4_returns() -> None
         await pilot.pause()
         assert client.sent == ["/sub-task Draft the reply"]
         assert f"⌘ Created sub-task {SUB_TASK_ID}." in entries(app)
-        assert client.subscribed == [SUB_TASK_ID]  # followed as soon as it is listed
+        # The row's state comes from the parent's stream; the sub-task is read once for
+        # its goal and followed only once opened (R5.6).
+        assert client.subscribed == [TASK_ID] and client.fetched == [SUB_TASK_ID]
         rows = list(app.query(SubTaskRow))
         assert [r.ref.task_id for r in rows] == [SUB_TASK_ID]
         assert rows[0].text == "9b21…d4e5 · INPUT_REQUIRED · Draft the reply"
@@ -258,7 +265,7 @@ async def test_sub_task_reply_adds_a_row_enter_opens_it_and_f4_returns() -> None
         await settle(app)
         await pilot.pause()
         assert app.task_id == SUB_TASK_ID and app.stack == [TASK_ID, SUB_TASK_ID]
-        assert client.subscribed == [SUB_TASK_ID]  # not twice
+        assert client.subscribed == [TASK_ID, SUB_TASK_ID]
         assert f"7f3a…c21e {CHEVRON} task 9b21…d4e5 · INPUT_REQUIRED" in app.topbar_text()
         assert app.ext is not None and app.ext.goal == "Draft the reply"
         assert app.check_action("parent_task", ()) is True
@@ -299,7 +306,8 @@ async def test_a_remote_sub_task_does_not_open_here() -> None:
 
 
 async def test_a_sub_task_that_cannot_be_followed_is_fetched_once() -> None:
-    """A terminal task refuses ``SubscribeToTask``; its row falls back to ``GetTask``."""
+    """A terminal task refuses ``SubscribeToTask``; opening it falls back to ``GetTask``,
+    and a task that has ended is not followed again."""
     done = sub_task()
     done.status.state = TaskState.TASK_STATE_COMPLETED
 
@@ -312,21 +320,20 @@ async def test_a_sub_task_that_cannot_be_followed_is_fetched_once() -> None:
             raise UnsupportedOperationError(message="task is in a terminal state")
             yield  # an async generator, as the port's streams are
 
-    client = Refusing(scripts=[sub_task_events()], tasks=[done])
-    app = HarnessApp(client)
+    client = Refusing(tasks=[done])
+    app = HarnessApp(client, resubscribe_delay=0.01)
     async with app.run_test(size=(110, 36)) as pilot:
         app.feed(conversation_events())
-        await pilot.press(*"/sub-task Draft the reply", "enter")
+        app.open_sub_task(TaskRef(task_id=SUB_TASK_ID))
         await settle(app)
-        await pilot.pause()
-        assert client.subscribed == [SUB_TASK_ID] and SUB_TASK_ID in client.fetched
-        [row] = app.query(SubTaskRow)
-        assert row.text == "9b21…d4e5 · COMPLETED · Draft the reply"
+        await pilot.pause(0.1)
+        assert client.subscribed == [SUB_TASK_ID] and client.fetched == [SUB_TASK_ID]
+        assert app.state_name == "COMPLETED"
 
 
 async def test_another_surface_completing_the_task_shows_without_a_reload() -> None:
     """R5.6: a COMPLETED update on the subscription stream ends the controls."""
-    client = ScriptedClient(scripts=[[*conversation_events(), *completed_events()]])
+    client = ScriptedClient(follow={TASK_ID: [*conversation_events(), *completed_events()]})
     app = HarnessApp(client, task_id=TASK_ID)
     async with app.run_test(size=(110, 36)) as pilot:
         await settle(app)
@@ -350,11 +357,12 @@ async def test_cancel_applies_the_canceled_task() -> None:
         assert app.ext is not None  # a bare Task keeps what the TUI knew
 
 
-async def test_only_a_task_without_a_live_subscription_is_polled() -> None:
-    """R5.6: a subscription follows a sub-task until it ends (SubscribeToTask stays open
-    past INPUT_REQUIRED), so only the task this surface started, which no subscription
-    follows, is re-read; a sub-task's ended subscription hands it back to the poll."""
+async def test_sub_task_rows_follow_the_parent_stream_without_polling() -> None:
+    """R5.6: after a message's stream parks, the TUI follows the task's own stream; a
+    sub-task's row changes when the parent relays its state, with no sub-task followed
+    and nothing re-read on a timer."""
     release = asyncio.Event()
+    working = conversation_task((TaskRef(task_id=SUB_TASK_ID, state="WORKING"),))
 
     class Following(ScriptedClient):
         def subscribe(self, task_id: str) -> EventSource:
@@ -362,22 +370,57 @@ async def test_only_a_task_without_a_live_subscription_is_polled() -> None:
             return self._follow()
 
         async def _follow(self) -> EventSource:
-            yield sub_task()
             await release.wait()
+            yield working
+            await asyncio.Event().wait()  # stays open, as SubscribeToTask does
 
-    listed = conversation_task((TaskRef(task_id=SUB_TASK_ID),))
-    client = Following(scripts=[sub_task_events()], tasks=[listed, sub_task()])
-    app = HarnessApp(client, poll_interval=0.05)
+    client = Following(scripts=[sub_task_events()], tasks=[sub_task()])
+    app = HarnessApp(client)
     async with app.run_test(size=(110, 36)) as pilot:
         app.feed(conversation_events())
-        # Set, not typed: with a 50 ms poll each simulated key waits seconds for idle.
         app.query_one("#composer", Input).value = "/sub-task Draft the reply"
         await pilot.press("enter")
-        await until_fetched(pilot, client, TASK_ID)
-        assert client.subscribed == [SUB_TASK_ID]
-        assert SUB_TASK_ID not in client.fetched
-        release.set()
         await until_fetched(pilot, client, SUB_TASK_ID)
+        [row] = app.query(SubTaskRow)
+        assert row.text == "9b21…d4e5 · INPUT_REQUIRED · Draft the reply"
+        assert client.subscribed == [TASK_ID]
+        release.set()
+        await until_row(pilot, row, "9b21…d4e5 · WORKING · Draft the reply")
+        assert client.subscribed == [TASK_ID] and client.fetched == [SUB_TASK_ID]
+
+
+async def test_a_replayed_status_draws_nothing_new() -> None:
+    """``SubscribeToTask`` replays the log from the start: states the TUI already drew
+    from the message's own stream are not drawn again, nor rolled back."""
+    from google.protobuf.timestamp_pb2 import Timestamp
+
+    def stamped(state: TaskState, seconds: int) -> TaskStatusUpdateEvent:
+        event = status(state)
+        event.status.timestamp.CopyFrom(Timestamp(seconds=seconds))
+        return event
+
+    log = [
+        stamped(TaskState.TASK_STATE_WORKING, 1),
+        stamped(TaskState.TASK_STATE_INPUT_REQUIRED, 2),
+    ]
+    app = HarnessApp(ScriptedClient())
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        app.feed(log)
+        await pilot.pause()
+        before = entries(app)
+        app.feed(log)  # the replay
+        await pilot.pause()
+        assert entries(app) == before
+        assert app.state_name == "INPUT_REQUIRED"
+
+
+async def until_row(pilot: Pilot[None], row: SubTaskRow, text: str) -> None:
+    for _ in range(100):
+        if row.text == text:
+            return
+        await pilot.pause(0.02)
+    raise AssertionError(f"the row never read {text!r}: {row.text!r}")
 
 
 async def until_fetched(pilot: Pilot[None], client: ScriptedClient, task_id: str) -> None:

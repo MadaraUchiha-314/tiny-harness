@@ -97,6 +97,7 @@ export function TaskPane(props: {
                           {t.task_id}
                         </TaskLink>
                         {t.agent ? <span className="font-mono text-xs text-muted-foreground">{t.agent.id}</span> : null}
+                        {t.state ? <span className="font-mono text-xs text-muted-foreground">{t.state}</span> : null}
                       </li>
                     ))}
                   </ul>

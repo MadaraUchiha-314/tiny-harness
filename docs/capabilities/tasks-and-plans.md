@@ -53,6 +53,11 @@ five lines over it. Lives in `tiny_harness/harness/core/`.
   parent's `model` and `reasoning_effort`. A participant's `/sub-task` notes the child
   in the parent's history without waking it; the child's completion wakes the parent as
   any sub-task's does.
+- A local sub-task SHALL signal its parent on every state change. The parent records the
+  child's `state` and `sub_state` on its `sub_tasks` entry and, once idle (no message
+  waiting on an answer), emits the updated `Task` on its own stream, so a client
+  following the parent sees each row change. Only an ending, or a remote child's turn,
+  becomes a note for the parent's model; a child parking or resuming never wakes it.
 - WHEN a task reaches a terminal state THEN the matching status update SHALL be emitted
   to every subscriber and the final state persisted before the workflow returns.
 - The plan SHALL be readable through the extension and rendered by both renderers.

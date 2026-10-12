@@ -23,6 +23,7 @@ from tiny_harness.harness.core import (
     AgentState,
     CompactionRecord,
     ContextWindow,
+    SubState,
     TaskRef,
     proto_json,
 )
@@ -128,14 +129,17 @@ class ChildRef(_Frozen):
     step: str | None = None
     done: bool = False
     state_name: str = "SUBMITTED"
+    sub_state: SubState | None = None
     summary: str = ""
 
 
 class ChildDone(_Frozen):
-    """The signal a child sends its parent when it reaches a terminal state."""
+    """The signal a child sends its parent on each state change (issue-25 R5.6); a
+    terminal one carries the child's last words as ``summary``."""
 
     task_id: str
     state_name: str
+    sub_state: SubState | None = None
     summary: str = ""
 
 

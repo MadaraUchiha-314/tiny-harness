@@ -95,7 +95,7 @@ class TaskContext(object)
   property actor
   property task
 model TaskExtensionData(name: <class 'str'>, type: str | None = ..., goal: <class 'str'>, description: <class 'str'> = ..., acceptance_criteria: tuple[tiny_harness.harness.core.task.AcceptanceCriterion, ...] = ..., participants: tuple[tiny_harness.harness.core.task.Participant, ...] = ..., parent_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., sub_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., plan: tiny_harness.harness.core.task.Plan | None = ..., lifecycle: typing.Literal['conversation', 'delegated'] | None = ..., model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ...)
-model TaskRef(task_id: <class 'str'>, agent: tiny_harness.harness.entities.base.EntityRef | None = ...)
+model TaskRef(task_id: <class 'str'>, agent: tiny_harness.harness.entities.base.EntityRef | None = ..., state: str | None = ..., sub_state: tiny_harness.harness.core.status.SubState | None = ...)
 model ToolCallsExtractedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., response: <class 'tiny_harness.harness.models.llm.LLMResponse'>, calls: tuple[tiny_harness.harness.tools.models.ToolCall, ...])
 model ToolInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., call: <class 'tiny_harness.harness.tools.models.ToolCall'>, result: tiny_harness.harness.tools.models.ToolResult | tiny_harness.harness.tools.models.WorkflowCommand)
 model ToolInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., call: <class 'tiny_harness.harness.tools.models.ToolCall'>)

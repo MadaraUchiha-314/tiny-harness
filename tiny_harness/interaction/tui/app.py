@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, cast
 
 import httpx
-from a2a.types import Message, Task, TaskState, TaskStatusUpdateEvent
+from a2a.types import Message, Task, TaskState, TaskStatus, TaskStatusUpdateEvent
 from a2a.utils.errors import A2AError
 from google.protobuf import json_format, struct_pb2
 from pydantic import ValidationError
@@ -70,10 +70,8 @@ STEP_MARKS = {
     StepState.FAILED: "✗",
 }
 AWAITING_NEXT_MESSAGE = "awaiting-next-message"
-# A SubscribeToTask stream follows a task until it ends (R5.6), but the stream of a
-# message this surface sent ends at INPUT_REQUIRED: a task no subscription follows (the
-# conversation started here, or one whose subscription ended) is re-read this often.
-POLL_INTERVAL = 2.0
+# A subscription that drops while its task is open is opened again after this long.
+RESUBSCRIBE_DELAY = 2.0
 # What a refused or failed call raises: the server's A2A error, or the transport's.
 CLIENT_ERRORS = (A2AError, httpx.HTTPError)
 
@@ -159,6 +157,23 @@ class TaskView:
     ext: TaskExtensionData | None = None
     shown: str | None = None  # the last state line drawn, so a re-emitted state draws none
     seen: set[str] = field(default_factory=set[str])  # message ids already drawn
+    # The newest status applied, and every one applied: a SubscribeToTask stream replays
+    # the task's log from the start, and what this surface already showed stays put.
+    at: tuple[int, int] = (0, 0)
+    applied: set[tuple[int, int, int]] = field(default_factory=set[tuple[int, int, int]])
+
+    def replayed(self, status: TaskStatus) -> bool:
+        """``status`` is one this view already applied, or older than the newest; a
+        status without a timestamp (a bare ``CancelTask`` reply) always applies."""
+        if not status.HasField("timestamp"):
+            return False
+        stamp = (status.timestamp.seconds, status.timestamp.nanos)
+        key = (*stamp, int(status.state))
+        if key in self.applied or stamp < self.at:
+            return True
+        self.applied.add(key)
+        self.at = stamp
+        return False
 
     @property
     def state_name(self) -> str:
@@ -218,11 +233,11 @@ class HarnessApp(App[None]):
         participant: str = "you",
         context_id: str = "ctx-tui",
         task_id: str | None = None,
-        poll_interval: float | None = POLL_INTERVAL,
+        resubscribe_delay: float = RESUBSCRIBE_DELAY,
     ) -> None:
         super().__init__()
         self.client = client
-        self.poll_interval = poll_interval
+        self.resubscribe_delay = resubscribe_delay
         self.url = url
         self.agent = agent
         self.version = version
@@ -237,7 +252,7 @@ class HarnessApp(App[None]):
         self.help_pending = False
         self._rows: list[SubTaskRow] = []
         self._subscribed: set[str] = set()
-        self._following: set[str] = set()  # tasks a live subscription follows
+        self._read: set[str] = set()  # sub-tasks read once for their row's goal
 
     # --- the task stack ---------------------------------------------------------------
 
@@ -325,8 +340,6 @@ class HarnessApp(App[None]):
         self.query_one("#sub-tasks-title", Static).display = False
         if self.task_id:
             self._subscribe_once(self.task_id)
-        if self.client is not None and self.poll_interval:
-            self.set_interval(self.poll_interval, self._poll_open_tasks)
 
     def _topbar_parts(self) -> tuple[str, str]:
         """The harness on the left; on the right, the open task (after its parents) and
@@ -352,18 +365,20 @@ class HarnessApp(App[None]):
     def apply_event(self, event: A2AEvent) -> None:
         view = self._view_for(event_task_id(event))
         message: Message | None = None
+        replayed = False
         if isinstance(event, Message):
             message = event
         elif isinstance(event, Task | TaskStatusUpdateEvent):
             if isinstance(event, Task):
                 self._set_ext(view, event)
-            if event.status.state != TaskState.TASK_STATE_UNSPECIFIED:
+            replayed = view.replayed(event.status)
+            if event.status.state != TaskState.TASK_STATE_UNSPECIFIED and not replayed:
                 view.state, view.sub_state = event.status.state, sub_state_of(event.metadata)
             if event.status.HasField("message"):
                 message = event.status.message
         plan = self.renderer.plan(event)
         self.renderer.render(plan)
-        items = list(plan.items)
+        items = [i for i in plan.items if not (replayed and i.kind == "status")]
         if message is not None and message.message_id:
             # A Task snapshot repeats the status message a stream already showed.
             if message.message_id in view.seen:
@@ -471,16 +486,22 @@ class HarnessApp(App[None]):
         return "\n".join(lines)
 
     def _row_text(self, ref: TaskRef) -> str:
-        if ref.agent is not None:  # on another agent: this surface cannot see it
-            return f"{ref.agent.id}/{ref.task_id} · — · —"
+        """A row's state is what the parent relays on its stream (R5.6), or what this
+        surface saw itself once the sub-task was opened."""
+        state = ref.state or "—"
+        if ref.agent is not None:  # on another agent: this surface cannot open it
+            return f"{ref.agent.id}/{ref.task_id} · {state} · —"
         view = self.views.get(ref.task_id)
-        state = view.state_name if view else "—"
+        known = view is not None and view.state != TaskState.TASK_STATE_UNSPECIFIED
+        if view and known and (ref.task_id in self._subscribed or ref.state is None):
+            state = view.state_name  # opened here: its own stream is the newer word
         goal = view.ext.goal if view and view.ext else "—"
         return f"{short_id(ref.task_id)} · {state} · {goal}"
 
     def _sync_sub_tasks(self) -> None:
-        """One row per sub-task of the open task. The TUI follows each local one, so its
-        row shows the state and goal and stays current (R5.6)."""
+        """One row per sub-task of the open task. The parent's stream carries each row's
+        state (R5.6), so no sub-task is followed until it is opened; a local one is read
+        once for its goal."""
         refs = self.ext.sub_tasks if self.ext else ()
         title = self.query_one("#sub-tasks-title", Static)
         title.display = self.ext is not None
@@ -500,8 +521,9 @@ class HarnessApp(App[None]):
         if refs and listing.index is None:
             self.call_after_refresh(self._highlight_first_row)
         for ref in refs:
-            if ref.agent is None:
-                self._subscribe_once(ref.task_id)
+            if ref.agent is None and ref.task_id not in self._read and self.client is not None:
+                self._read.add(ref.task_id)
+                self.run_worker(self._fetch(ref.task_id), exclusive=False)
 
     def _highlight_first_row(self) -> None:
         """Enter selects the highlighted row; rows appended to an empty list have none."""
@@ -567,6 +589,7 @@ class HarnessApp(App[None]):
 
     async def _send(self, text: str) -> None:
         assert self.client is not None
+        sent_to = self.task_id
         try:
             async for event in self.client.send(
                 text, task_id=self.task_id, context_id=self.context_id
@@ -574,6 +597,12 @@ class HarnessApp(App[None]):
                 self.apply_event(event)
         except CLIENT_ERRORS as exc:
             self._notice(f"── {exc}")
+        # The stream of a message ends once the task parks; what happens next (a
+        # sub-task's row, a reply woken by a sub-task) arrives on the task's own
+        # SubscribeToTask stream, which stays open until it ends (R5.6).
+        task_id = sent_to or (self.stack[0] if self.stack else None)
+        if task_id and not self.views[task_id].terminal:
+            self._subscribe_once(task_id)
 
     def _subscribe_once(self, task_id: str) -> None:
         if self.client is not None and task_id not in self._subscribed:
@@ -581,47 +610,33 @@ class HarnessApp(App[None]):
             self.run_worker(self._subscribe(task_id), exclusive=False)
 
     async def _subscribe(self, task_id: str) -> None:
+        """Follow ``task_id`` until it ends. A subscription refused (a terminal task) or
+        dropped falls back to one ``GetTask``; a task still open is followed again."""
         assert self.client is not None
-        self._following.add(task_id)
+        found = True
         try:
             async for event in self.client.subscribe(task_id):
                 self.apply_event(event)
-        except CLIENT_ERRORS as exc:  # e.g. the task is already terminal: one snapshot
+        except CLIENT_ERRORS as exc:
             self.trace.append(f"subscription {short_id(task_id)} ended: {exc}")
-            await self._fetch(task_id)
-        finally:
-            self._following.discard(task_id)  # the poll takes over while it is open
+            found = await self._fetch(task_id)
+        view = self.views.get(task_id)
+        if found and view is not None and not view.terminal:
+            self.set_timer(self.resubscribe_delay, lambda: self._resubscribe(task_id))
 
-    async def _fetch(self, task_id: str) -> None:
+    def _resubscribe(self, task_id: str) -> None:
+        self._subscribed.discard(task_id)
+        self._subscribe_once(task_id)
+
+    async def _fetch(self, task_id: str) -> bool:
         assert self.client is not None
         try:
             task = await self.client.get_task(task_id)
         except CLIENT_ERRORS as exc:
             self.trace.append(f"task {short_id(task_id)} unavailable: {exc}")
-            return
+            return False
         self.apply_event(task)
-
-    def _poll_open_tasks(self) -> None:
-        """Re-read every non-terminal task on the stack and the open task's local
-        sub-tasks that no live subscription follows. Applying an unchanged task draws
-        nothing: states and messages already shown are not drawn again."""
-        ids = [t for t in self.stack if not (t in self.views and self.views[t].terminal)]
-        for ref in self.ext.sub_tasks if self.ext else ():
-            view = self.views.get(ref.task_id)
-            if ref.agent is None and not (view and view.terminal) and ref.task_id not in ids:
-                ids.append(ref.task_id)
-        ids = [t for t in ids if t not in self._following]
-        if ids:
-            self.run_worker(self._poll(ids), exclusive=True, group="poll")
-
-    async def _poll(self, task_ids: list[str]) -> None:
-        assert self.client is not None
-        for task_id in task_ids:
-            try:
-                task = await self.client.get_task(task_id)
-            except CLIENT_ERRORS:
-                continue  # the next poll tries again
-            self.apply_event(task)
+        return True
 
     def send_action(self, action: Action) -> None:
         if self.view is not None:

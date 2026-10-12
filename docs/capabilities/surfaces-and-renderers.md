@@ -41,9 +41,11 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   awaiting-next-message`), bind `ctrl+d` to Complete and `ctrl+c` to Cancel (both in the
   footer, acting only on a non-terminal task, otherwise a notice), offer inline `/`
   completion from the card's commands with their descriptions under the composer, list
-  sub-tasks in the Task tab (`enter` opens one, `f4` returns to the parent), and poll
-  `GetTask` every 2 s for open and listed sub-tasks so a change from another surface
-  shows without a reload. Conversation entries render as plain text (no Rich markup).
+  sub-tasks in the Task tab (`enter` opens one, `f4` returns to the parent), and follow
+  the open task's `SubscribeToTask` stream once a message's own stream ends, so a reply
+  from another surface and each sub-task row's state (relayed by the parent) show
+  without a reload or polling. A sub-task is read once for its row's goal and followed
+  only when opened. Conversation entries render as plain text (no Rich markup).
 - The TUI SHALL assert a participant on every message and action it sends, as the
   `X-Participant-Id` header and the `participant_id` metadata: `--participant <id>`, else
   the OS user name. IF neither yields a non-empty printable-ASCII id (a blank

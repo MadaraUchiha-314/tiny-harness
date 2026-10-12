@@ -532,6 +532,8 @@ class TaskWorkflow:
             if not out.accepted:
                 self.last_refusal = out.reason or "not accepted"
                 continue
+            if out.command is not None or out.control is not None:
+                continue  # a command or a control never joins the model's history (R6.2)
             accepted += 1
             if out.task is not None:  # a task envelope changed the extension (R15.1)
                 self.task = task = HarnessTask(out.task)

@@ -9,7 +9,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Protocol, cast
+from typing import Literal, Protocol, cast
 
 from a2a.types import Message, Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.types import Role as A2ARole
@@ -28,6 +28,7 @@ from tiny_harness.harness.channels import (
     ChannelMessage,
     ChannelMessageData,
 )
+from tiny_harness.harness.commands import CommandCall, CommandRegistry, parse_command
 from tiny_harness.harness.core import (
     STATUS_EXT_KEY,
     AgentState,
@@ -93,7 +94,12 @@ from tiny_harness.service.durable.models import (
     TriggerIn,
     TriggerOut,
 )
-from tiny_harness.service.inbox import EnvelopeRefused, apply_task_envelope, envelope_of
+from tiny_harness.service.inbox import (
+    EnvelopeRefused,
+    apply_task_envelope,
+    controls_task,
+    envelope_of,
+)
 
 HEARTBEAT_EVERY = 10.0
 TERMINAL = frozenset(
@@ -145,8 +151,10 @@ class Activities:
         sink: EventSink | None = None,
         client: Client | None = None,
         retention: Mapping[RecordKind, timedelta] | None = None,
+        commands: CommandRegistry | None = None,
     ) -> None:
         self.engine = engine
+        self.commands = commands  # the registered names intake classifies (issue-25 R6)
         self.sink = sink
         self.client = client
         self.retention: dict[RecordKind, timedelta] = dict(retention or {})
@@ -176,6 +184,9 @@ class Activities:
 
     @activity.defn(name=ActivityName.INTAKE.value)
     async def intake(self, arg: IntakeIn) -> IntakeOut:
+        """Authorize and classify one message: refused, a registered ``/<name>`` command,
+        a ``control`` envelope, or ordinary text for the model (issue-25 R5.1, R6.2,
+        R6.3). Every message, whatever it is, gets an audit row."""
         task = HarnessTask(arg.task)
         participant = participant_of(arg.message)
         text = "\n".join(p.text for p in arg.message.parts if p.HasField("text"))
@@ -192,13 +203,20 @@ class Activities:
         ui_action: JsonObject | None = None
         source: str | None = None
         updated: Task | None = None
+        command: CommandCall | None = None
+        control: Literal["complete"] | None = None
         if accepted and participant is not None:
             try:
                 envelope = envelope_of(arg.message)
             except InvalidParamsError as exc:
                 accepted, reason = False, f"invalid event envelope: {exc.message}"
             else:
-                if envelope is not None and envelope.kind == "task":
+                if envelope is not None and envelope.kind == "control":
+                    if controls_task(task.ext, participant):  # abuse case 4
+                        control = envelope.action
+                    else:
+                        accepted, reason = False, "a watcher cannot complete the task"
+                elif envelope is not None and envelope.kind == "task":
                     try:
                         new_ext = apply_task_envelope(task.ext, envelope.payload, actor=participant)
                     except EnvelopeRefused as exc:
@@ -216,7 +234,11 @@ class Activities:
                     text = (
                         text + "\n" if text else ""
                     ) + f"[{envelope.kind} from {participant}] {event_json}"
-        if accepted:
+                else:  # an unregistered /name stays ordinary text (R6.3, abuse case 9)
+                    names = self.commands.names if self.commands is not None else frozenset[str]()
+                    command = parse_command(arg.message, names)
+        ordinary = command is None and control is None
+        if accepted and ordinary:
             try:
                 action = ui_action_of(arg.message)
             except A2UIValidationError as exc:
@@ -229,7 +251,7 @@ class Activities:
                     else:  # abuse case 9: a surface or component the task did not create
                         accepted, reason = False, "a2ui.unknown_surface_or_component"
         try:
-            if accepted:
+            if accepted and ordinary:  # a command's policy point is command.invoked
                 pre = RequestReceivedPre(
                     task_id=task.id,
                     correlation_id=arg.correlation_id,
@@ -275,13 +297,15 @@ class Activities:
             source = "agent"
         return IntakeOut(
             accepted=accepted,
-            text=text if accepted else "",
+            text=text if accepted and ordinary else "",
             participant_id=participant,
             source=source,
             reason=reason,
             interrupt=interrupt,
             task=updated if accepted else None,
             ui_action=ui_action if accepted else None,
+            command=command if accepted else None,
+            control=control if accepted else None,
         )
 
     # --- the loop's operations ------------------------------------------------------

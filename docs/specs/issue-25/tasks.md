@@ -126,7 +126,7 @@ negative test.
     `test_openai_chat_effort.py`, `test_anthropic_effort.py` (byte-identical when
     unset); T2 `Scenario: /model and /effort change the next model request, compaction
     and help included`
-- [ ] 9. Intake classification and the control envelope
+- [x] 9. Intake classification and the control envelope
   - `EventEnvelope.kind` gains `control` (with `action: Literal["complete"]` and
     `extra="forbid"`).
   - `IntakeOut.command` and `IntakeOut.control`.

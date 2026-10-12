@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from tiny_harness.config import RetryPolicies, RetryPolicySpec
 from tiny_harness.harness.channels import ChannelMessage
+from tiny_harness.harness.commands import CommandCall
 from tiny_harness.harness.core import (
     AgentState,
     CompactionRecord,
@@ -196,6 +197,9 @@ class IntakeIn(ActivityIn):
 
 
 class IntakeOut(_Frozen):
+    """What intake made of a message: refused, a command, a control, or ordinary text for
+    the model. A command or a control adds nothing to the history (issue-25 R5.1, R6.2)."""
+
     accepted: bool
     text: str = ""
     participant_id: str | None = None
@@ -204,6 +208,8 @@ class IntakeOut(_Frozen):
     interrupt: bool = False
     task: TaskProto | None = None
     ui_action: JsonObject | None = None
+    command: CommandCall | None = None
+    control: Literal["complete"] | None = None
 
 
 class AssembleIn(ActivityIn):

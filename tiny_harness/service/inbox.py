@@ -7,6 +7,10 @@ participants and their roles only by an admin, abuse case 4), and a ``status_upd
 ``artifact_update`` payload from a participant is recorded into the task's history as a
 framed event, so it is never silently dropped. Routing such updates to a remote
 sub-task is not built in this work item.
+
+A ``control`` envelope (issue-25 R5.1) carries ``action`` and nothing else: today only
+``complete``, a participant asking to complete the task. Its shape is closed, so an
+unknown action, a payload or any extra field is refused.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from typing import Literal, cast
 from a2a.types import Message
 from a2a.utils.errors import InvalidParamsError
 from google.protobuf import json_format
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from tiny_harness.harness.core import Role, TaskExtensionData
 from tiny_harness.jsontypes import JsonObject
@@ -34,12 +38,23 @@ def server_controlled(payload: JsonObject) -> list[str]:
 
 
 class EventEnvelope(BaseModel):
-    """The task extension's event part (R15.1)."""
+    """The task extension's event part (R15.1). ``task``, ``status_update`` and
+    ``artifact_update`` carry a ``payload``; ``control`` carries only an ``action``."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    kind: Literal["task", "status_update", "artifact_update"]
-    payload: JsonObject
+    kind: Literal["task", "status_update", "artifact_update", "control"]
+    payload: JsonObject = Field(default_factory=dict)
+    action: Literal["complete"] | None = None
+
+    @model_validator(mode="after")
+    def _shape(self) -> EventEnvelope:
+        if self.kind == "control":
+            if self.action is None or "payload" in self.model_fields_set:
+                raise ValueError("a control envelope carries an action and nothing else")
+        elif self.action is not None or "payload" not in self.model_fields_set:
+            raise ValueError(f"a {self.kind} envelope carries a payload and no action")
+        return self
 
 
 class EnvelopeRefused(Exception):
@@ -59,6 +74,14 @@ def envelope_of(message: Message) -> EventEnvelope | None:
             except ValidationError as exc:
                 raise InvalidParamsError(message=f"invalid event envelope: {exc}") from exc
     return None
+
+
+def controls_task(ext: TaskExtensionData, participant_id: str | None) -> bool:
+    """Whether ``participant_id`` may complete or cancel the task: on it in a role other
+    than ``watcher`` (abuse case 4)."""
+    return participant_id is not None and any(
+        p.id == participant_id and p.role is not Role.WATCHER for p in ext.participants
+    )
 
 
 def apply_task_envelope(
@@ -94,6 +117,7 @@ __all__ = [
     "EnvelopeRefused",
     "EventEnvelope",
     "apply_task_envelope",
+    "controls_task",
     "envelope_of",
     "server_controlled",
 ]

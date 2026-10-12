@@ -156,6 +156,40 @@ async def test_a_watcher_cannot_complete_or_cancel_an_idle_task(env: WorkflowEnv
     assert task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
 
 
+async def test_a_watcher_cannot_complete_by_naming_the_reporter_in_the_message(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Security — abuse case 4
+    Requirement: docs/specs/issue-25/requirements.md#R5
+
+    Scenario: the asserted identity, not the message's metadata, decides who completes
+        Given a parked conversation where alice is the reporter and wendy a watcher
+        When wendy (X-Participant-Id: wendy) sends a complete control whose metadata
+            names participant_id "alice"
+        Then the message is refused: it names a different participant than the request
+        And the task still waits INPUT_REQUIRED
+    """
+    suffix = uuid.uuid4().hex[:8]
+    server = await make_server(env, [scripted("Refunded.")], task_queue=f"tq-{suffix}")
+    async with server:
+        tid = await started(server, f"ctx-{suffix}")
+        handle = env.client.get_workflow_handle_for(TaskWorkflow.run, tid)
+        await awaiting_next_message(handle)
+        with pytest.raises(A2AError) as complete:
+            async for _ in server.a2a().send_message(
+                SendMessageRequest(
+                    message=control(task_id=tid, participant="alice", context_id=f"ctx-{suffix}")
+                ),
+                context=as_("wendy"),
+            ):
+                pass
+        task = await handle.query(TaskWorkflow.task_query)
+        await close(handle)
+    assert "different participant" in str(complete.value)
+    assert task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
+
+
 async def test_a_watchers_completion_does_not_interrupt_a_running_turn(
     env: WorkflowEnvironment,
 ) -> None:

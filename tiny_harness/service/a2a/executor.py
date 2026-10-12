@@ -125,6 +125,23 @@ def extension_from_envelope(
     return ext
 
 
+def sender_of(message: Message, call_context: ServerCallContext | None) -> str:
+    """Who sends ``message``, written into its ``participant_id``. The request's asserted
+    participant (``X-Participant-Id``, authenticated at the perimeter) decides: a message
+    whose metadata names someone else is refused, so a watcher cannot complete, cancel or
+    run a command as the reporter (issue-25 abuse case 4). Without a request assertion the
+    message's own (decision-003); with neither, fail closed."""
+    asserted = asserted_participant(call_context)
+    claimed = participant_of(message)
+    if asserted is not None and claimed is not None and claimed != asserted:
+        raise InvalidParamsError(message="the message names a different participant")
+    participant = asserted or claimed
+    if participant is None:  # fail closed (abuse case 4): nothing is created for nobody
+        raise InvalidParamsError(message="no participant asserted")
+    message.metadata.update({"participant_id": participant})
+    return participant
+
+
 class HarnessExecutor(AgentExecutor):
     def __init__(
         self,
@@ -163,11 +180,7 @@ class HarnessExecutor(AgentExecutor):
         message = redact_message(self._redactor, message)
         message.task_id = context.task_id
         message.context_id = context.context_id
-        participant = participant_of(message) or asserted_participant(context.call_context)
-        if participant is None:  # fail closed (abuse case 4): nothing is created for nobody
-            raise InvalidParamsError(message="no participant asserted")
-        if participant_of(message) is None:
-            message.metadata.update({"participant_id": participant})
+        sender_of(message, context.call_context)
         envelope = envelope_of(message)
         if envelope is not None and envelope.kind == "control" and existing is None:
             raise UnsupportedOperationError(message="a control needs an existing task")
@@ -208,11 +221,7 @@ class HarnessExecutor(AgentExecutor):
         message = redact_message(self._redactor, message)
         message.task_id = task.id
         message.context_id = task.context_id
-        participant = participant_of(message) or asserted_participant(call_context)
-        if participant is None:
-            raise InvalidParamsError(message="no participant asserted")
-        if participant_of(message) is None:
-            message.metadata.update({"participant_id": participant})
+        sender_of(message, call_context)
         handle = self._client.get_workflow_handle_for(TaskWorkflow.run, task.id)
         try:
             receipt = await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]

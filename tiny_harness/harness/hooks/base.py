@@ -55,6 +55,7 @@ class Operation(StrEnum):
     SKILL_LOADED = "skill.loaded"
     SKILL_UNLOADED = "skill.unloaded"
     AGENT_INVOKED = "agent.invoked"
+    COMMAND_INVOKED = "command.invoked"
 
 
 class Phase(StrEnum):

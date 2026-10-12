@@ -31,7 +31,8 @@
         "renderer",
         "surface",
         "store",
-        "agent"
+        "agent",
+        "command"
       ],
       "title": "EntityKind",
       "type": "string"

@@ -73,7 +73,7 @@ negative test.
   - _Test:_ T1 `tests/unit/test_config_openai.py`,
     `tests/unit/models/test_catalog.py`; T10 `tests/unit/test_config.py` (old file
     unchanged)
-- [ ] 5. Command primitives: hook operation, contexts, registry, name filter
+- [x] 5. Command primitives: hook operation, contexts, registry, name filter
   - `Operation.COMMAND_INVOKED`.
   - `CommandInvokedPre/In/Post`, `CommandSpec`, `TaskSettings`, `SpawnIntent`,
     `CommandResult`, `TaskSnapshot`.

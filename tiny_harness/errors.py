@@ -138,6 +138,13 @@ class ToolSchemaChangedError(TinyHarnessError):
 # --- core (R9, R11, R13) ------------------------------------------------------------------
 
 
+class CommandError(TinyHarnessError):
+    """A command registered from code has an invalid or duplicate name, or came too late
+    (R6.5); raised at build time."""
+
+    code = "command.invalid"
+
+
 class PlanCycleError(TinyHarnessError):
     """The plan's steps would form a cycle (R9.5)."""
 
@@ -211,6 +218,7 @@ class RetryableProviderError(TinyHarnessError):
 __all__ = [
     "AbortReason",
     "ChannelMembershipError",
+    "CommandError",
     "ComponentSkipped",
     "ConfigError",
     "EmbeddedTemporalError",

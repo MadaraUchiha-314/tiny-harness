@@ -93,6 +93,7 @@ async def make_server(
     *,
     task_queue: str,
     harness: Harness | None = None,
+    sticky: bool = True,
 ) -> Server:
     h = harness or await Harness(list(responses)).bind()
     pushes: list[httpx.Request] = []
@@ -120,7 +121,9 @@ async def make_server(
         push_sender=BasePushNotificationSender(push_http, push_store),
     )
     app = create_app(handler, card, config=ServerConfig(base_url=HttpUrl("http://harness")))
-    worker = h.worker(environment.client, task_queue, sink=PushSink(push_store, push_http))
+    worker = h.worker(
+        environment.client, task_queue, sink=PushSink(push_store, push_http), sticky=sticky
+    )
     return Server(harness=h, app=app, card=card, worker=worker, handler=handler, pushes=pushes)
 
 

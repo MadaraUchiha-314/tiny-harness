@@ -68,7 +68,8 @@ async def with_builtins(h: Harness) -> Harness:
 
 def replied(text: str) -> Callable[[HarnessTask], bool]:
     def check(t: HarnessTask) -> bool:
-        return t.proto.status.message.parts[0].text.startswith(text)
+        parts = t.proto.status.message.parts  # a WORKING update carries no message
+        return bool(parts) and parts[0].text.startswith(text)
 
     return check
 

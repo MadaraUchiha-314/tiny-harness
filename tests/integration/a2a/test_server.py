@@ -430,7 +430,7 @@ async def test_subscribetotask_after_a_server_restart_replays_the_event_log(
         And the parked INPUT_REQUIRED update still carries its sub-state (issue-25 R3.6)
     """
     tq, _task_id, context_id = ids()
-    first = await make_server(env, [scripted("Done.")], task_queue=tq)
+    first = await make_server(env, [scripted("Done.")], task_queue=tq, sticky=False)
     async with first:
         task_id = await run_to_completion(first, context_id)
         # A parked conversation stays open; closing it makes the final persist run, and

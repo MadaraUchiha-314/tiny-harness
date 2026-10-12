@@ -74,7 +74,12 @@ def build_replayer() -> Replayer:
 
 
 def build_worker(
-    client: Client, activities: Activities, *, task_queue: str, tracing: bool = True
+    client: Client,
+    activities: Activities,
+    *,
+    task_queue: str,
+    tracing: bool = True,
+    max_cached_workflows: int = 1000,
 ) -> Worker:
     """The worker; ``tracing`` adds Temporal's OpenTelemetry interceptor (R17.4).
 
@@ -90,6 +95,8 @@ def build_worker(
         activities=list(activities.all()),
         workflow_runner=workflow_runner(),
         interceptors=[TracingInterceptor()] if tracing and not traced else [],
+        # 0 turns sticky execution off, so another worker answers a query at once.
+        max_cached_workflows=max_cached_workflows,
     )
 
 

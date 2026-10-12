@@ -16,6 +16,7 @@ from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from tiny_harness.config import RetryPolicies, RetryPolicySpec
 from tiny_harness.harness.commands import CommandRegistry
 from tiny_harness.harness.core import (
     AgentState,
@@ -46,6 +47,13 @@ from tiny_harness.service.durable.worker import build_worker
 from tiny_harness.service.durable.workflows import TaskWorkflow
 
 CACHE = Path.home() / ".cache" / "temporalio"
+FAST_RETRIES = RetryPolicies(
+    default=RetryPolicySpec(
+        initial_interval=timedelta(milliseconds=10), maximum_interval=timedelta(milliseconds=50)
+    )
+)
+"""Production backoff in milliseconds: workflow timers run in real time while a test
+polls queries, so the default 1 s, 2 s, 4 s ... would make a failing activity slow."""
 
 
 class FakeTool(Tool):
@@ -107,10 +115,24 @@ class Harness:
             await self.registry.add(RegistryEntry(ref=tool.ref, instance=tool))
         return self
 
-    def worker(self, client: Client, task_queue: str, *, sink: EventSink | None = None) -> Worker:
+    def worker(
+        self,
+        client: Client,
+        task_queue: str,
+        *,
+        sink: EventSink | None = None,
+        sticky: bool = True,
+    ) -> Worker:
+        """``sticky=False`` lets a later worker answer queries without the test server's
+        30 s sticky-queue timeout (a "restarted" process)."""
         self.activities = Activities(self.engine, sink=sink, client=client, commands=self.commands)
         self.activities.heartbeat_every = self.heartbeat_every
-        return build_worker(client, self.activities, task_queue=task_queue)
+        return build_worker(
+            client,
+            self.activities,
+            task_queue=task_queue,
+            max_cached_workflows=1000 if sticky else 0,
+        )
 
 
 def task(
@@ -148,6 +170,7 @@ def start(
             max_turns=max_turns,
             search_attributes=False,
             heartbeat_timeout=heartbeat_timeout,
+            retries=FAST_RETRIES,
         ),
         correlation_id="test",
     )

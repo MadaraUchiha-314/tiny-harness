@@ -30,7 +30,7 @@ negative test.
 
 ### Layer A: foundations (no dependencies between them)
 
-- [ ] 1. `tiny_harness/home.py`: configuration resolution and safe default creation
+- [x] 1. `tiny_harness/home.py`: configuration resolution and safe default creation
   - `ConfigSource`, `resolve_config_path`, `default_config_text`, `ensure_default_config`
     as in design § `tiny_harness/home.py`.
   - The creation steps: `lstat`, owner check, `mkdir 0o700`,

@@ -9,7 +9,12 @@ the spec chain lives under `docs/specs/issue-3/`.
 ## What is in the box
 
 - An **A2A 1.0 server** (JSON-RPC and REST, streaming, push notifications) and an A2A
-  client for remote agents; three extensions (task, channel, A2UI 0.9.1).
+  client for remote agents; five extensions (task, channel, status, commands, A2UI
+  0.9.1).
+- **Conversations that stay open**: a reply parks the task in `INPUT_REQUIRED` until a
+  participant sends the next message, completes it or cancels it; slash commands
+  (`/model`, `/effort`, `/sub-task`, `/status`, or your own) run on the harness without
+  a model call.
 - A **core loop** of hooks around every operation: ingest, assemble, compact, call the
   model, run tools, decide completion. Intrinsic tools cover plans, sub-tasks, help
   requests, participants, skills and UI.
@@ -67,11 +72,33 @@ for what happens next and
 [deployment](https://madarauchiha-314.github.io/tiny-harness/guide/deployment) for
 running it for real: the server must sit behind an authenticating perimeter.
 
-## Install
+## Install and run
 
 ```sh
 pip install tiny_harness
+export OPENAI_API_KEY=...        # or set [openai] base_url to a local server
+tiny-harness                     # opens the TUI
 ```
+
+With no subcommand, `tiny-harness` is `tiny-harness tui`. With no `--config`, it reads
+`~/.tiny-harness/config.toml` and creates it on the first run: a commented file that
+selects embedded Temporal and keeps the store, the Temporal database and the log under
+`~/.tiny-harness/`. The directory is created `0700` and the file `0600`; a symlink or a
+path owned by another user is refused. `--config FILE` wins and never touches the home
+directory. `tiny-harness --help` names the file in effect.
+
+A reply does not end the task. It waits in `INPUT_REQUIRED · awaiting-next-message`
+until you send the next message, **Complete** it (`ctrl+d` in the TUI, the button in the
+web renderer) or **Cancel** it (`ctrl+c`, or the button). Type `/` for the commands:
+
+| Command | What it does |
+|---------|--------------|
+| `/model [<name>]` | Show, or choose, the task's model from `[openai] models` |
+| `/effort [low\|medium\|high]` | Show, or set, the task's reasoning effort |
+| `/sub-task <description>` | Open a sub-task in the same context; `f4` returns to the parent |
+| `/status` | The task's state, model, effort, plan progress and sub-tasks |
+
+A `/word` that is not a registered command goes to the model as an ordinary message.
 
 ## Develop
 

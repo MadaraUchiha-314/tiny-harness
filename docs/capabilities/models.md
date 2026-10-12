@@ -16,6 +16,18 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
   items, the tool definitions and an optional structured-output schema; an `LLMResponse`
   the text, the tool calls, the usage (input, output and cached tokens), the model and
   the finish reason (`stop`, `tool_calls`, `length`, `refusal`).
+- An `LLMRequest` SHALL also carry an optional `model` and `reasoning_effort` (`low`,
+  `medium`, `high`); each adapter uses `request.model` or its configured model. Every
+  model request of a task (the turn, the compaction summary, help routing) SHALL take
+  them from `ModelCatalog.settings_for` (the task's `/model` and `/effort` choice, else
+  the configured default). The effort SHALL be sent only when set, so an unset effort
+  keeps requests byte-identical: `reasoning={"effort": v}` on the Responses API,
+  `reasoning_effort=v` on Chat Completions, `output_config={"effort": v}` on Anthropic.
+- `ModelCatalog` (`models/catalog.py`) SHALL hold the default model, the selectable
+  models (`models`, else the default alone), the default effort and each model's context
+  window; compaction looks the window up for the task's current model when it decides.
+  The chat span's `gen_ai.request.model` is the per-request model and
+  `tiny_harness.llm.reasoning_effort` is set when an effort is.
 - The OpenAI adapter SHALL use the Responses API with `instructions` as the cached prefix,
   `prompt_cache_key` = the task id, `store=false`, `max_retries=0`; the default model is
   `gpt-6.1-sol` (the only e2e model). A 429, 5xx, timeout or connection failure SHALL be
@@ -62,3 +74,4 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
 |-----------|--------------|-------|
 | issue-3 | LLM and System One entities, OpenAI and Anthropic adapters, the fake (Layer 3); provider-safe wire names (Layer 9) | [spec](../specs/issue-3/), [PR #9](https://github.com/MadaraUchiha-314/tiny-harness/pull/9) |
 | issue-19 | `base_url`, the Chat Completions wire API, the keyless client, `context_window_tokens`, parse failures as `ProviderError`, endpoint observability | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22), [decision-006](../decisions/decision-006.md) |
+| issue-25 | Per-request `model` and `reasoning_effort` on `LLMRequest`, the provider effort mappings, `ModelCatalog` and the per-model context window, for `/model` and `/effort` | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

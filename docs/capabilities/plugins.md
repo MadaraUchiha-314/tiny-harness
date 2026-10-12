@@ -35,8 +35,25 @@ in `tiny_harness/builtin/`.
   be registered; the plugin's manifest version is the entity version. A second
   registration of the same `(id, version)` SHALL be refused unless the loading order
   declares an override.
+- A plugin SHALL be able to declare slash commands in its namespace directory's
+  `commands.json` (`{"commands": [{name, description, argument_hint, hook}]}`, schema
+  [`docs/plugins/commands.json`](https://github.com/MadaraUchiha-314/tiny-harness/blob/main/docs/plugins/commands.json)),
+  each body the `HookDef` named by `hook` in its `hooks.json`, local or remote. That
+  hook is command-owned: it SHALL declare exactly `points: ["command.invoked.in"]`, is
+  registered only as that command's filtered body and never as an ordinary hook (even
+  when the command is skipped), and no two commands may own it. An invalid name, a name
+  already registered without override, a missing `HookDef`, other points or a shared
+  hook SHALL skip the command with a `command` entry in the load report. Without a
+  command registry, a plugin's commands are skipped.
+- A plugin loaded with override SHALL replace an earlier command's spec and disable its
+  earlier body entirely, whatever the priorities. `pre` and `post` executors on
+  `command.invoked` are ordinary `HookDef`s and see every command.
 - The built-in plugin SHALL ship the default system prompt, the intrinsic tools and the
-  default `in` bodies, loaded first and overridable through the same mechanism.
+  default `in` bodies, loaded first and overridable through the same mechanism. The
+  built-in commands `/model`, `/effort`, `/sub-task` and `/status` come from code
+  (`harness/commands/builtins.py`) at the default body priority, with the role policy
+  registered whenever there is a command registry; `builtin_commands=False` leaves the
+  four out.
 
 ## Design
 
@@ -47,3 +64,4 @@ in `tiny_harness/builtin/`.
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Manifest models, loader, registrar, namespace directory, built-in plugin (Layer 2); the demo plugin under `examples/demo` (Layer 9) | [spec](../specs/issue-3/), [PR #8](https://github.com/MadaraUchiha-314/tiny-harness/pull/8) |
+| issue-25 | `commands.json` with command-owned hooks, command override, the four built-in commands | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

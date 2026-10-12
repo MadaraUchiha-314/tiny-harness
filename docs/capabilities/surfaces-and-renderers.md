@@ -35,7 +35,15 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
 - The TUI SHALL be a Textual app with the conversation on the left, Task / Plan / Trace
   tabs on the right and the composer below, every action on a key; it streams the reply
   and keeps a `SubscribeToTask` stream per open task, so a second surface sees the same
-  events. `tiny-harness tui --url <server>` starts it.
+  events. `tiny-harness tui --url <server>` starts it; bare `tiny-harness` starts it
+  hosting the harness from the default configuration.
+- The TUI SHALL show `STATE · sub-state` in the top bar (e.g. `INPUT_REQUIRED ·
+  awaiting-next-message`), bind `ctrl+d` to Complete and `ctrl+c` to Cancel (both in the
+  footer, acting only on a non-terminal task, otherwise a notice), offer inline `/`
+  completion from the card's commands with their descriptions under the composer, list
+  sub-tasks in the Task tab (`enter` opens one, `f4` returns to the parent), and poll
+  `GetTask` every 2 s for open and listed sub-tasks so a change from another surface
+  shows without a reload. Conversation entries render as plain text (no Rich markup).
 - The TUI SHALL assert a participant on every message and action it sends, as the
   `X-Participant-Id` header and the `participant_id` metadata: `--participant <id>`, else
   the OS user name. IF neither yields a non-empty printable-ASCII id (a blank
@@ -59,7 +67,14 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   renders cards with `@a2ui/react`'s `MessageProcessor` and the basic catalog; it is
   served under `/ui` when `ui_dir` points at its build and is covered by Playwright
   visual and axe-core accessibility tests.
-- WHEN two surfaces are connected to one task THEN both SHALL receive the same updates.
+- The web renderer SHALL show a state badge and, while `INPUT_REQUIRED`, a sub-state
+  badge; a **Complete** (primary) and a **Cancel task** (ghost) button, disabled when the
+  task is terminal or none is open; a "← Parent" link on a sub-task; sub-task rows that
+  open `?task=<id>` in place; and, when the composer starts with `/`, a WAI-ARIA
+  combobox listbox of the card's commands (arrows move, Tab or Enter accepts, Escape
+  closes). `?fixture=controls` runs it against a scripted harness for the visual tests.
+- WHEN two surfaces are connected to one task THEN both SHALL receive the same updates,
+  completion and cancellation included.
 
 ## Design
 
@@ -73,3 +88,4 @@ under `docs/specs/issue-3/design/`.
 |-----------|--------------|-------|
 | issue-3 | A2UI 0.9.1, surface and renderer entities, the Textual TUI (Layer 7); the web renderer (Layer 8) | [spec](../specs/issue-3/), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13), [PR #14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) |
 | issue-20 | The TUI asserts a participant (`--participant`, else the OS user name) so it can send at all | [spec](../specs/issue-20/), [PR #21](https://github.com/MadaraUchiha-314/tiny-harness/pull/21) |
+| issue-25 | TUI and web Complete/Cancel controls, the sub-state in the top bar and badge, `/` command completion, sub-task open and back; bare `tiny-harness` opens the TUI | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

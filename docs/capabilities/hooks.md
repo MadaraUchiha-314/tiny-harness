@@ -19,8 +19,9 @@ every Temporal activity. Lives in `tiny_harness/harness/hooks/`.
   `channel.sent`, `channel.received`, `compaction.trigger`, `compaction.keep`,
   `compaction.summarise`, `persistence.read`, `persistence.write`, `activity.failed`,
   `activity.retried`, `heartbeat.tick`, `shutdown`, `skill.loaded`, `skill.unloaded`,
-  `agent.invoked` and `command.invoked` (a slash command's body, filtered by command
-  name),
+  `agent.invoked` and `command.invoked` (a slash command, whose context carries the
+  command name, its argument text, the sender, the sender's role and a snapshot of the
+  task),
   each with the phases `pre`, `in` and `post`; the hook point name is
   `<operation>.<phase>`.
 - Executors for one hook point SHALL run as an ordered chain by priority, each receiving
@@ -36,6 +37,17 @@ every Temporal activity. Lives in `tiny_harness/harness/hooks/`.
   recorded, and surfaced as a task failure or a refusal, never as an unhandled exception.
 - Every context SHALL carry the task reference, the participants, the entity references,
   the correlation id and the attempt number.
+- On `command.invoked`, each command's body SHALL be an `in` executor wrapped so it sees
+  only its own command's contexts (a remote executor never receives another command's
+  arguments). A built-in `pre` executor at priority 100 refuses a sender with no role
+  and a watcher's `/model <x>`, `/effort <x>` and `/sub-task`; a `HookAbort` from any
+  `pre` becomes the reply `refused: <reason>` with the state unchanged; a `post`
+  replacement becomes the reply; a body that raises or fails remotely becomes
+  `/<name> failed: <message>`. Commands and controls do not run `request.received`.
+- WHEN an operation's body raises or is cancelled after its `pre` chain ran THEN the
+  runner SHALL call `HookManager.abandon`, which tells every executor on the `pre` point
+  that implements `AbandonObserver` (`abandon(point, ctx, error)`, synchronous, its own
+  failure suppressed), so what `pre` opened, such as a span, is closed.
 - The redactor SHALL scrub the context before any executor sees it and the output before
   it is returned.
 - Remote executors SHALL be supported over JSON-RPC 2.0 (method = the hook point, params
@@ -59,3 +71,4 @@ every Temporal activity. Lives in `tiny_harness/harness/hooks/`.
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Hook points, contexts, executor chain, remote executors, providers (Layer 1); the operation runner (Layer 4); the activity wrapper and workflow-managed retries (Layer 5) | [spec](../specs/issue-3/), [PR #7](https://github.com/MadaraUchiha-314/tiny-harness/pull/7), [PR #10](https://github.com/MadaraUchiha-314/tiny-harness/pull/10), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) |
+| issue-25 | `command.invoked` (context, per-command body filter, the built-in role `pre` executor, refusal and failure replies); `AbandonObserver` and `HookManager.abandon` close what `pre` opened when the body never reaches `post` | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

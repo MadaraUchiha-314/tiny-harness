@@ -266,7 +266,7 @@ negative test.
   - _Depends on:_ 10, 11, 13, 15
   - _Requirements:_ R1.3, R3, R5, R10; NFR behaviour change
   - _Test:_ T4 `uv run pytest tests/e2e/test_demo_ollama.py -m e2e`
-- [ ] 21. Documentation and the decision record
+- [x] 21. Documentation and the decision record
   - README and the getting-started guide: install → `tiny-harness` → the default file;
     the conversation lifecycle; commands; Complete.
   - `docs/a2a/extensions.md`: the status and commands extensions and the control

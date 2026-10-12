@@ -20,6 +20,10 @@ How a deployment is described and how the processes come up. Lives in
   `tls` and `TEMPORAL_API_KEY`, defaults `namespace` to `default`, and takes the optional
   `[temporal.embedded]` table (`persist`, `database_path`, `binary_path`, `download_dir`,
   `port`). A `binary_path` that is not an executable file exits with status 2.
+- `[openai]` and `[anthropic]` SHALL also take `models` (the models `/model` may select;
+  unset means `model` alone) and `reasoning_effort` (`low`, `medium` or `high`; the
+  default effort, unset means none is sent). A `models` list that is empty or lacks
+  `model` SHALL exit with status 2 naming `openai.models`, never "any model allowed".
 - `[openai]` SHALL take `base_url` (an absolute `http`/`https` URL; default
   `https://api.openai.com/v1`), `api` (`responses` or `chat_completions`), `model`,
   `timeout`, `max_output_tokens` and `context_window_tokens` (a
@@ -37,9 +41,22 @@ How a deployment is described and how the processes come up. Lives in
   `OPENAI_BASE_URL`).
 - WHEN a required secret is missing or a key is unknown THEN the process SHALL exit with
   status 2 and the variable or key on stderr, with no anonymous or local fallback.
-- The CLI SHALL be `tiny-harness [--config FILE] serve [--with-worker] | worker | tui
-  [--url] | schedules delete | tasks purge <task-id>`; `--version` prints the package
-  version.
+- The CLI SHALL be `tiny-harness [--config FILE] [serve [--with-worker] | worker | tui
+  [--url] [--participant] | schedules delete | tasks purge <task-id>]`; with no
+  subcommand it SHALL run `tui` with no `--url`. `--version` prints the package version
+  and `--help` names the configuration file in effect and whether it came from
+  `--config` or the default location (`--help` never creates it).
+- The configuration file SHALL be `--config` when given, else
+  `~/.tiny-harness/config.toml` (`tiny_harness/home.py`), for every subcommand. With
+  `--config` the home directory is never read or created, and a missing file exits 2.
+  WHEN the default file is missing THEN the CLI SHALL create `~/.tiny-harness/` (mode
+  `0700`) and the file (`0600`, `O_EXCL | O_NOFOLLOW`, through a no-follow directory
+  descriptor), print `created default configuration <path>` on stderr and go on. The
+  file selects embedded Temporal with `persist = true`, puts the store (and so the
+  Temporal database and the TUI log) under the home with absolute paths, holds no
+  secret and comments every key. An existing file is never rewritten. A home or file
+  that is a symlink, not a directory or regular file, or owned by another user SHALL
+  exit 2 naming the path; there is no fallback to running without a file.
 - In embedded mode, `worker` SHALL exit 2 (the worker runs inside `serve`), `serve` SHALL
   run the worker in-process, `tui` with no `--url` SHALL host the harness in its own
   process (logs to `tiny-harness.log` beside the store), and `schedules delete` /
@@ -48,7 +65,12 @@ How a deployment is described and how the processes come up. Lives in
   task so every `finally` runs: `serve` (and the programmatic `serve`) then exits 0,
   the other commands 143 (`tiny_harness/service/signals.py`).
 - `tiny_harness.service` SHALL export the programmatic entry points `running_harness`,
-  `serve`, `RunningHarness` and `temporal_client`, driven by the same `Settings` as the CLI.
+  `serve`, `RunningHarness`, `temporal_client` and `complete_message`, driven by the same
+  `Settings` as the CLI. `running_harness` takes `plugins=` (paths or `Plugin` objects,
+  loaded after `settings.plugins` with override), `commands=` (`(CommandSpec, handler)`
+  pairs) and `builtin_commands=False`. `Settings.load` and the entry points SHALL NOT
+  read or create `~/.tiny-harness/`; `tiny_harness.home.resolve_config_path` and
+  `ensure_default_config` are what the CLI calls, public for an SDK caller.
 - `build_runtime` SHALL assemble one process from `Settings`: the built-in plugin, the
   operator's plugins, the MCP tool sources, the skills, the system prompt, the model,
   the store and the in-process engine the activities run over, with the plugin data
@@ -70,3 +92,4 @@ How a deployment is described and how the processes come up. Lives in
 | issue-17 | `temporal.mode` and `[temporal.embedded]`; per-command embedded behaviour; the programmatic API in `tiny_harness.service`; SIGTERM cancels the main task | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18), [decision-005](../decisions/decision-005.md) |
 | issue-19 | `[openai] base_url`, `api`, `context_window_tokens`; `OPENAI_API_KEY` optional with a `base_url`; `examples/demo/config.ollama.toml` | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22), [decision-006](../decisions/decision-006.md) |
 | issue-23 | `TINY_HARNESS_PUSH_KEY` and `Settings.push_key` removed; a set variable is reported as ignored | [spec](../specs/issue-23/), [PR #24](https://github.com/MadaraUchiha-314/tiny-harness/pull/24) |
+| issue-25 | The default file `~/.tiny-harness/config.toml` (created safely, `--config` wins); bare `tiny-harness` runs the TUI; `--help` names the file; `models` and `reasoning_effort`; `running_harness(plugins=, commands=, builtin_commands=)` and `complete_message` | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

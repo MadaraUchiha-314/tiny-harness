@@ -234,6 +234,8 @@ class HarnessExecutor(AgentExecutor):
         except RPCError as exc:  # the workflow is gone
             raise TaskNotFoundError from exc
         yield task
+        if receipt.duplicate:  # already handled: no new events will follow (critic B2)
+            return
         async for event in self._bridge.events(task.id, receipt.cursor):
             yield event
 

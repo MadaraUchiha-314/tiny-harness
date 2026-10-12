@@ -3,6 +3,8 @@ KEEP = HookPoint
 NEVER_COMPACT = frozenset
 ORDER = tuple
 PARTICIPANT_KEY = str
+STATUS_EXT_KEY = str
+STATUS_EXT_URI = str
 SUMMARISE = HookPoint
 SUMMARISER_INSTRUCTIONS = str
 TASK_EXT_KEY = str
@@ -42,8 +44,9 @@ class HarnessTask(object)
   property is_terminal
   property state
   property state_name
+  property sub_state
   def with_ext(self, ext: 'TaskExtensionData') -> 'HarnessTask'
-  def with_state(self, state: 'int') -> 'HarnessTask'
+  def with_state(self, state: 'int', sub_state: 'SubState | None' = None) -> 'HarnessTask'
 model HistoryEntry(id: <class 'int'>, item: InputItem)
 model LLMInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, model: tiny_harness.harness.models.llm.LLMModelInfo | None = ..., response: <class 'tiny_harness.harness.models.llm.LLMResponse'>)
 model LLMInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, model: tiny_harness.harness.models.llm.LLMModelInfo | None = ...)
@@ -77,8 +80,10 @@ enum Role: ASSIGNEE='assignee', REPORTER='reporter', WATCHER='watcher', ADMIN='a
 model SchemaValidated(data: JsonObject = ..., schemas: collections.abc.Mapping[str, JsonSchema] = ...)
 enum Stability: STATIC='static', PER_TASK='per_task', PER_TURN='per_turn'
 class StateValidationError(TinyHarnessError)
+model StatusExtensionData(sub_state: <enum 'SubState'>)
 model Step(id: <class 'str'>, name: <class 'str'>, description: <class 'str'> = ..., depends_on: tuple[str, ...] = ..., output: str | None = ..., linked_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., state: <enum 'StepState'> = ...)
 enum StepState: PENDING='pending', ACTIVE='active', DONE='done', FAILED='failed'
+enum SubState: AWAITING_NEXT_MESSAGE='awaiting-next-message', AWAITING_ANSWER='awaiting-answer'
 model SubtaskSpawnedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., parent: <class 'tiny_harness.harness.core.task.TaskRef'>, command: <class 'tiny_harness.harness.tools.models.WorkflowCommand'>, child: <class 'tiny_harness.harness.core.task.TaskRef'>)
 model SubtaskSpawnedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., parent: <class 'tiny_harness.harness.core.task.TaskRef'>, command: <class 'tiny_harness.harness.tools.models.WorkflowCommand'>)
 model TaskCompleteIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., unresolved: tuple[tiny_harness.harness.core.task.TaskRef, ...], result: tiny_harness.harness.core.loop.CompletionDecision | None = ..., reason: <class 'str'> = ...)

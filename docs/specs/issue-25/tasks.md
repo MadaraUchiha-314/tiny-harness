@@ -43,7 +43,7 @@ negative test.
     with absolute paths, existing file untouched); T8
     `tests/security/test_home_paths.py` (symlink home, symlink file, foreign owner,
     modes)
-- [ ] 2. Status extension module and sub-state on `with_state`
+- [x] 2. Status extension module and sub-state on `with_state`
   - `harness/core/status.py`: `STATUS_EXT_URI`, `STATUS_EXT_KEY`, `SubState`,
     `StatusExtensionData`.
   - `HarnessTask.with_state(state, sub_state=None)` writes the key, or deletes it.

@@ -14,9 +14,10 @@ from typing import Literal, Self, cast
 
 from a2a.types import Task, TaskState, TaskStatus
 from google.protobuf import json_format, struct_pb2
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from tiny_harness.errors import PlanCycleError
+from tiny_harness.harness.core.status import STATUS_EXT_KEY, StatusExtensionData, SubState
 from tiny_harness.harness.entities import EntityRef
 from tiny_harness.jsontypes import JsonObject
 
@@ -220,12 +221,35 @@ class HarnessTask:
         proto.metadata.fields[TASK_EXT_KEY].CopyFrom(value)
         return HarnessTask(proto)
 
-    def with_state(self, state: int) -> HarnessTask:
+    @property
+    def sub_state(self) -> SubState | None:
+        """The status extension's sub-state; ``None`` when absent or unknown (R4.3)."""
+        fields = self.proto.metadata.fields
+        if STATUS_EXT_KEY not in fields:
+            return None
+        raw = cast(JsonObject, json_format.MessageToDict(fields[STATUS_EXT_KEY]))
+        try:
+            return StatusExtensionData.model_validate(raw).sub_state
+        except ValidationError:
+            return None
+
+    def with_state(self, state: int, sub_state: SubState | None = None) -> HarnessTask:
+        """A new view in ``state``. ``sub_state`` is written under the status extension's
+        key; without one the key is deleted, so leaving ``INPUT_REQUIRED`` clears it (R3.3)."""
         proto = Task()
         proto.CopyFrom(self.proto)
         proto.status.CopyFrom(
             TaskStatus(state=cast(TaskState, state), message=proto.status.message)
         )
+        if sub_state is None:
+            if STATUS_EXT_KEY in proto.metadata.fields:
+                del proto.metadata.fields[STATUS_EXT_KEY]
+        else:
+            value = struct_pb2.Value()
+            json_format.ParseDict(
+                StatusExtensionData(sub_state=sub_state).model_dump(mode="json"), value
+            )
+            proto.metadata.fields[STATUS_EXT_KEY].CopyFrom(value)
         return HarnessTask(proto)
 
     def ext_json(self) -> JsonObject:

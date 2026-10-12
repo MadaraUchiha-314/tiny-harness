@@ -442,7 +442,10 @@ class Activities:
     @activity.defn(name=ActivityName.DECIDE_COMPLETION.value)
     async def decide_completion(self, arg: CompletionIn) -> CompletionOut:
         ctx = TaskCompleteIn(
-            task_id=arg.task_id, correlation_id=arg.correlation_id, unresolved=arg.unresolved
+            task_id=arg.task_id,
+            correlation_id=arg.correlation_id,
+            unresolved=arg.unresolved,
+            requested_by=arg.requested_by,
         )
         try:
             out = await self.engine.runner.run_in(Operation.TASK_COMPLETE, ctx)

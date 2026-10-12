@@ -151,7 +151,7 @@ negative test.
     invoking the model and the state is unchanged`; `…during a running turn…`;
     `A failing command…`; `A participant task still completes on the assignee's answer,
     and a command does not`)
-- [ ] 11. Participant completion and cancel hardening
+- [x] 11. Participant completion and cancel hardening
   - The inbox update validator authorizes a control: sender present, on the task, not a
     `watcher`. Only then does it set the interrupt.
   - `_complete(actor)` runs `decide_completion` with `TaskCompleteIn.requested_by`.

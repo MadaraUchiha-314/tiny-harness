@@ -6,17 +6,21 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import AsyncGenerator
 from typing import cast
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
+from a2a.server.context import ServerCallContext
 from a2a.server.events import EventQueue
-from a2a.types import Message, Part, TaskState
+from a2a.types import Message, Part, Task, TaskState
 from a2a.utils.errors import InvalidParamsError, TaskNotFoundError, UnsupportedOperationError
 from google.protobuf import json_format
 from pydantic import ValidationError
-from temporalio.client import Client, WithStartWorkflowOperation
+from temporalio.client import Client, WithStartWorkflowOperation, WorkflowUpdateFailedError
 from temporalio.common import SearchAttributePair, TypedSearchAttributes, WorkflowIDConflictPolicy
+from temporalio.service import RPCError
 
+from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.core import (
     AgentState,
     HarnessTask,
@@ -37,7 +41,12 @@ from tiny_harness.service.durable.workflows import (
     TINY_HARNESS_AGENT,
     TaskWorkflow,
 )
-from tiny_harness.service.inbox import EventEnvelope, envelope_of, server_controlled
+from tiny_harness.service.inbox import (
+    EventEnvelope,
+    controls_task,
+    envelope_of,
+    server_controlled,
+)
 
 log = logging.getLogger("tiny_harness.a2a.executor")
 
@@ -54,6 +63,30 @@ def redact_message(redactor: Redactor, message: Message) -> Message:
 
 def message_text(message: Message) -> str:
     return "\n".join(p.text for p in message.parts if p.HasField("text"))
+
+
+TERMINAL_STATES = frozenset(
+    {
+        TaskState.TASK_STATE_COMPLETED,
+        TaskState.TASK_STATE_CANCELED,
+        TaskState.TASK_STATE_FAILED,
+        TaskState.TASK_STATE_REJECTED,
+    }
+)
+
+
+def refuse_terminal(task: Task) -> None:
+    """A message, command, completion or cancellation of a terminal task is refused with
+    its state named (issue-25 R5.3)."""
+    if task.status.state in TERMINAL_STATES:
+        name = TaskState.Name(task.status.state)
+        raise UnsupportedOperationError(message=f"the task is in a terminal state ({name})")
+
+
+def refuse_watcher(task: Task, participant: str | None) -> None:
+    """Only a participant in a role other than ``watcher`` cancels (abuse case 4)."""
+    if not controls_task(HarnessTask(task).ext, participant):
+        raise UnsupportedOperationError(message="a watcher cannot cancel the task")
 
 
 def default_extension(message: Message, agent: str) -> TaskExtensionData:
@@ -125,13 +158,8 @@ class HarnessExecutor(AgentExecutor):
         existing = context.current_task
         if existing is not None and not self._policy.allows(existing, context.call_context):
             raise TaskNotFoundError
-        if existing is not None and existing.status.state in (
-            TaskState.TASK_STATE_COMPLETED,
-            TaskState.TASK_STATE_CANCELED,
-            TaskState.TASK_STATE_FAILED,
-            TaskState.TASK_STATE_REJECTED,
-        ):
-            raise UnsupportedOperationError(message="the task is in a terminal state")
+        if existing is not None:
+            refuse_terminal(existing)
         message = redact_message(self._redactor, message)
         message.task_id = context.task_id
         message.context_id = context.context_id
@@ -141,6 +169,8 @@ class HarnessExecutor(AgentExecutor):
         if participant_of(message) is None:
             message.metadata.update({"participant_id": participant})
         envelope = envelope_of(message)
+        if envelope is not None and envelope.kind == "control" and existing is None:
+            raise UnsupportedOperationError(message="a control needs an existing task")
         agent = self._config.agent
         ext = (
             extension_from_envelope(envelope, message, agent)
@@ -156,11 +186,47 @@ class HarnessExecutor(AgentExecutor):
             config=self._config,
             correlation_id=task.id,
         )
-        receipt = await self._update_with_start(start, message)
+        try:
+            receipt = await self._update_with_start(start, message)
+        except WorkflowUpdateFailedError as exc:  # the inbox validator refused it
+            cause = exc.cause
+            reason = getattr(cause, "message", None) or str(cause or exc)
+            raise UnsupportedOperationError(message=f"message refused: {reason}") from exc
         if not receipt.accepted and not receipt.duplicate:
             raise TaskNotFoundError
         async for event in self._bridge.events(task.id, receipt.cursor):
             await event_queue.enqueue_event(event)
+
+    async def control(
+        self, task: Task, message: Message, call_context: ServerCallContext | None
+    ) -> AsyncGenerator[A2AEvent]:
+        """A control for an existing task (issue-25 R5.1, R5.2), delivered outside the
+        SDK's per-task request queue: that queue runs one ``execute`` at a time, so a
+        completion would otherwise wait for the very turn it must interrupt. The caller
+        has applied the access policy and the terminal check; the inbox update's
+        validator authorizes the sender's role before anything is interrupted."""
+        message = redact_message(self._redactor, message)
+        message.task_id = task.id
+        message.context_id = task.context_id
+        participant = participant_of(message) or asserted_participant(call_context)
+        if participant is None:
+            raise InvalidParamsError(message="no participant asserted")
+        if participant_of(message) is None:
+            message.metadata.update({"participant_id": participant})
+        handle = self._client.get_workflow_handle_for(TaskWorkflow.run, task.id)
+        try:
+            receipt = await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+                TaskWorkflow.inbox, message
+            )
+        except WorkflowUpdateFailedError as exc:
+            cause = exc.cause
+            reason = getattr(cause, "message", None) or str(cause or exc)
+            raise UnsupportedOperationError(message=f"message refused: {reason}") from exc
+        except RPCError as exc:  # the workflow is gone
+            raise TaskNotFoundError from exc
+        yield task
+        async for event in self._bridge.events(task.id, receipt.cursor):
+            yield event
 
     async def _update_with_start(self, start: TaskStart, message: Message) -> InboxReceipt:
         task = HarnessTask(start.task)
@@ -189,6 +255,8 @@ class HarnessExecutor(AgentExecutor):
         task = context.current_task
         if task is None or not self._policy.allows(task, context.call_context):
             raise TaskNotFoundError
+        refuse_terminal(task)
+        refuse_watcher(task, asserted_participant(context.call_context))
         page = await self._bridge.page(task.id, 0)
         cursor = page.next_seq if page is not None else 0
         handle = self._client.get_workflow_handle(task.id)
@@ -211,4 +279,6 @@ __all__ = [
     "extension_from_envelope",
     "message_text",
     "redact_message",
+    "refuse_terminal",
+    "refuse_watcher",
 ]

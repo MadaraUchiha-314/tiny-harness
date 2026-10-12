@@ -89,7 +89,7 @@ enum StepState: PENDING='pending', ACTIVE='active', DONE='done', FAILED='failed'
 enum SubState: AWAITING_NEXT_MESSAGE='awaiting-next-message', AWAITING_ANSWER='awaiting-answer'
 model SubtaskSpawnedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., parent: <class 'tiny_harness.harness.core.task.TaskRef'>, command: <class 'tiny_harness.harness.tools.models.WorkflowCommand'>, child: <class 'tiny_harness.harness.core.task.TaskRef'>)
 model SubtaskSpawnedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., parent: <class 'tiny_harness.harness.core.task.TaskRef'>, command: <class 'tiny_harness.harness.tools.models.WorkflowCommand'>)
-model TaskCompleteIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., unresolved: tuple[tiny_harness.harness.core.task.TaskRef, ...], result: tiny_harness.harness.core.loop.CompletionDecision | None = ..., reason: <class 'str'> = ...)
+model TaskCompleteIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., unresolved: tuple[tiny_harness.harness.core.task.TaskRef, ...], result: tiny_harness.harness.core.loop.CompletionDecision | None = ..., reason: <class 'str'> = ..., requested_by: str | None = ...)
 class TaskContext(object)
   def __init__(self, task: 'HarnessTask | None' = None, actor: 'str | None' = None) -> 'None'
   property actor

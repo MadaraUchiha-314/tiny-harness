@@ -76,6 +76,16 @@ def envelope_of(message: Message) -> EventEnvelope | None:
     return None
 
 
+def is_control(message: Message) -> bool:
+    """Whether ``message`` carries a well-formed control envelope (issue-25 R5.1); a
+    malformed one is not, and intake refuses it with the reason."""
+    try:
+        envelope = envelope_of(message)
+    except InvalidParamsError:
+        return False
+    return envelope is not None and envelope.kind == "control"
+
+
 def controls_task(ext: TaskExtensionData, participant_id: str | None) -> bool:
     """Whether ``participant_id`` may complete or cancel the task: on it in a role other
     than ``watcher`` (abuse case 4)."""
@@ -119,5 +129,6 @@ __all__ = [
     "apply_task_envelope",
     "controls_task",
     "envelope_of",
+    "is_control",
     "server_controlled",
 ]

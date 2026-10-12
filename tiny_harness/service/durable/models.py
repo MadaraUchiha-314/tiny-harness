@@ -264,6 +264,7 @@ class ToolOut(_Frozen):
 class CompletionIn(ActivityIn):
     task: TaskProto
     unresolved: tuple[TaskRef, ...]
+    requested_by: str | None = None  # a participant's control complete (issue-25 R5)
 
 
 class CompletionOut(_Frozen):

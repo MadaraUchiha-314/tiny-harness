@@ -64,6 +64,7 @@ with workflow.unsafe.imports_passed_through():
         TaskCompleteIn,
         TaskExtensionData,
         TaskRef,
+        participant_of,
         state_name,
     )
     from tiny_harness.harness.core.intrinsics import link_subtask
@@ -130,6 +131,7 @@ with workflow.unsafe.imports_passed_through():
         TriggerOut,
         event_entry,
     )
+    from tiny_harness.service.inbox import controls_task, is_control
 
 A2A_CONTEXT_ID = SearchAttributeKey.for_keyword("A2AContextId")
 A2A_TASK_STATE = SearchAttributeKey.for_keyword("A2ATaskState")
@@ -386,14 +388,27 @@ class TaskWorkflow:
         self.mailbox.append(message)
         if message.HasField("metadata") and "interrupt" in message.metadata.fields:
             self.interrupted = bool(message.metadata.fields["interrupt"].bool_value)
+        if is_control(message):  # authorized by the validator: cut the turn (R5.2)
+            self.interrupted = True
         return InboxReceipt(
             message_id=mid, accepted=True, state_name=self.task.state_name, cursor=self.next_seq
         )
 
     @inbox.validator
     def _inbox_validator(self, message: Message) -> None:
+        """Runs before the handler: a refused control never interrupts a turn (abuse
+        case 4). The sender must be on the task in a role other than ``watcher``."""
         if self.closed:
             raise ValueError("task is closed")
+        if not is_control(message):
+            return
+        sender = participant_of(message)
+        if sender is None:
+            raise ValueError("no participant asserted")
+        if not self.task.ext.is_participant(sender):
+            raise ValueError("not a participant")
+        if not controls_task(self.task.ext, sender):
+            raise ValueError("a watcher cannot complete the task")
 
     @workflow.signal
     async def cancel(self, reason: str) -> None:
@@ -484,7 +499,10 @@ class TaskWorkflow:
             # here, and only ordinary messages or the notes start a turn.
             self.state, accepted = await self._dispatch(self.state)
             if self.completion_by is not None:
-                self.completion_by = None
+                done = await self._complete()
+                if done is not None:
+                    return done
+                continue
             if accepted == 0 and not self.notes:
                 if self.last_refusal and self.handled == 0:
                     # The sender is a participant (strangers never reach the workflow), so
@@ -626,11 +644,54 @@ class TaskWorkflow:
                 return await self._finish(TaskState.TASK_STATE_CANCELED, text=self.cancel_reason)
             out = await self._classify() if self.mailbox else None
             if self.completion_by is not None:
-                self.completion_by = None
+                done = await self._complete()
+                if done is not None:
+                    return done
+                continue
             if out is None or (assignee is not None and out.participant_id != assignee):
                 continue
             self.state = self.state.append(MessageItem(role=MessageRole.USER, text=out.text))
             return await self._finish(TaskState.TASK_STATE_COMPLETED, text=out.text)
+
+    async def _complete(self) -> Task | None:
+        """A participant's control complete (R5.2, R5.4): ``task.complete.in`` decides,
+        told who asked. COMPLETE finishes the task for every subscriber; otherwise the
+        refusal names what is open and the task waits for the next message."""
+        actor = self.completion_by or ""
+        self.completion_by = None
+        unresolved = self.unresolved()
+        out = await self.call(
+            ActivityName.DECIDE_COMPLETION,
+            CompletionIn(
+                task_id=self.task.id,
+                correlation_id=self.correlation_id,
+                task=self.task.proto,
+                unresolved=unresolved,
+                requested_by=actor,
+            ),
+            CompletionOut,
+        )
+        if out.result == "complete":
+            return await self._finish(TaskState.TASK_STATE_COMPLETED, text=f"completed by {actor}")
+        if out.result == "wait":
+            names = ", ".join(r.task_id for r in unresolved)
+            reason = f"unresolved sub-tasks: {names}"
+        else:
+            reason = out.reason or "refused by a hook"
+        workflow.logger.info("completion.refused", extra={"task_id": self.task.id})
+        # A cut turn left the task WORKING with nothing running: it waits for the next
+        # message, as a turn's end would leave it.
+        state, sub_state = self.task.state, self.task.sub_state
+        if state != TaskState.TASK_STATE_INPUT_REQUIRED:
+            state, sub_state = TaskState.TASK_STATE_INPUT_REQUIRED, SubState.AWAITING_NEXT_MESSAGE
+        self.task = await self.set_status(
+            self.task,
+            state,
+            text=f"completion refused: {reason}",
+            sub_state=sub_state,
+            persist=True,
+        )
+        return None
 
     async def _finish(self, state: int | None, *, text: str = "") -> Task:
         if state is not None:

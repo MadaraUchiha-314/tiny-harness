@@ -91,6 +91,7 @@ class TaskCompleteIn(HookContext):
     unresolved: tuple[TaskRef, ...]
     result: CompletionDecision | None = None
     reason: str = ""
+    requested_by: str | None = None  # the participant who asked; None at a turn's end
 
 
 class SubtaskSpawnedPre(HookContext):

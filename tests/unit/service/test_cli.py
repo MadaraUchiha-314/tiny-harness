@@ -262,3 +262,173 @@ async def test_tui_command_hands_the_participant_to_run_tui(
     settings = Settings.load(embedded_config(tmp_path, monkeypatch))
     assert await commands.tui(settings, url="http://x", participant="alice") == 0
     assert calls == [("http://x", "alice")]
+
+
+# issue-25 R1, R2: bare `tiny-harness` is the TUI; the default configuration file.
+
+SUBCOMMANDS = ("serve", "worker", "tui", "schedules", "tasks")
+
+
+@pytest.fixture
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A throwaway user home with the provider key set and no Temporal key."""
+    user = tmp_path / "user"
+    user.mkdir()
+    monkeypatch.setenv("HOME", str(user))
+    monkeypatch.delenv("TEMPORAL_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr(getpass, "getuser", lambda: "osuser")
+    return user
+
+
+def record_tui(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str | None, str]]:
+    from tiny_harness.config import Settings
+    from tiny_harness.service import commands
+
+    calls: list[tuple[str, str | None, str]] = []
+
+    async def record(settings: Settings, *, url: str | None, participant: str) -> int:
+        calls.append((str(settings.store.sqlite_path), url, participant))
+        return 0
+
+    monkeypatch.setattr(commands, "tui", record)
+    return calls
+
+
+def test_the_subcommand_is_optional() -> None:
+    assert build_parser().parse_args([]).command is None
+
+
+def test_bare_command_creates_the_default_and_opens_the_tui(
+    home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = record_tui(monkeypatch)
+    assert main([]) == 0
+    config = home / ".tiny-harness" / "config.toml"
+    assert config.is_file()
+    assert f"created default configuration {config}" in capsys.readouterr().err
+    assert calls == [(str(home / ".tiny-harness" / "tiny-harness.sqlite3"), None, "osuser")]
+
+
+def test_bare_command_and_tui_share_one_code_path(
+    home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = record_tui(monkeypatch)
+    assert main([]) == 0
+    assert main(["tui"]) == 0
+    assert main(["tui", "--participant", "alice"]) == 0
+    assert [c[1:] for c in calls] == [(None, "osuser"), (None, "osuser"), (None, "alice")]
+    assert capsys.readouterr().err.count("created default configuration") == 1
+
+
+def test_an_existing_default_is_read_and_never_rewritten(
+    home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = record_tui(monkeypatch)
+    directory = home / ".tiny-harness"
+    directory.mkdir(mode=0o700)
+    config = directory / "config.toml"
+    text = EMBEDDED.format(extra="", store=home / "mine.sqlite3")
+    config.write_text(text)
+    assert main([]) == 0
+    assert config.read_text() == text
+    assert calls[0][0] == str(home / "mine.sqlite3")
+
+
+def test_an_invalid_default_exits_two_and_is_kept(
+    home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    record_tui(monkeypatch)
+    directory = home / ".tiny-harness"
+    directory.mkdir(mode=0o700)
+    config = directory / "config.toml"
+    config.write_text(EMBEDDED.format(extra="bogus = 1", store=home / "db.sqlite3"))
+    before = config.read_text()
+    assert main([]) == CONFIG_EXIT
+    err = capsys.readouterr().err
+    assert "temporal.bogus" in err and "created default configuration" not in err
+    assert config.read_text() == before
+
+
+def test_an_unsafe_default_home_exits_two_naming_it(
+    home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    record_tui(monkeypatch)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (home / ".tiny-harness").symlink_to(elsewhere, target_is_directory=True)
+    assert main([]) == CONFIG_EXIT
+    assert str(home / ".tiny-harness") in capsys.readouterr().err
+    assert list(elsewhere.iterdir()) == []
+
+
+def test_every_subcommand_reads_the_default_file(
+    home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tiny_harness.config import Settings
+    from tiny_harness.service import commands
+
+    seen: list[Path] = []
+
+    async def serve(settings: Settings, *, with_worker: bool = False) -> int:
+        seen.append(settings.store.sqlite_path)
+        return 0
+
+    monkeypatch.setattr(commands, "serve", serve)
+    assert main(["serve"]) == 0
+    assert seen == [home / ".tiny-harness" / "tiny-harness.sqlite3"]
+
+
+def test_the_flag_never_touches_the_default_home(
+    home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R2.2: the --config file only; ~/.tiny-harness is not read, created or modified."""
+    calls = record_tui(monkeypatch)
+    config = embedded_config(tmp_path, monkeypatch)
+    assert main(["--config", str(config)]) == 0
+    assert len(calls) == 1
+    assert not (home / ".tiny-harness").exists()
+
+
+def test_a_missing_flag_file_exits_two_and_is_not_created(
+    home: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "missing.toml"
+    assert main(["--config", str(missing), "tui"]) == CONFIG_EXIT
+    err = capsys.readouterr().err
+    assert "configuration file not found" in err and str(missing) in err
+    assert not missing.exists()
+    assert not (home / ".tiny-harness").exists()
+
+
+def test_help_names_the_default_file_and_creates_nothing(
+    home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as caught:
+        main(["--help"])
+    assert caught.value.code == 0
+    out = " ".join(capsys.readouterr().out.split())
+    assert "configuration: ~/.tiny-harness/config.toml (default; --config overrides)" in out
+    assert all(name in out for name in SUBCOMMANDS)
+    assert not (home / ".tiny-harness").exists()
+
+
+@pytest.mark.parametrize("flag", [["--config", "demo.toml"], ["--config=demo.toml"]])
+def test_help_names_the_flag_file(
+    home: Path, capsys: pytest.CaptureFixture[str], flag: list[str]
+) -> None:
+    with pytest.raises(SystemExit):
+        main([*flag, "--help"])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "configuration: demo.toml (--config)" in out
+    assert not (home / ".tiny-harness").exists()
+
+
+def test_subcommand_help_and_version_create_nothing(
+    home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for argv in (["tui", "--help"], ["--version"]):
+        with pytest.raises(SystemExit):
+            main(argv)
+    assert "tiny-harness" in capsys.readouterr().out
+    assert not (home / ".tiny-harness").exists()

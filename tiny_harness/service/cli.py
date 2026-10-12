@@ -1,5 +1,10 @@
 """``tiny-harness`` (R21): ``serve``, ``worker``, ``tui``, ``schedules``, ``tasks``.
 
+With no subcommand it opens the TUI, exactly as ``tui`` does (issue-25 R1.2). The
+configuration is ``--config``, else ``~/.tiny-harness/config.toml``, created on first use
+(issue-25 R2) through ``tiny_harness.home``, which an SDK caller can use too. ``--help``
+names the file in effect and never creates it.
+
 Every command loads ``Settings`` first; a missing secret or an unknown key exits with
 the variable's name on stderr and status 2 (R21.2, R21.3). Secrets come only from the
 environment (``TEMPORAL_API_KEY`` in remote mode, ``OPENAI_API_KEY``). In embedded
@@ -19,19 +24,39 @@ from pathlib import Path
 from tiny_harness import __version__
 from tiny_harness.config import Settings
 from tiny_harness.errors import ConfigError, EmbeddedTemporalError
+from tiny_harness.home import ConfigSource, ensure_default_config, resolve_config_path
 
 CONFIG_EXIT = 2
 EMBEDDED_EXIT = 1
 SIGTERM_EXIT = 143
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="tiny-harness", description="A tiny agent harness.")
+def _shown(path: Path) -> str:
+    """The path as a user would type it: ``~/…`` under the home directory."""
+    try:
+        return f"~/{path.relative_to(Path.home())}"
+    except ValueError:
+        return str(path)
+
+
+def config_epilog(source: ConfigSource) -> str:
+    """The help epilog naming the configuration file in effect and its origin (R1.5)."""
+    if source.origin == "flag":
+        return f"configuration: {source.path} (--config)"
+    return f"configuration: {_shown(source.path)} (default; --config overrides)"
+
+
+def build_parser(source: ConfigSource | None = None) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="tiny-harness",
+        description="A tiny agent harness. With no command, opens the terminal renderer.",
+        epilog=config_epilog(source) if source is not None else None,
+    )
     parser.add_argument("--version", action="version", version=f"tiny-harness {__version__}")
     parser.add_argument(
         "--config", type=Path, default=None, help="TOML configuration file (secrets from env)"
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=False)
     serve = sub.add_parser("serve", help="run the A2A server")
     serve.add_argument("--with-worker", action="store_true", help="also run a worker in-process")
     sub.add_parser("worker", help="run a Temporal worker and ensure the heartbeat schedule")
@@ -91,11 +116,33 @@ def tui_participant(args: argparse.Namespace) -> str | None:
     return participant if valid else None
 
 
+def parse(argv: Sequence[str] | None) -> argparse.Namespace:
+    """Parse ``argv``; a pre-pass reads only ``--config`` so ``--help`` can name the file
+    in effect (R1.5) without creating it. No subcommand is ``tui`` with its defaults."""
+    pre = argparse.ArgumentParser(prog="tiny-harness", add_help=False)
+    pre.add_argument("--config", type=Path, default=None)
+    known, _ = pre.parse_known_args(argv)
+    args = build_parser(resolve_config_path(known.config)).parse_args(argv)
+    if args.command is None:  # R1.2: bare `tiny-harness` is `tiny-harness tui`
+        args.command, args.url, args.participant = "tui", None, None
+    return args
+
+
+def config_path(explicit: Path | None) -> Path:
+    """The configuration file to load; the default one is created if missing (R2.4)."""
+    source = resolve_config_path(explicit)
+    if source.origin == "flag":
+        return source.path
+    path, created = ensure_default_config()
+    if created:
+        print(f"created default configuration {path}", file=sys.stderr)
+    return path
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parse(argv)
     try:
-        settings = load(args.config)
+        settings = load(config_path(args.config))
     except ConfigError as exc:
         print(
             f"configuration error: {exc.message} ({exc.detail.get('variable', '')})",

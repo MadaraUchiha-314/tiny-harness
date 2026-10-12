@@ -205,7 +205,7 @@ negative test.
   - _Requirements:_ R4.2–4.4, R6.7
   - _Test:_ T3 `tests/contract/test_card.py` snapshot,
     `tests/contract/test_ext_schemas.py`
-- [ ] 15. CLI: bare command, config wiring, help epilog
+- [x] 15. CLI: bare command, config wiring, help epilog
   - `add_subparsers(required=False)`. No subcommand dispatches to `tui`.
   - `main` resolves the configuration and calls `ensure_default_config` for the default
     origin, before `Settings.load`.

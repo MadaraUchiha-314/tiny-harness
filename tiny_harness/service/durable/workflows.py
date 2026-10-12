@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from datetime import timedelta
 from typing import Final, Literal, cast
 
@@ -183,6 +184,13 @@ def text_message(task: HarnessTask, text: str, *, message_id: str) -> Message:
         role=A2ARole.ROLE_AGENT,
         parts=[Part(text=text)],
     )
+
+
+def sub_task_name(goal: str, index: int) -> str:
+    """A ``/sub-task`` child's name: the first line of its description, at most 60
+    characters, or ``sub-task <index>`` when it has none."""
+    first_line = goal.strip().splitlines()[0] if goal.strip() else f"sub-task {index}"
+    return first_line[:60]
 
 
 def child_extension(
@@ -359,6 +367,7 @@ class TaskWorkflow:
         self.pending_help: HelpRequest | None = None
         self.children: list[ChildRef] = []
         self.notes: list[str] = []
+        self.history_notes: list[str] = []
         self.attempts: dict[str, int] = {}
         self.cancel_reason: str | None = None
         self.interrupted = False
@@ -561,6 +570,12 @@ class TaskWorkflow:
         while self.mailbox:
             out = await self._classify()
             if out is None:
+                for note in self.history_notes:  # e.g. a participant's /sub-task (R9)
+                    state = state.append(
+                        MessageItem(role=MessageRole.USER, text=note, source="agent")
+                    )
+                self.history_notes = []
+                self.state = state
                 continue
             accepted += 1
             if out.task is not None:  # a task envelope changed the extension (R15.1)
@@ -988,6 +1003,15 @@ class TaskWorkflow:
         if result.spawn is not None:
             ref = await self.spawn_sub_task(self.task, result.spawn.goal, sender)
             changed = True
+            # The agent normally creates its own sub-tasks; one a participant created is
+            # noted in the history, so its later updates do not arrive unexplained. It is
+            # a history note, not a wake-up note: ``_dispatch`` adds it to the history
+            # without starting a turn, and the name is quoted data (abuse case 5).
+            name = json.dumps(sub_task_name(result.spawn.goal, len(self.children)))
+            self.history_notes.append(
+                f"Participant {sender} created sub-task {ref.task_id} ({name}); "
+                "its updates will arrive here."
+            )
         if changed:  # R7.3, R8.3, R9.1: stored before the reply is seen
             await self.persist(None)
         reply = result.reply
@@ -1134,10 +1158,9 @@ class TaskWorkflow:
             Participant(id=reporter, kind=sender.kind if sender else "human", role=Role.REPORTER),
             Participant(id=self.start.config.agent, kind="agent", role=Role.ASSIGNEE),
         )
-        first_line = goal.strip().splitlines()[0] if goal.strip() else f"sub-task {index}"
         ext = child_extension(
             task,
-            name=first_line[:60],
+            name=sub_task_name(goal, index),
             goal=goal,
             participants=participants,
             lifecycle="conversation",

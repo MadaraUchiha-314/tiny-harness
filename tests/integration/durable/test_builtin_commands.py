@@ -122,6 +122,46 @@ async def test_sub_task_creates_a_linked_conversation_task_and_replies_with_its_
     assert len(h.llm.requests) == 1
 
 
+async def test_sub_task_notifies_the_parent_without_a_model_turn(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Built-in commands
+    Requirement: docs/specs/issue-25/requirements.md#R9
+
+    Scenario: a participant's /sub-task is noted in the parent's history
+        Given a conversation task awaiting the next message
+        When the reporter sends "/sub-task check the ledger"
+        Then the model is not called for the creation
+        And the parent's next model request carries a note that alice created the
+            sub-task, its id and name, before the reporter's next message
+        So the parent is not surprised when the sub-task's updates arrive later
+    """
+    h = await with_builtins(Harness([scripted("Refunded."), scripted("Noted.")]))
+    tq, tid = ids()
+    child_id = f"{tid}.1"
+    async with h.worker(env.client, tq):
+        handle = await send(
+            env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
+        )
+        await awaiting_next_message(handle)
+        await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox,
+            message("/sub-task check the ledger", task_id=tid, message_id="m2"),
+        )
+        await until(handle, lambda t: len(t.ext.sub_tasks) == 1)
+        assert len(h.llm.requests) == 1
+        await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox, message("any news?", task_id=tid, message_id="m3")
+        )
+        await until(handle, replied("Noted."))
+        await close(handle)
+    texts = [getattr(item, "text", "") for item in h.llm.requests[1].input]
+    note = next(i for i, t in enumerate(texts) if f"created sub-task {child_id}" in t)
+    assert "alice" in texts[note] and '"check the ledger"' in texts[note]
+    assert note < texts.index("[alice] any news?")
+
+
 async def test_model_and_effort_commands_change_the_next_model_request(
     env: WorkflowEnvironment,
 ) -> None:

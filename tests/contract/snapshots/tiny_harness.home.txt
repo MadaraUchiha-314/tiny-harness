@@ -1,0 +1,7 @@
+# tiny_harness.home
+CONFIG_NAME = str
+DEFAULT_HOME = PosixPath
+model ConfigSource(path: <class 'pathlib.Path'>, origin: typing.Literal['flag', 'default'])
+def default_config_text(home: 'Path') -> 'str'
+def ensure_default_config(home: 'Path | None' = None, *, geteuid: 'Callable[[], int]' = <built-in function geteuid>) -> 'tuple[Path, bool]'
+def resolve_config_path(explicit: 'Path | None', *, home: 'Path | None' = None) -> 'ConfigSource'

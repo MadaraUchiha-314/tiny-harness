@@ -15,11 +15,13 @@ unknown action, a payload or any extra field is refused.
 
 from __future__ import annotations
 
+import uuid
 from typing import Literal, cast
 
-from a2a.types import Message
+from a2a.types import Message, Part
+from a2a.types import Role as A2ARole
 from a2a.utils.errors import InvalidParamsError
-from google.protobuf import json_format
+from google.protobuf import json_format, struct_pb2
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from tiny_harness.harness.core import Role, TaskExtensionData
@@ -86,6 +88,27 @@ def is_control(message: Message) -> bool:
     return envelope is not None and envelope.kind == "control"
 
 
+def complete_message(
+    task_id: str, *, participant_id: str, context_id: str = "", message_id: str | None = None
+) -> Message:
+    """The message that asks to complete ``task_id`` on behalf of ``participant_id``: one
+    ``control`` envelope, ``{"kind": "control", "action": "complete"}`` (issue-25 R5.1,
+    R11.3). Send it with ``SendMessage`` like any message; the harness refuses it from a
+    watcher or a stranger, and while a sub-task is still open."""
+    value = struct_pb2.Value()
+    value.struct_value.update({"kind": "control", "action": "complete"})
+    message = Message(
+        message_id=message_id or uuid.uuid4().hex,
+        task_id=task_id,
+        role=A2ARole.ROLE_USER,
+        parts=[Part(data=value, media_type=EVENT_MEDIA_TYPE)],
+    )
+    if context_id:
+        message.context_id = context_id
+    message.metadata.update({"participant_id": participant_id})
+    return message
+
+
 def controls_task(ext: TaskExtensionData, participant_id: str | None) -> bool:
     """Whether ``participant_id`` may complete or cancel the task: on it in a role other
     than ``watcher`` (abuse case 4)."""
@@ -127,6 +150,7 @@ __all__ = [
     "EnvelopeRefused",
     "EventEnvelope",
     "apply_task_envelope",
+    "complete_message",
     "controls_task",
     "envelope_of",
     "is_control",

@@ -213,7 +213,7 @@ negative test.
   - _Depends on:_ 1
   - _Requirements:_ R1.1–1.5, R2.1–2.4
   - _Test:_ T1 `tests/unit/service/test_cli.py`
-- [ ] 16. SDK parity and the public API
+- [x] 16. SDK parity and the public API
   - Exports: `tiny_harness.home`, the commands package, the sub-state constants and task
     completion.
   - `running_harness(..., plugins=…, commands=…, builtin_commands=…)`.

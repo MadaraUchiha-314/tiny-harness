@@ -36,6 +36,7 @@ from pydantic import SecretStr
 
 from tiny_harness.errors import ProviderError, RetryableProviderError
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.models.json_args import loads_arguments
 from tiny_harness.harness.models.llm import (
     LLM,
     FinishReason,
@@ -156,7 +157,7 @@ def parse_response(response: Response, names: WireNames | None = None) -> LLMRes
                     refused = True
                     texts.append(part.refusal)
         elif isinstance(item, ResponseFunctionToolCall):
-            arguments = cast(object, json.loads(item.arguments or "{}"))
+            arguments = loads_arguments(item.arguments)
             if not isinstance(arguments, dict):
                 arguments = {"value": arguments}
             calls.append(
@@ -327,7 +328,7 @@ class OpenAILLM(LLM):
                 elif isinstance(event, ResponseOutputItemDoneEvent) and isinstance(
                     event.item, ResponseFunctionToolCall
                 ):
-                    arguments = cast(object, json.loads(event.item.arguments or "{}"))
+                    arguments = loads_arguments(event.item.arguments)
                     if isinstance(arguments, dict):
                         yield LLMStreamEvent(
                             kind="tool_call",

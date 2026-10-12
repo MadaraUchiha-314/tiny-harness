@@ -614,7 +614,10 @@ class Activities:
         token = secrets.token_urlsafe(32)  # 256 bits (R1.3)
         try:
             config_id = await agent.set_push_config(
-                arg.remote_task_id, push_url(self.push_base_url, arg.task_id), token
+                arg.remote_task_id,
+                push_url(self.push_base_url, arg.task_id),
+                token,
+                participant=arg.participant,
             )
         except Exception as exc:  # any failure falls back to follow (R1.5)
             # The type only: an error's text may echo the request, and so the token.
@@ -633,9 +636,9 @@ class Activities:
         agent = await self._remote(arg.agent)
         if not isinstance(agent, RemoteAgent):
             raise ApplicationError("not a remote agent", non_retryable=True)
-        task = await agent.get_task(arg.remote_task_id)
+        task = await agent.get_task(arg.remote_task_id, participant=arg.participant)
         out = remote_out(
-            arg.remote_task_id, task.status.state, _sub_state(task.metadata), _status_text(task)
+            arg.remote_task_id, task.status.state, sub_state_of(task.metadata), _status_text(task)
         )
         return self.engine.runner.redactor.scrub(out)
 
@@ -671,7 +674,9 @@ class Activities:
         """Remove the stand-in's push config from the remote task (R5.1)."""
         agent = await self._remote(arg.agent)
         if isinstance(agent, RemoteAgent):
-            await agent.delete_push_config(arg.remote_task_id, arg.config_id)
+            await agent.delete_push_config(
+                arg.remote_task_id, arg.config_id, participant=arg.participant
+            )
 
     # --- heartbeat (R16) --------------------------------------------------------------
 
@@ -751,7 +756,7 @@ def describe_action(action: Action) -> str:
     )
 
 
-def _sub_state(metadata: struct_pb2.Struct) -> str | None:
+def sub_state_of(metadata: struct_pb2.Struct) -> str | None:
     """The status extension's sub-state in an event's or a task's metadata (R4.1)."""
     if STATUS_EXT_KEY not in metadata.fields:
         return None
@@ -792,12 +797,12 @@ async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
         if isinstance(event, Task):
             remote_task_id = event.id
             state = event.status.state
-            sub_state = _sub_state(event.metadata)
+            sub_state = sub_state_of(event.metadata)
             text = _status_text(event) or text
         elif isinstance(event, TaskStatusUpdateEvent):
             remote_task_id = event.task_id or remote_task_id
             state = event.status.state
-            sub_state = _sub_state(event.metadata)
+            sub_state = sub_state_of(event.metadata)
             text = _status_text(event) or text
         elif isinstance(event, Message):
             text = "\n".join(p.text for p in event.parts if p.HasField("text"))
@@ -809,11 +814,14 @@ async def _first_change(agent: RemoteAgent, arg: FollowIn) -> RemoteTurnOut | No
     """The first event on the task's stream whose state or text differs from the known
     pair; ``None`` when the stream ends without one."""
     text = arg.known_text
-    async for event in agent.subscribe(arg.remote_task_id, extensions=SUPPORTED_EXTENSIONS):
+    events = agent.subscribe(
+        arg.remote_task_id, extensions=SUPPORTED_EXTENSIONS, participant=arg.participant
+    )
+    async for event in events:
         if isinstance(event, Task | TaskStatusUpdateEvent):
             text = _status_text(event) or text
             out = remote_out(
-                arg.remote_task_id, event.status.state, _sub_state(event.metadata), text
+                arg.remote_task_id, event.status.state, sub_state_of(event.metadata), text
             )
             if (out.state_name, out.text) != (arg.known_state, arg.known_text):
                 return out

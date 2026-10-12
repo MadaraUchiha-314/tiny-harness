@@ -18,13 +18,20 @@ from typing import Final
 import httpx
 from a2a.server.context import ServerCallContext
 from a2a.server.tasks import BasePushNotificationSender, PushNotificationConfigStore
-from a2a.types import AuthenticationInfo, StreamResponse, TaskPushNotificationConfig
+from a2a.types import (
+    AuthenticationInfo,
+    StreamResponse,
+    Task,
+    TaskPushNotificationConfig,
+    TaskStatusUpdateEvent,
+)
 from google.protobuf import json_format
 from pydantic import SecretStr
 from temporalio.client import Client
 
 from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.persistence import Filter, PushConfigRecord, Store
+from tiny_harness.service.durable.activities import remote_out, sub_state_of
 from tiny_harness.service.durable.models import EventEntry, PushIn, entry_event
 from tiny_harness.service.push_token import push_url, token_digest
 
@@ -127,6 +134,19 @@ class PushSink:
         await self._sender.send_notification(task_id, event)  # type: ignore[arg-type]
 
 
+def _claimed_state(response: StreamResponse) -> str:
+    """The state a push says the task is in, mapped as a turn's end is (issue-27 R2.5)."""
+    if response.HasField("task"):
+        event: Task | TaskStatusUpdateEvent = response.task
+    elif response.HasField("status_update"):
+        event = response.status_update
+    else:
+        return ""
+    if not event.HasField("status"):
+        return ""
+    return remote_out("", event.status.state, sub_state_of(event.metadata), None).state_name
+
+
 def _remote_task_id(response: StreamResponse) -> str:
     if response.HasField("task"):
         return response.task.id
@@ -171,7 +191,11 @@ class PushReceiver:
         try:
             await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
                 "remote_push",
-                PushIn(token_digest=token_digest(token), remote_task_id=remote_task_id),
+                PushIn(
+                    token_digest=token_digest(token),
+                    remote_task_id=remote_task_id,
+                    claimed_state=_claimed_state(response),
+                ),
             )
         except Exception:  # any failure is a refusal, and says nothing about why
             log.info("push for %s refused: not accepted", task_id)

@@ -86,6 +86,11 @@ remote agent to tell my harness when its task changes, so that my harness need n
    not missed.
 5. IF the registration fails THEN the stand-in SHALL log the failure without the token
    and SHALL fall back to following the task (Requirement 3).
+6. On every call it makes on the remote task (send, get, subscribe, and set or delete a
+   push config), the stand-in SHALL assert in `X-Participant-Id` the participant id it
+   delegated as. A tiny-harness peer answers a task-scoped call only for a participant
+   (decision-003). Without the header, every such call, including a reply to a parked
+   peer's question, is answered "task not found".
 
 ### Requirement 2 — Receive a push and relay the change
 
@@ -115,6 +120,10 @@ to it.
    the row and SHALL NOT wake the parent's model.
 8. WHEN a push arrives while a turn's stream is open THEN the stand-in SHALL apply it only
    after the turn ends, and only if the fetched state still differs.
+9. WHEN the fetched state differs from the state the push's body claims THEN the stand-in
+   SHALL fetch again after 1, 2 and 4 seconds, stopping early once the two agree. A remote
+   agent may push before its own `GetTask` shows the change, and without the re-fetch that
+   change would be lost until the next push.
 
 ### Requirement 3 — Follow a parked remote task when push is unavailable
 
@@ -191,8 +200,8 @@ anyone who can reach the server, can call. Everything that arrives on it is untr
   - *Status text → parent's model.* As today, a note the model reads as data.
 - **Abuse cases (EARS):**
   1. WHEN a push has no `X-A2A-Notification-Token` header, or a token that does not match
-     the one registered for `{task_id}`, THEN the server SHALL answer `401` and SHALL
-     change no workflow, record or row.
+     the one registered for `{task_id}`, THEN the server SHALL answer `401`, SHALL record
+     no update and run no activity in any workflow, and SHALL change no record or row.
   2. WHEN `{task_id}` names no running stand-in, a stand-in that registered no push
      config, or a workflow that is not a stand-in (a `TaskWorkflow`) THEN the server SHALL
      answer exactly as for a wrong token, so that the endpoint does not reveal which task
@@ -205,9 +214,12 @@ anyone who can reach the server, can call. Everything that arrives on it is untr
      server-wide request size and per-peer rate limits SHALL apply to the endpoint too.
   6. WHEN an attacker with a valid token sends a push whose body claims a terminal state
      THEN the stand-in SHALL apply only the state its own `GetTask` returns, so that a
-     leaked token can cause, at most, extra `GetTask` calls (bounded by the rate limit).
+     leaked token can cause, at most, four `GetTask` calls per push (Requirement 2.9),
+     with pushes bounded by the rate limit.
   7. The token SHALL NOT appear in logs, traces, workflow history, activity inputs or
      results, the store, or evidence. The harness SHALL keep only a SHA-256 digest of it.
+     This includes the A2A SDK's own DEBUG log of each JSON-RPC request body, which on a
+     tiny-harness server would hold every push token a client registers.
   8. WHEN the remote task's status text contains instructions THEN the parent SHALL pass
      it to the model only as a sub-task note, which the model reads as data, as today.
   9. The push config's URL SHALL be built from `server.base_url` and the local task id

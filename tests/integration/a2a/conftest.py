@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -24,6 +24,7 @@ from tiny_harness.service.a2a import (
     HarnessExecutor,
     HarnessRequestHandler,
     PollingEventBridge,
+    PushReceiver,
     PushSink,
     StorePushConfigStore,
     TemporalTaskStore,
@@ -94,12 +95,18 @@ async def make_server(
     task_queue: str,
     harness: Harness | None = None,
     sticky: bool = True,
+    push_to: Callable[[httpx.Request], Awaitable[httpx.Response]] | None = None,
+    push_base_url: str | None = None,
 ) -> Server:
+    """``push_to`` delivers this server's outbound pushes (default: captured, ``200``);
+    ``push_base_url`` is where this server's stand-ins ask remote agents to push."""
     h = harness or await Harness(list(responses)).bind()
     pushes: list[httpx.Request] = []
 
     async def capture(request: httpx.Request) -> httpx.Response:
         pushes.append(request)
+        if push_to is not None:
+            return await push_to(request)
         return httpx.Response(200)
 
     push_http = httpx.AsyncClient(transport=httpx.MockTransport(capture))
@@ -120,10 +127,17 @@ async def make_server(
         push_config_store=push_store,
         push_sender=BasePushNotificationSender(push_http, push_store),
     )
-    app = create_app(handler, card, config=ServerConfig(base_url=HttpUrl("http://harness")))
+    app = create_app(
+        handler,
+        card,
+        config=ServerConfig(base_url=HttpUrl("http://harness")),
+        push=PushReceiver(environment.client),
+    )
     worker = h.worker(
         environment.client, task_queue, sink=PushSink(push_store, push_http), sticky=sticky
     )
+    assert h.activities is not None
+    h.activities.push_base_url = push_base_url
     return Server(harness=h, app=app, card=card, worker=worker, handler=handler, pushes=pushes)
 
 

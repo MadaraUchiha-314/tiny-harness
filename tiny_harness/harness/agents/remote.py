@@ -35,6 +35,7 @@ from tiny_harness.harness.agents.base import SUPPORTED_EXTENSIONS, A2AEvent, Age
 from tiny_harness.harness.entities import EntityKind, EntityRef
 
 EXTENSIONS_HEADER = "A2A-Extensions"
+PARTICIPANT_HEADER = "X-Participant-Id"
 
 type UpdateMode = Literal["auto", "follow", "off"]
 
@@ -119,16 +120,27 @@ class RemoteAgent(Agent):
     def advertised_extensions(self) -> frozenset[str]:
         return frozenset(e.uri for e in self.agent_card.capabilities.extensions)
 
-    def _context(self, extensions: Sequence[str]) -> ClientCallContext | None:
+    def _context(
+        self, extensions: Sequence[str], *, participant: str | None = None
+    ) -> ClientCallContext | None:
+        parameters: dict[str, str] = {}
         active = [uri for uri in extensions if uri in self.advertised_extensions]
-        if not active:
-            return None
-        return ClientCallContext(service_parameters={EXTENSIONS_HEADER: ", ".join(active)})
+        if active:
+            parameters[EXTENSIONS_HEADER] = ", ".join(active)
+        if participant:
+            # A tiny-harness peer answers a task-scoped call only for a participant
+            # (decision-003): the harness asserts the id it delegated as.
+            parameters[PARTICIPANT_HEADER] = participant
+        return ClientCallContext(service_parameters=parameters) if parameters else None
 
     async def send_message(
         self, request: Message, *, extensions: Sequence[str] = ()
     ) -> AsyncIterator[A2AEvent]:
-        context = self._context(extensions)
+        # The header asserts the participant the message names: a tiny-harness peer
+        # refuses a reply to an existing task without it (decision-003).
+        claimed = request.metadata.fields.get("participant_id")
+        participant = claimed.string_value if claimed is not None else None
+        context = self._context(extensions, participant=participant)
         async for response in self._client.send_message(
             SendMessageRequest(message=request), context=context
         ):
@@ -137,33 +149,52 @@ class RemoteAgent(Agent):
     async def cancel_task(self, task_id: str) -> Task:
         return await self._client.cancel_task(CancelTaskRequest(id=task_id))
 
-    async def get_task(self, task_id: str) -> Task:
-        return await self._client.get_task(GetTaskRequest(id=task_id))
+    async def get_task(self, task_id: str, *, participant: str | None = None) -> Task:
+        return await self._client.get_task(
+            GetTaskRequest(id=task_id), context=self._context((), participant=participant)
+        )
 
     async def subscribe(
-        self, task_id: str, *, extensions: Sequence[str] = ()
+        self,
+        task_id: str,
+        *,
+        extensions: Sequence[str] = (),
+        participant: str | None = None,
     ) -> AsyncIterator[A2AEvent]:
-        context = self._context(extensions)
+        context = self._context(extensions, participant=participant)
         async for response in self._client.subscribe(
             SubscribeToTaskRequest(id=task_id), context=context
         ):
             yield unwrap(response)
 
-    async def set_push_config(self, task_id: str, url: str, token: str) -> str:
+    async def set_push_config(
+        self, task_id: str, url: str, token: str, *, participant: str | None = None
+    ) -> str:
         """Register ``url`` for the task's updates (issue-27 R1); the remote assigns the
         config id. The token goes to the remote agent and nowhere else."""
         config = await self._client.create_task_push_notification_config(
-            TaskPushNotificationConfig(task_id=task_id, url=url, token=token)
+            TaskPushNotificationConfig(task_id=task_id, url=url, token=token),
+            context=self._context((), participant=participant),
         )
         return config.id
 
-    async def delete_push_config(self, task_id: str, config_id: str) -> None:
+    async def delete_push_config(
+        self, task_id: str, config_id: str, *, participant: str | None = None
+    ) -> None:
         await self._client.delete_task_push_notification_config(
-            DeleteTaskPushNotificationConfigRequest(task_id=task_id, id=config_id)
+            DeleteTaskPushNotificationConfigRequest(task_id=task_id, id=config_id),
+            context=self._context((), participant=participant),
         )
 
     async def close(self) -> None:
         await self._client.close()
 
 
-__all__ = ["EXTENSIONS_HEADER", "RemoteAgent", "UpdateMode", "unwrap", "validate_card"]
+__all__ = [
+    "EXTENSIONS_HEADER",
+    "PARTICIPANT_HEADER",
+    "RemoteAgent",
+    "UpdateMode",
+    "unwrap",
+    "validate_card",
+]

@@ -60,4 +60,29 @@ def configure_logging(
     return logger
 
 
-__all__ = ["RECORD_FIELDS", "JsonFormatter", "configure_logging"]
+SDK_BODY_LOGGER = "a2a.server.routes.jsonrpc_dispatcher"
+
+
+class DropRequestBodies(logging.Filter):
+    """Drop the A2A SDK's DEBUG ``Request body: ...`` record: a body can carry a push
+    config's token (issue-27 abuse case 7), and the record is outside the redactor's reach."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not (isinstance(record.msg, str) and record.msg.startswith("Request body"))
+
+
+def drop_sdk_request_bodies() -> None:
+    """Install ``DropRequestBodies`` on the SDK's dispatcher logger; idempotent."""
+    logger = logging.getLogger(SDK_BODY_LOGGER)
+    if not any(isinstance(f, DropRequestBodies) for f in logger.filters):
+        logger.addFilter(DropRequestBodies())
+
+
+__all__ = [
+    "RECORD_FIELDS",
+    "SDK_BODY_LOGGER",
+    "DropRequestBodies",
+    "JsonFormatter",
+    "configure_logging",
+    "drop_sdk_request_bodies",
+]

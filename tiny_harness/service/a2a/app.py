@@ -28,6 +28,7 @@ from tiny_harness.service.a2a.push import (
     PushReceiver,
 )
 from tiny_harness.service.a2a.task_store import PARTICIPANT_HEADER, PARTICIPANT_STATE_KEY
+from tiny_harness.service.o11y.logging import drop_sdk_request_bodies
 
 MonitorSource = Callable[[], Awaitable[JsonObject]]
 
@@ -51,6 +52,7 @@ def create_app(
     monitor: MonitorSource | None = None,
     push: PushReceiver | None = None,
 ) -> Starlette:
+    drop_sdk_request_bodies()  # a request body may carry a push token (issue-27)
     builder = HarnessContextBuilder()
 
     async def monitor_view(request: Request) -> JSONResponse:

@@ -14,6 +14,10 @@ How a deployment is described and how the processes come up. Lives in
 - `Settings` SHALL be the sections `temporal`, `openai`, `anthropic` (optional),
   `server`, `heartbeat`, `plugins`, `agents`, `store`, `o11y`, `retries`, `context` and
   `retention`, every model `extra="forbid"`.
+- Each `agents` entry SHALL take `id`, `url`, `version` and, from issue-27, `updates`
+  (`auto`, `follow` or `off`; default `auto`) and `follow_interval` (default 5 s, at least
+  1 s); any other `updates` value, or a shorter interval, exits with status 2 naming
+  `agents.<n>.<key>`.
 - `[temporal] mode` SHALL be `remote` (the default) or `embedded`; any other value exits
   with status 2 naming `temporal.mode`. Remote mode requires `address`, `namespace` and
   `TEMPORAL_API_KEY` and refuses `[temporal.embedded]`; embedded mode refuses `address`,
@@ -93,3 +97,4 @@ How a deployment is described and how the processes come up. Lives in
 | issue-19 | `[openai] base_url`, `api`, `context_window_tokens`; `OPENAI_API_KEY` optional with a `base_url`; `examples/demo/config.ollama.toml` | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22), [decision-006](../decisions/decision-006.md) |
 | issue-23 | `TINY_HARNESS_PUSH_KEY` and `Settings.push_key` removed; a set variable is reported as ignored | [spec](../specs/issue-23/), [PR #24](https://github.com/MadaraUchiha-314/tiny-harness/pull/24) |
 | issue-25 | The default file `~/.tiny-harness/config.toml` (created safely, `--config` wins); bare `tiny-harness` runs the TUI; `--help` names the file; `models` and `reasoning_effort`; `running_harness(plugins=, commands=, builtin_commands=)` and `complete_message` | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
+| issue-27 | `agents[].updates` and `agents[].follow_interval` | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |

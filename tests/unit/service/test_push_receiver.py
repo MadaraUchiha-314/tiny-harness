@@ -53,7 +53,9 @@ async def test_a_push_with_a_token_wakes_its_stand_in_with_the_digest() -> None:
     assert await receiver(fake).receive("t-1.1", TOKEN, BODY) == 204
     ((workflow_id, name, arg),) = fake.updates
     assert (workflow_id, name) == ("t-1.1", "remote_push")
-    assert arg == PushIn(token_digest=token_digest(TOKEN), remote_task_id="remote-1")
+    assert arg == PushIn(
+        token_digest=token_digest(TOKEN), remote_task_id="remote-1", claimed_state="CANCELED"
+    )
     assert TOKEN not in arg.model_dump_json()
 
 

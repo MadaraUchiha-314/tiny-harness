@@ -352,10 +352,12 @@ next, so its ``start_to_close`` stays finite (issue-27 R3)."""
 
 
 class RemoteTaskIn(ActivityIn):
-    """A remote task to act on; ``task_id`` is the local stand-in's id."""
+    """A remote task to act on; ``task_id`` is the local stand-in's id and ``participant``
+    the id this harness delegated as, which a tiny-harness peer requires."""
 
     agent: str
     remote_task_id: str
+    participant: str = ""
 
 
 class RemoteWatch(_Frozen):
@@ -389,6 +391,9 @@ class PushIn(_Frozen):
 
     token_digest: str
     remote_task_id: str
+    claimed_state: str = ""
+    """The state the body claims, as the stand-in would record it: only a hint for when to
+    fetch again, never applied (abuse case 6)."""
 
 
 # --- heartbeat (R16) -------------------------------------------------------------------

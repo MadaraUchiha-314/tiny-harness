@@ -36,8 +36,10 @@ body. It fetches the task from the agent it registered, so a forged or replayed 
 cause one extra `GetTask` and nothing else. **The token never enters workflow history.**
 The registering activity generates it, hands it to the remote agent, and returns only its
 SHA-256 digest. The endpoint hashes the presented token, and the update's **validator**
-compares digests with `hmac.compare_digest`. Temporal records nothing for a rejected
-update, so a refused push leaves no trace in the workflow.
+compares digests with `hmac.compare_digest`. Temporal records no update for a rejected
+one. At most an empty workflow task is left: Temporal's test server persists it, while
+servers with speculative workflow tasks drop it. A refused push therefore runs no
+activity and changes no state.
 
 ## Architecture
 
@@ -122,6 +124,13 @@ def subscribe(self, task_id: str) -> AsyncIterator[A2AEvent]: ...
 `set_push_config` sends `TaskPushNotificationConfig(task_id, url, token)` with no `id`,
 and returns the id the remote assigned.
 
+Each task-scoped call takes `participant=`, sent as `X-Participant-Id` beside
+`A2A-Extensions` (R1.6). `send_message` takes it from the message's own `participant_id`.
+Without it a tiny-harness peer answers "task not found" to every call after the first
+message, including a reply to its question. That was a latent bug in replies to a parked
+peer, which no earlier test reached. The workflow passes `start.config.agent` in
+`RemoteTaskIn.participant`.
+
 ### Turn mapping, shared (`service/durable/activities.py`)
 
 The mapping `_remote_turn` applies at the end of a stream moves into one function,
@@ -178,6 +187,8 @@ New state: `watch: RemoteWatch | None`, `push_pending: bool`, `last: RemoteTurnO
 @workflow.update
 async def remote_push(self, push: PushIn) -> None:
     self.push_pending = True
+    self.claimed = push.claimed_state      # a hint for re-fetching, never applied
+    self.recheck = None
 
 @remote_push.validator
 def _check_push(self, push: PushIn) -> None:
@@ -188,7 +199,17 @@ def _check_push(self, push: PushIn) -> None:
         raise ValueError("push not accepted")   # one message for every refusal
 ```
 
-`PushIn(token_digest: str, remote_task_id: str)`: the digest, never the token.
+`PushIn(token_digest, remote_task_id, claimed_state)`: the digest, never the token. The
+receiver maps the body's state with `remote_out`, so the claim and a fetch compare like
+for like.
+
+**Re-fetch on disagreement (R2.9).** In testing, a tiny-harness remote pushed its
+`CANCELED` event before its own `GetTask` showed it. The stand-in fetched, saw
+`INPUT_REQUIRED`, and waited forever. So after a push-triggered fetch whose state differs
+from `claimed`, the stand-in waits `PUSH_RECHECKS` (1 s, 2 s, 4 s) in turn and fetches
+again, stopping when they agree or the delays run out. Every wait is interruptible by a
+reply, a cancel or a new push, and a new push restarts the sequence. A forged push
+therefore costs at most four `GetTask` calls.
 
 The run loop becomes `turn → (final? end) → park → (reply? turn | ended? end)`. `_park`
 works like this:
@@ -204,8 +225,9 @@ works like this:
      Then return to the caller, which handles the reply or the cancel as today.
    - If `push_pending`: clear it, run `get_remote_task`, and apply the result. On
      `ActivityError`, keep `last` (fail closed).
-   - If the follow finished: when `changed`, apply its result. When it raised, wait
-     `follow_interval` with `workflow.sleep` before the next follow.
+   - If the follow finished: when `changed`, apply its result. When the activity itself
+     failed, wait `FOLLOW_RETRY` (5 s, interruptible) before the next follow. Within an
+     activity, the agent's `follow_interval` paces re-subscription.
    - Apply means: if `(state_name, text)` differs from `last`, set the local state, call
      `_tell_parent`, and store `last`. If `final`, return `ended`.
 3. `_end(state)` sets `closed = True`. It runs `delete_remote_push` when the watch is
@@ -257,6 +279,10 @@ and a category, never the token:
    unknown workflow, a `TaskWorkflow` with no such handler, a closed workflow, an RPC
    error) answers `401`. Success answers `204`.
 
+`create_app` also installs a filter on the SDK's `a2a.server.routes.jsonrpc_dispatcher`
+logger. The filter drops its DEBUG `Request body: …` record, which would otherwise log
+every push token a client registers with this server (abuse case 7).
+
 `create_app` gains `push: PushReceiver | None = None`. When it is set, the route is
 registered beside `/_monitor`, before the SDK's REST routes. The handler reads the
 `Content-Length` header first and refuses an oversized body before reading it. The
@@ -268,10 +294,10 @@ per peer (abuse case 5). `running_harness` constructs `PushReceiver(client)`.
 New frozen models in `service/durable/models.py`:
 
 ```python
-class RemotePushIn(ActivityIn):     agent: str; remote_task_id: str
+class RemotePushIn(ActivityIn):     agent: str; remote_task_id: str; participant: str
 class RemoteWatch(_Frozen):         mode: Literal["push", "follow", "off"]
                                     config_id: str = ""; token_digest: str = ""
-class RemoteTaskIn(ActivityIn):     agent: str; remote_task_id: str
+class RemoteTaskIn(ActivityIn):     agent: str; remote_task_id: str; participant: str = ""
 class FollowIn(ActivityIn):         agent: str; remote_task_id: str
                                     known_state: str; known_text: str = ""
 class FollowOut(_Frozen):           changed: bool; out: RemoteTurnOut | None = None
@@ -301,8 +327,8 @@ How each requirements-phase boundary is enforced:
 |----------|-------------|
 | Network → push endpoint | `LimitsMiddleware` (size, per-peer rate) and then `MAX_PUSH_BYTES`. A token is required before any Temporal call. |
 | Push endpoint → stand-in | The URL names the workflow. The update validator checks the digest in constant time, that the task id equals `remote_task_id`, `mode == "push"` and `not closed`. Only `RemoteTaskWorkflow` has the handler. Every refusal is one `401`. |
-| Push body → state | Never applied. `push_pending` only triggers `GetTask` on the agent from the registry (abuse case 6). |
-| Token at rest | Generated and used inside `register_remote_push` only. History, the store and logs see `sha256(token)` alone (abuse case 7). Secrets of the redactor are unaffected. |
+| Push body → state | Never applied. `push_pending` only triggers `GetTask` on the agent from the registry; the claimed state only decides whether to fetch again, up to three times (abuse case 6). |
+| Token at rest | Generated and used inside `register_remote_push` only. History, the store and logs see `sha256(token)` alone. The SDK's request-body DEBUG log is filtered on the receiving server (abuse case 7). |
 | Stand-in → remote agent | The existing card validation. The URL is built from `server.base_url` and the local id (abuse case 9). |
 | Status text → parent model | Unchanged. A `child_done` summary becomes a sub-task note, which the model reads as data (abuse case 8). |
 
@@ -311,7 +337,8 @@ the size checks and the parse step. Case 6 is the doorbell rule. Case 7 is the d
 the activity boundary. Case 9 is `push_url`.
 
 **Residual risks.** A peer that knows a running stand-in's id and its token can make the
-harness call `GetTask` up to `rate_limit_per_minute` times a minute. A remote agent that
+harness call `GetTask` up to four times per push, for `rate_limit_per_minute` pushes a
+minute. A remote agent that
 leaks its own stored token gives the same, and nothing more. A remote agent can ignore
 `DeleteTaskPushNotificationConfig`, but later pushes to an ended stand-in are refused.
 

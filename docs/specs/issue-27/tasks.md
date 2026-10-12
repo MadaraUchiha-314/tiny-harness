@@ -52,21 +52,21 @@ make it pass.
   - _Depends on:_ 2, 3
   - _Requirements:_ R1.1–1.3, R1.5, R2.3, R2.5, R3.1–3.3, R5.1
   - _Test:_ T1 `tests/unit/service/test_remote_out.py`; T2
-- [ ] 6. `RemoteTaskWorkflow`: the watch, the `remote_push` update and its validator,
+- [x] 6. `RemoteTaskWorkflow`: the watch, the `remote_push` update and its validator,
   `_park`, `_end`
   - _Depends on:_ 5
   - _Requirements:_ R1.4, R2.2–2.4, R2.6, R2.8, R3.4, R4.2–4.4, R5.1–5.3
   - _Test:_ T2 `tests/integration/agents/test_remote_updates.py`; T8
-- [ ] 7. Parent `child_done`: note only on terminal or interrupted remote states
+- [x] 7. Parent `child_done`: note only on terminal or interrupted remote states
   - _Depends on:_ none
   - _Requirements:_ R2.7
   - _Test:_ T2 (row moves without a model turn on `WORKING`)
-- [ ] 8. Security tests for every abuse case
+- [x] 8. Security tests for every abuse case
   - Include the token-absence check over workflow history, captured logs and the store.
   - _Depends on:_ 4, 6
   - _Requirements:_ abuse cases 1–9
   - _Test:_ T8 `tests/security/test_remote_push.py`
-- [ ] 9. Documentation
+- [x] 9. Documentation
   - Update `docs/capabilities/remote-agents.md` and `a2a-server.md` (the endpoint), the
     configuration capability doc and the example config. Record them in
     `evidence/documentation.md`.

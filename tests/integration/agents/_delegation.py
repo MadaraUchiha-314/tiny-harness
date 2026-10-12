@@ -1,0 +1,191 @@
+"""Two in-process harnesses for issue-27: a local one that delegates to a remote one.
+
+The remote server's outbound pushes go to the local app over ``httpx.ASGITransport``, so a
+push travels the real route: the SDK's sender, ``LimitsMiddleware``, the endpoint and the
+``remote_push`` update."""
+
+from __future__ import annotations
+
+import asyncio
+import uuid
+from collections.abc import AsyncGenerator, Callable, Sequence
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+
+import httpx
+from a2a.types import Message, Part, Task, TaskState
+from a2a.types import Role as A2ARole
+from google.protobuf import struct_pb2
+from starlette.applications import Starlette
+from temporalio.client import WorkflowHandle
+from temporalio.testing import WorkflowEnvironment
+
+from tests.integration.a2a.conftest import Server, make_server
+from tests.integration.durable.conftest import message, send, start, task
+from tiny_harness.harness.agents import RemoteAgent
+from tiny_harness.harness.agents.remote import UpdateMode
+from tiny_harness.harness.entities import RegistryEntry
+from tiny_harness.harness.models import LLMResponse, scripted
+from tiny_harness.harness.persistence import Filter, PushConfigRecord, TaskRecord
+from tiny_harness.harness.tools import ToolCall
+from tiny_harness.service.durable.models import InboxReceipt
+from tiny_harness.service.durable.workflows import TaskWorkflow
+from tiny_harness.service.inbox import EVENT_MEDIA_TYPE
+
+LOCAL_BASE = "http://local"
+
+
+def delegate(agent: str = "ledger") -> ToolCall:
+    return ToolCall(
+        call_id="c1",
+        name="spawn_subtask",
+        arguments={"name": "Ledger check", "goal": "Check the ledger for 48213", "agent": agent},
+    )
+
+
+def ask(question: str = "Which ledger?") -> ToolCall:
+    """The remote parks its task awaiting an answer from this harness, its reporter."""
+    return ToolCall(
+        call_id="r1",
+        name="ask_participant",
+        arguments={"participant_id": "tiny-harness", "question": question},
+    )
+
+
+def control_complete(task_id: str, participant: str = "tiny-harness") -> Message:
+    value = struct_pb2.Value()
+    value.struct_value.update({"kind": "control", "action": "complete"})
+    msg = Message(
+        message_id=uuid.uuid4().hex,
+        task_id=task_id,
+        role=A2ARole.ROLE_USER,
+        parts=[Part(data=value, media_type=EVENT_MEDIA_TYPE)],
+    )
+    msg.metadata.update({"participant_id": participant})
+    return msg
+
+
+def parent_script() -> list[LLMResponse]:
+    return [
+        scripted("", tool_calls=[delegate()]),
+        scripted("Waiting on the ledger."),
+        scripted("Noted."),
+        scripted("Noted again."),
+    ]
+
+
+@dataclass
+class Delegation:
+    env: WorkflowEnvironment
+    local: Server
+    remote: Server
+    agent: RemoteAgent
+    queue: str
+    task_id: str
+
+    @property
+    def child_id(self) -> str:
+        return f"{self.task_id}.1"
+
+    async def begin(self) -> WorkflowHandle[TaskWorkflow, Task]:
+        return await send(
+            self.env.client,
+            self.queue,
+            start(task(self.task_id, f"ctx-{self.task_id}")),
+            message(
+                "refund 48213",
+                task_id=self.task_id,
+                context_id=f"ctx-{self.task_id}",
+                message_id=f"{self.task_id}:m1",
+            ),
+        )
+
+    async def parked_remote(self) -> str:
+        """The remote task id once the remote has parked it awaiting an answer."""
+        for _ in range(400):
+            for record in await self.remote.harness.store.query(TaskRecord, Filter()):
+                if record.state_name == "INPUT_REQUIRED":
+                    return record.task_id
+            await asyncio.sleep(0.05)
+        raise AssertionError("the remote never parked its task")
+
+    async def push_configs(self, remote_id: str) -> list[PushConfigRecord]:
+        return list(
+            await self.remote.harness.store.query(PushConfigRecord, Filter(task_id=remote_id))
+        )
+
+    async def until_push_config(self, remote_id: str) -> PushConfigRecord:
+        for _ in range(400):
+            if configs := await self.push_configs(remote_id):
+                return configs[0]
+            await asyncio.sleep(0.05)
+        raise AssertionError("the stand-in never registered a push config")
+
+    async def cancel_remote(self, remote_id: str, reason: str = "stopped by the operator") -> None:
+        """A third party ends the remote task on the remote side."""
+        await self.env.client.get_workflow_handle(remote_id).signal("cancel", reason)
+
+    async def complete_remote(self, remote_id: str) -> None:
+        handle = self.env.client.get_workflow_handle(remote_id)
+        receipt = await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            "inbox", control_complete(remote_id), result_type=InboxReceipt
+        )
+        assert receipt.accepted
+
+    async def child(self) -> Task:
+        return await self.env.client.get_workflow_handle(self.child_id).result()
+
+    async def child_state(self) -> int:
+        handle = self.env.client.get_workflow_handle(self.child_id)
+        current = await handle.query("task", result_type=Task)
+        return current.status.state
+
+    async def until_child(self, state: int) -> None:
+        for _ in range(400):
+            if await self.child_state() == state:
+                return
+            await asyncio.sleep(0.05)
+        raise AssertionError(f"the stand-in never reached {TaskState.Name(state)}")
+
+
+@asynccontextmanager
+async def delegation(
+    env: WorkflowEnvironment,
+    parent: Sequence[LLMResponse],
+    remote: Sequence[LLMResponse],
+    *,
+    updates: UpdateMode = "auto",
+    configure: Callable[[RemoteAgent], None] | None = None,
+) -> AsyncGenerator[Delegation]:
+    suffix = uuid.uuid4().hex[:8]
+    apps: dict[str, Starlette] = {}
+
+    async def to_local(request: httpx.Request) -> httpx.Response:
+        response = await httpx.ASGITransport(app=apps["local"]).handle_async_request(request)
+        await response.aread()
+        return response
+
+    remote_server = await make_server(env, remote, task_queue=f"tq-r-{suffix}", push_to=to_local)
+    local_server = await make_server(
+        env, parent, task_queue=f"tq-l-{suffix}", push_base_url=LOCAL_BASE
+    )
+    apps["local"] = local_server.app
+    async with remote_server, local_server:
+        http = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=remote_server.app), base_url="http://harness"
+        )
+        agent = await RemoteAgent.connect("ledger", "http://harness", http=http, updates=updates)
+        if configure is not None:
+            configure(agent)
+        await local_server.harness.registry.add(RegistryEntry(ref=agent.ref, instance=agent))
+        try:
+            yield Delegation(
+                env=env,
+                local=local_server,
+                remote=remote_server,
+                agent=agent,
+                queue=f"tq-l-{suffix}",
+                task_id=f"t-{suffix}",
+            )
+        finally:
+            await agent.close()

@@ -8,6 +8,8 @@ same ``Settings``:
   (A2A server, worker, and Temporal per ``temporal.mode``); everything stops on exit.
 - ``serve(settings)``: run until the process is asked to stop.
 - ``temporal_client(settings)``: just a connected Temporal client, embedded or remote.
+- ``complete_message(task_id, participant_id=...)``: the A2A message that asks to
+  complete a task (issue-25 R5.1, R11.3).
 
 They are imported on first use, so ``tiny-harness --version`` and a configuration error
 do not pay for importing the whole service stack.
@@ -20,6 +22,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tiny_harness.service.durable.temporal import temporal_client
+    from tiny_harness.service.inbox import complete_message
     from tiny_harness.service.process import RunningHarness, running_harness, serve
 
 _EXPORTS = {
@@ -27,6 +30,7 @@ _EXPORTS = {
     "running_harness": "tiny_harness.service.process",
     "serve": "tiny_harness.service.process",
     "temporal_client": "tiny_harness.service.durable.temporal",
+    "complete_message": "tiny_harness.service.inbox",
 }
 
 
@@ -36,4 +40,4 @@ def __getattr__(name: str) -> object:
     return getattr(importlib.import_module(_EXPORTS[name]), name)
 
 
-__all__ = ["RunningHarness", "running_harness", "serve", "temporal_client"]
+__all__ = ["RunningHarness", "complete_message", "running_harness", "serve", "temporal_client"]

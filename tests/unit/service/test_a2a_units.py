@@ -8,7 +8,8 @@ from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
 from google.protobuf import struct_pb2
 
 from tiny_harness.harness.channels import CHANNEL_EXT_URI
-from tiny_harness.harness.core import TASK_EXT_URI, Role
+from tiny_harness.harness.commands import COMMANDS_EXT_URI
+from tiny_harness.harness.core import STATUS_EXT_URI, TASK_EXT_URI, Role
 from tiny_harness.harness.security import MASK, Redactor
 from tiny_harness.service.a2a.card import (
     A2UI_EXT_URI,
@@ -30,7 +31,8 @@ from tiny_harness.service.a2a.middleware import TokenBucket
 def test_the_card_advertises_every_extension_and_no_security_scheme() -> None:
     card = build_agent_card(AgentDescription(), "http://127.0.0.1:8080")
     uris = {e.uri for e in card.capabilities.extensions}
-    assert uris == {TASK_EXT_URI, CHANNEL_EXT_URI, A2UI_EXT_URI} == set(SUPPORTED_EXTENSIONS)
+    expected = {TASK_EXT_URI, CHANNEL_EXT_URI, A2UI_EXT_URI, STATUS_EXT_URI, COMMANDS_EXT_URI}
+    assert uris == expected == set(SUPPORTED_EXTENSIONS)  # status, commands: issue-25 R4.2, R6.7
     assert all(not e.required for e in card.capabilities.extensions)
     assert {i.protocol_binding for i in card.supported_interfaces} == {"JSONRPC", "HTTP+JSON"}
     assert all(i.protocol_version == "1.0" for i in card.supported_interfaces)

@@ -2,10 +2,11 @@
  * The conversation on shadcn's chat components: `MessageScroller` keeps the newest turn in
  * view, each item is a `Message` with a `Bubble` (the user on the end side, the agent on
  * the start side), status changes and tool calls are `Marker`s, and an A2UI card is the
- * official renderer inside an outline bubble.
+ * official renderer inside an outline bubble. A command's reply is a quiet, ruled line
+ * under the command's name; a `/sub-task` reply links the new task (R9.4).
  */
 import type { JSX } from "react";
-import { BotIcon, CircleHelpIcon, TriangleAlertIcon, WrenchIcon } from "lucide-react";
+import { BotIcon, CircleAlertIcon, CircleHelpIcon, TriangleAlertIcon, WrenchIcon } from "lucide-react";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { Message, MessageContent, MessageHeader } from "@/components/ui/message";
@@ -20,10 +21,17 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type { Item } from "../model";
 import { A2uiCard, type ActionPayload } from "./A2uiCard";
+import { TaskLink } from "./TaskLink";
 
 const LIVE = new Set(["SUBMITTED", "WORKING"]);
 
-function Row(props: { item: Item; onAction: (action: ActionPayload) => void }): JSX.Element {
+interface RowProps {
+  item: Item;
+  onAction: (action: ActionPayload) => void;
+  onOpen: (taskId: string) => void;
+}
+
+function Row(props: RowProps): JSX.Element {
   const { item } = props;
   switch (item.kind) {
     case "text":
@@ -51,7 +59,36 @@ function Row(props: { item: Item; onAction: (action: ActionPayload) => void }): 
       return (
         <Marker role="status" variant="separator" data-testid="status">
           <MarkerIcon>{LIVE.has(item.state) ? <Spinner /> : null}</MarkerIcon>
-          <MarkerContent>task → {item.state}</MarkerContent>
+          <MarkerContent>
+            task → {item.state}
+            {item.subState ? ` · ${item.subState.replace(/-/g, " ")}` : ""}
+          </MarkerContent>
+        </Marker>
+      );
+    case "command":
+      return (
+        <div
+          data-testid="command"
+          className="max-w-[72ch] border-l-[3px] border-primary py-1 pl-3 font-mono text-sm whitespace-pre-wrap text-muted-foreground"
+        >
+          <div className="mb-0.5 font-sans text-xs tracking-wide uppercase">/{item.name}</div>
+          {item.text}
+          {item.taskRef ? (
+            <div className="mt-1 font-sans">
+              <TaskLink taskId={item.taskRef} onOpen={props.onOpen}>
+                Open sub-task
+              </TaskLink>
+            </div>
+          ) : null}
+        </div>
+      );
+    case "error":
+      return (
+        <Marker variant="border" data-testid="error" className="text-destructive">
+          <MarkerIcon>
+            <CircleAlertIcon />
+          </MarkerIcon>
+          <MarkerContent>{item.text}</MarkerContent>
         </Marker>
       );
     case "tool":
@@ -98,7 +135,11 @@ function Row(props: { item: Item; onAction: (action: ActionPayload) => void }): 
   }
 }
 
-export function Stream(props: { items: Item[]; onAction: (action: ActionPayload) => void }): JSX.Element {
+export function Stream(props: {
+  items: Item[];
+  onAction: (action: ActionPayload) => void;
+  onOpen: (taskId: string) => void;
+}): JSX.Element {
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className="min-h-0 flex-1">
@@ -116,7 +157,7 @@ export function Stream(props: { items: Item[]; onAction: (action: ActionPayload)
                 messageId={item.key}
                 scrollAnchor={item.kind === "text" && item.role === "user"}
               >
-                <Row item={item} onAction={props.onAction} />
+                <Row item={item} onAction={props.onAction} onOpen={props.onOpen} />
               </MessageScrollerItem>
             ))}
           </MessageScrollerContent>

@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
+from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.core.context import NEVER_COMPACT, ContextWindow, ContextWindowManager
 from tiny_harness.harness.core.state import AgentState, HistoryEntry
 from tiny_harness.harness.hooks import (
@@ -77,6 +78,8 @@ class CompactionSummariseIn(HookContext):
     previous_summary: str
     history: str
     removed_ids: tuple[int, ...]
+    model: str | None = None  # the task's settings: the summary is one of its model calls
+    reasoning_effort: ReasoningEffort | None = None
     result: str | None = None
 
 
@@ -139,6 +142,8 @@ class Compactor:
                 LLMRequest(
                     instructions=SUMMARISER_INSTRUCTIONS,
                     input=(MessageItem(role=Role.USER, text=f"{prior}Exchange:\n{ctx.history}"),),
+                    model=ctx.model,
+                    reasoning_effort=ctx.reasoning_effort,
                 )
             )
             return ctx.model_copy(update={"result": response.output_text.strip()})
@@ -200,6 +205,8 @@ class Compactor:
                 previous_summary=state.summary,
                 history=render_entries(removed),
                 removed_ids=tuple(e.id for e in removed),
+                model=window.model,
+                reasoning_effort=window.reasoning_effort,
             ),
         )
         summary = summary_ctx.result or state.summary

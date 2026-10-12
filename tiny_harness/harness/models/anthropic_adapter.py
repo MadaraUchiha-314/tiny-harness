@@ -108,7 +108,7 @@ def build_params(
 ) -> JsonObject:
     names = names or WireNames(request.tools)
     params: JsonObject = {
-        "model": model,
+        "model": request.model or model,
         "max_tokens": request.max_output_tokens or max_tokens,
         "system": [
             {"type": "text", "text": request.instructions, "cache_control": {"type": "ephemeral"}}
@@ -117,10 +117,16 @@ def build_params(
     }
     if request.tools:
         params["tools"] = cast(JsonValue, build_tools(request.tools, names))
+    output: JsonObject = {}
     if request.response_format is not None:
-        params["output_config"] = {
-            "format": {"type": "json_schema", "schema": cast(JsonValue, request.response_format)}
+        output["format"] = {
+            "type": "json_schema",
+            "schema": cast(JsonValue, request.response_format),
         }
+    if request.reasoning_effort is not None:  # only when set: unset stays byte-identical
+        output["effort"] = request.reasoning_effort
+    if output:
+        params["output_config"] = output
     return params
 
 

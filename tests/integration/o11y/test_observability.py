@@ -20,7 +20,15 @@ from temporalio.contrib.opentelemetry import TracingInterceptor
 from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.durable.conftest import Harness, env, message, send, start
+from tests.integration.durable.conftest import (
+    Harness,
+    awaiting_next_message,
+    close,
+    env,
+    message,
+    send,
+    start,
+)
 from tiny_harness.config import O11yConfig
 from tiny_harness.harness.entities import RegistryEntry
 from tiny_harness.harness.models import scripted
@@ -58,7 +66,7 @@ async def test_one_span_per_operation_with_genai_attributes_crosses_the_workflow
     Scenario: one span per operation with GenAI attributes crosses the workflow boundary
         Given the o11y plugin loaded through the plugin loader and an in-memory exporter
         And a worker with Temporal's tracing interceptor and a real stdio MCP tool
-        When a task calls the MCP tool and completes
+        When a task calls the MCP tool and replies
         Then every operation has one span, the LLM span carries GenAI usage attributes
         And the LLM and tool spans descend from Temporal's activity spans of one trace
         And the MCP client span descends from the tool span
@@ -90,8 +98,9 @@ async def test_one_span_per_operation_with_genai_attributes_crosses_the_workflow
     )
     async with h.worker(traced, tq):
         handle = await send(traced, tq, start(), message("refund 48213", message_id="m1"))
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto  # issue-25 R3.1
+        await close(handle)
+    assert result.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
     spans = exporter.get_finished_spans()
     by_id = {span_id(s): s for s in spans}
     names = [s.name for s in spans]

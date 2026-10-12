@@ -14,13 +14,20 @@ from typing import Final
 from a2a.types import AgentCard, Message, Task, TaskArtifactUpdateEvent, TaskStatusUpdateEvent
 
 from tiny_harness.harness.channels import CHANNEL_EXT_URI
-from tiny_harness.harness.core import TASK_EXT_URI
+from tiny_harness.harness.commands import COMMANDS_EXT_URI
+from tiny_harness.harness.core import STATUS_EXT_URI, TASK_EXT_URI
 from tiny_harness.harness.entities import Entity, EntityKind, EntityRef
 
 type A2AEvent = Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent
 
 A2UI_EXT_URI: Final = "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
-SUPPORTED_EXTENSIONS: Final[tuple[str, ...]] = (TASK_EXT_URI, CHANNEL_EXT_URI, A2UI_EXT_URI)
+SUPPORTED_EXTENSIONS: Final[tuple[str, ...]] = (
+    TASK_EXT_URI,
+    CHANNEL_EXT_URI,
+    A2UI_EXT_URI,
+    STATUS_EXT_URI,
+    COMMANDS_EXT_URI,
+)
 """Every extension the harness implements: what the card advertises and what a remote
 card may require without being refused (R7.4, R14.3)."""
 

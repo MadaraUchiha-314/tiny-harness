@@ -37,8 +37,10 @@ async def worker(settings: Settings) -> int:
     async with temporal_client(settings) as client:
         runtime = await build_runtime(settings)
         push_store = StorePushConfigStore(runtime.store)
+        runtime.commands.freeze()  # no command is registered once the worker runs
         activities = Activities(
             runtime.engine,
+            commands=runtime.commands,
             sink=PushSink(push_store, httpx.AsyncClient(timeout=10)),
             client=client,
             retention=retention_map(settings),

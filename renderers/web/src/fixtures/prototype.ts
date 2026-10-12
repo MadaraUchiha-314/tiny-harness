@@ -1,8 +1,10 @@
-/** The A2A events behind the first state of `design/web-renderer.html`. */
+/** The A2A events behind the first state of `design/web-renderer.html`; the help request
+ * carries the status extension's sub-state (issue-25: `awaiting-answer`). */
 import {
   A2UI_MEDIA_TYPE,
   CHANNEL_MEDIA_TYPE,
   Role,
+  STATUS_EXT_KEY,
   TASK_EXT_KEY,
   TaskState,
   dataPart,
@@ -86,10 +88,15 @@ const agentMessage = (messageId: string, parts: Part[]): Message => ({
   referenceTaskIds: [],
 });
 
-const statusUpdate = (state: TaskState, message?: Message): StreamResponse => ({
+const statusUpdate = (state: TaskState, message?: Message, subState?: string): StreamResponse => ({
   payload: {
     $case: "statusUpdate",
-    value: { taskId: TASK_ID, contextId: CONTEXT_ID, status: { state, message, timestamp: undefined }, metadata: undefined },
+    value: {
+      taskId: TASK_ID,
+      contextId: CONTEXT_ID,
+      status: { state, message, timestamp: undefined },
+      metadata: subState ? { [STATUS_EXT_KEY]: { sub_state: subState } } : undefined,
+    },
   },
 });
 
@@ -148,6 +155,7 @@ export function prototypeEvents(): StreamResponse[] {
           CHANNEL_MEDIA_TYPE,
         ),
       ]),
+      "awaiting-answer",
     ),
     artifactUpdate("cal-1", "calendar", [dataPart({ when: "2026-10-10" }, "application/vnd.example.calendar+json")]),
   ];

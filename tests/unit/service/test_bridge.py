@@ -89,3 +89,43 @@ async def test_a_stream_still_ends_at_the_newest_final_event() -> None:
         TaskState.TASK_STATE_WORKING,
         TaskState.TASK_STATE_INPUT_REQUIRED,
     ]
+
+
+class GrowingBridge(LogBridge):
+    """A log that gains ``later`` once it has been read once: the task moves on."""
+
+    def __init__(self, entries: list[EventEntry], later: list[EventEntry]) -> None:
+        super().__init__(entries)
+        self.later = later
+
+    async def page(self, task_id: str, cursor: int) -> EventPage | None:
+        page = await super().page(task_id, cursor)
+        self.entries.extend(self.later)
+        self.later = []
+        return page
+
+
+async def test_a_followed_stream_stays_attached_past_input_required() -> None:
+    """
+    Scenario: a followed stream (SubscribeToTask) stays attached past INPUT_REQUIRED
+        Given a log whose newest event is INPUT_REQUIRED
+        When a subscriber follows it and the task then works and completes
+        Then it receives the live events up to COMPLETED, the first terminal state
+    """
+    entries = log(TaskState.TASK_STATE_WORKING, TaskState.TASK_STATE_INPUT_REQUIRED)
+    later = [
+        status(len(entries) + 1, TaskState.TASK_STATE_WORKING),
+        status(len(entries) + 2, TaskState.TASK_STATE_COMPLETED),
+    ]
+    bridge = GrowingBridge(entries, later)
+    out: list[TaskState] = []
+    async for event in bridge.events("t1", 1, follow=True):
+        assert isinstance(event, (Task, TaskStatusUpdateEvent))
+        out.append(event.status.state)
+    assert out == [
+        TaskState.TASK_STATE_SUBMITTED,
+        TaskState.TASK_STATE_WORKING,
+        TaskState.TASK_STATE_INPUT_REQUIRED,
+        TaskState.TASK_STATE_WORKING,
+        TaskState.TASK_STATE_COMPLETED,
+    ]

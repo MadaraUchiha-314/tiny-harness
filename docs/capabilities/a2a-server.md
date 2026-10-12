@@ -16,8 +16,10 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   `SubscribeToTask`, the four push-notification config operations and
   `GetExtendedAgentCard`. No gRPC.
 - The agent card at `/.well-known/agent-card.json` SHALL be built from the agent's
-  description, so every extension (task, channel, A2UI with its catalog ids) reaches
-  `capabilities.extensions`; it declares no security scheme (decision-003) and is pinned
+  description, so every extension (task, channel, status, commands with the registered
+  commands in its `params`, A2UI with its catalog ids) reaches
+  `capabilities.extensions`; the command registry is frozen and published before the
+  card is built; it declares no security scheme (decision-003) and is pinned
   by a contract snapshot.
 - WHEN `A2A-Extensions` names an extension the card does not advertise THEN the request
   SHALL be rejected with the unsupported-operation error and no task created.
@@ -28,10 +30,29 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 - `returnImmediately: true` SHALL return once the task and the inbox item exist. A
   message SHALL be persisted (the inbox audit row) before the request is acknowledged.
 - WHEN `cancel` runs THEN the workflow SHALL be signalled and the task emitted as
-  `CANCELED`.
+  `CANCELED`. A `watcher` SHALL be refused with the unsupported-operation error.
+- A message, completion or cancellation for a task in a terminal state SHALL be refused
+  with an error naming the state (`the task is in a terminal state
+  (TASK_STATE_COMPLETED)`), and the task left unchanged.
+- WHEN a message's one data part is the `control` envelope `{"kind": "control",
+  "action": "complete"}` THEN the server SHALL complete the task
+  ([extensions](../a2a/extensions#completing-a-task)): the inbox update's validator
+  refuses a sender who is missing, not on the task or only a `watcher` before anything
+  is interrupted; the control then bypasses the SDK's per-task request queue so it can
+  cut a running turn, and the stream ends `COMPLETED`, or `INPUT_REQUIRED ·
+  awaiting-next-message` when an unresolved sub-task refuses it.
+- WHEN a message is exactly `/<name> <arguments>` for a registered command THEN the
+  workflow's dispatcher SHALL run it through the `run_command` activity before (or, mid
+  turn, between) model calls, never invoking the model for it; the reply arrives as the
+  message of a re-emitted status update with metadata `{"command": "<name>"}` (and
+  `"task_ref"` for a created sub-task), and the state is unchanged. Commands and
+  controls skip `request.received`; `command.invoked` is their policy point. An
+  unregistered `/<name>` is an ordinary message. A command or refused message as a
+  task's first message parks the task instead of re-emitting `SUBMITTED`.
 - `SubscribeToTask` SHALL replay the event log from sequence 1, across server restarts,
-  running past an earlier final event (an `INPUT_REQUIRED` the task has since left) and
-  ending only at the newest final event.
+  then stay attached for live events, ending only at a terminal state (A2A 1.0), so a
+  subscriber to a parked (`INPUT_REQUIRED`) conversation sees what happens next.
+  A `SendMessage` stream still ends at the newest final event, `INPUT_REQUIRED` included.
 - A `task` event envelope on an existing task SHALL update its name, description and
   acceptance criteria for any participant and its participants only for an admin
   (refused otherwise); a `status_update` or `artifact_update` envelope SHALL be recorded
@@ -62,3 +83,4 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Executor, handler, card, bridge, task store, push, limits, inbox intake (Layer 5); A2UI params on the card (Layer 7); `/ui` and CORS (Layer 8) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13), [PR #14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) |
+| issue-25 | Status and commands extensions on the card; the `control` completion envelope; terminal and watcher refusals naming the state; slash commands dispatched in the workflow with the reply on a re-emitted status update | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

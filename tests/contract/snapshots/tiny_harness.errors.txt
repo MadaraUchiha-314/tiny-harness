@@ -1,6 +1,7 @@
 # tiny_harness.errors
 enum AbortReason: REFUSED='refused', POLICY='policy', INVALID='invalid'
 class ChannelMembershipError(TinyHarnessError)
+class CommandError(TinyHarnessError)
 class ComponentSkipped(TinyHarnessError)
 class ConfigError(TinyHarnessError)
   def __init__(self, message: 'str', *, variable: 'str', **detail: 'str') -> 'None'

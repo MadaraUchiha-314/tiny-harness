@@ -18,10 +18,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from tiny_harness.config import RetryPolicies, RetryPolicySpec
 from tiny_harness.harness.channels import ChannelMessage
+from tiny_harness.harness.commands import ChildSnapshot, CommandCall, CommandResult
 from tiny_harness.harness.core import (
     AgentState,
     CompactionRecord,
     ContextWindow,
+    SubState,
     TaskRef,
     proto_json,
 )
@@ -59,6 +61,7 @@ class ActivityName(StrEnum):
     POLL_CHANNELS = "poll_channels"
     MONITOR_SNAPSHOT = "monitor_snapshot"
     RETENTION_SWEEP = "retention_sweep"
+    RUN_COMMAND = "run_command"
 
 
 # --- the durable event log ------------------------------------------------------------
@@ -126,14 +129,17 @@ class ChildRef(_Frozen):
     step: str | None = None
     done: bool = False
     state_name: str = "SUBMITTED"
+    sub_state: SubState | None = None
     summary: str = ""
 
 
 class ChildDone(_Frozen):
-    """The signal a child sends its parent when it reaches a terminal state."""
+    """The signal a child sends its parent on each state change (issue-25 R5.6); a
+    terminal one carries the child's last words as ``summary``."""
 
     task_id: str
     state_name: str
+    sub_state: SubState | None = None
     summary: str = ""
 
 
@@ -165,6 +171,7 @@ class TaskStart(_Frozen):
     pending_help: HelpRequest | None = None
     children: tuple[ChildRef, ...] = ()
     notes: tuple[str, ...] = ()
+    unanswered: bool = False  # the history holds a message no finished turn has answered
     attempt_counters: dict[str, int] = Field(default_factory=dict)
     parent_workflow_id: str | None = None
     surfaces: SurfaceRegistry = SurfaceRegistry()
@@ -196,6 +203,9 @@ class IntakeIn(ActivityIn):
 
 
 class IntakeOut(_Frozen):
+    """What intake made of a message: refused, a command, a control, or ordinary text for
+    the model. A command or a control adds nothing to the history (issue-25 R5.1, R6.2)."""
+
     accepted: bool
     text: str = ""
     participant_id: str | None = None
@@ -204,6 +214,8 @@ class IntakeOut(_Frozen):
     interrupt: bool = False
     task: TaskProto | None = None
     ui_action: JsonObject | None = None
+    command: CommandCall | None = None
+    control: Literal["complete"] | None = None
 
 
 class AssembleIn(ActivityIn):
@@ -257,11 +269,28 @@ class ToolOut(_Frozen):
 class CompletionIn(ActivityIn):
     task: TaskProto
     unresolved: tuple[TaskRef, ...]
+    requested_by: str | None = None  # a participant's control complete (issue-25 R5)
 
 
 class CompletionOut(_Frozen):
     result: Literal["wait", "complete", "fail"]
     reason: str = ""
+
+
+class CommandIn(ActivityIn):
+    """One ``/<name>`` to run through ``command.invoked`` (issue-25 R6.2, R6a.2)."""
+
+    call: CommandCall
+    sender: str
+    task: TaskProto
+    children: tuple[ChildSnapshot, ...] = ()
+
+
+class CommandOut(_Frozen):
+    """The command's intents for the workflow to apply, and how the run ended."""
+
+    result: CommandResult
+    outcome: Literal["ok", "refused", "failed", "no_handler"] = "ok"
 
 
 class PersistIn(ActivityIn):
@@ -410,6 +439,8 @@ __all__ = [
     "ChannelSendIn",
     "ChildDone",
     "ChildRef",
+    "CommandIn",
+    "CommandOut",
     "CompactIn",
     "CompactOut",
     "CompletionIn",

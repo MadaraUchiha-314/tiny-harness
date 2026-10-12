@@ -26,6 +26,14 @@ FINAL_STATES = frozenset(
         TaskState.TASK_STATE_AUTH_REQUIRED,
     }
 )
+TERMINAL_STATES = frozenset(
+    {
+        TaskState.TASK_STATE_COMPLETED,
+        TaskState.TASK_STATE_CANCELED,
+        TaskState.TASK_STATE_FAILED,
+        TaskState.TASK_STATE_REJECTED,
+    }
+)
 
 
 def is_final(event: A2AEvent) -> bool:
@@ -37,8 +45,17 @@ def is_final(event: A2AEvent) -> bool:
     return False
 
 
+def is_terminal(event: A2AEvent) -> bool:
+    """A Task or status update in a terminal state: nothing follows it."""
+    if isinstance(event, (Task, TaskStatusUpdateEvent)):
+        return event.status.state in TERMINAL_STATES
+    return False
+
+
 class EventBridge(Protocol):
-    def events(self, task_id: str, cursor: int) -> AsyncIterator[A2AEvent]: ...
+    def events(
+        self, task_id: str, cursor: int, *, follow: bool = False
+    ) -> AsyncIterator[A2AEvent]: ...
 
     async def page(self, task_id: str, cursor: int) -> EventPage | None: ...
 
@@ -57,13 +74,20 @@ class PollingEventBridge:
         except RPCError:
             return None
 
-    async def events(self, task_id: str, cursor: int) -> AsyncIterator[A2AEvent]:
+    async def events(
+        self, task_id: str, cursor: int, *, follow: bool = False
+    ) -> AsyncIterator[A2AEvent]:
         """Yield from ``cursor`` until a final event, the log closing, or the task vanishing.
 
         A final event ends the stream only when it is the newest event in the log: a
         replay (``SubscribeToTask`` from the start) runs past an earlier ``INPUT_REQUIRED``
         the task has since left, so a second surface sees the whole task (R20.3).
+
+        ``follow`` is ``SubscribeToTask``'s rule (A2A 1.0): the stream ends only at a
+        terminal state, so a subscriber to a parked conversation (``INPUT_REQUIRED``)
+        stays attached for what happens next (issue-25 R5.6).
         """
+        ends = is_terminal if follow else is_final
         while True:
             page = await self.page(task_id, cursor)
             if page is None:
@@ -72,11 +96,18 @@ class PollingEventBridge:
                 event = entry_event(entry)
                 cursor = entry.seq + 1
                 yield event
-                if is_final(event) and cursor >= page.next_seq:
+                if ends(event) and cursor >= page.next_seq:
                     return
             if page.closed:
                 return
             await asyncio.sleep(self._interval)
 
 
-__all__ = ["FINAL_STATES", "EventBridge", "PollingEventBridge", "is_final"]
+__all__ = [
+    "FINAL_STATES",
+    "TERMINAL_STATES",
+    "EventBridge",
+    "PollingEventBridge",
+    "is_final",
+    "is_terminal",
+]

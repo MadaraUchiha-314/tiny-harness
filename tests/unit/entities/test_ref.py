@@ -47,6 +47,7 @@ def test_every_entity_kind_is_a_known_construct() -> None:
         "surface",
         "store",
         "agent",
+        "command",
     }
 
 

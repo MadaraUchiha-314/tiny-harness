@@ -14,15 +14,21 @@ from typing import Literal, Self, cast
 
 from a2a.types import Task, TaskState, TaskStatus
 from google.protobuf import json_format, struct_pb2
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
+from tiny_harness.config import ReasoningEffort
 from tiny_harness.errors import PlanCycleError
+from tiny_harness.harness.core.status import STATUS_EXT_KEY, StatusExtensionData, SubState
 from tiny_harness.harness.entities import EntityRef
 from tiny_harness.jsontypes import JsonObject
 
 TASK_EXT_KEY = "io.github.madarauchiha-314.tiny-harness/task"
 TASK_EXT_URI = "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/task/v1"
 TASK_EXT_MEDIA_TYPE = "application/vnd.tiny-harness.task+json"
+
+Lifecycle = Literal["conversation", "delegated"]
+"""How a task's turn ends: a ``conversation`` waits for its participant's next message, a
+``delegated`` task (an agent's ``spawn_subtask``) asks ``task.complete`` (R3)."""
 
 
 class Role(StrEnum):
@@ -46,6 +52,10 @@ class TaskRef(BaseModel, frozen=True):
 
     task_id: str
     agent: EntityRef | None = None
+    state: str | None = None
+    """The sub-task's last state its parent heard of (``WORKING``, ``INPUT_REQUIRED``…);
+    ``None`` until the parent relays one (issue-25 R5.6)."""
+    sub_state: SubState | None = None
 
 
 class AcceptanceCriterion(BaseModel, frozen=True):
@@ -139,6 +149,11 @@ class TaskExtensionData(BaseModel, frozen=True):
     parent_tasks: tuple[TaskRef, ...] = ()
     sub_tasks: tuple[TaskRef, ...] = ()
     plan: Plan | None = None
+    # Server-controlled (R3, R7.3): no participant envelope may set these; only the server
+    # sets ``lifecycle`` and only ``/model`` / ``/effort`` change the settings.
+    lifecycle: Lifecycle | None = None
+    model: str | None = None
+    reasoning_effort: ReasoningEffort | None = None
 
     def participant(self, participant_id: str) -> Participant | None:
         for p in self.participants:
@@ -220,12 +235,44 @@ class HarnessTask:
         proto.metadata.fields[TASK_EXT_KEY].CopyFrom(value)
         return HarnessTask(proto)
 
-    def with_state(self, state: int) -> HarnessTask:
+    @property
+    def lifecycle(self) -> Lifecycle:
+        """The extension's lifecycle; when absent (a task persisted before the field
+        existed) ``delegated`` if the task has a parent, else ``conversation`` (R3, T10)."""
+        ext = self.ext
+        if ext.lifecycle is not None:
+            return ext.lifecycle
+        return "delegated" if ext.parent_tasks else "conversation"
+
+    @property
+    def sub_state(self) -> SubState | None:
+        """The status extension's sub-state; ``None`` when absent or unknown (R4.3)."""
+        fields = self.proto.metadata.fields
+        if STATUS_EXT_KEY not in fields:
+            return None
+        raw = cast(JsonObject, json_format.MessageToDict(fields[STATUS_EXT_KEY]))
+        try:
+            return StatusExtensionData.model_validate(raw).sub_state
+        except ValidationError:
+            return None
+
+    def with_state(self, state: int, sub_state: SubState | None = None) -> HarnessTask:
+        """A new view in ``state``. ``sub_state`` is written under the status extension's
+        key; without one the key is deleted, so leaving ``INPUT_REQUIRED`` clears it (R3.3)."""
         proto = Task()
         proto.CopyFrom(self.proto)
         proto.status.CopyFrom(
             TaskStatus(state=cast(TaskState, state), message=proto.status.message)
         )
+        if sub_state is None:
+            if STATUS_EXT_KEY in proto.metadata.fields:
+                del proto.metadata.fields[STATUS_EXT_KEY]
+        else:
+            value = struct_pb2.Value()
+            json_format.ParseDict(
+                StatusExtensionData(sub_state=sub_state).model_dump(mode="json"), value
+            )
+            proto.metadata.fields[STATUS_EXT_KEY].CopyFrom(value)
         return HarnessTask(proto)
 
     def ext_json(self) -> JsonObject:
@@ -239,6 +286,7 @@ __all__ = [
     "TERMINAL_STATES",
     "AcceptanceCriterion",
     "HarnessTask",
+    "Lifecycle",
     "Participant",
     "Plan",
     "Role",

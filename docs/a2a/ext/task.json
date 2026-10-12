@@ -31,7 +31,8 @@
         "renderer",
         "surface",
         "store",
-        "agent"
+        "agent",
+        "command"
       ],
       "title": "EntityKind",
       "type": "string"
@@ -191,6 +192,14 @@
       "title": "StepState",
       "type": "string"
     },
+    "SubState": {
+      "enum": [
+        "awaiting-next-message",
+        "awaiting-answer"
+      ],
+      "title": "SubState",
+      "type": "string"
+    },
     "TaskRef": {
       "description": "A task on this harness (``agent`` is None) or on a remote agent.",
       "properties": {
@@ -198,6 +207,29 @@
           "anyOf": [
             {
               "$ref": "#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "sub_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SubState"
             },
             {
               "type": "null"
@@ -238,6 +270,34 @@
       "title": "Goal",
       "type": "string"
     },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "conversation",
+            "delegated"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lifecycle"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
     "name": {
       "title": "Name",
       "type": "string"
@@ -268,6 +328,23 @@
         }
       ],
       "default": null
+    },
+    "reasoning_effort": {
+      "anyOf": [
+        {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reasoning Effort"
     },
     "sub_tasks": {
       "default": [],

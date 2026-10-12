@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
@@ -17,13 +17,14 @@ from tiny_harness.builtin import load_builtin
 from tiny_harness.config import Settings
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.channels.help import register_default as register_help_default
+from tiny_harness.harness.commands import CommandHandler, CommandRegistry, CommandSpec
 from tiny_harness.harness.core import ContextWindowManager
 from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
 from tiny_harness.harness.hooks import HookManager
-from tiny_harness.harness.models import LLM, OpenAILLM
+from tiny_harness.harness.models import LLM, ModelCatalog, OpenAILLM
 from tiny_harness.harness.persistence import RecordKind, SqliteStore, Store
-from tiny_harness.harness.plugins import LoadReport, McpStdioServer, PluginLoader
+from tiny_harness.harness.plugins import LoadReport, McpStdioServer, Plugin, PluginLoader
 from tiny_harness.harness.plugins.loader import prepare_stdio
 from tiny_harness.harness.plugins.registrar import RegistryRegistrar
 from tiny_harness.harness.prompts.entity import SYSTEM_PROMPT_ID, PromptEntity, SystemPrompt
@@ -51,6 +52,7 @@ class Runtime:
     skills: SkillSession
     system_prompt: str
     redactor: Redactor
+    commands: CommandRegistry  # filled before the worker starts, frozen when it does
     sources: list[McpToolSource] = field(default_factory=lambda: list[McpToolSource]())
     reports: list[LoadReport] = field(default_factory=lambda: list[LoadReport]())
 
@@ -118,19 +120,46 @@ async def build_runtime(
     llm: LLM | None = None,
     store: Store | None = None,
     data_root: Path | None = None,
+    builtin_commands: bool = True,
+    plugins: Sequence[Plugin | Path] = (),
+    commands: Iterable[tuple[CommandSpec, CommandHandler]] = (),
 ) -> Runtime:
+    """Assemble the harness (issue-25 R11): ``plugins`` (a directory or a programmatic
+    ``Plugin``) load after ``settings.plugins``, with the same override, and ``commands``
+    register from code after every plugin; a bad or duplicate name raises
+    ``CommandError`` (R6.5). ``builtin_commands=False`` builds without ``/model``,
+    ``/effort``, ``/sub-task`` and ``/status`` (R6.8)."""
     registry = Registry()
     hooks = HookManager()
     registrar = RegistryRegistrar(registry)
+    registered = CommandRegistry(hooks)  # plugins declare commands into it (issue-25 R6a.6)
+    catalog = ModelCatalog.from_settings(settings)  # the selectable models and defaults (R7, R8)
     root = (data_root or settings.store.sqlite_path.resolve().parent / "plugin-data").resolve()
-    reports = [await load_builtin(hook_manager=hooks, registrar=registrar, data_root=root)]
+    reports = [
+        await load_builtin(
+            hook_manager=hooks,
+            registrar=registrar,
+            data_root=root,
+            commands=registered,
+            catalog=catalog if builtin_commands else None,
+        )
+    ]
     registrar.override = True
-    loader = PluginLoader(hook_manager=hooks, registrar=registrar, data_root=root)
+    loader = PluginLoader(
+        hook_manager=hooks, registrar=registrar, data_root=root, commands=registered
+    )
     redactor = Redactor(secrets=secret_values(settings))
     o11y_executor.redactor = redactor  # the plugin's one hook scrubs with the real secrets
     reports.append(await loader.load(o11y_plugin()))
     for path in settings.plugins:
         reports.append(await loader.load_directory(path, override=True))
+    for plugin in plugins:
+        if isinstance(plugin, Plugin):
+            reports.append(await loader.load(plugin, override=True))
+        else:
+            reports.append(await loader.load_directory(plugin, override=True))
+    for command, handler in commands:
+        registered.register(command, handler)
     sources: list[McpToolSource] = []
     for name, (plugin, server) in registrar.catalog.servers.items():
         spec: ServerSpec
@@ -180,10 +209,11 @@ async def build_runtime(
             compaction_fraction=settings.context.compaction_fraction,
         ),
         redactor=redactor,
+        catalog=catalog,
     )
     engine.sources = sources
     await engine.bind()
-    register_help_default(hooks, model)
+    register_help_default(hooks, model, catalog)
     return Runtime(
         settings=settings,
         registry=registry,
@@ -194,6 +224,7 @@ async def build_runtime(
         skills=skills,
         system_prompt=system_prompt,
         redactor=redactor,
+        commands=registered,
         sources=sources,
         reports=reports,
     )

@@ -8,12 +8,13 @@ import os
 from google.protobuf import json_format
 
 from tests.contract._api import SNAPSHOTS
+from tiny_harness.harness.commands import BUILTIN_SPECS
 from tiny_harness.interaction.a2ui import A2UI_EXT_URI, BASIC_CATALOG_ID
 from tiny_harness.service.a2a.card import AgentDescription, build_agent_card
 
 
 def test_agent_card_snapshot() -> None:
-    card = build_agent_card(AgentDescription(), "http://127.0.0.1:8080")
+    card = build_agent_card(AgentDescription(), "http://127.0.0.1:8080", commands=BUILTIN_SPECS)
     rendered = json.dumps(json_format.MessageToDict(card), indent=2, sort_keys=True) + "\n"
     path = SNAPSHOTS / "agent-card.json"
     if os.environ.get("UPDATE_API_SNAPSHOTS") == "1" or not path.exists():

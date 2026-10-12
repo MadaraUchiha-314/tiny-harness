@@ -22,6 +22,7 @@ from mcp import StdioServerParameters
 from pydantic import ValidationError
 
 from tiny_harness.errors import ComponentSkipped, PluginError, TinyHarnessError
+from tiny_harness.harness.commands import COMMAND_IN, NAME_PATTERN, CommandRegistry, CommandSpec
 from tiny_harness.harness.hooks import (
     HookContext,
     HookExecutor,
@@ -39,6 +40,7 @@ from tiny_harness.harness.plugins.models import (
     PLUGIN_DATA_VAR,
     PLUGIN_ROOT_VAR,
     PLUGIN_SCHEMA_ID,
+    CommandsFile,
     ComponentKind,
     HookDef,
     HooksFile,
@@ -197,6 +199,7 @@ def discover(root: Path) -> Plugin:
         except ComponentSkipped as exc:
             notes.append(f"MCP disabled for this plugin: {exc.message}")
     hooks: tuple[HookDef, ...] = ()
+    commands: CommandsFile = CommandsFile()
     prompts: list[Path] = []
     systemprompt: Path | None = None
     ns = root / NAMESPACE
@@ -207,6 +210,18 @@ def discover(root: Path) -> Plugin:
                 hooks = HooksFile.model_validate(_read_json(hooks_file)).hooks
             except (PluginError, ValidationError) as exc:
                 notes.append(f"hooks.json ignored: {exc}")
+        commands_file = ns / "commands.json"
+        if commands_file.is_file():
+            try:
+                commands = CommandsFile.model_validate(_read_json(commands_file))
+            except (PluginError, ValidationError) as exc:
+                notes.append(f"commands.json ignored: {exc}")
+                # Fail closed (critic C1): a hook meant as a command's body must never
+                # load unfiltered, where it would see every command.
+                dropped = [h.name for h in hooks if str(COMMAND_IN) in (h.points or ())]
+                hooks = tuple(h for h in hooks if h.name not in dropped)
+                if dropped:
+                    notes.append(f"command hooks not loaded: {', '.join(dropped)}")
         prompts_dir = ns / "prompts"
         if prompts_dir.is_dir():
             prompts = sorted(p for p in prompts_dir.glob("*.md") if p.is_file())
@@ -218,6 +233,7 @@ def discover(root: Path) -> Plugin:
         skills=tuple(skills),
         mcp=mcp,
         hooks=hooks,
+        commands=commands.commands,
         prompts=tuple(prompts),
         systemprompt=systemprompt,
         notes=tuple(notes),
@@ -260,7 +276,10 @@ def _import_executor(import_path: str) -> HookExecutor:
 class PluginLoader:
     """Loads plugins into the hook manager and the registrar (R3.4), first the built-in
     plugin, then the operator's, in order; ``override`` is the loading configuration's
-    declaration that a later plugin may replace an earlier registration (R3.8)."""
+    declaration that a later plugin may replace an earlier registration (R3.8).
+
+    Declared commands go to ``commands`` (issue-25 R6a.6); without a command registry
+    they are skipped."""
 
     def __init__(
         self,
@@ -269,11 +288,13 @@ class PluginLoader:
         registrar: Registrar,
         providers: Providers | None = None,
         data_root: Path,
+        commands: CommandRegistry | None = None,
     ) -> None:
         self._hooks = hook_manager
         self._registrar = registrar
         self._providers = providers or Providers()
         self._data_root = data_root.resolve()
+        self._commands = commands
 
     async def load_directory(self, root: Path, *, override: bool = False) -> LoadReport:
         return await self.load(discover(root), override=override)
@@ -312,7 +333,12 @@ class PluginLoader:
                 )
             except TinyHarnessError as exc:
                 skip(ComponentKind.MCP_SERVER, name, exc)
+        # Commands are resolved before the hook loop: a command-owned HookDef is registered
+        # only as its command's filtered body, never as an ordinary hook (abuse case 10).
+        owned = self._load_commands(plugin, override=override, data=data, loaded=loaded, skip=skip)
         for hook in plugin.hooks:
+            if hook.name in owned:
+                continue
             try:
                 self._hooks.register(self._build_hook(hook, root=root, data=data))
                 loaded.append(LoadedComponent(kind=ComponentKind.HOOK, id=hook.name))
@@ -346,6 +372,60 @@ class PluginLoader:
             skipped=tuple(skipped),
             notes=plugin.notes,
         )
+
+    def _load_commands(
+        self,
+        plugin: Plugin,
+        *,
+        override: bool,
+        data: Path,
+        loaded: list[LoadedComponent],
+        skip: Callable[[ComponentKind, str, TinyHarnessError], None],
+    ) -> frozenset[str]:
+        """Register each declared command with its hook as the body; return every hook name
+        a command claims, valid or not, so the hook loop never registers one unfiltered."""
+        hooks = {hook.name: hook for hook in plugin.hooks}
+        owners: dict[str, str] = {}  # hook name -> the command that owns it
+        declared: set[str] = set()
+        for command in plugin.commands:
+            try:
+                if NAME_PATTERN.fullmatch(command.name) is None:
+                    raise ComponentSkipped(
+                        "invalid command name; expected [a-z][a-z0-9-]*", command=command.name
+                    )
+                if self._commands is None:
+                    raise ComponentSkipped("no command registry to declare commands in")
+                if command.name in declared or (
+                    command.name in self._commands.names and not override
+                ):
+                    raise ComponentSkipped("command already declared", command=command.name)
+                hook = hooks.get(command.hook)
+                if hook is None:
+                    raise ComponentSkipped("no hook of that name in hooks.json", hook=command.hook)
+                if command.hook in owners:
+                    raise ComponentSkipped(
+                        "hook already owned by another command",
+                        hook=command.hook,
+                        owner=owners[command.hook],
+                    )
+                if _parse_points(hook.points) != (COMMAND_IN,):
+                    raise ComponentSkipped(
+                        f"a command's hook must declare exactly points: [{COMMAND_IN!s}]",
+                        hook=command.hook,
+                    )
+                spec = CommandSpec(
+                    name=command.name,
+                    description=command.description,
+                    argument_hint=command.argument_hint,
+                )
+                executor = self._build_hook(hook, root=plugin.root, data=data)
+                self._commands.register_executor(spec, executor, override=override)
+                owners[command.hook] = command.name
+                declared.add(command.name)
+                loaded.append(LoadedComponent(kind=ComponentKind.COMMAND, id=command.name))
+            except TinyHarnessError as exc:
+                skip(ComponentKind.COMMAND, command.name, exc)
+        return frozenset(command.hook for command in plugin.commands)
 
     def _build_hook(self, hook: HookDef, *, root: Path | None, data: Path) -> HookExecutor:
         points = _parse_points(hook.points)

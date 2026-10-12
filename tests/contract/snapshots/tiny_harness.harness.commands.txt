@@ -1,0 +1,38 @@
+# tiny_harness.harness.commands
+BUILTIN_SPECS = tuple
+COMMANDS_EXT_URI = str
+COMMAND_IN = HookPoint
+EFFORTS = tuple
+NAME_PATTERN = Pattern
+ROLE_POLICY_PRIORITY = int
+model ChildSnapshot(task_id: <class 'str'>, state: <class 'str'>)
+class Command(Entity)
+  def __init__(self, spec: 'CommandSpec') -> 'None'
+model CommandCall(name: <class 'str'>, arguments: <class 'str'> = ...)
+CommandHandler = _CallableGenericAlias
+model CommandInvokedIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., name: <class 'str'>, arguments: <class 'str'>, sender: <class 'str'>, sender_role: tiny_harness.harness.core.task.Role | None, task: <class 'tiny_harness.harness.commands.models.TaskSnapshot'>, result: tiny_harness.harness.commands.models.CommandResult | None = ...)
+model CommandInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., name: <class 'str'>, arguments: <class 'str'>, sender: <class 'str'>, sender_role: tiny_harness.harness.core.task.Role | None, task: <class 'tiny_harness.harness.commands.models.TaskSnapshot'>, result: tiny_harness.harness.commands.models.CommandResult | None = ...)
+model CommandInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., name: <class 'str'>, arguments: <class 'str'>, sender: <class 'str'>, sender_role: tiny_harness.harness.core.task.Role | None, task: <class 'tiny_harness.harness.commands.models.TaskSnapshot'>)
+class CommandRegistry(object)
+  def __init__(self, hooks: 'HookManager') -> 'None'
+  def freeze(self) -> 'None'
+  property names
+  def publish(self, registry: 'Registry') -> 'None'
+  def register(self, spec: 'CommandSpec', handler: 'CommandHandler', *, priority: 'int' = 500, override: 'bool' = False) -> 'None'
+  def register_executor(self, spec: 'CommandSpec', executor: 'HookExecutor', *, override: 'bool' = False) -> 'None'
+  property specs
+model CommandResult(reply: <class 'str'>, settings: tiny_harness.harness.commands.models.TaskSettings | None = ..., spawn: tiny_harness.harness.commands.models.SpawnIntent | None = ...)
+model CommandSpec(name: <class 'str'>, description: <class 'str'>, argument_hint: <class 'str'> = ...)
+model CommandsExtensionParams(commands: tuple[tiny_harness.harness.commands.models.CommandSpec, ...] = ...)
+model SpawnIntent(goal: <class 'str'>)
+model TaskSettings(model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ...)
+model TaskSnapshot(id: <class 'str'>, name: <class 'str'>, state: <class 'str'>, sub_state: tiny_harness.harness.core.status.SubState | None = ..., settings: <class 'tiny_harness.harness.commands.models.TaskSettings'> = ..., steps_done: <class 'int'> = ..., steps_total: <class 'int'> = ..., children: tuple[tiny_harness.harness.commands.models.ChildSnapshot, ...] = ...)
+def commands_extension_schema() -> 'dict[str, object]'
+def effort_command(ctx: 'CommandInvokedIn', catalog: 'ModelCatalog') -> 'CommandResult'
+def model_command(ctx: 'CommandInvokedIn', catalog: 'ModelCatalog') -> 'CommandResult'
+def parse_command(message: 'Message', names: 'Container[str]') -> 'CommandCall | None'
+def parse_command_text(text: 'str', names: 'Container[str]') -> 'CommandCall | None'
+def register_builtin_commands(commands: 'CommandRegistry', catalog: 'ModelCatalog') -> 'None'
+def register_role_policy(hooks: 'HookManager') -> 'None'
+def status_command(ctx: 'CommandInvokedIn', catalog: 'ModelCatalog') -> 'CommandResult'
+def sub_task_command(ctx: 'CommandInvokedIn') -> 'CommandResult'

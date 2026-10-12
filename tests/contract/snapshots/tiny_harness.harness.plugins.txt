@@ -5,7 +5,9 @@ PLUGIN_DATA_VAR = str
 PLUGIN_ROOT_VAR = str
 PLUGIN_SCHEMA_ID = str
 model Author(name: str | None = ..., email: str | None = ..., url: str | None = ...)
-enum ComponentKind: SKILL='skill', MCP_SERVER='mcp_server', HOOK='hook', PROMPT='prompt', SYSTEM_PROMPT='system_prompt'
+model CommandDef(name: <class 'str'>, description: <class 'str'>, argument_hint: <class 'str'> = ..., hook: <class 'str'>)
+model CommandsFile(commands: tuple[tiny_harness.harness.plugins.models.CommandDef, ...] = ...)
+enum ComponentKind: SKILL='skill', MCP_SERVER='mcp_server', HOOK='hook', PROMPT='prompt', SYSTEM_PROMPT='system_prompt', COMMAND='command'
 model HookDef(name: <class 'str'>, priority: <class 'int'> = ..., points: tuple[str, ...] | None = ..., import_path: str | None = ..., url: pydantic.networks.HttpUrl | None = ..., mcp: tiny_harness.harness.plugins.models.McpStdioServer | tiny_harness.harness.plugins.models.McpHttpServer | None = ...)
 model HooksFile(hooks: tuple[tiny_harness.harness.plugins.models.HookDef, ...] = ...)
 model LoadReport(plugin: <class 'str'>, loaded: tuple[tiny_harness.harness.plugins.models.LoadedComponent, ...] = ..., skipped: tuple[tiny_harness.harness.plugins.models.SkippedComponent, ...] = ..., notes: tuple[str, ...] = ...)
@@ -15,9 +17,9 @@ model McpHttpServer(type: typing.Literal['streamable-http'], url: <class 'pydant
 McpServer = _AnnotatedAlias
 model McpSseServer(type: typing.Literal['sse'], url: <class 'pydantic.networks.HttpUrl'>, headers: collections.abc.Mapping[str, str] = ...)
 model McpStdioServer(type: typing.Literal['stdio'], command: <class 'str'>, args: tuple[str, ...] = ..., env: collections.abc.Mapping[str, str] = ..., cwd: str | None = ...)
-model Plugin(manifest: <class 'tiny_harness.harness.plugins.models.PluginManifest'>, root: pathlib.Path | None = ..., skills: tuple[pathlib.Path, ...] = ..., mcp: collections.abc.Mapping[str, tiny_harness.harness.plugins.models.McpStdioServer | tiny_harness.harness.plugins.models.McpHttpServer | tiny_harness.harness.plugins.models.McpSseServer] = ..., hooks: tuple[tiny_harness.harness.plugins.models.HookDef, ...] = ..., prompts: tuple[pathlib.Path, ...] = ..., systemprompt: pathlib.Path | None = ..., notes: tuple[str, ...] = ...)
+model Plugin(manifest: <class 'tiny_harness.harness.plugins.models.PluginManifest'>, root: pathlib.Path | None = ..., skills: tuple[pathlib.Path, ...] = ..., mcp: collections.abc.Mapping[str, tiny_harness.harness.plugins.models.McpStdioServer | tiny_harness.harness.plugins.models.McpHttpServer | tiny_harness.harness.plugins.models.McpSseServer] = ..., hooks: tuple[tiny_harness.harness.plugins.models.HookDef, ...] = ..., commands: tuple[tiny_harness.harness.plugins.models.CommandDef, ...] = ..., prompts: tuple[pathlib.Path, ...] = ..., systemprompt: pathlib.Path | None = ..., notes: tuple[str, ...] = ...)
 class PluginLoader(object)
-  def __init__(self, *, hook_manager: 'HookManager', registrar: 'Registrar', providers: 'Providers | None' = None, data_root: 'Path') -> 'None'
+  def __init__(self, *, hook_manager: 'HookManager', registrar: 'Registrar', providers: 'Providers | None' = None, data_root: 'Path', commands: 'CommandRegistry | None' = None) -> 'None'
   def load(self, plugin: 'Plugin', *, override: 'bool' = False) -> 'LoadReport'
   def load_directory(self, root: 'Path', *, override: 'bool' = False) -> 'LoadReport'
 model PluginManifest(schema_id: <class 'str'>, name: <class 'str'>, version: str | None = ..., description: str | None = ..., author: tiny_harness.harness.plugins.models.Author | None = ..., homepage: str | None = ..., repository: str | None = ..., license: str | None = ..., keywords: tuple[str, ...] = ..., extensions: collections.abc.Mapping[str, collections.abc.Mapping[str, object]] = ...)

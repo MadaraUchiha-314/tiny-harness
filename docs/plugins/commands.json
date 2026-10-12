@@ -1,0 +1,55 @@
+{
+  "$defs": {
+    "CommandDef": {
+      "additionalProperties": false,
+      "description": "One entry of the namespace directory's ``commands.json`` (issue-25 R6a.6): a slash\ncommand whose body is the ``HookDef`` named ``hook`` in the same plugin's\n``hooks.json``. That hook is *command-owned*: it must declare exactly\n``points: [\"command.invoked.in\"]`` and is registered only as this command's body. The\nloader checks ``name`` (``[a-z][a-z0-9-]*``), so one bad entry skips only itself.",
+      "properties": {
+        "argument_hint": {
+          "default": "",
+          "description": "What follows the name, e.g. <env>.",
+          "title": "Argument Hint",
+          "type": "string"
+        },
+        "description": {
+          "description": "One line, shown to clients as a completion.",
+          "title": "Description",
+          "type": "string"
+        },
+        "hook": {
+          "description": "The HookDef in hooks.json that runs it.",
+          "minLength": 1,
+          "title": "Hook",
+          "type": "string"
+        },
+        "name": {
+          "description": "The command, typed as /<name>.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "hook"
+      ],
+      "title": "CommandDef",
+      "type": "object"
+    }
+  },
+  "$id": "https://madarauchiha-314.github.io/tiny-harness/plugins/commands/v1/schema.json",
+  "additionalProperties": false,
+  "description": "The namespace directory's ``commands.json``.",
+  "properties": {
+    "commands": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CommandDef"
+      },
+      "title": "Commands",
+      "type": "array"
+    }
+  },
+  "title": "CommandsFile",
+  "type": "object"
+}

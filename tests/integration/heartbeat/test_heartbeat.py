@@ -17,7 +17,15 @@ from a2a.types import TaskState
 from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.durable.conftest import CACHE, Harness, message, send, start
+from tests.integration.durable.conftest import (
+    CACHE,
+    Harness,
+    awaiting_next_message,
+    close,
+    message,
+    send,
+    start,
+)
 from tiny_harness.harness.channels import Channel, ChannelMessage
 from tiny_harness.harness.entities import EntityKind, EntityRef, RegistryEntry
 from tiny_harness.harness.hooks import FunctionExecutor, HookContext, HookPoint, Operation, Phase
@@ -76,7 +84,7 @@ async def test_a_schedule_tick_forwards_a_pull_channel_message_to_its_task(
         Given a task waiting in INPUT_REQUIRED for alice's reply, on the dev server
         And alice's reply waits on a pull channel
         When the heartbeat workflow runs one tick
-        Then the reply reaches the task's inbox and the task completes
+        Then the reply reaches the task's inbox and the task replies again
         And the tick's snapshot, listing the task, reached the heartbeat.tick hook
     """
     ask = ToolCall(
@@ -126,13 +134,14 @@ async def test_a_schedule_tick_forwards_a_pull_channel_message_to_its_task(
             task_queue=tq,
         )
         assert result.forwarded == 1
-        final = await handle.result()
-    assert final.status.state == TaskState.TASK_STATE_COMPLETED
+        final = (await awaiting_next_message(handle)).proto  # issue-25 R3.1
+        await close(handle)
+    assert final.status.message.parts[0].text == "Full refund issued."
     assert snapshots and snapshots[0].snapshot.tasks
     seen = [t for t in snapshots[0].snapshot.tasks if t.task_id == "t-1"]
     assert seen, "the snapshot lists the running task"
     # The poll ran first in the same tick, so the task had already left INPUT_REQUIRED.
-    assert seen[0].state_name in {"WORKING", "COMPLETED"}
+    assert seen[0].state_name in {"WORKING", "INPUT_REQUIRED"}
 
 
 async def test_the_heartbeat_schedule_is_created_once_and_can_be_deleted(

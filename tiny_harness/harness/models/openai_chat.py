@@ -18,6 +18,7 @@ from typing import cast
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.completion_usage import CompletionUsage
 
+from tiny_harness.harness.models.json_args import loads_arguments
 from tiny_harness.harness.models.llm import (
     FinishReason,
     LLMRequest,
@@ -87,10 +88,12 @@ def build_chat_params(
 ) -> JsonObject:
     names = names or WireNames(request.tools)
     params: JsonObject = {
-        "model": model,
+        "model": request.model or model,
         "messages": cast(JsonValue, build_messages(request, names)),
         "max_tokens": request.max_output_tokens or max_output_tokens,
     }
+    if request.reasoning_effort is not None:  # only when set: unset stays byte-identical
+        params["reasoning_effort"] = request.reasoning_effort
     if request.tools:
         params["tools"] = [
             {
@@ -117,7 +120,7 @@ def build_chat_params(
 
 
 def _arguments(raw: str | None) -> JsonObject:
-    arguments = cast(object, json.loads(raw or "{}"))
+    arguments = loads_arguments(raw)
     if not isinstance(arguments, dict):
         return {"value": cast(JsonValue, arguments)}
     return cast(JsonObject, arguments)

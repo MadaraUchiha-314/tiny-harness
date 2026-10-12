@@ -14,8 +14,8 @@ replaced, versioned or served remotely without touching the loop. Lives in
 ## Current behaviour
 
 - The system SHALL define one abstract interface per entity kind: `prompt`, `skill`,
-  `tool`, `llm`, `system_one`, `hook`, `channel`, `renderer`, `surface`, `store` and
-  `agent`. The agent interface is `send_message` (an async stream of the A2A SDK's own
+  `tool`, `llm`, `system_one`, `hook`, `channel`, `renderer`, `surface`, `store`,
+  `agent` and `command`. The agent interface is `send_message` (an async stream of the A2A SDK's own
   `Message`, `Task` and update events) and `cancel_task`, with an agent card.
 - The system SHALL address every entity instance by an `EntityRef` of `(kind, id,
   version)`, where `version` is `None` for kinds that are not versioned. A version
@@ -29,6 +29,14 @@ replaced, versioned or served remotely without touching the loop. Lives in
   HTTPS for models and remote hooks); a remote entry with no protocol SHALL be refused.
 - WHEN two registrations carry the same `(id, version)` THEN the second SHALL be refused
   unless the caller asks for an override.
+- A `Command` entity SHALL wrap a `CommandSpec` (name matching `[a-z][a-z0-9-]*`,
+  description, argument hint) under `EntityRef(kind="command", id=<name>)`, unversioned.
+  The `CommandRegistry` (`harness/commands/registry.py`) takes registrations from code
+  (`register(spec, handler)` or `register_executor(spec, executor)`, each with
+  `override=`), from plugins and from the built-ins; an invalid or duplicate name raises
+  `CommandError` when the harness is built. It is frozen before the worker starts and
+  published into the entity registry, and its specs are what the card's commands
+  extension lists.
 - The registry SHALL be one object with a typed `get`, exposed to hooks and plugins, so a
   plugin can register, override or remove an entry. Divergences from sherma's
   `Registry[T]`: one registry instead of a subclass per kind, a remote entry carries its
@@ -44,3 +52,4 @@ replaced, versioned or served remotely without touching the loop. Lives in
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Entity base, kinds, references, remote locations and the registry (Layer 1); the `surface` kind added with the renderers (Layer 7) | [spec](../specs/issue-3/), [PR #7](https://github.com/MadaraUchiha-314/tiny-harness/pull/7), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13) |
+| issue-25 | The `command` kind and the `Command` entity, filled by `CommandRegistry` and published before the worker starts | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |

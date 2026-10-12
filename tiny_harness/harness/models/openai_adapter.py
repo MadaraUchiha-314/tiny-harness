@@ -36,6 +36,7 @@ from pydantic import SecretStr
 
 from tiny_harness.errors import ProviderError, RetryableProviderError
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.models.json_args import loads_arguments
 from tiny_harness.harness.models.llm import (
     LLM,
     FinishReason,
@@ -118,7 +119,7 @@ def build_params(
 ) -> ResponseCreateParamsBase:
     names = names or WireNames(request.tools)
     params: JsonObject = {
-        "model": model,
+        "model": request.model or model,
         "instructions": request.instructions,
         "input": cast(JsonValue, build_input(request, names)),
         "store": False,
@@ -128,6 +129,8 @@ def build_params(
         params["tools"] = cast(JsonValue, build_tools(request.tools, names))
     if request.cache_key:
         params["prompt_cache_key"] = request.cache_key
+    if request.reasoning_effort is not None:  # only when set: unset stays byte-identical
+        params["reasoning"] = {"effort": request.reasoning_effort}
     if request.response_format is not None:
         params["text"] = {
             "format": {
@@ -154,7 +157,7 @@ def parse_response(response: Response, names: WireNames | None = None) -> LLMRes
                     refused = True
                     texts.append(part.refusal)
         elif isinstance(item, ResponseFunctionToolCall):
-            arguments = cast(object, json.loads(item.arguments or "{}"))
+            arguments = loads_arguments(item.arguments)
             if not isinstance(arguments, dict):
                 arguments = {"value": arguments}
             calls.append(
@@ -325,7 +328,7 @@ class OpenAILLM(LLM):
                 elif isinstance(event, ResponseOutputItemDoneEvent) and isinstance(
                     event.item, ResponseFunctionToolCall
                 ):
-                    arguments = cast(object, json.loads(event.item.arguments or "{}"))
+                    arguments = loads_arguments(event.item.arguments)
                     if isinstance(arguments, dict):
                         yield LLMStreamEvent(
                             kind="tool_call",
@@ -360,7 +363,7 @@ class OpenAILLM(LLM):
     async def _stream_chat(
         self, request: LLMRequest, names: WireNames
     ) -> AsyncIterator[LLMStreamEvent]:
-        assembler = ChatStreamAssembler(names=names, model=self._model)
+        assembler = ChatStreamAssembler(names=names, model=request.model or self._model)
         params = self._chat_params(request, names)
         params["stream_options"] = STREAM_USAGE
         try:

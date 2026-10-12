@@ -11,9 +11,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TextIO
 
 import httpx
@@ -23,6 +24,8 @@ from temporalio.client import Client
 from uvicorn.config import LOGGING_CONFIG
 
 from tiny_harness.config import Settings
+from tiny_harness.harness.commands import CommandHandler, CommandSpec
+from tiny_harness.harness.plugins import Plugin
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a import (
@@ -107,7 +110,13 @@ async def _until_started(server: uvicorn.Server, task: asyncio.Task[None]) -> No
 
 @asynccontextmanager
 async def running_harness(
-    settings: Settings, *, with_worker: bool = True, log_stream: TextIO | None = None
+    settings: Settings,
+    *,
+    with_worker: bool = True,
+    log_stream: TextIO | None = None,
+    plugins: Sequence[Plugin | Path] = (),
+    commands: Iterable[tuple[CommandSpec, CommandHandler]] = (),
+    builtin_commands: bool = True,
 ) -> AsyncGenerator[RunningHarness]:
     """Start Temporal (per ``temporal.mode``), the runtime, the worker and the A2A server;
     yield once the server is listening; stop all of them on exit (issue-17 R6.1, R6.2).
@@ -115,7 +124,12 @@ async def running_harness(
     In embedded mode the worker always runs here: no other process can reach the embedded
     server (R5.1). ``log_stream``, when given, receives uvicorn's logs and an embedded dev
     server's output instead of this process's stdout and stderr (the TUI hosting its own
-    harness owns the terminal)."""
+    harness owns the terminal).
+
+    ``plugins``, ``commands`` and ``builtin_commands`` go to ``build_runtime``: an SDK
+    caller adds plugins and slash commands in code, or builds without the built-in
+    commands (issue-25 R6.8, R11). Nothing here reads or creates ``~/.tiny-harness``
+    (R11.2); that is the CLI's choice, through ``tiny_harness.home``."""
     if settings.temporal.mode == "embedded" and not with_worker:
         log.info("embedded mode: the worker runs in this process")
         with_worker = True
@@ -123,12 +137,18 @@ async def running_harness(
         temporal_client(settings, output=log_stream) as client,
         contextlib.AsyncExitStack() as stack,
     ):
-        runtime = await build_runtime(settings)
+        runtime = await build_runtime(
+            settings, plugins=plugins, commands=commands, builtin_commands=builtin_commands
+        )
         push_store = StorePushConfigStore(runtime.store)
         push_http = httpx.AsyncClient(timeout=10)
         stack.push_async_callback(push_http.aclose)
         bridge = PollingEventBridge(client, interval=settings.server.bridge_interval)
-        card = build_agent_card(AgentDescription(), str(settings.server.base_url))
+        runtime.commands.freeze()  # no command is registered once the card is built
+        await runtime.commands.publish(runtime.registry)
+        card = build_agent_card(
+            AgentDescription(), str(settings.server.base_url), commands=runtime.commands.specs
+        )
         executor = HarnessExecutor(
             client,
             task_queue=settings.temporal.task_queue,
@@ -138,6 +158,7 @@ async def running_harness(
         )
         activities = Activities(
             runtime.engine,
+            commands=runtime.commands,
             sink=PushSink(push_store, push_http),
             client=client,
             retention=retention_map(settings),

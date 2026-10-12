@@ -1,11 +1,83 @@
 # Getting started
 
-The quickest way to see tiny-harness work is the demo under `examples/demo`: one harness
+The quickest way to talk to tiny-harness is the installed `tiny-harness` command; the
+quickest way to see all of it work is the demo under `examples/demo`: one harness
 instance on Temporal Cloud, the `gpt-6.1-sol` model, two MCP servers, a skill, and both
 renderers on one task: *"Refund order #48213: the customer says the blender arrived
 cracked. Check the order and propose a resolution."*
 
-## What you need
+## From `pip install` to a conversation
+
+The installed package needs no configuration file and no running server:
+
+```sh
+pip install tiny_harness
+export OPENAI_API_KEY=...   # or point [openai] base_url at a local server
+tiny-harness                # the same as `tiny-harness tui`
+```
+
+1. **The configuration file.** Without `--config`, the CLI reads
+   `~/.tiny-harness/config.toml`. On the first run it creates the directory (`0700`) and
+   the file (`0600`) and prints `created default configuration <path>` on stderr. The
+   file selects embedded Temporal with persistence on, puts the store, the Temporal
+   database and `tiny-harness.log` under `~/.tiny-harness/`, holds no secret, and comments
+   every key. It is never rewritten, so edit it freely. A symlinked or foreign-owned
+   home or file is refused with exit status 2. `--config FILE` reads that file only and
+   never touches `~/.tiny-harness/`; `tiny-harness --help` names the file in effect.
+   From Python, `tiny_harness.home.resolve_config_path` and `ensure_default_config` do
+   the same; `Settings.load` and `running_harness` never look at the home directory.
+2. **The TUI hosts the harness** in its own process (embedded mode, no `--url`), so the
+   model provider's key is the only thing it needs.
+
+### The conversation lifecycle
+
+A reply ends a turn, not the task. The task waits in `INPUT_REQUIRED` and the
+[status extension](../a2a/ext/status/v1) says why:
+
+```mermaid
+stateDiagram-v2
+  [*] --> WORKING: a message
+  WORKING --> INPUT_REQUIRED: reply delivered<br/>(awaiting-next-message)
+  WORKING --> INPUT_REQUIRED: ask_participant<br/>(awaiting-answer)
+  INPUT_REQUIRED --> WORKING: the next message
+  INPUT_REQUIRED --> COMPLETED: Complete
+  WORKING --> COMPLETED: Complete (cuts the turn)
+  INPUT_REQUIRED --> CANCELED: Cancel
+  WORKING --> CANCELED: Cancel
+  COMPLETED --> [*]
+  CANCELED --> [*]
+```
+
+- **Keep talking.** The next message continues the same task, with its history.
+- **Complete** (`ctrl+d` in the TUI, the *Complete* button in the web renderer) ends it
+  `COMPLETED`. A task with an open sub-task refuses and names it. Any A2A client can do
+  the same with the [control envelope](../a2a/extensions#completing-a-task).
+- **Cancel** (`ctrl+c`, or *Cancel task*) ends it `CANCELED`.
+- A watcher can do neither; completing or cancelling a finished task is refused with
+  its state.
+
+Sub-tasks the agent spawns itself still complete on their own, so their parent can go on.
+
+### Slash commands
+
+A message that is exactly `/<name> <arguments>` for a registered command runs on the
+harness: no model call, a reply on the task, the task's state unchanged. Type `/` in
+either renderer for completions.
+
+| Command | Reply |
+|---------|-------|
+| `/model` | The task's model and the selectable ones (`[openai] models`, default: `model` alone) |
+| `/model <name>` | Switches this task and its new sub-tasks to `<name>`; any other name is refused |
+| `/effort` | The task's reasoning effort (or the provider default) and `low`, `medium`, `high` |
+| `/effort <value>` | Sets the effort sent on every later model call; `[openai] reasoning_effort` is the default |
+| `/sub-task <description>` | `Created sub-task <id>.` The sub-task is a conversation of its own; open it from the Task tab (`enter`) or the link, and `f4` or *← Parent* goes back |
+| `/status` | Id, name, state and sub-state, model, effort, plan steps done, each sub-task's state |
+
+A watcher can read (`/model`, `/effort`, `/status`) but not change. A `/word` that is not
+registered goes to the model as an ordinary message. Code and plugins add commands of
+their own; see [plugins](../capabilities/plugins).
+
+## What you need for the demo
 
 - The [local development](local-development) setup (`uv sync`), plus Bun for the web
   renderer.
@@ -111,7 +183,9 @@ sequenceDiagram
     R->>S: SendStreamingMessage (A2UI action or text reply)
     S->>W: inbox update
     W->>M: ship_replacement (not idempotent, never retried)
-    W-->>S: status COMPLETED with the summary
+    W-->>S: the summary, status INPUT_REQUIRED (awaiting-next-message)
+    R->>S: SendMessage (control: complete)
+    W-->>S: status COMPLETED
 ```
 
 1. The task is **SUBMITTED** then **WORKING**; the agent loads the `support-agent` skill,
@@ -121,8 +195,10 @@ sequenceDiagram
    in the TUI.
 3. The agent asks the reporter (`ask_participant`) and the task waits in
    **INPUT_REQUIRED**. Press the button or answer in text.
-4. The agent ships the replacement or issues the refund and the task reaches
-   **COMPLETED** with a two-sentence summary.
+4. The agent ships the replacement or issues the refund, replies with a two-sentence
+   summary, and the task waits in **INPUT_REQUIRED · awaiting-next-message**.
+5. Ask a follow-up, send `/status`, or press **Complete**: the task reaches
+   **COMPLETED**.
 
 Every span of the run is appended to `examples/demo/.state/trace.jsonl` (one JSON object
 per line, secrets redacted) and the SQLite store sits beside it. Delete `.state/` to start
@@ -136,8 +212,10 @@ uv run pytest tests/e2e -q -m e2e -k crash_recovery    # only the kill -9 scenar
 ```
 
 `tests/e2e/test_demo.py` drives the conversation through the A2A client (it presses the
-card's button for the first question) and asserts the states, the ledger of the orders
-server and the trace. `tests/e2e/test_crash_recovery.py` runs the server and the worker
+card's button for the first question, then completes the parked task) and asserts the
+states, the ledger of the orders server and the trace. The offline Ollama test
+(`tests/e2e/test_demo_ollama.py`) also sends a second message to the parked task and
+`/status`, and checks that the command made no model call. `tests/e2e/test_crash_recovery.py` runs the server and the worker
 as separate processes, kills the worker with `SIGKILL` during an idempotent tool call and
 again while the task waits for input, restarts it, and reads Temporal's history to prove
 no LLM call ran twice. Each run gets its own task queue, port and state directory under
@@ -151,4 +229,5 @@ the tests skip with the missing variable's name.
   need, and what is retained where.
 - [Capabilities](../capabilities/capabilities): the current behaviour, one page per
   requirement group.
-- [The A2A extensions](../a2a/extensions): what the task and channel data parts carry.
+- [The A2A extensions](../a2a/extensions): what the task and channel data parts carry,
+  the status sub-states, the commands on the card and the control envelope.

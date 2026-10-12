@@ -59,6 +59,13 @@ from tiny_harness.harness.core.state import (
     SchemaValidated,
     StateValidationError,
 )
+from tiny_harness.harness.core.status import (
+    STATUS_EXT_KEY,
+    STATUS_EXT_URI,
+    StatusExtensionData,
+    SubState,
+    status_extension_schema,
+)
 from tiny_harness.harness.core.task import (
     TASK_EXT_KEY,
     TASK_EXT_MEDIA_TYPE,
@@ -66,6 +73,7 @@ from tiny_harness.harness.core.task import (
     TERMINAL_STATES,
     AcceptanceCriterion,
     HarnessTask,
+    Lifecycle,
     Participant,
     Plan,
     Role,
@@ -81,6 +89,8 @@ __all__ = [
     "NEVER_COMPACT",
     "ORDER",
     "PARTICIPANT_KEY",
+    "STATUS_EXT_KEY",
+    "STATUS_EXT_URI",
     "SUMMARISE",
     "SUMMARISER_INSTRUCTIONS",
     "TASK_EXT_KEY",
@@ -105,6 +115,7 @@ __all__ = [
     "HistoryEntry",
     "LLMInvokedPost",
     "LLMInvokedPre",
+    "Lifecycle",
     "LoadedSkillRecord",
     "Operations",
     "Outcome",
@@ -117,8 +128,10 @@ __all__ = [
     "SchemaValidated",
     "Stability",
     "StateValidationError",
+    "StatusExtensionData",
     "Step",
     "StepState",
+    "SubState",
     "SubtaskSpawnedPost",
     "SubtaskSpawnedPre",
     "TaskCompleteIn",
@@ -141,4 +154,5 @@ __all__ = [
     "render_task",
     "render_untrusted",
     "state_name",
+    "status_extension_schema",
 ]

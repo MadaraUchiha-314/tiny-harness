@@ -14,8 +14,8 @@ from a2a.types import Role as A2ARole
 from google.protobuf import struct_pb2
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.durable.conftest import Harness, send, start, task
-from tiny_harness.harness.core import HarnessTask, Participant, Role, TaskExtensionData
+from tests.integration.durable.conftest import Harness, close, parked, send, start, task, until
+from tiny_harness.harness.core import HarnessTask, Participant, Role, SubState, TaskExtensionData
 from tiny_harness.harness.models import scripted
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.card import EVENT_MEDIA_TYPE
@@ -66,7 +66,7 @@ async def test_a_task_envelope_updates_an_existing_task_within_its_senders_right
         And the reporter sends one that changes the participants
         And the admin sends the same participants change
         Then the criteria change, the reporter's participants change is refused
-        And the admin's is applied, all visible on the final task
+        And the admin's is applied, all visible on the task once it awaits the next message
     """
     tq = f"tq-{uuid.uuid4().hex[:8]}"
     task_id = f"t-{uuid.uuid4().hex[:8]}"
@@ -113,9 +113,15 @@ async def test_a_task_envelope_updates_an_existing_task_within_its_senders_right
                 message_id="m3",
             ),
         )
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
-    ext = HarnessTask(result).ext
+
+        def settled(t: HarnessTask) -> bool:
+            # The conversation parks after its reply (issue-25 R3.1); m3 is the last envelope.
+            return parked(SubState.AWAITING_NEXT_MESSAGE)(t) and len(t.ext.participants) == 4
+
+        result = await until(handle, settled)
+        await close(handle)
+    assert result.state == TaskState.TASK_STATE_INPUT_REQUIRED
+    ext = result.ext
     assert [c.text for c in ext.acceptance_criteria] == ["Refund issued"]
     assert [p.id for p in ext.participants] == ["alice", "ops", "agent", "bob"]
     assert isinstance(ext, TaskExtensionData)

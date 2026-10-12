@@ -14,7 +14,16 @@ import pytest
 from a2a.types import TaskState
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.durable.conftest import Harness, message, send, start
+from tests.integration.durable.conftest import (
+    Harness,
+    awaiting_next_message,
+    close,
+    message,
+    send,
+    start,
+    task,
+)
+from tiny_harness.harness.core import HarnessTask, SubState
 from tiny_harness.harness.hooks import FunctionExecutor, HookContext, HookPoint, Operation, Phase
 from tiny_harness.harness.models import ToolResultItem, scripted
 from tiny_harness.harness.persistence import CompactionStoreRecord, Filter, TaskRecord
@@ -33,35 +42,39 @@ def queue() -> str:
     return f"tq-{uuid.uuid4().hex[:8]}"
 
 
-async def test_a_task_runs_the_loop_to_completion_with_recorded_activity_results(
+async def test_a_task_runs_the_loop_to_its_reply_with_recorded_activity_results(
     env: WorkflowEnvironment,
 ) -> None:
     """
     Feature: Durable core loop
     Requirement: docs/specs/issue-3/requirements.md#R19
 
-    Scenario: a task runs the loop to completion with recorded activity results
+    Scenario: a task runs the loop to its reply with recorded activity results
         Given a worker with a scripted LLM that calls one tool then answers
         When a message is sent through update-with-start
-        Then the workflow completes with the answer in the COMPLETED status
+        Then the task parks INPUT_REQUIRED, awaiting the next message, with the answer
         And the event log holds the Task then each status update
-        And the store holds the task record with its events
+        And the store holds the parked task record
+        And once the task closes the store holds the task record with its events
         And replaying the history invokes no activity again
     """
     h = await Harness([scripted("", tool_calls=[GET_ORDER]), scripted("Refunded.")]).bind()
     tq = queue()
     async with h.worker(env.client, tq):
         handle = await send(env.client, tq, start(), message("refund 48213", message_id="m1"))
-        result = await handle.result()
-        assert result.status.state == TaskState.TASK_STATE_COMPLETED
-        assert result.status.message.parts[0].text == "Refunded."
+        parked = await awaiting_next_message(handle)  # a reply no longer completes (issue-25 R3)
+        assert parked.proto.status.message.parts[0].text == "Refunded."
         page = await handle.query(TaskWorkflow.events_since, 0)
         assert [e.kind for e in page.events] == ["task", "status_update", "status_update"]
-        assert page.closed
+        assert not page.closed
         assert [c.name for c in h.get_order.calls] == ["orders.get_order"]
         assert len(h.llm.requests) == 2
         record = await h.store.get(TaskRecord, "t-1")
-        assert record is not None and record.state_name == "COMPLETED" and len(record.events) == 3
+        assert record is not None and record.state_name == "INPUT_REQUIRED"
+        result = await close(handle)
+        assert result.status.state == TaskState.TASK_STATE_CANCELED
+        record = await h.store.get(TaskRecord, "t-1")
+        assert record is not None and record.state_name == "CANCELED" and len(record.events) == 4
         history = await handle.fetch_history()
     await build_replayer().replay_workflow(history)
     assert len(h.llm.requests) == 2
@@ -94,9 +107,10 @@ async def test_a_worker_crash_mid_activity_resumes_without_a_second_llm_call(
         await asyncio.wait_for(h.get_order.released.wait(), timeout=30)
         assert len(h.llm.requests) == 1
         h.get_order.gate = None  # the next attempt runs through
-        result = await handle.result()
+        result = (await awaiting_next_message(handle)).proto
         h.get_order.released.set()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        await close(handle)
+    assert result.status.message.parts[0].text == "Refunded."
     assert len(h.get_order.calls) == 2
     assert len(h.llm.requests) == 2
     history = await handle.fetch_history()
@@ -136,8 +150,9 @@ async def test_a_non_idempotent_tool_failure_is_not_retried(env: WorkflowEnviron
     tq = queue()
     async with h.worker(env.client, tq):
         handle = await send(env.client, tq, start(), message("refund 48213", message_id="m1"))
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto
+        await close(handle)
+    assert result.status.message.parts[0].text == "Could not refund."
     assert len(h.refund.calls) == 1
     assert seen == ["activity.failed.pre"]
     second = h.llm.requests[1].input
@@ -182,8 +197,9 @@ async def test_activity_failed_and_activity_retried_hooks_run_between_workflow_m
     tq = queue()
     async with h.worker(env.client, tq):
         handle = await send(env.client, tq, start(), message("refund 48213", message_id="m1"))
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto
+        await close(handle)
+    assert result.status.message.parts[0].text == "Refunded."
     assert len(h.get_order.calls) == 3
     assert seen == [
         "activity.failed@1",
@@ -218,8 +234,10 @@ async def test_an_inbox_message_to_an_executing_task_is_drained_at_the_next_iter
         )
         assert receipt.accepted and receipt.state_name == "WORKING"
         h.get_order.gate.set()
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto
+        await close(handle)
+    assert result.status.message.parts[0].text == "Refunded."
+    assert len(h.llm.requests) == 2  # drained into the running turn, not a turn of its own
     texts = [i.text for i in h.llm.requests[1].input if i.kind == "message"]
     assert any("also expedite it" in t for t in texts)
     assert not any(
@@ -246,8 +264,9 @@ async def test_compaction_runs_before_the_llm_call_when_the_first_message_is_ove
     tq = queue()
     async with h.worker(env.client, tq):
         handle = await send(env.client, tq, start(), message("complaint " * 300, message_id="m1"))
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto
+        await close(handle)
+    assert result.status.message.parts[0].text == "Refunded."
     assert "Exchange:" in h.llm.requests[0].input[0].text  # type: ignore[union-attr]
     records = await h.store.query(CompactionStoreRecord, Filter(task_id="t-1"))
     assert len(records) == 1
@@ -265,7 +284,7 @@ async def test_continue_as_new_carries_the_mailbox_event_log_and_pending_help_re
         When the task asks a participant and the reply arrives
         Then the workflow continues as new before draining the reply
         And the new run still serves the whole event log from sequence 0
-        And the reply resumes the task to completion
+        And the reply resumes the task until its answer parks it awaiting the next message
     """
     ask = ToolCall(
         call_id="c1",
@@ -281,7 +300,7 @@ async def test_continue_as_new_carries_the_mailbox_event_log_and_pending_help_re
 
         async def waiting() -> bool:
             t = await handle.query(TaskWorkflow.task_query)
-            return t.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
+            return HarnessTask(t).sub_state is SubState.AWAITING_ANSWER
 
         for _ in range(100):
             if await waiting():
@@ -293,15 +312,16 @@ async def test_continue_as_new_carries_the_mailbox_event_log_and_pending_help_re
             TaskWorkflow.inbox, message("Full.", message_id="m2")
         )
         assert receipt.accepted
-        result = await handle.result()
-        assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto
+        assert result.status.message.parts[0].text == "Full refund issued."
         last_run = (await handle.describe()).run_id
         assert last_run != first_run
         page = await handle.query(TaskWorkflow.events_since, 0)
+        await close(handle)
     assert page.events[0].seq == 0 and page.events[0].kind == "task"
     kinds = [(e.kind, e.payload.get("status", {}).get("state")) for e in page.events]  # type: ignore[union-attr]
     assert ("status_update", "TASK_STATE_INPUT_REQUIRED") in kinds
-    assert kinds[-1] == ("status_update", "TASK_STATE_COMPLETED")
+    assert kinds[-1] == ("status_update", "TASK_STATE_INPUT_REQUIRED")
     reply = [i.text for i in h.llm.requests[1].input if i.kind == "message"]
     assert any("Full." in t and "Full or partial?" in t for t in reply)
 
@@ -314,7 +334,7 @@ async def test_a_parent_waits_for_an_unresolved_sub_task_before_completing(
     Requirement: docs/specs/issue-3/requirements.md#R8
 
     Scenario: a parent waits for an unresolved sub-task before completing
-        Given the LLM spawns a sub-task then emits no tool call
+        Given a delegated parent whose LLM spawns a sub-task then emits no tool call
         When the child workflow completes
         Then the parent resumes with the child's result and completes
     """
@@ -331,7 +351,9 @@ async def test_a_parent_waits_for_an_unresolved_sub_task_before_completing(
     ).bind()
     tq = queue()
     async with h.worker(env.client, tq):
-        handle = await send(env.client, tq, start(), message("refund 48213", message_id="m1"))
+        # Only a delegated task asks task.complete at turn end (issue-25 R3.4, R3.5).
+        parent = start(task(lifecycle="delegated"))
+        handle = await send(env.client, tq, parent, message("refund 48213", message_id="m1"))
         result = await handle.result()
         child = await env.client.get_workflow_handle("t-1.1").result()
     assert result.status.state == TaskState.TASK_STATE_COMPLETED

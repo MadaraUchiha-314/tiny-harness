@@ -1,8 +1,10 @@
 """The observability hook executor (R17.1-R17.3, R17.6): one executor on every ``pre``
 and ``post`` point. ``pre`` opens a span and makes it current, so provider and MCP
 spans nest under it; ``post`` closes it with the GenAI semantic-convention attributes;
-both write one structured log record. ``activity.failed`` records the failure on the
-open span. Every attribute and log field passes through the redactor first.
+both write one structured log record. An operation whose body raised or was cancelled
+never reaches ``post``; the runner's ``abandon`` ends its span with an error status, so
+no span outlives its operation. ``activity.failed`` is logged. Every attribute and log
+field passes through the redactor first.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from opentelemetry import context as otel_context
 from opentelemetry import trace
 from opentelemetry.trace import Span, SpanKind, Status, StatusCode, TracerProvider
 
+from tiny_harness.harness.commands import CommandInvokedPost, CommandInvokedPre
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
     LLMInvokedPre,
@@ -30,8 +33,9 @@ from tiny_harness.service.durable.models import ActivityFailedPre, ActivityRetri
 log = logging.getLogger("tiny_harness.o11y")
 AGENT_NAME = "tiny-harness"
 TRACER = "tiny_harness"
-PRE_ONLY = frozenset({Operation.TOOL_CALLS_EXTRACTED})
-"""Points with a ``pre`` chain but no body or ``post``: logged, never spanned."""
+PRE_ONLY = frozenset({Operation.TOOL_CALLS_EXTRACTED, Operation.HEARTBEAT_TICK})
+"""Points with a ``pre`` chain but no body or ``post``: logged, never spanned (a span
+opened there would never end)."""
 
 type SpanKey = tuple[str, str, str, int]
 type Attributes = dict[str, str | int | float | bool]
@@ -103,6 +107,17 @@ class O11yExecutor:
         """Spans opened by ``pre`` and not yet closed; zero once every operation ended."""
         return len(self._open)
 
+    def abandon(self, point: HookPoint, ctx: HookContext, error: BaseException) -> None:
+        """The operation's body raised or was cancelled: end its span as an error."""
+        entry = self._open.pop(_key(point, ctx), None)
+        if entry is None:
+            return
+        span, token = entry
+        span.set_attribute("error.type", type(error).__name__)
+        span.set_status(Status(StatusCode.ERROR, self.redactor.scrub_text(str(error))))
+        otel_context.detach(token)  # type: ignore[arg-type]
+        span.end()
+
     async def handle(self, point: HookPoint, ctx: HookContext) -> HookContext | None:
         fields = self._fields(point, ctx)
         if point.phase is Phase.PRE and point.operation in (
@@ -133,6 +148,10 @@ class O11yExecutor:
             attributes["gen_ai.operation.name"] = "chat"
             attributes["gen_ai.provider.name"] = "tiny_harness"
             attributes["gen_ai.request.tools"] = len(ctx.request.tools)
+            if ctx.request.model:
+                attributes["gen_ai.request.model"] = ctx.request.model
+            if ctx.request.reasoning_effort:
+                attributes["tiny_harness.llm.reasoning_effort"] = ctx.request.reasoning_effort
             if ctx.model is not None:
                 attributes.update(_endpoint_attributes(ctx.model.endpoint, ctx.model.api))
             kind = SpanKind.CLIENT
@@ -145,6 +164,8 @@ class O11yExecutor:
             attributes["gen_ai.agent.name"] = AGENT_NAME
         elif point.operation is Operation.PLAN_CREATED:
             attributes["gen_ai.operation.name"] = "plan"
+        elif isinstance(ctx, CommandInvokedPre):  # the name only; arguments are never logged
+            attributes["tiny_harness.command.name"] = ctx.name
         span = tracer.start_span(
             span_name(point, ctx), kind=kind, attributes=self._scrub(attributes)
         )
@@ -160,7 +181,8 @@ class O11yExecutor:
         if isinstance(ctx, LLMInvokedPost):
             response = ctx.response
             span.update_name(span_name(point, ctx, model=response.model))
-            attributes["gen_ai.request.model"] = response.model
+            # The model asked for: the task's (issue-25 R7.3), else what answered.
+            attributes["gen_ai.request.model"] = ctx.request.model or response.model
             attributes["gen_ai.response.model"] = response.model
             attributes["gen_ai.usage.input_tokens"] = response.usage.input_tokens
             attributes["gen_ai.usage.output_tokens"] = response.usage.output_tokens
@@ -175,6 +197,8 @@ class O11yExecutor:
                     span.set_status(Status(StatusCode.ERROR, "tool returned an error result"))
             else:
                 attributes["tiny_harness.tool.command"] = result.kind
+        elif isinstance(ctx, CommandInvokedPost):
+            attributes["tiny_harness.command.outcome"] = "ok" if ctx.result else "no_handler"
         span.set_attributes(self._scrub(attributes))
         otel_context.detach(token)  # type: ignore[arg-type]
         span.end()
@@ -184,13 +208,6 @@ class O11yExecutor:
             fields["activity"] = ctx.activity
             fields["error.type"] = ctx.error.type
             fields["error.message"] = self.redactor.scrub_text(ctx.error.message)
-            key = (ctx.task_id, ctx.correlation_id, ctx.activity, ctx.attempt)
-            entry = self._open.pop(key, None)
-            if entry is not None:
-                span, token = entry
-                span.set_status(Status(StatusCode.ERROR, fields["error.message"]))
-                otel_context.detach(token)  # type: ignore[arg-type]
-                span.end()
             log.warning("activity failed: %s", ctx.activity, extra={"fields": dict(fields)})
         elif isinstance(ctx, ActivityRetriedPre):
             fields["activity"] = ctx.activity

@@ -29,6 +29,7 @@ class EntityKind(StrEnum):
     SURFACE = "surface"
     STORE = "store"
     AGENT = "agent"
+    COMMAND = "command"
 
 
 class EntityRef(BaseModel, frozen=True):

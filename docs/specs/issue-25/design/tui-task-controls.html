@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TUI task controls</title>
+<style>
+/* Design plan (issue-25) — extends issue-3's TUI mock. New: the top bar shows the A2A
+   state and the status-extension sub-state; ^D completes and ^C cancels (footer); typing
+   "/" in the composer shows inline completion plus a hint line of matching commands;
+   the Task tab lists sub-tasks as rows (Enter opens one, F4 returns to the parent).
+   Try: type "/", "/sub-task Draft the reply", Enter on a sub-task row, F4, ^D. */
+:root {
+  --bg: #e9ebe6; --term: #faf9f5; --fg: #1d2420; --muted: #6a736d; --rule: #c9cfc7;
+  --accent: #1d6b5a; --warn: #8a5a00; --err: #a33a2a; --sel: #dbe9e2;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1312; --term: #161b1a; --fg: #e4e8e3; --muted: #8f9a94; --rule: #2d3532;
+  --accent: #6cc6a6; --warn: #ffd27a; --err: #ff8c7a; --sel: #223029; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1312; --term: #161b1a; --fg: #e4e8e3; --muted: #8f9a94; --rule: #2d3532;
+  --accent: #6cc6a6; --warn: #ffd27a; --err: #ff8c7a; --sel: #223029; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.45 var(--mono); padding: 16px; }
+.term { background: var(--term); border: 1px solid var(--rule); border-radius: 8px; max-width: 1100px; margin: 0 auto; overflow: hidden; }
+.bar { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem .8rem; border-bottom: 1px solid var(--rule); color: var(--muted); white-space: nowrap; overflow-x: auto; }
+.bar b { color: var(--fg); font-weight: 600; }
+.panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 34%); min-height: 380px; }
+@media (max-width: 760px) { .panes { grid-template-columns: 1fr; } .right { border-left: 0 !important; border-top: 1px solid var(--rule); } }
+.pane { padding: .5rem .8rem; min-width: 0; }
+.right { border-left: 1px solid var(--rule); }
+.title { color: var(--muted); border-bottom: 1px solid var(--rule); margin: .4rem 0; padding-bottom: .2rem; }
+.title b { color: var(--fg); }
+pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; }
+.you { color: var(--accent); }
+.st { color: var(--muted); }
+.cmd { color: var(--muted); border-left: 2px solid var(--accent); padding-left: .5rem; }
+.help { color: var(--warn); }
+.ok { color: var(--accent); }
+.done { color: var(--muted); }
+.row { display: block; width: 100%; text-align: left; background: none; border: 0; font: inherit; color: var(--fg); padding: 0 .2rem; cursor: pointer; }
+.row:focus-visible, .row[aria-selected="true"] { background: var(--sel); outline: none; }
+.input { display: flex; gap: .4rem; border-top: 1px solid var(--rule); padding: .4rem .8rem; position: relative; }
+.input input { flex: 1; min-width: 0; font: inherit; background: none; border: 0; color: var(--fg); }
+.input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ghost { position: absolute; left: calc(.8rem + 1.4ch); top: .4rem; color: var(--muted); pointer-events: none; white-space: pre; }
+.hint { padding: .15rem .8rem; color: var(--muted); border-top: 1px dashed var(--rule); min-height: 1.6em; }
+.hint b { color: var(--fg); font-weight: 500; }
+.foot { display: flex; flex-wrap: wrap; gap: .3rem 1rem; padding: .3rem .8rem; border-top: 1px solid var(--rule); color: var(--muted); }
+.foot kbd { color: var(--fg); background: var(--sel); padding: 0 .3rem; border-radius: 3px; }
+.foot .off { opacity: .45; }
+.tabs { display: flex; gap: .8rem; margin-bottom: .3rem; }
+.tabs button { background: none; border: 0; font: inherit; color: var(--muted); padding: 0; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+.crumb { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="term" role="application" aria-label="tiny-harness TUI">
+  <div class="bar"><span><b>tiny-harness</b> · assistant v0.6.0 · ~/.tiny-harness/config.toml · embedded</span><span><span class="crumb" id="crumb"></span><span id="tid">task 7f3a…c21e</span> · <span id="state" class="help">INPUT_REQUIRED · awaiting-next-message</span></span></div>
+  <div class="panes">
+    <div class="pane" id="conv">
+      <pre><span class="you">you ›</span> Summarise the three open support tickets and suggest who should take each.
+<span class="st">── task submitted → WORKING</span>
+agent › #48213 (damaged blender): billing — refund needs a photo.
+        #48377 (address change): logistics.
+        #48402 (login loop): platform on-call.
+<span class="st">── task → INPUT_REQUIRED · awaiting-next-message · your turn</span></pre>
+      <pre id="more"></pre>
+    </div>
+    <div class="pane right">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true">Task</button>
+        <button role="tab" aria-selected="false">Plan</button>
+        <button role="tab" aria-selected="false">Trace</button>
+      </div>
+      <div class="title"><b>Goal</b></div>
+      <pre id="goal">Summarise the open support tickets and suggest owners.</pre>
+      <div class="title"><b>Settings</b></div>
+      <pre id="settings">model  gpt-6.1-sol
+effort provider default</pre>
+      <div class="title"><b>Sub-tasks</b> <span class="st">· Enter opens</span></div>
+      <div id="subs" role="listbox" aria-label="Sub-tasks"><pre class="st" id="nosubs">none</pre></div>
+    </div>
+  </div>
+  <form class="input" id="composer" autocomplete="off"><span class="you">›</span><input id="reply" aria-label="Message or /command" placeholder="Enter to send as alice · / for commands"><span class="ghost" id="ghost"></span></form>
+  <div class="hint" id="hint" aria-live="polite"></div>
+  <div class="foot"><span><kbd>Tab</kbd> pane</span><span><kbd>F2</kbd> task/plan/trace</span><span><kbd>Enter</kbd> send</span><span id="k-done"><kbd>^D</kbd> complete</span><span id="k-cancel"><kbd>^C</kbd> cancel</span><span id="k-parent" class="off"><kbd>F4</kbd> parent</span><span><kbd>q</kbd> quit</span></div>
+</div>
+<script>
+(function () {
+  var m = /[?&]theme=(light|dark)/.exec(location.search); if (m) document.documentElement.setAttribute('data-theme', m[1]);
+  var COMMANDS = [
+    ['model', '[name]', 'show or switch the model for this task'],
+    ['effort', '[low|medium|high]', 'show or set reasoning effort'],
+    ['status', '', 'state, settings, plan and sub-tasks'],
+    ['sub-task', '<description>', 'split off a sub-task of this task']
+  ];
+  var tasks = { '7f3a…c21e': { state: 'INPUT_REQUIRED · awaiting-next-message', goal: 'Summarise the open support tickets and suggest owners.', parent: null, log: '' } };
+  var stack = ['7f3a…c21e'], n = 0;
+  var input = document.getElementById('reply'), ghost = document.getElementById('ghost'), hint = document.getElementById('hint');
+  var more = document.getElementById('more');
+  function cur() { return tasks[stack[stack.length - 1]]; }
+  function terminal() { return /^(COMPLETED|CANCELED)/.test(cur().state); }
+  function render() {
+    var id = stack[stack.length - 1], t = cur();
+    document.getElementById('tid').textContent = 'task ' + id;
+    var st = document.getElementById('state'); st.textContent = t.state;
+    st.className = terminal() ? 'done' : (/INPUT/.test(t.state) ? 'help' : 'ok');
+    document.getElementById('crumb').textContent = stack.length > 1 ? stack.slice(0, -1).join(' › ') + ' › ' : '';
+    document.getElementById('goal').textContent = t.goal;
+    more.textContent = t.log;
+    document.getElementById('k-done').className = terminal() ? 'off' : '';
+    document.getElementById('k-cancel').className = terminal() ? 'off' : '';
+    document.getElementById('k-parent').className = stack.length > 1 ? '' : 'off';
+    document.getElementById('conv').firstElementChild.hidden = stack.length > 1;
+  }
+  function say(s) { cur().log += s + '\n'; render(); }
+  function matches(v) { var q = v.slice(1).split(' ')[0]; return COMMANDS.filter(function (c) { return c[0].indexOf(q) === 0; }); }
+  input.addEventListener('input', function () {
+    var v = input.value; ghost.textContent = ''; hint.textContent = '';
+    if (v[0] !== '/' || v.indexOf(' ') > -1) return;
+    var ms = matches(v);
+    if (ms.length) ghost.textContent = ' '.repeat(v.length) + ('/' + ms[0][0]).slice(v.length);
+    hint.innerHTML = ms.map(function (c) { return '<b>/' + c[0] + '</b> ' + c[1] + ' — ' + c[2]; }).join('   ');
+  });
+  input.addEventListener('keydown', function (e) {
+    if ((e.key === 'Tab' || e.key === 'ArrowRight') && ghost.textContent.trim()) {
+      e.preventDefault(); input.value = '/' + matches(input.value)[0][0] + ' '; ghost.textContent = ''; hint.textContent = '';
+    }
+  });
+  document.getElementById('composer').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = input.value.trim(); input.value = ''; ghost.textContent = ''; hint.textContent = '';
+    if (!v) return;
+    if (terminal()) { say('── task is ' + cur().state + '; nothing sent'); return; }
+    say('you › ' + v);
+    var mm = /^\/([a-z][a-z0-9-]*)\s*(.*)$/.exec(v);
+    if (mm && mm[1] === 'sub-task') {
+      if (!mm[2]) { say('  /sub-task needs a description: /sub-task <description>'); return; }
+      var id = stack[stack.length - 1] + '.' + (++n);
+      tasks[id] = { state: 'INPUT_REQUIRED · awaiting-next-message', goal: mm[2], parent: stack[stack.length - 1], log: '── sub-task of ' + stack[stack.length - 1] + ' · waiting for your first message\n' };
+      var b = document.createElement('button'); b.className = 'row'; b.setAttribute('role', 'option'); b.dataset.id = id;
+      b.textContent = id + '  INPUT_REQUIRED  ' + mm[2];
+      b.addEventListener('click', function () { stack.push(id); render(); });
+      b.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); stack.push(id); render(); } });
+      document.getElementById('nosubs').hidden = true; document.getElementById('subs').appendChild(b);
+      say('  ⌘ created sub-task ' + id + ' — Enter on it in the Task tab to open');
+    } else if (mm && mm[1] === 'status') {
+      say('  ⌘ ' + stack[stack.length - 1] + ' · ' + cur().state + '\n    model gpt-6.1-sol · effort provider default · plan 0/0 · sub-tasks ' + n);
+    } else if (mm && mm[1] === 'effort') {
+      if (['low', 'medium', 'high'].indexOf(mm[2]) < 0) { say('  ⌘ effort: provider default · accepted: low, medium, high'); return; }
+      document.getElementById('settings').textContent = 'model  gpt-6.1-sol\neffort ' + mm[2];
+      say('  ⌘ effort set to ' + mm[2] + ' for this task');
+    } else if (mm && mm[1] === 'model') {
+      say('  ⌘ model: gpt-6.1-sol · selectable: gpt-6.1-sol, gpt-6-astra, gpt-6-luna');
+    } else {
+      say('── reply received → WORKING');
+      setTimeout(function () { say('agent › Noted.\n── task → INPUT_REQUIRED · awaiting-next-message · your turn'); }, 350);
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault();
+      if (terminal()) { say('── already ' + cur().state); return; }
+      cur().state = 'COMPLETED'; say('── completed by alice → COMPLETED');
+    } else if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && !window.getSelection().toString()) {
+      e.preventDefault();
+      if (terminal()) { say('── already ' + cur().state); return; }
+      cur().state = 'CANCELED'; say('── canceled by alice → CANCELED');
+    } else if (e.key === 'F4') {
+      e.preventDefault(); if (stack.length > 1) { stack.pop(); render(); }
+    }
+  });
+  render();
+})();
+</script>
+</body>
+</html>

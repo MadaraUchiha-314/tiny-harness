@@ -2,19 +2,35 @@
  * The web renderer (R20.2, R20.3): an A2A client of the server through the official SDK
  * and nothing else, on shadcn's chat components. The conversation on the left, the task
  * pane on the right, the composer below. A `?fixture=prototype` query renders the
- * prototype's events without a server (visual tests); `?server=` names the harness and
- * `?task=` attaches to an existing task. After a stream ends in a non-terminal state the
- * renderer keeps a subscription open, so a reply from another surface shows up here.
+ * prototype's events without a server (visual tests), and `?fixture=controls` runs the
+ * task-controls prototype (issue-25) against a scripted harness; `?server=` names the
+ * harness and `?task=` attaches to an existing task. After a stream ends in a non-terminal
+ * state the renderer keeps a subscription open, so a reply or a completion from another
+ * surface shows up here (R5.6). The header carries the state, the sub-state and the
+ * Complete and Cancel controls (R5.5, R5.7); sub-task and parent links attach in place.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import type React from "react";
-import { PlugZapIcon, XIcon } from "lucide-react";
-import { A2UI_MEDIA_TYPE, HarnessClient, dataPart, stateName, textPart, userMessage, type JsonObject, type StreamResponse } from "./a2a";
-import { apply, emptyView, type View } from "./model";
+import { CheckIcon, PlugZapIcon, XIcon } from "lucide-react";
+import {
+  A2UI_MEDIA_TYPE,
+  HarnessClient,
+  dataPart,
+  stateName,
+  textPart,
+  userMessage,
+  type CommandSpec,
+  type HarnessPort,
+  type JsonObject,
+  type StreamResponse,
+} from "./a2a";
+import { apply, attach, emptyView, type View } from "./model";
+import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
 import { Composer } from "./components/Composer";
 import { Stream } from "./components/Stream";
+import { TaskLink, taskHref } from "./components/TaskLink";
 import { TaskPane } from "./components/TaskPane";
 import type { ActionPayload } from "./components/A2uiCard";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +43,10 @@ export interface AppConfig {
   participant: string;
   agent: string;
   taskId?: string;
+  /** Events folded once, with no harness behind them (the issue-3 prototype). */
   fixture?: StreamResponse[];
+  /** The harness to talk to instead of `baseUrl` (the scripted fixture harness). */
+  client?: HarnessPort;
 }
 
 const SERVER_KEY = "tiny-harness.server";
@@ -57,6 +76,10 @@ export function configFromLocation(): AppConfig {
   const task = params.get("task");
   if (task) config.taskId = task;
   if (params.get("fixture") === "prototype") config.fixture = prototypeEvents();
+  if (params.get("fixture") === "controls") {
+    config.client = new FixtureClient(400);
+    config.taskId = task ?? CONTROLS_ROOT;
+  }
   return config;
 }
 
@@ -73,8 +96,11 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const seq = useRef(0);
   const folded = useRef(0); // server events folded for the current task (a replay skips them)
   const subscription = useRef<AbortController | null>(null);
-  const client = useRef(new HarnessClient(config.baseUrl, config.participant));
+  const client = useRef<HarnessPort>(config.client ?? new HarnessClient(config.baseUrl, config.participant));
   const contextId = useRef(crypto.randomUUID());
+  const offline = config.fixture !== undefined; // the prototype's events: nothing to send to
+  const [attached, setAttached] = useState(config.taskId);
+  const [commands, setCommands] = useState<CommandSpec[]>([]);
 
   const fold = useCallback((event: StreamResponse) => {
     const index = seq.current++;
@@ -86,7 +112,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
       ...current,
       items: [
         ...current.items,
-        { kind: "placeholder", mediaType: `error: ${String(error)}`, key: `err${seq.current++}` },
+        { kind: "error", text: error instanceof Error ? error.message : String(error), key: `err${seq.current++}` },
       ],
     }));
   }, []);
@@ -102,10 +128,11 @@ export function App(props: { config: AppConfig }): JSX.Element {
   }, [view]);
 
   /**
-   * Follow a task's event log: the replayed prefix is skipped, the rest folded live. A
-   * subscription ends at every final event (INPUT_REQUIRED included, per the SDK), so
-   * while the task is not finished it is opened again after a pause, which is how a
-   * reply sent from another surface shows up here (R20.3).
+   * Follow a task's event log: the replayed prefix is skipped, the rest folded live. The
+   * harness keeps a subscription open until the task ends (A2A 1.0 SubscribeToTask), so
+   * a reply or a completion from another surface shows up here (R20.3, R5.6); one that
+   * ends early (a dropped connection) is opened again after a pause while the task is
+   * not finished.
    */
   const subscribe = useCallback(
     async (taskId: string) => {
@@ -115,17 +142,28 @@ export function App(props: { config: AppConfig }): JSX.Element {
       try {
         while (!controller.signal.aborted) {
           // A subscription starts with the task as it is now, then replays the log; the
-          // events this page already folded are skipped, the snapshot with them.
+          // events this page already folded are skipped, the snapshot with them. On the
+          // first attach the snapshot only names the task, so the replay tells its story
+          // in order; it is folded whole if nothing follows it.
           let skip = folded.current > 0 ? folded.current + 1 : 0;
+          let snapshot: StreamResponse | null = null;
           for await (const event of client.current.subscribe(taskId, controller.signal)) {
             if (controller.signal.aborted) break;
             if (skip > 0) {
               skip -= 1;
               continue;
             }
+            if (folded.current === 0 && event.payload?.$case === "task") {
+              snapshot = event;
+              const task = event.payload.value;
+              setView((current) => attach(current, task));
+            } else {
+              snapshot = null;
+              fold(event);
+            }
             folded.current += 1;
-            fold(event);
           }
+          if (snapshot !== null && !controller.signal.aborted) fold(snapshot);
           if (controller.signal.aborted || TERMINAL.has(viewRef.current.state)) break;
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
@@ -138,11 +176,44 @@ export function App(props: { config: AppConfig }): JSX.Element {
     [fail, fold, stopSubscription],
   );
 
+  // Attach to the task in the URL, again whenever a link opens another one (R9.4).
   useEffect(() => {
     if (config.fixture) config.fixture.forEach(fold);
-    else if (config.taskId) void subscribe(config.taskId);
+    else if (attached) {
+      setView(emptyView());
+      folded.current = 0;
+      void subscribe(attached);
+    }
     return stopSubscription;
-  }, [config.fixture, config.taskId, fold, stopSubscription, subscribe]);
+  }, [config.fixture, attached, fold, stopSubscription, subscribe]);
+
+  const open = useCallback((taskId: string) => {
+    window.history.pushState(null, "", taskHref(taskId));
+    setAttached(taskId);
+  }, []);
+  useEffect(() => {
+    const back = () => {
+      const task = new URLSearchParams(window.location.search).get("task");
+      if (task) setAttached(task);
+    };
+    window.addEventListener("popstate", back);
+    return () => window.removeEventListener("popstate", back);
+  }, []);
+
+  // The commands the harness advertises on its card, for the composer (R6.7).
+  useEffect(() => {
+    if (offline) return;
+    let live = true;
+    client.current.commands().then(
+      (found) => {
+        if (live) setCommands(found);
+      },
+      () => undefined, // no card, no completions: commands still work when typed
+    );
+    return () => {
+      live = false;
+    };
+  }, [offline]);
 
   const consume = useCallback(
     async (events: AsyncGenerator<StreamResponse>) => {
@@ -174,6 +245,20 @@ export function App(props: { config: AppConfig }): JSX.Element {
     [fail, fold, stopSubscription, subscribe],
   );
 
+  /** Fold a stream another one already shows (a completion during a turn): only errors. */
+  const drain = useCallback(
+    async (events: AsyncGenerator<StreamResponse>) => {
+      try {
+        for await (const _event of events) {
+          // the running turn's stream folds the same events
+        }
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [fail],
+  );
+
   const send = useCallback(
     (text: string) => {
       const options = {
@@ -184,10 +269,10 @@ export function App(props: { config: AppConfig }): JSX.Element {
       };
       const message = userMessage(options);
       fold({ payload: { $case: "message", value: message } });
-      if (config.fixture) return;
+      if (offline) return;
       void consume(client.current.sendMessage(message));
     },
-    [config.fixture, config.participant, consume, fold, view.contextId, view.taskId],
+    [offline, config.participant, consume, fold, view.contextId, view.taskId],
   );
 
   const onAction = useCallback(
@@ -214,16 +299,23 @@ export function App(props: { config: AppConfig }): JSX.Element {
           value: { ...message, parts: [textPart(`${action.name} ${JSON.stringify(action.context)}`)] },
         },
       });
-      if (config.fixture || !view.taskId) return;
+      if (offline || !view.taskId) return;
       void consume(client.current.sendMessage(message));
     },
-    [config.fixture, config.participant, consume, fold, view.contextId, view.taskId],
+    [offline, config.participant, consume, fold, view.contextId, view.taskId],
   );
 
   const cancel = useCallback(() => {
-    if (!view.taskId || config.fixture) return;
-    void client.current.cancel(view.taskId).then((task) => fold({ payload: { $case: "task", value: task } }));
-  }, [config.fixture, fold, view.taskId]);
+    if (!view.taskId || offline) return;
+    void client.current.cancel(view.taskId).then((task) => fold({ payload: { $case: "task", value: task } }), fail);
+  }, [offline, fail, fold, view.taskId]);
+
+  /** Complete the task (R5.1): the control envelope; the harness stops a running turn. */
+  const complete = useCallback(() => {
+    if (!view.taskId || offline) return;
+    const events = client.current.complete(view.taskId);
+    void (busy ? drain(events) : consume(events));
+  }, [busy, consume, drain, offline, view.taskId]);
 
   const [server, setServer] = useState(config.baseUrl);
   const connect = useCallback(
@@ -244,11 +336,13 @@ export function App(props: { config: AppConfig }): JSX.Element {
   );
 
   const shortId = view.taskId ? `${view.taskId.slice(0, 4)}…${view.taskId.slice(-4)}` : "no task";
+  const controllable = view.taskId !== null && !TERMINAL.has(view.state);
+  const parent = view.ext?.parent_tasks?.[0]?.task_id;
   return (
     <div className="grid h-full grid-rows-[auto_1fr] bg-background text-foreground">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
         <h1 className="text-base font-semibold tracking-tight">tiny-harness</h1>
-        <span className="hidden font-mono text-xs text-muted-foreground sm:inline">
+        <span className="hidden font-mono text-xs text-muted-foreground 2xl:inline">
           {config.agent} · A2A 1.0
         </span>
         <form onSubmit={connect} className="flex min-w-0 items-center gap-1.5">
@@ -262,7 +356,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
             onChange={(e) => setServer(e.target.value)}
             placeholder="https://harness.example.com"
             title="The harness this renderer talks to (its agent card is at /.well-known/agent-card.json)"
-            className="h-8 w-64 font-mono text-xs"
+            className="h-8 w-48 font-mono text-xs"
           />
           <Button type="submit" variant="outline" size="sm" disabled={server.trim() === config.baseUrl}>
             <PlugZapIcon />
@@ -270,7 +364,14 @@ export function App(props: { config: AppConfig }): JSX.Element {
           </Button>
         </form>
         <span className="flex-1" />
-        <span className="font-mono text-xs text-muted-foreground">task {shortId}</span>
+        {parent ? (
+          <TaskLink taskId={parent} onOpen={open} data-testid="parent" className="text-sm">
+            ← Parent
+          </TaskLink>
+        ) : null}
+        <span className="font-mono text-xs text-muted-foreground" title={view.taskId ?? undefined}>
+          task {shortId}
+        </span>
         <Badge
           variant={pillVariant(view.state)}
           id="taskState"
@@ -280,17 +381,28 @@ export function App(props: { config: AppConfig }): JSX.Element {
         >
           {view.state}
         </Badge>
-        <Button type="button" variant="ghost" size="sm" onClick={cancel} disabled={!view.taskId}>
-          <XIcon />
-          Cancel task
-        </Button>
+        {view.state === "INPUT_REQUIRED" && view.subState ? (
+          <Badge variant="outline" data-testid="sub-state" className="font-normal text-muted-foreground">
+            {view.subState.replace(/-/g, " ")}
+          </Badge>
+        ) : null}
+        <div role="group" aria-label="Task controls" className="inline-flex gap-2">
+          <Button type="button" size="sm" onClick={complete} disabled={!controllable}>
+            <CheckIcon />
+            Complete
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={cancel} disabled={!controllable}>
+            <XIcon />
+            Cancel task
+          </Button>
+        </div>
       </header>
       <main className="grid min-h-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
         <section className="flex min-h-0 min-w-0 flex-col" aria-label="Conversation">
-          <Stream items={view.items} onAction={onAction} />
-          <Composer onSend={send} disabled={busy} />
+          <Stream items={view.items} onAction={onAction} onOpen={open} />
+          <Composer onSend={send} disabled={busy} commands={commands} />
         </section>
-        <TaskPane ext={view.ext} trace={view.trace} />
+        <TaskPane ext={view.ext} trace={view.trace} onOpen={open} />
       </main>
     </div>
   );

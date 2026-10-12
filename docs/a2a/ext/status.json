@@ -1,0 +1,20 @@
+{
+  "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/status/v1/schema.json",
+  "additionalProperties": false,
+  "description": "Why a task is TASK_STATE_INPUT_REQUIRED, under Task.metadata['io.github.madarauchiha-314.tiny-harness/status'] and TaskStatusUpdateEvent.metadata. A client MUST treat an unknown sub_state as plain INPUT_REQUIRED.",
+  "properties": {
+    "sub_state": {
+      "description": "awaiting-next-message: the turn ended and the conversation is open; awaiting-answer: the harness asked a participant a question. Further values may be added.",
+      "examples": [
+        "awaiting-next-message",
+        "awaiting-answer"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "sub_state"
+  ],
+  "title": "StatusExtensionData",
+  "type": "object"
+}

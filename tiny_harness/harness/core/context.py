@@ -15,6 +15,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
+from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.core.state import AgentState
 from tiny_harness.harness.core.task import HarnessTask, StepState
 from tiny_harness.harness.models import (
@@ -66,6 +67,10 @@ class ContextWindow(BaseModel, frozen=True):
     input: tuple[InputItem, ...]
     estimated_tokens: int
     chars: int
+    # The task's settings, resolved through ``ModelCatalog.settings_for`` when the window
+    # is assembled, so every request built from it uses them (issue-25 R7.3, R8.3).
+    model: str | None = None
+    reasoning_effort: ReasoningEffort | None = None
 
     def section(self, name: str) -> ContextSection | None:
         for s in self.sections:
@@ -85,6 +90,8 @@ class ContextWindow(BaseModel, frozen=True):
             tools=self.tools,
             cache_key=cache_key,
             response_format=None,
+            model=self.model,
+            reasoning_effort=self.reasoning_effort,
         )
 
 

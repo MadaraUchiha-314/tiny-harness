@@ -16,6 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.entities import Entity, EntityKind, EntityRef
 from tiny_harness.harness.tools.models import ToolCall, ToolDefinition, ToolResult
 from tiny_harness.jsontypes import JsonSchema
@@ -60,6 +61,10 @@ class LLMRequest(BaseModel, frozen=True):
     response_format: JsonSchema | None = None
     cache_key: str | None = None
     max_output_tokens: int | None = None
+    # The task's settings (issue-25 R7.3, R8.3): the adapter's own model when unset, and
+    # no reasoning parameter at all when the effort is unset (R8.5).
+    model: str | None = None
+    reasoning_effort: ReasoningEffort | None = None
 
 
 class Usage(BaseModel, frozen=True):

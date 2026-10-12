@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Protocol, cast
+from typing import Literal, Protocol, cast
 
 from a2a.types import Message, Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.types import Role as A2ARole
@@ -20,7 +21,13 @@ from temporalio.client import Client, WorkflowExecutionStatus, WorkflowUpdateFai
 from temporalio.exceptions import ApplicationError
 from temporalio.service import RPCError
 
-from tiny_harness.errors import HookAbort, ProviderError, TinyHarnessError, ToolNotFoundError
+from tiny_harness.errors import (
+    HookAbort,
+    HookTransportError,
+    ProviderError,
+    TinyHarnessError,
+    ToolNotFoundError,
+)
 from tiny_harness.harness.agents import SUPPORTED_EXTENSIONS, Agent
 from tiny_harness.harness.channels import (
     CHANNEL_EXT_MEDIA_TYPE,
@@ -28,10 +35,22 @@ from tiny_harness.harness.channels import (
     ChannelMessage,
     ChannelMessageData,
 )
+from tiny_harness.harness.commands import (
+    CommandCall,
+    CommandInvokedIn,
+    CommandInvokedPost,
+    CommandInvokedPre,
+    CommandRegistry,
+    CommandResult,
+    TaskSnapshot,
+    parse_command,
+)
 from tiny_harness.harness.core import (
+    STATUS_EXT_KEY,
     AgentState,
     CompletionDecision,
     HarnessTask,
+    SubState,
     TaskCompleteIn,
     participant_of,
 )
@@ -62,6 +81,8 @@ from tiny_harness.service.durable.models import (
     ActivityRetriedPre,
     AssembleIn,
     ChannelSendIn,
+    CommandIn,
+    CommandOut,
     CompactIn,
     CompactOut,
     CompletionIn,
@@ -91,8 +112,14 @@ from tiny_harness.service.durable.models import (
     TriggerIn,
     TriggerOut,
 )
-from tiny_harness.service.inbox import EnvelopeRefused, apply_task_envelope, envelope_of
+from tiny_harness.service.inbox import (
+    EnvelopeRefused,
+    apply_task_envelope,
+    controls_task,
+    envelope_of,
+)
 
+log = logging.getLogger("tiny_harness.durable.activities")
 HEARTBEAT_EVERY = 10.0
 TERMINAL = frozenset(
     {
@@ -143,8 +170,10 @@ class Activities:
         sink: EventSink | None = None,
         client: Client | None = None,
         retention: Mapping[RecordKind, timedelta] | None = None,
+        commands: CommandRegistry | None = None,
     ) -> None:
         self.engine = engine
+        self.commands = commands  # the registered names intake classifies (issue-25 R6)
         self.sink = sink
         self.client = client
         self.retention: dict[RecordKind, timedelta] = dict(retention or {})
@@ -168,12 +197,16 @@ class Activities:
             self.poll_channels,
             self.monitor_snapshot,
             self.retention_sweep,
+            self.run_command,
         )
 
     # --- intake (R15, abuse cases 4 and 6) ------------------------------------------
 
     @activity.defn(name=ActivityName.INTAKE.value)
     async def intake(self, arg: IntakeIn) -> IntakeOut:
+        """Authorize and classify one message: refused, a registered ``/<name>`` command,
+        a ``control`` envelope, or ordinary text for the model (issue-25 R5.1, R6.2,
+        R6.3). Every message, whatever it is, gets an audit row."""
         task = HarnessTask(arg.task)
         participant = participant_of(arg.message)
         text = "\n".join(p.text for p in arg.message.parts if p.HasField("text"))
@@ -190,13 +223,20 @@ class Activities:
         ui_action: JsonObject | None = None
         source: str | None = None
         updated: Task | None = None
+        command: CommandCall | None = None
+        control: Literal["complete"] | None = None
         if accepted and participant is not None:
             try:
                 envelope = envelope_of(arg.message)
             except InvalidParamsError as exc:
                 accepted, reason = False, f"invalid event envelope: {exc.message}"
             else:
-                if envelope is not None and envelope.kind == "task":
+                if envelope is not None and envelope.kind == "control":
+                    if controls_task(task.ext, participant):  # abuse case 4
+                        control = envelope.action
+                    else:
+                        accepted, reason = False, "a watcher cannot complete the task"
+                elif envelope is not None and envelope.kind == "task":
                     try:
                         new_ext = apply_task_envelope(task.ext, envelope.payload, actor=participant)
                     except EnvelopeRefused as exc:
@@ -214,7 +254,11 @@ class Activities:
                     text = (
                         text + "\n" if text else ""
                     ) + f"[{envelope.kind} from {participant}] {event_json}"
-        if accepted:
+                else:  # an unregistered /name stays ordinary text (R6.3, abuse case 9)
+                    names = self.commands.names if self.commands is not None else frozenset[str]()
+                    command = parse_command(arg.message, names)
+        ordinary = command is None and control is None
+        if accepted and ordinary:
             try:
                 action = ui_action_of(arg.message)
             except A2UIValidationError as exc:
@@ -227,7 +271,7 @@ class Activities:
                     else:  # abuse case 9: a surface or component the task did not create
                         accepted, reason = False, "a2ui.unknown_surface_or_component"
         try:
-            if accepted:
+            if accepted and ordinary:  # a command's policy point is command.invoked
                 pre = RequestReceivedPre(
                     task_id=task.id,
                     correlation_id=arg.correlation_id,
@@ -273,14 +317,76 @@ class Activities:
             source = "agent"
         return IntakeOut(
             accepted=accepted,
-            text=text if accepted else "",
+            text=text if accepted and ordinary else "",
             participant_id=participant,
             source=source,
             reason=reason,
             interrupt=interrupt,
             task=updated if accepted else None,
             ui_action=ui_action if accepted else None,
+            command=command if accepted else None,
+            control=control if accepted else None,
         )
+
+    # --- commands (issue-25 R6, R6a) ------------------------------------------------
+
+    @activity.defn(name=ActivityName.RUN_COMMAND.value)
+    async def run_command(self, arg: CommandIn) -> CommandOut:
+        """Run one command through ``command.invoked``: ``pre`` (scrubbed), the ``in``
+        chain whose bodies are the commands, then ``post``. The handler only returns
+        intents; the workflow applies them. A ``pre`` abort is a refusal, a handler's
+        exception a ``/<name> failed`` reply (R6.6), and a remote executor's transport
+        failure the activity's failure path (R6a.9)."""
+        task = HarnessTask(arg.task)
+        name = arg.call.name
+        sender = task.ext.participant(arg.sender)
+        pre = CommandInvokedPre(
+            task_id=task.id,
+            correlation_id=arg.correlation_id,
+            attempt=arg.attempt,
+            name=name,
+            arguments=arg.call.arguments,
+            sender=arg.sender,
+            sender_role=sender.role if sender is not None else None,
+            task=TaskSnapshot.of(task, arg.children),
+        )
+        runner = self.engine.runner
+
+        async def body(ctx: CommandInvokedPre) -> CommandResult | None:
+            out = await runner.run_in(
+                Operation.COMMAND_INVOKED, CommandInvokedIn.model_validate(ctx.model_dump())
+            )
+            return out.result
+
+        try:
+            result = await runner.run(
+                Operation.COMMAND_INVOKED,
+                pre,
+                body,
+                make_post=lambda p, out: CommandInvokedPost.model_validate(
+                    {**p.model_dump(), "result": out}
+                ),
+                extract=lambda post: post.result,
+            )
+        except HookAbort as exc:
+            return CommandOut(
+                result=CommandResult(reply=f"refused: {exc.message}"), outcome="refused"
+            )
+        except HookTransportError as exc:
+            raise _translate(exc) from exc
+        except Exception as exc:  # the handler's own failure: reported, never a state change
+            log.error(
+                "command failed",
+                extra={"command": name, "task_id": task.id, "error": type(exc).__name__},
+            )
+            return CommandOut(
+                result=CommandResult(reply=f"/{name} failed: {exc}"), outcome="failed"
+            )
+        if result is None:
+            return CommandOut(
+                result=CommandResult(reply=f"command /{name} has no handler"), outcome="no_handler"
+            )
+        return CommandOut(result=result)
 
     # --- the loop's operations ------------------------------------------------------
 
@@ -336,7 +442,10 @@ class Activities:
     @activity.defn(name=ActivityName.DECIDE_COMPLETION.value)
     async def decide_completion(self, arg: CompletionIn) -> CompletionOut:
         ctx = TaskCompleteIn(
-            task_id=arg.task_id, correlation_id=arg.correlation_id, unresolved=arg.unresolved
+            task_id=arg.task_id,
+            correlation_id=arg.correlation_id,
+            unresolved=arg.unresolved,
+            requested_by=arg.requested_by,
         )
         try:
             out = await self.engine.runner.run_in(Operation.TASK_COMPLETE, ctx)
@@ -544,24 +653,40 @@ def describe_action(action: Action) -> str:
     )
 
 
+def _sub_state(metadata: struct_pb2.Struct) -> str | None:
+    """The status extension's sub-state in an event's or a task's metadata (R4.1)."""
+    if STATUS_EXT_KEY not in metadata.fields:
+        return None
+    fields = metadata.fields[STATUS_EXT_KEY].struct_value.fields
+    return fields["sub_state"].string_value if "sub_state" in fields else None
+
+
 async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
     remote_task_id = message.task_id or ""
     state = TaskState.TASK_STATE_SUBMITTED
+    sub_state: str | None = None
     text = ""
     async for event in agent.send_message(message, extensions=SUPPORTED_EXTENSIONS):
         if isinstance(event, Task):
             remote_task_id = event.id
             state = event.status.state
+            sub_state = _sub_state(event.metadata)
             if event.status.HasField("message"):
                 text = "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
         elif isinstance(event, TaskStatusUpdateEvent):
             remote_task_id = event.task_id or remote_task_id
             state = event.status.state
+            sub_state = _sub_state(event.metadata)
             if event.status.HasField("message"):
                 text = "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
         elif isinstance(event, Message):
             text = "\n".join(p.text for p in event.parts if p.HasField("text"))
         activity.heartbeat()
+    if state == TaskState.TASK_STATE_INPUT_REQUIRED and sub_state == SubState.AWAITING_NEXT_MESSAGE:
+        # A tiny-harness peer parks a conversation after its reply instead of completing
+        # it (issue-25 R3.1). It asked nothing, so the delegated sub-task has its answer
+        # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4).
+        state = TaskState.TASK_STATE_COMPLETED
     name = TaskState.Name(state).removeprefix("TASK_STATE_")
     return RemoteTurnOut(
         remote_task_id=remote_task_id,

@@ -38,11 +38,16 @@ class OperationRunner:
         make_post: Callable[[Pre, Out], Post],
         extract: Callable[[Post], Out],
     ) -> Out:
-        """``pre``, then the body, then ``post``; the replacement at each phase is what flows on."""
-        pre_ctx = await self._hooks.run(
-            HookPoint(operation=operation, phase=Phase.PRE), self._redactor.scrub(pre)
-        )
-        out = await body(pre_ctx)
+        """``pre``, then the body, then ``post``; the replacement at each phase is what flows on.
+        A body that raises or is cancelled has no ``post``: the ``pre`` point's observers are
+        told instead, so what ``pre`` opened (a span) is closed (``AbandonObserver``)."""
+        pre_point = HookPoint(operation=operation, phase=Phase.PRE)
+        pre_ctx = await self._hooks.run(pre_point, self._redactor.scrub(pre))
+        try:
+            out = await body(pre_ctx)
+        except BaseException as exc:
+            self._hooks.abandon(pre_point, pre_ctx, exc)
+            raise
         post_ctx = await self._hooks.run(
             HookPoint(operation=operation, phase=Phase.POST),
             self._redactor.scrub(make_post(pre_ctx, out)),

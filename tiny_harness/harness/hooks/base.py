@@ -13,6 +13,7 @@ operation's body (R2.11).
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Awaitable, Callable, Iterable
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
@@ -108,6 +109,14 @@ class HookExecutor(Protocol):
     async def handle(self, point: HookPoint, ctx: HookContext) -> HookContext | None: ...
 
 
+@runtime_checkable
+class AbandonObserver(Protocol):
+    """An executor told when an operation whose ``pre`` chain ran never reaches ``post``:
+    its body raised or was cancelled. Synchronous, so it runs on a cancellation path."""
+
+    def abandon(self, point: HookPoint, ctx: HookContext, error: BaseException) -> None: ...
+
+
 Handler = Callable[[HookPoint, HookContext], Awaitable[HookContext | None]]
 
 
@@ -179,9 +188,19 @@ class HookManager:
             current = replacement
         return current
 
+    def abandon(self, point: HookPoint, ctx: HookContext, error: BaseException) -> None:
+        """Tell every ``AbandonObserver`` on ``point`` (the ``pre`` point) that the
+        operation ended with ``error`` instead of a ``post``. An observer's own failure
+        never replaces ``error``."""
+        for executor in self.executors_for(point):
+            if isinstance(executor, AbandonObserver):
+                with contextlib.suppress(Exception):
+                    executor.abandon(point, ctx, error)
+
 
 __all__ = [
     "DEFAULT_BODY_PRIORITY",
+    "AbandonObserver",
     "FunctionExecutor",
     "Handler",
     "HookContext",

@@ -1,5 +1,8 @@
 # tiny_harness.harness.hooks
 DEFAULT_BODY_PRIORITY = int
+class AbandonObserver(Protocol)
+  def __init__(self, *args, **kwargs)
+  def abandon(self, point: 'HookPoint', ctx: 'HookContext', error: 'BaseException') -> 'None'
 Clock = _CallableGenericAlias
 class FunctionExecutor(object)
   def __init__(self, name: 'str', handler: 'Handler', *, priority: 'int' = 500, points: 'Iterable[HookPoint] | None' = None) -> 'None'
@@ -17,6 +20,7 @@ class HookExecutor(Protocol)
   property priority
 class HookManager(object)
   def __init__(self) -> 'None'
+  def abandon(self, point: 'HookPoint', ctx: 'HookContext', error: 'BaseException') -> 'None'
   def executors_for(self, point: 'HookPoint') -> 'list[HookExecutor]'
   def register(self, executor: 'HookExecutor') -> 'None'
   def run(self, point: 'HookPoint', ctx: 'C') -> 'C'

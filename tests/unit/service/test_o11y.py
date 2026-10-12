@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
+import pytest
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from tiny_harness.config import O11yConfig
+from tiny_harness.errors import ProviderError
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
     LLMInvokedPre,
     ToolInvokedPost,
     ToolInvokedPre,
 )
-from tiny_harness.harness.hooks import HookManager, Operation, OperationRunner
+from tiny_harness.harness.hooks import HookManager, HookPoint, Operation, OperationRunner, Phase
 from tiny_harness.harness.models import LLMModelInfo, LLMRequest, LLMResponse, scripted
 from tiny_harness.harness.security import MASK, Redactor
 from tiny_harness.harness.tools import ToolCall, ToolResult, WorkflowCommand
+from tiny_harness.service.durable.models import HeartbeatTickPre, MonitorSnapshot
 from tiny_harness.service.o11y import (
     JsonFormatter,
     O11yExecutor,
@@ -189,3 +193,56 @@ def test_langfuse_headers_are_basic_auth() -> None:
     headers = langfuse_headers("pk-lf-1", "sk-lf-2")
     assert headers == {"Authorization": "Basic cGstbGYtMTpzay1sZi0y"}
     assert o11y_log.name == "tiny_harness.o11y"
+
+
+async def test_a_pre_only_heartbeat_tick_opens_no_span() -> None:
+    """The heartbeat's ``heartbeat.tick`` has a ``pre`` chain and no ``post``: a span it
+    opened would never end, one per tick for the life of the server."""
+    exporter = InMemorySpanExporter()
+    provider = configure_tracing(O11yConfig(), exporter=exporter, set_global=False)
+    hooks = HookManager()
+    executor = O11yExecutor(provider=provider)
+    hooks.register(executor)
+    tick = HeartbeatTickPre(
+        task_id="heartbeat", correlation_id="run-1", snapshot=MonitorSnapshot(at="now")
+    )
+    await hooks.run(HookPoint(operation=Operation.HEARTBEAT_TICK, phase=Phase.PRE), tick)
+    assert executor.open_spans == 0
+    assert exporter.get_finished_spans() == ()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [ProviderError("upstream 500", provider="openai", status=500), asyncio.CancelledError()],
+    ids=["raised", "cancelled"],
+)
+async def test_an_abandoned_operation_ends_its_span_with_an_error_status(
+    error: BaseException,
+) -> None:
+    """A body that raises, or is cancelled (an interrupt, a worker shutdown), never reaches
+    ``post``: the runner tells the executor, which ends the span with an error status."""
+    exporter = InMemorySpanExporter()
+    provider = configure_tracing(O11yConfig(), exporter=exporter, set_global=False)
+    hooks = HookManager()
+    executor = O11yExecutor(provider=provider)
+    hooks.register(executor)
+
+    async def llm(ctx: LLMInvokedPre) -> LLMResponse:
+        raise error
+
+    with pytest.raises(type(error)):
+        await OperationRunner(hooks).run(
+            Operation.LLM_INVOKED,
+            LLMInvokedPre(
+                task_id="t-1", correlation_id="c-1", request=LLMRequest(instructions="", input=())
+            ),
+            llm,
+            make_post=lambda p, r: LLMInvokedPost(
+                task_id=p.task_id, correlation_id=p.correlation_id, request=p.request, response=r
+            ),
+            extract=lambda post: post.response,
+        )
+    assert executor.open_spans == 0
+    (span,) = exporter.get_finished_spans()
+    assert span.status.status_code.name == "ERROR"
+    assert (span.attributes or {})["error.type"] == type(error).__name__

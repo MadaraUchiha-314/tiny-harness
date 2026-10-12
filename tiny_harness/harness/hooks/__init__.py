@@ -2,6 +2,7 @@
 
 from tiny_harness.harness.hooks.base import (
     DEFAULT_BODY_PRIORITY,
+    AbandonObserver,
     FunctionExecutor,
     Handler,
     HookContext,
@@ -25,6 +26,7 @@ from tiny_harness.harness.hooks.runner import OperationRunner
 
 __all__ = [
     "DEFAULT_BODY_PRIORITY",
+    "AbandonObserver",
     "Clock",
     "FunctionExecutor",
     "Handler",

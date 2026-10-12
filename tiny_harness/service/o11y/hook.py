@@ -1,8 +1,10 @@
 """The observability hook executor (R17.1-R17.3, R17.6): one executor on every ``pre``
 and ``post`` point. ``pre`` opens a span and makes it current, so provider and MCP
 spans nest under it; ``post`` closes it with the GenAI semantic-convention attributes;
-both write one structured log record. ``activity.failed`` records the failure on the
-open span. Every attribute and log field passes through the redactor first.
+both write one structured log record. An operation whose body raised or was cancelled
+never reaches ``post``; the runner's ``abandon`` ends its span with an error status, so
+no span outlives its operation. ``activity.failed`` is logged. Every attribute and log
+field passes through the redactor first.
 """
 
 from __future__ import annotations
@@ -30,8 +32,9 @@ from tiny_harness.service.durable.models import ActivityFailedPre, ActivityRetri
 log = logging.getLogger("tiny_harness.o11y")
 AGENT_NAME = "tiny-harness"
 TRACER = "tiny_harness"
-PRE_ONLY = frozenset({Operation.TOOL_CALLS_EXTRACTED})
-"""Points with a ``pre`` chain but no body or ``post``: logged, never spanned."""
+PRE_ONLY = frozenset({Operation.TOOL_CALLS_EXTRACTED, Operation.HEARTBEAT_TICK})
+"""Points with a ``pre`` chain but no body or ``post``: logged, never spanned (a span
+opened there would never end)."""
 
 type SpanKey = tuple[str, str, str, int]
 type Attributes = dict[str, str | int | float | bool]
@@ -102,6 +105,17 @@ class O11yExecutor:
     def open_spans(self) -> int:
         """Spans opened by ``pre`` and not yet closed; zero once every operation ended."""
         return len(self._open)
+
+    def abandon(self, point: HookPoint, ctx: HookContext, error: BaseException) -> None:
+        """The operation's body raised or was cancelled: end its span as an error."""
+        entry = self._open.pop(_key(point, ctx), None)
+        if entry is None:
+            return
+        span, token = entry
+        span.set_attribute("error.type", type(error).__name__)
+        span.set_status(Status(StatusCode.ERROR, self.redactor.scrub_text(str(error))))
+        otel_context.detach(token)  # type: ignore[arg-type]
+        span.end()
 
     async def handle(self, point: HookPoint, ctx: HookContext) -> HookContext | None:
         fields = self._fields(point, ctx)
@@ -189,13 +203,6 @@ class O11yExecutor:
             fields["activity"] = ctx.activity
             fields["error.type"] = ctx.error.type
             fields["error.message"] = self.redactor.scrub_text(ctx.error.message)
-            key = (ctx.task_id, ctx.correlation_id, ctx.activity, ctx.attempt)
-            entry = self._open.pop(key, None)
-            if entry is not None:
-                span, token = entry
-                span.set_status(Status(StatusCode.ERROR, fields["error.message"]))
-                otel_context.detach(token)  # type: ignore[arg-type]
-                span.end()
             log.warning("activity failed: %s", ctx.activity, extra={"fields": dict(fields)})
         elif isinstance(ctx, ActivityRetriedPre):
             fields["activity"] = ctx.activity

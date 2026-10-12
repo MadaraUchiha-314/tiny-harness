@@ -103,21 +103,22 @@ Committed under `evidence/`, as markdown with the raw output in fenced blocks:
 
 ## Verification results
 
-All activities ran at commit `2dc0dac` on 2026-10-12 and passed.
+All activities ran at commit `f77a3b8` on 2026-10-12, after the review fixes, and passed. A first run at `2dc0dac`, before the reviews, also passed.
 
 | Activity | Command | Outcome | Evidence |
 |----------|---------|---------|----------|
-| T1 / T10 unit | `uv run pytest tests/unit -q` | 547 passed | [unit.md](evidence/unit.md) |
-| T2 integration | `uv run pytest tests/integration/agents -v` | 9 passed (8 new scenarios) | [integration.md](evidence/integration.md) |
-| T2 regression | `uv run pytest tests/integration -q` | 100 passed | [regression.md](evidence/regression.md) |
+| T1 / T10 unit | `uv run pytest tests/unit -q` | 552 passed | [unit.md](evidence/unit.md) |
+| T2 integration | `uv run pytest tests/integration/agents -v` | 14 passed (13 new scenarios) | [integration.md](evidence/integration.md) |
+| T2 regression | `uv run pytest tests/integration -q` | 105 passed | [regression.md](evidence/regression.md) |
 | T3 contract | `uv run pytest tests/contract -q` | 36 passed; the settings schema and `tiny_harness.config` snapshots were updated on purpose | [contract.md](evidence/contract.md) |
-| T8 security | `uv run pytest tests/security -v` | 79 passed, including the 8 tests in `test_remote_push.py` | [security.md](evidence/security.md) |
+| T8 security | `uv run pytest tests/security -v` | 79 passed, including `test_remote_push.py` | [security.md](evidence/security.md) |
 | T12 static | `uv run pre-commit run --all-files` | every hook passed | [static.md](evidence/static.md) |
-| Scenario table | `the-loop scenarios … --format markdown` | 9 scenarios listed, each linked to a requirement | [scenarios.md](evidence/scenarios.md) |
+| Scenario table | `the-loop scenarios … --format markdown` | 14 scenarios listed, each linked to a requirement | [scenarios.md](evidence/scenarios.md) |
 
 Stability: the new integration and security files were each run three times in a row
-during implementation with identical results, and the full suite twice (762 passed both
-times).
+during implementation with identical results, and the full suite repeatedly
+(772 passed at the last run). `tests/integration/durable` has an intermittent hang that
+`origin/main` shows too (4 hangs and 1 failure in 10 runs there), outside this change.
 
 What verification changed in the spec. Three findings from the tests went back into
 `requirements.md` and `design.md` before this record was written:

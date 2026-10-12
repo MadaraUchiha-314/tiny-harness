@@ -1,6 +1,6 @@
 # Security / abuse-case tests (T8)
 
-Run on 2026-10-12T21:48Z at commit `2dc0dac`.
+Run on 2026-10-12T23:08Z at commit `f77a3b8`.
 
 ## `uv run pytest tests/security -v -p no:warnings`
 
@@ -64,5 +64,5 @@ tests/security/test_sub_task_flood.py::test_a_strangers_command_is_answered_as_i
 tests/security/test_tool_boundary.py::test_injected_tool_call_not_executed PASSED [ 98%]
 tests/security/test_tool_boundary.py::test_unknown_tool_rejected PASSED  [100%]
 
-============================= 79 passed in 17.73s ==============================
+============================= 79 passed in 17.39s ==============================
 ```

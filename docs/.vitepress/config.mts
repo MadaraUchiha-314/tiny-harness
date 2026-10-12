@@ -110,6 +110,8 @@ export default withMermaid({
           { text: "Extensions", link: "/a2a/extensions" },
           { text: "Task extension v1", link: "/a2a/ext/task/v1" },
           { text: "Channel extension v1", link: "/a2a/ext/channel/v1" },
+          { text: "Status extension v1", link: "/a2a/ext/status/v1" },
+          { text: "Commands extension v1", link: "/a2a/ext/commands/v1" },
         ],
       },
       { text: "Architecture", collapsed: false, items: treeItems("architecture", "architecture") },

@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "CommandSpec": {
+      "additionalProperties": false,
+      "description": "What clients see on the card (R6.7). ``name`` must match ``[a-z][a-z0-9-]*``; the\nregistry enforces it.",
+      "properties": {
+        "argument_hint": {
+          "default": "",
+          "title": "Argument Hint",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "CommandSpec",
+      "type": "object"
+    }
+  },
+  "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1/schema.json",
+  "additionalProperties": false,
+  "description": "The commands extension's card ``params``: every registered command, in registration\norder, for clients to offer as ``/`` completions (R6.7).",
+  "properties": {
+    "commands": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CommandSpec"
+      },
+      "title": "Commands",
+      "type": "array"
+    }
+  },
+  "title": "CommandsExtensionParams",
+  "type": "object"
+}

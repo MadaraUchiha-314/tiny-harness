@@ -32,4 +32,40 @@ class StatusExtensionData(BaseModel, frozen=True):
     sub_state: SubState
 
 
-__all__ = ["STATUS_EXT_KEY", "STATUS_EXT_URI", "StatusExtensionData", "SubState"]
+def status_extension_schema() -> dict[str, object]:
+    """The published JSON Schema (``docs/a2a/ext/status.json``). ``sub_state`` is a string
+    whose documented values are ``SubState``'s, deliberately not a closed ``enum``, so a
+    later sub-state is additive (R4.3)."""
+    values = [s.value for s in SubState]
+    return {
+        "$id": f"{STATUS_EXT_URI}/schema.json",
+        "title": "StatusExtensionData",
+        "description": (
+            f"Why a task is TASK_STATE_INPUT_REQUIRED, under Task.metadata[{STATUS_EXT_KEY!r}] "
+            "and TaskStatusUpdateEvent.metadata. A client MUST treat an unknown sub_state as "
+            "plain INPUT_REQUIRED."
+        ),
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["sub_state"],
+        "properties": {
+            "sub_state": {
+                "type": "string",
+                "description": (
+                    "awaiting-next-message: the turn ended and the conversation is open; "
+                    "awaiting-answer: the harness asked a participant a question. "
+                    "Further values may be added."
+                ),
+                "examples": values,
+            }
+        },
+    }
+
+
+__all__ = [
+    "STATUS_EXT_KEY",
+    "STATUS_EXT_URI",
+    "StatusExtensionData",
+    "SubState",
+    "status_extension_schema",
+]

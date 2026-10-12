@@ -64,6 +64,7 @@ from tiny_harness.harness.core.status import (
     STATUS_EXT_URI,
     StatusExtensionData,
     SubState,
+    status_extension_schema,
 )
 from tiny_harness.harness.core.task import (
     TASK_EXT_KEY,
@@ -153,4 +154,5 @@ __all__ = [
     "render_task",
     "render_untrusted",
     "state_name",
+    "status_extension_schema",
 ]

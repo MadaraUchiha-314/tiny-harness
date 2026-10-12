@@ -196,7 +196,7 @@ negative test.
     executor that fails leaves the task unchanged`; T8
     `tests/security/test_command_arguments.py` (unlisted model, bad effort, hostile
     arguments)
-- [ ] 14. Card: status and commands extensions
+- [x] 14. Card: status and commands extensions
   - `SUPPORTED_EXTENSIONS` and `EXTENSION_DESCRIPTIONS` gain status (`required: false`)
     and commands, the latter with `params.commands` from the registry.
   - Schemas: `docs/a2a/ext/status.json` (a string, not a closed enum),

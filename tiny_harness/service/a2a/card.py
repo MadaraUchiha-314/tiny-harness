@@ -4,6 +4,7 @@ the harness declares reaches ``capabilities.extensions``. No security scheme is 
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Final
 
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
@@ -11,7 +12,8 @@ from pydantic import BaseModel, ConfigDict
 
 from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
-from tiny_harness.harness.core import TASK_EXT_MEDIA_TYPE, TASK_EXT_URI
+from tiny_harness.harness.commands import COMMANDS_EXT_URI, CommandsExtensionParams, CommandSpec
+from tiny_harness.harness.core import STATUS_EXT_URI, TASK_EXT_MEDIA_TYPE, TASK_EXT_URI
 from tiny_harness.interaction.a2ui import BASIC_CATALOG_ID
 from tiny_harness.service.inbox import EVENT_MEDIA_TYPE
 
@@ -23,6 +25,10 @@ EXTENSION_DESCRIPTIONS: Final[dict[str, str]] = {
     "plan and sub-tasks in Task.metadata; event envelopes as data parts",
     CHANNEL_EXT_URI: "tiny-harness channels: messages, help requests and replies as data parts",
     A2UI_EXT_URI: "A2UI 0.9.1 surfaces and actions as application/a2ui+json parts",
+    STATUS_EXT_URI: "tiny-harness status: why a task is INPUT_REQUIRED (sub_state) in "
+    "Task.metadata and TaskStatusUpdateEvent.metadata",
+    COMMANDS_EXT_URI: "tiny-harness slash commands: params.commands lists each /<name> "
+    "with its description and argument hint",
 }
 
 
@@ -48,7 +54,11 @@ class AgentSkillSpec(BaseModel):
     examples: tuple[str, ...] = ()
 
 
-def build_agent_card(agent: AgentDescription, base_url: str) -> AgentCard:
+def build_agent_card(
+    agent: AgentDescription, base_url: str, *, commands: Sequence[CommandSpec] = ()
+) -> AgentCard:
+    """The card; ``commands`` are the registered commands the commands extension lists
+    (issue-25 R6.7)."""
     url = base_url.rstrip("/") + "/"
     extensions: list[AgentExtension] = []
     for uri in agent.extensions:
@@ -59,6 +69,9 @@ def build_agent_card(agent: AgentDescription, base_url: str) -> AgentCard:
             extension.params.update(
                 {"supportedCatalogIds": [BASIC_CATALOG_ID], "acceptsInlineCatalogs": False}
             )
+        if uri == COMMANDS_EXT_URI:
+            params = CommandsExtensionParams(commands=tuple(commands))
+            extension.params.update(params.model_dump(mode="json"))
         extensions.append(extension)
     return AgentCard(
         name=agent.name,

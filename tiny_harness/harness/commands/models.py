@@ -8,6 +8,7 @@ applies ``settings`` and ``spawn`` deterministically and emits the ``reply``.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
@@ -25,6 +26,25 @@ class CommandSpec(BaseModel, frozen=True):
     name: str
     description: str
     argument_hint: str = ""
+
+
+COMMANDS_EXT_URI: Final = "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1"
+
+
+class CommandsExtensionParams(BaseModel, frozen=True):
+    """The commands extension's card ``params``: every registered command, in registration
+    order, for clients to offer as ``/`` completions (R6.7)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    commands: tuple[CommandSpec, ...] = ()
+
+
+def commands_extension_schema() -> dict[str, object]:
+    """The published JSON Schema (``docs/a2a/ext/commands.json``)."""
+    schema = CommandsExtensionParams.model_json_schema()
+    schema["$id"] = f"{COMMANDS_EXT_URI}/schema.json"
+    return schema
 
 
 class CommandCall(BaseModel, frozen=True):
@@ -114,6 +134,7 @@ class CommandInvokedPost(CommandInvokedIn): ...
 
 
 __all__ = [
+    "COMMANDS_EXT_URI",
     "ChildSnapshot",
     "CommandCall",
     "CommandInvokedIn",
@@ -121,7 +142,9 @@ __all__ = [
     "CommandInvokedPre",
     "CommandResult",
     "CommandSpec",
+    "CommandsExtensionParams",
     "SpawnIntent",
     "TaskSettings",
     "TaskSnapshot",
+    "commands_extension_schema",
 ]

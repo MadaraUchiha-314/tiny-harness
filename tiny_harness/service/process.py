@@ -128,7 +128,11 @@ async def running_harness(
         push_http = httpx.AsyncClient(timeout=10)
         stack.push_async_callback(push_http.aclose)
         bridge = PollingEventBridge(client, interval=settings.server.bridge_interval)
-        card = build_agent_card(AgentDescription(), str(settings.server.base_url))
+        runtime.commands.freeze()  # no command is registered once the card is built
+        await runtime.commands.publish(runtime.registry)
+        card = build_agent_card(
+            AgentDescription(), str(settings.server.base_url), commands=runtime.commands.specs
+        )
         executor = HarnessExecutor(
             client,
             task_queue=settings.temporal.task_queue,
@@ -136,7 +140,6 @@ async def running_harness(
             config=workflow_config(settings),
             redactor=runtime.redactor,
         )
-        runtime.commands.freeze()  # no command is registered once the worker runs
         activities = Activities(
             runtime.engine,
             commands=runtime.commands,

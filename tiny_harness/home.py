@@ -14,6 +14,8 @@ file is never rewritten (R2.6).
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import json
 import os
 import stat
@@ -92,15 +94,17 @@ def _check_owned(path: Path, info: os.stat_result, geteuid: Callable[[], int]) -
         raise _refuse(path, "not owned by the current user")
 
 
-def _ensure_home(root: Path) -> None:
-    """Create ``root`` at ``0700`` if missing; refuse a symlink or a non-directory. A
-    creation race is re-checked, never trusted. The owner is checked on the open handle."""
+def _ensure_home(root: Path) -> bool:
+    """Create ``root`` if missing; refuse a symlink or a non-directory; return whether it
+    was created here. A creation race is re-checked, never trusted. The owner is checked,
+    and a created directory's mode set, on the open handle, never through the path."""
+    created = False
     try:
         info = os.lstat(root)
     except FileNotFoundError:
         try:
             os.mkdir(root, HOME_MODE)
-            os.chmod(root, HOME_MODE)  # the umask may have narrowed it; never widened
+            created = True
         except FileExistsError:
             pass
         except OSError as exc:
@@ -112,6 +116,7 @@ def _ensure_home(root: Path) -> None:
         raise _refuse(root, "the directory is a symlink")
     if not stat.S_ISDIR(info.st_mode):
         raise _refuse(root, "not a directory")
+    return created
 
 
 def _existing(path: Path, directory: int, geteuid: Callable[[], int]) -> bool:
@@ -131,23 +136,38 @@ def _existing(path: Path, directory: int, geteuid: Callable[[], int]) -> bool:
 
 
 def _create(path: Path, directory: int, text: str) -> bool:
-    """Write ``text`` to a new file; ``False`` when another process created it first."""
+    """Write ``text`` to a private temporary file, then hard-link it to ``path``: the file
+    appears only once complete, so a concurrent first run never reads a partial one.
+    ``False`` when another process created it first."""
+    temporary = f".{path.name}.{os.getpid()}.tmp"
     try:
-        fd = os.open(path.name, _CREATE_FLAGS, FILE_MODE, dir_fd=directory)
-    except FileExistsError:
-        return False
+        fd = os.open(temporary, _CREATE_FLAGS, FILE_MODE, dir_fd=directory)
     except OSError as exc:
         raise _refuse(path, f"cannot create the file: {exc.strerror}") from exc
     try:
-        os.fchmod(fd, FILE_MODE)
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            fd = -1
-            handle.write(text)
+        try:
+            os.fchmod(fd, FILE_MODE)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                fd = -1
+                handle.write(text)
+        finally:
+            if fd != -1:
+                os.close(fd)
+        try:
+            os.link(
+                temporary,
+                path.name,
+                src_dir_fd=directory,
+                dst_dir_fd=directory,
+                follow_symlinks=False,
+            )
+        except FileExistsError:
+            return False
     except OSError as exc:
         raise _refuse(path, f"cannot write the file: {exc.strerror}") from exc
     finally:
-        if fd != -1:
-            os.close(fd)
+        with contextlib.suppress(OSError):
+            os.unlink(temporary, dir_fd=directory)
     return True
 
 
@@ -161,14 +181,18 @@ def ensure_default_config(
     OS failure, and never falls back to an empty configuration."""
     root = (home or DEFAULT_HOME).expanduser().absolute()
     path = root / CONFIG_NAME
-    _ensure_home(root)
+    created = _ensure_home(root)
     try:
         # Held open so the checks and the create see the same directory, not a swapped one.
         directory = os.open(root, _DIR_FLAGS)
     except OSError as exc:
+        if exc.errno == errno.ELOOP:  # swapped for a symlink since it was checked
+            raise _refuse(root, "the directory is a symlink") from exc
         raise _refuse(root, f"cannot open the directory: {exc.strerror}") from exc
     try:
         _check_owned(root, os.fstat(directory), geteuid)
+        if created:
+            os.fchmod(directory, HOME_MODE)  # the umask may have narrowed it; never widened
         if _existing(path, directory, geteuid):
             return path, False
         if _create(path, directory, default_config_text(root)):

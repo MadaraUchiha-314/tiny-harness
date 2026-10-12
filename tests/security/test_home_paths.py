@@ -98,3 +98,62 @@ def test_created_modes_are_owner_only_whatever_the_umask(tmp_path: Path) -> None
     assert created
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+# Critic round 1 (C2, C3) — races during the first run.
+
+
+def test_a_home_swapped_for_a_symlink_after_mkdir_changes_no_other_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Feature: Safe first run (abuse cases 7, 8)
+    Scenario: the new home is replaced by a symlink between mkdir and chmod
+        Given another directory at mode 0755
+        And a race that renames the just-created home and links it to that directory
+        When the default configuration is ensured
+        Then it is refused as a symlink
+        And the other directory's mode is still 0755
+    """
+    other = tmp_path / "other"
+    other.mkdir()
+    other.chmod(0o755)
+    home = tmp_path / "home"
+    real_mkdir = os.mkdir
+
+    def racing_mkdir(path: str | os.PathLike[str], mode: int = 0o777) -> None:
+        real_mkdir(path, mode)
+        os.rename(path, tmp_path / "moved")
+        os.symlink(other, path)
+
+    monkeypatch.setattr(os, "mkdir", racing_mkdir)
+    error = refused(home)
+    assert "symlink" in str(error)
+    assert stat.S_IMODE(other.stat().st_mode) == 0o755
+
+
+def test_the_file_appears_only_once_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Feature: Safe first run
+    Scenario: a concurrent first run never sees a partial configuration
+        Given no default configuration yet
+        When the file's content is being written
+        Then config.toml does not exist under its final name yet
+        And afterwards it exists with the whole content, at 0600, with no temporary left
+    """
+    home = tmp_path / "home"
+    seen: list[bool] = []
+    real_fdopen = os.fdopen
+
+    def spying_fdopen(fd: int, *args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        seen.append((home / CONFIG_NAME).exists())
+        return real_fdopen(fd, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(os, "fdopen", spying_fdopen)
+    path, created = ensure_default_config(home)
+    assert created and seen == [False]
+    assert "[temporal]" in path.read_text()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert sorted(p.name for p in home.iterdir()) == [CONFIG_NAME]

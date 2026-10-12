@@ -17,7 +17,16 @@ from temporalio.client import WorkflowHandle
 from temporalio.service import RPCError
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.durable.conftest import Harness, env, message, send, start
+from tests.integration.durable.conftest import (
+    Harness,
+    awaiting_next_message,
+    close,
+    env,
+    message,
+    send,
+    start,
+    task,
+)
 from tiny_harness.harness.models import scripted
 from tiny_harness.harness.persistence import Filter, InboxAuditRecord
 from tiny_harness.harness.tools import ToolCall
@@ -70,7 +79,7 @@ async def test_a_reply_on_the_channel_resumes_an_input_required_task(
         Given the LLM asks alice a question
         Then the task is INPUT_REQUIRED and the question is in the status message
         When alice's reply arrives through the inbox
-        Then the task resumes with the reply in context and completes
+        Then the task resumes with the reply in context and replies, awaiting the next message
     """
     h = await Harness([scripted("", tool_calls=[ASK]), scripted("Full refund issued.")]).bind()
     tq = queue()
@@ -83,8 +92,9 @@ async def test_a_reply_on_the_channel_resumes_an_input_required_task(
             TaskWorkflow.inbox, message("Full.", message_id="m2")
         )
         assert receipt.accepted and receipt.state_name == "INPUT_REQUIRED"
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto  # issue-25 R3.1
+        await close(handle)
+    assert result.status.message.parts[0].text == "Full refund issued."
     texts = [i.text for i in h.llm.requests[1].input if i.kind == "message"]
     assert any("Full or partial refund?" in t and "Full." in t for t in texts)
 
@@ -97,7 +107,7 @@ async def test_a_need_that_blocks_on_another_participants_work_creates_a_sub_tas
     Requirement: docs/specs/issue-3/requirements.md#R12
 
     Scenario: a need that blocks on another participant's work creates a sub-task
-        Given the LLM creates a task for alice
+        Given a delegated task whose LLM creates a task for alice
         Then a child task assigned to alice waits in INPUT_REQUIRED
         And the parent waits for it before completing
         When alice reports the work done on the child task
@@ -108,7 +118,9 @@ async def test_a_need_that_blocks_on_another_participants_work_creates_a_sub_tas
     ).bind()
     tq = queue()
     async with h.worker(env.client, tq):
-        handle = await send(env.client, tq, start(), message("refund 48213", message_id="m1"))
+        # Only a delegated task asks task.complete at turn end (issue-25 R3.4, R3.5).
+        parent_start = start(task(lifecycle="delegated"))
+        handle = await send(env.client, tq, parent_start, message("refund 48213", message_id="m1"))
         child: WorkflowHandle[TaskWorkflow, Task] = env.client.get_workflow_handle("t-1.1")
         await until_state(child, TaskState.TASK_STATE_INPUT_REQUIRED)
         child_task = await child.query(TaskWorkflow.task_query)
@@ -163,6 +175,7 @@ async def test_a_non_members_channel_message_is_rejected(env: WorkflowEnvironmen
         await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox, message("Full.", message_id="m3")
         )
-        result = await handle.result()
-    assert result.status.state == TaskState.TASK_STATE_COMPLETED
+        result = (await awaiting_next_message(handle)).proto  # issue-25 R3.1
+        await close(handle)
+    assert result.status.message.parts[0].text == "Full refund issued."
     assert not any("mallory" in i.text for i in h.llm.requests[1].input if i.kind == "message")

@@ -10,7 +10,9 @@ from tiny_harness.harness.core import (
     Participant,
     Role,
     StepState,
+    SubState,
     TaskExtensionData,
+    TaskRef,
 )
 from tiny_harness.harness.core.inprocess import TASK_COMPLETE, InProcessOperations
 from tiny_harness.harness.core.loop import CompletionDecision, CoreLoop, TaskCompleteIn
@@ -32,7 +34,8 @@ PLAN_CALL = ToolCall(
 )
 
 
-def task() -> HarnessTask:
+def task(*, delegated: bool = False) -> HarnessTask:
+    """A top-level conversation task, or a delegated sub-task of ``t-0`` (R3)."""
     return HarnessTask.new(
         "t-1",
         "ctx-1",
@@ -43,6 +46,8 @@ def task() -> HarnessTask:
                 Participant(id="alice", kind="human", role=Role.REPORTER),
                 Participant(id="agent", kind="agent", role=Role.ASSIGNEE),
             ),
+            parent_tasks=(TaskRef(task_id="t-0"),) if delegated else (),
+            lifecycle="delegated" if delegated else "conversation",
         ),
     )
 
@@ -63,9 +68,10 @@ async def host(*responses: LLMResponse) -> tuple[InProcessOperations, FakeLLM]:
 async def test_loop_terminates_when_the_llm_emits_no_tool_call() -> None:
     ops, llm = await host(scripted("All done."))
     out = await CoreLoop(ops).run(task(), AgentState(task_id="t-1"), "Please refund order 42")
-    assert out.kind == "completed"
+    assert out.kind == "waiting_for_message"  # a conversation waits for its participant (R3.1)
     assert out.final_text == "All done."
-    assert out.task.state == TaskState.TASK_STATE_COMPLETED
+    assert out.task.state == TaskState.TASK_STATE_INPUT_REQUIRED
+    assert out.task.sub_state is SubState.AWAITING_NEXT_MESSAGE
     assert out.state.turn == 1
     request = llm.requests[0]
     assert [i.kind for i in request.input] == ["message", "message"]
@@ -90,7 +96,7 @@ async def test_create_plan_attaches_the_plan_and_complete_step_marks_it_done() -
         scripted("Refunded."),
     )
     out = await CoreLoop(ops).run(task(), AgentState(task_id="t-1"), "go")
-    assert out.kind == "completed"
+    assert out.kind == "waiting_for_message"
     plan = out.task.ext.plan
     assert plan is not None
     assert [s.id for s in plan.steps] == ["gather-facts", "decide"]
@@ -120,12 +126,14 @@ async def test_ask_participant_moves_the_task_to_input_required_and_a_reply_resu
     first = await loop.run(task(), AgentState(task_id="t-1"), "go")
     assert first.kind == "waiting_for_reply"
     assert first.task.state == TaskState.TASK_STATE_INPUT_REQUIRED
+    assert first.task.sub_state is SubState.AWAITING_ANSWER  # R3.2
     assert first.help is not None
     assert first.help["participant_id"] == "alice"
     assert first.help["question"] == "Full or partial refund?"
     second = await loop.run(first.task, first.state, "Full.")
-    assert second.kind == "completed"
-    assert second.task.state == TaskState.TASK_STATE_COMPLETED
+    assert second.kind == "waiting_for_message"
+    assert second.task.state == TaskState.TASK_STATE_INPUT_REQUIRED
+    assert second.task.sub_state is SubState.AWAITING_NEXT_MESSAGE
     assert [e.item.kind for e in second.state.history][-2:] == ["message", "message"]
 
 
@@ -144,14 +152,14 @@ async def test_asking_a_stranger_is_refused_without_leaking_membership() -> None
         scripted("ok"),
     )
     out = await CoreLoop(ops).run(task(), AgentState(task_id="t-1"), "go")
-    assert out.kind == "completed"
+    assert out.kind == "waiting_for_message"
     result = out.state.history[2].item
     assert isinstance(result, ToolResultItem)
     assert result.result.is_error
     assert "no such participant" in (result.result.content[0].text or "")
 
 
-async def test_spawn_subtask_waits_for_the_child_then_completes() -> None:
+async def test_a_delegated_task_waits_for_its_child_then_completes() -> None:
     ops, _ = await host(
         scripted("", tool_calls=[PLAN_CALL]),
         scripted(
@@ -168,7 +176,7 @@ async def test_spawn_subtask_waits_for_the_child_then_completes() -> None:
         scripted("Done."),
     )
     loop = CoreLoop(ops)
-    first = await loop.run(task(), AgentState(task_id="t-1"), "go")
+    first = await loop.run(task(delegated=True), AgentState(task_id="t-1"), "go")
     assert first.kind == "waiting_for_children"
     assert first.task.state == TaskState.TASK_STATE_WORKING
     assert len(ops.spawned) == 1
@@ -181,17 +189,23 @@ async def test_spawn_subtask_waits_for_the_child_then_completes() -> None:
     ops.resolved_children.add(child.task_id)
     second = await loop.run(first.task, first.state, None)
     assert second.kind == "completed"
+    assert second.task.state == TaskState.TASK_STATE_COMPLETED  # R3.4
+    assert second.task.sub_state is None
 
 
-async def test_an_executor_can_fail_the_task_at_the_completion_predicate() -> None:
-    ops, _ = await host(scripted("done"))
-
+def veto_completion(ops: InProcessOperations, seen: list[str]) -> None:
     async def veto(point: HookPoint, ctx: HookContext) -> HookContext | None:
         assert isinstance(ctx, TaskCompleteIn)
+        seen.append(ctx.task_id)
         return ctx.model_copy(update={"result": CompletionDecision.FAIL, "reason": "no evidence"})
 
     ops.hooks.register(FunctionExecutor("veto", veto, priority=10, points=[TASK_COMPLETE]))
-    out = await CoreLoop(ops).run(task(), AgentState(task_id="t-1"), "go")
+
+
+async def test_an_executor_can_fail_a_delegated_task_at_the_completion_predicate() -> None:
+    ops, _ = await host(scripted("done"))
+    veto_completion(ops, [])
+    out = await CoreLoop(ops).run(task(delegated=True), AgentState(task_id="t-1"), "go")
     assert out.kind == "failed"
     assert out.reason == "no evidence"
     assert out.task.state == TaskState.TASK_STATE_FAILED
@@ -209,7 +223,7 @@ async def test_unknown_tool_and_bad_arguments_become_error_results_and_the_loop_
         scripted("ok"),
     )
     out = await CoreLoop(ops).run(task(), AgentState(task_id="t-1"), "go")
-    assert out.kind == "completed"
+    assert out.kind == "waiting_for_message"
     results = [e.item for e in out.state.history if isinstance(e.item, ToolResultItem)]
     assert [r.result.is_error for r in results] == [True, True]
     assert out.task.ext.plan is None
@@ -220,3 +234,28 @@ async def test_turn_limit_fails_the_task() -> None:
     out = await CoreLoop(ops, max_turns=3).run(task(), AgentState(task_id="t-1"), "go")
     assert out.kind == "failed"
     assert out.task.state == TaskState.TASK_STATE_FAILED
+
+
+async def test_a_conversation_turn_end_does_not_consult_the_completion_predicate() -> None:
+    ops, _ = await host(scripted("Here you go."), scripted("Anything else?"))
+    seen: list[str] = []
+    veto_completion(ops, seen)
+    loop = CoreLoop(ops)
+    first = await loop.run(task(), AgentState(task_id="t-1"), "go")
+    assert first.kind == "waiting_for_message"
+    assert first.task.sub_state is SubState.AWAITING_NEXT_MESSAGE
+    assert seen == []  # the participant decides, not task.complete (R3.1)
+    # The next message resumes the same task: WORKING clears the sub-state (R3.3).
+    second = await loop.run(first.task, first.state, "and the receipt?")
+    assert second.kind == "waiting_for_message"
+    assert second.task.id == "t-1"
+    assert second.final_text == "Anything else?"
+    assert seen == []
+
+
+async def test_a_task_persisted_without_a_lifecycle_derives_it_from_its_parents() -> None:
+    ops, _ = await host(scripted("done"))
+    legacy = task(delegated=True)
+    legacy = legacy.with_ext(legacy.ext.model_copy(update={"lifecycle": None}))
+    out = await CoreLoop(ops).run(legacy, AgentState(task_id="t-1"), "go")
+    assert out.kind == "completed"

@@ -90,7 +90,7 @@ negative test.
 
 ### Layer B: workflow behaviour
 
-- [ ] 6. Turn end parks conversation tasks; `ask_participant` sub-state
+- [x] 6. Turn end parks conversation tasks; `ask_participant` sub-state
   - `OutcomeKind` gains `waiting_for_message`.
   - `Operations.await_next_message` in both the in-process and the workflow
     implementations.

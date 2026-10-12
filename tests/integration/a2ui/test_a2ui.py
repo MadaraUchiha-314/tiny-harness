@@ -107,7 +107,7 @@ async def test_emit_ui_streams_a2ui_parts_and_an_action_from_the_renderer_reache
         When a forged action names a component the task did not create
         Then it is refused at intake and the task still waits
         When the genuine confirm action arrives as an A2UI part
-        Then the task resumes with the action in context and completes
+        Then the task resumes with the action in context and replies, awaiting the next message
     """
     suffix = uuid.uuid4().hex[:8]
     context_id = f"ctx-{suffix}"
@@ -169,7 +169,7 @@ async def test_emit_ui_streams_a2ui_parts_and_an_action_from_the_renderer_reache
         ):
             if event.HasField("status_update"):
                 final = event.status_update.status.state
-        assert final == TaskState.TASK_STATE_COMPLETED
+        assert final == TaskState.TASK_STATE_INPUT_REQUIRED  # a reply parks it (issue-25 R3.1)
     texts = [i.text for i in server.harness.llm.requests[-1].input if i.kind == "message"]
     assert any(
         "[A2UI action] confirm on surface resolution from ok" in t and "replace" in t for t in texts

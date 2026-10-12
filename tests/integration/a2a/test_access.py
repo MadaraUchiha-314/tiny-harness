@@ -14,12 +14,18 @@ from a2a.types import (
     SendMessageConfiguration,
     SendMessageRequest,
     SubscribeToTaskRequest,
+    TaskState,
 )
 from a2a.utils.errors import A2AError
 from temporalio.testing import WorkflowEnvironment
 
 from tests.integration.a2a.conftest import make_server
-from tests.integration.a2a.test_server import GET_ORDER, run_to_completion, user_message
+from tests.integration.a2a.test_server import (
+    GET_ORDER,
+    run_to_completion,
+    user_message,
+    wait_for_state,
+)
 from tiny_harness.harness.models import scripted
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -74,8 +80,8 @@ async def test_foreign_task_get_list_subscribe_cancel_not_found(env: WorkflowEnv
         listed = await client.list_tasks(ListTasksRequest(context_id=context_id), context=mallory)
         assert list(listed.tasks) == []
         server.harness.get_order.gate.set()
-        final = await env.client.get_workflow_handle(task_id).result()
-    assert final.id == task_id
+        final = await wait_for_state(server, task_id, TaskState.TASK_STATE_INPUT_REQUIRED)
+    assert final.id == task_id and final.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
 
 
 async def test_no_asserted_participant_is_refused_everywhere(env: WorkflowEnvironment) -> None:

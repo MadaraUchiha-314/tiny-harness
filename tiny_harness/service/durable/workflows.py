@@ -47,6 +47,7 @@ with workflow.unsafe.imports_passed_through():
         ChannelMessageData,
     )
     from tiny_harness.harness.core import (
+        STATUS_EXT_KEY,
         AcceptanceCriterion,
         AgentState,
         CompactionRecord,
@@ -56,6 +57,7 @@ with workflow.unsafe.imports_passed_through():
         HarnessTask,
         Participant,
         Role,
+        SubState,
         TaskCompleteIn,
         TaskExtensionData,
         TaskRef,
@@ -287,7 +289,19 @@ class WorkflowOperations:
         return await self._wf.set_status(task, state)
 
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
-        return await self._wf.ask(task, help)
+        task = await self._wf.ask(task, help)
+        await self._wf.persist(None)  # the store holds the parked state too (R3.6)
+        return task
+
+    async def await_next_message(self, task: HarnessTask, text: str) -> HarnessTask:
+        task = await self._wf.set_status(
+            task,
+            TaskState.TASK_STATE_INPUT_REQUIRED,
+            text=text,
+            sub_state=SubState.AWAITING_NEXT_MESSAGE,
+        )
+        await self._wf.persist(None)
+        return task
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
         return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
@@ -414,16 +428,19 @@ class TaskWorkflow:
             await workflow.wait_condition(self._ready)
             if self.cancel_reason is not None:
                 return await self._finish(TaskState.TASK_STATE_CANCELED, text=self.cancel_reason)
-            if self.pending_help is not None and not self.notes:
-                # Waiting for a reply: a refused message must not wake the loop (abuse case 4).
+            parked = self.task.sub_state is SubState.AWAITING_NEXT_MESSAGE
+            if (self.pending_help is not None or parked) and not self.notes:
+                # Waiting for a reply or the next message: a refused message must not wake
+                # the loop (abuse case 4).
                 self.state, accepted = await self.drain(self.task, self.state)
-                if accepted == 0 and self.waiting_for_reply():
+                if accepted == 0 and (self.waiting_for_reply() or parked):
                     # The sender is a participant (strangers never reach the workflow), so
                     # the stream they opened ends with the unchanged state and the reason.
                     self.task = await self.set_status(
                         self.task,
                         self.task.state,
                         text=f"message not accepted: {self.last_refusal}",
+                        sub_state=self.task.sub_state,
                     )
                     continue
             runner = asyncio.create_task(loop.run(self.task, self.state, None))
@@ -439,7 +456,7 @@ class TaskWorkflow:
             except ApplicationError as exc:
                 return await self._finish(TaskState.TASK_STATE_FAILED, text=exc.message)
             self.task, self.state = outcome.task, outcome.state
-            if outcome.kind in ("waiting_for_reply", "waiting_for_children"):
+            if outcome.kind in ("waiting_for_reply", "waiting_for_children", "waiting_for_message"):
                 continue
             return await self._finish(None)
 
@@ -654,20 +671,25 @@ class TaskWorkflow:
         *,
         text: str | None = None,
         message: Message | None = None,
+        sub_state: SubState | None = None,
     ) -> HarnessTask:
-        proto = Task()
-        proto.CopyFrom(task.proto)
+        """Move the task to ``state`` and log the update. ``sub_state`` is written to both
+        documented places, ``Task.metadata`` and the status update's metadata (R4.1);
+        without one, a stale sub-state is cleared (R3.3)."""
         status = TaskStatus(state=state, timestamp=workflow.now())  # type: ignore[arg-type]
         if message is None and text:
             message = text_message(task, text, message_id=f"{task.id}:status:{self.next_seq}")
         if message is not None:
             status.message.CopyFrom(message)
-        proto.status.CopyFrom(status)
-        updated = HarnessTask(proto)
+        updated = task.with_state(state, sub_state)
+        updated.proto.status.CopyFrom(status)
         self.task = updated
-        entry = self._emit(
-            TaskStatusUpdateEvent(task_id=task.id, context_id=task.context_id, status=status)
-        )
+        event = TaskStatusUpdateEvent(task_id=task.id, context_id=task.context_id, status=status)
+        if sub_state is not None:
+            event.metadata.fields[STATUS_EXT_KEY].CopyFrom(
+                updated.proto.metadata.fields[STATUS_EXT_KEY]
+            )
+        entry = self._emit(event)
         if self.start.config.search_attributes:
             workflow.upsert_search_attributes(  # pyright: ignore[reportUnknownMemberType]
                 [A2A_TASK_STATE.value_set(updated.state_name)]
@@ -719,7 +741,12 @@ class TaskWorkflow:
             message_id=message_id,
             call_id=str(help.get("call_id", "")),
         )
-        return await self.set_status(task, TaskState.TASK_STATE_INPUT_REQUIRED, message=message)
+        return await self.set_status(
+            task,
+            TaskState.TASK_STATE_INPUT_REQUIRED,
+            message=message,
+            sub_state=SubState.AWAITING_ANSWER,
+        )
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
         """``emit_ui`` (R20.5): the validated A2UI messages become one A2A message event

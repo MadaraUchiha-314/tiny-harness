@@ -72,7 +72,7 @@ async def test_programmatic_harness_runs_a_task_in_embedded_mode(
         Given Settings with mode embedded and no Temporal credentials
         When a program enters running_harness(settings)
         Then the A2A server is listening at the configured base URL
-        And a message sent over HTTP runs to COMPLETED through the in-process worker
+        And a message sent over HTTP reaches INPUT_REQUIRED through the in-process worker
         When the program leaves the context
         Then the A2A server no longer accepts connections
     """
@@ -81,7 +81,7 @@ async def test_programmatic_harness_runs_a_task_in_embedded_mode(
     async with running_harness(settings, with_worker=False) as harness:  # R5.1: forced on
         assert harness.base_url == str(settings.server.base_url)
         states = await send(harness, "hello")
-        assert states[-1] == TaskState.TASK_STATE_COMPLETED
+        assert states[-1] == TaskState.TASK_STATE_INPUT_REQUIRED  # issue-25 R3.1
     host, port = process_module.bind_address(settings)
     with socket.socket() as sock:
         assert sock.connect_ex((host, port)) != 0

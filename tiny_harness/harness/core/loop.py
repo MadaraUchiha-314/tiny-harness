@@ -12,6 +12,10 @@ The loop runs over an ``Operations`` port so the same code drives the in-process
 activity). Everything the LLM can make the harness do is a tool call; an intrinsic's
 ``WorkflowCommand`` is applied here with no I/O. ``ask_participant`` ends the run in
 ``INPUT_REQUIRED``; the next call with the reply resumes it.
+
+How a turn with no tool call ends depends on the task's lifecycle (R3): a
+``conversation`` parks in ``INPUT_REQUIRED`` awaiting its participant's next message,
+and only a ``delegated`` task asks the ``task.complete`` predicate.
 """
 
 from __future__ import annotations
@@ -98,7 +102,9 @@ class SubtaskSpawnedPost(SubtaskSpawnedPre):
     child: TaskRef
 
 
-type OutcomeKind = Literal["completed", "failed", "waiting_for_reply", "waiting_for_children"]
+type OutcomeKind = Literal[
+    "completed", "failed", "waiting_for_reply", "waiting_for_children", "waiting_for_message"
+]
 
 
 @dataclass(frozen=True)
@@ -151,6 +157,10 @@ class Operations(Protocol):
 
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
         """``ask_participant``: deliver the question, then ``INPUT_REQUIRED`` (R12.2)."""
+        ...
+
+    async def await_next_message(self, task: HarnessTask, text: str) -> HarnessTask:
+        """A conversation's turn ended: ``INPUT_REQUIRED``, awaiting-next-message (R3.1)."""
         ...
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask: ...
@@ -242,6 +252,9 @@ class CoreLoop:
         return task, state, waiting
 
     async def _finish(self, task: HarnessTask, state: AgentState, text: str) -> Outcome:
+        if task.lifecycle == "conversation":  # the participant decides when it is done
+            task = await self._ops.await_next_message(task, text)
+            return Outcome(kind="waiting_for_message", task=task, state=state, final_text=text)
         decision = await self._ops.decide_completion(task)
         if decision.result is CompletionDecision.WAIT:
             return Outcome(kind="waiting_for_children", task=task, state=state, final_text=text)

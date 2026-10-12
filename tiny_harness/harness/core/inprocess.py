@@ -30,6 +30,7 @@ from tiny_harness.harness.core.loop import (
     default_completion,
 )
 from tiny_harness.harness.core.state import AgentState
+from tiny_harness.harness.core.status import SubState
 from tiny_harness.harness.core.task import HarnessTask, TaskRef
 from tiny_harness.harness.entities import EntityKind, Registry, RegistryEntry
 from tiny_harness.harness.hooks import (
@@ -311,14 +312,23 @@ class InProcessOperations:
                 )
             )
 
-    async def set_state(self, task: HarnessTask, state: int) -> HarnessTask:
-        updated = task.with_state(state)
+    async def set_state(
+        self, task: HarnessTask, state: int, *, sub_state: SubState | None = None
+    ) -> HarnessTask:
+        updated = task.with_state(state, sub_state)
         self._ctx(updated)
         return updated
 
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
         self.help_requests.append(help)
-        return await self.set_state(task, TaskState.TASK_STATE_INPUT_REQUIRED)
+        return await self.set_state(
+            task, TaskState.TASK_STATE_INPUT_REQUIRED, sub_state=SubState.AWAITING_ANSWER
+        )
+
+    async def await_next_message(self, task: HarnessTask, text: str) -> HarnessTask:
+        return await self.set_state(
+            task, TaskState.TASK_STATE_INPUT_REQUIRED, sub_state=SubState.AWAITING_NEXT_MESSAGE
+        )
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
         self.ui_commands.append(command)

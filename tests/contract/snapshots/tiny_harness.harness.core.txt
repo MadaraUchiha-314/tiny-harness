@@ -56,6 +56,7 @@ model LoadedSkillRecord(name: <class 'str'>, body: <class 'str'>, tools: tuple[s
 class Operations(Protocol)
   def __init__(self, *args, **kwargs)
   def assemble(self, task: 'HarnessTask', state: 'AgentState') -> 'ContextWindow'
+  def await_next_message(self, task: 'HarnessTask', text: 'str') -> 'HarnessTask'
   def compact(self, task: 'HarnessTask', state: 'AgentState', window: 'ContextWindow') -> 'tuple[AgentState, CompactionRecord]'
   def complete(self, task: 'HarnessTask', text: 'str') -> 'HarnessTask'
   def decide_completion(self, task: 'HarnessTask') -> 'TaskCompleteIn'

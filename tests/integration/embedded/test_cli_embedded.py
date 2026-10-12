@@ -72,7 +72,7 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
         Given Settings with mode embedded and no --url
         When tiny-harness tui runs
         Then the TUI connects to a harness started in the same process
-        And a message typed in the TUI runs to COMPLETED
+        And a message typed in the TUI runs to its reply: INPUT_REQUIRED (issue-25 R3.1)
         And the harness's logs, uvicorn's logs and the dev server's output go to a file
         And none of them reach the terminal the TUI owns
         When the TUI exits
@@ -94,7 +94,7 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
                 await pilot.press(*"hello", "enter")
                 await app.workers.wait_for_complete()  # pyright: ignore[reportUnknownMemberType]
                 await pilot.pause()
-                assert app.state_name == "COMPLETED", app.state_name
+                assert app.state_name == "INPUT_REQUIRED", app.state_name
         finally:
             await client.close()
         return 0
@@ -128,7 +128,7 @@ async def test_tui_sends_a_message_under_the_asserted_participant(
         Given Settings with mode embedded and no --url
         When tiny-harness tui runs with participant alice
         And a message is typed in the real TUI that run_tui opens
-        Then the server accepts it and the task runs to COMPLETED
+        Then the server accepts it and the task runs to its reply: INPUT_REQUIRED
         And the composer shows the asserted participant
     """
     script_model(scripted("Hello, alice."))
@@ -151,7 +151,7 @@ async def test_tui_sends_a_message_under_the_asserted_participant(
     monkeypatch.setattr(HarnessApp, "run_async", piloted)
     assert await commands.tui(settings, url=None, participant="alice") == 0
     [app] = apps
-    assert app.state_name == "COMPLETED", app.state_name
+    assert app.state_name == "INPUT_REQUIRED", app.state_name
     assert placeholders == ["Enter to send as alice"]
 
 

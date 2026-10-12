@@ -69,14 +69,14 @@ async def test_harness_completes_a_task_against_a_responses_endpoint(
         Given a scripted OpenAI-compatible server on loopback serving the Responses API
         And the harness configured with that base_url, api responses and no OPENAI_API_KEY
         When a message is sent over A2A
-        Then the task reaches COMPLETED
+        Then the task runs to its reply: INPUT_REQUIRED, awaiting the next message
         And every model call reached the server's /v1/responses without an Authorization header
     """
     compat_server.answer((200, responses_body("Hello from a compatible server.")))
     settings = compat_settings(tmp_path, base_url=compat_server.url, api="responses")
     async with running_harness(settings) as harness:
         states = await send(harness, "hello")
-    assert states[-1] == TaskState.TASK_STATE_COMPLETED
+    assert states[-1] == TaskState.TASK_STATE_INPUT_REQUIRED  # issue-25 R3.1
     assert compat_server.seen, "the model was never called"
     for seen in compat_server.seen:
         assert seen.path == "/v1/responses"
@@ -96,14 +96,14 @@ async def test_harness_completes_a_task_against_a_chat_completions_endpoint(
         And its replies carry no usage
         And the harness configured with that base_url, api chat_completions and no key
         When a message is sent over A2A
-        Then the task reaches COMPLETED
+        Then the task runs to its reply: INPUT_REQUIRED, awaiting the next message
         And every model call reached /v1/chat/completions with the system prompt first
     """
     compat_server.answer((200, chat_body("Hello from a chat-only server.")))
     settings = compat_settings(tmp_path, base_url=compat_server.url, api="chat_completions")
     async with running_harness(settings) as harness:
         states = await send(harness, "hello")
-    assert states[-1] == TaskState.TASK_STATE_COMPLETED
+    assert states[-1] == TaskState.TASK_STATE_INPUT_REQUIRED  # issue-25 R3.1
     assert compat_server.seen, "the model was never called"
     for seen in compat_server.seen:
         assert seen.path == "/v1/chat/completions"
@@ -123,7 +123,7 @@ async def test_a_retryable_endpoint_failure_is_retried_and_the_task_completes(
         Given a scripted OpenAI-compatible server that first answers 503
         When a message is sent over A2A
         Then durable execution retries the model call
-        And the task reaches COMPLETED
+        And the task runs to its reply: INPUT_REQUIRED, awaiting the next message
     """
     compat_server.answer(
         (503, {"error": {"message": "loading model"}}),
@@ -132,5 +132,5 @@ async def test_a_retryable_endpoint_failure_is_retried_and_the_task_completes(
     settings = compat_settings(tmp_path, base_url=compat_server.url, api="chat_completions")
     async with running_harness(settings) as harness:
         states = await send(harness, "hello")
-    assert states[-1] == TaskState.TASK_STATE_COMPLETED
+    assert states[-1] == TaskState.TASK_STATE_INPUT_REQUIRED  # issue-25 R3.1
     assert len(compat_server.seen) >= 2

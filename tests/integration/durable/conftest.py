@@ -8,7 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest_asyncio
-from a2a.types import Message, Part, Task
+from a2a.types import Message, Part, Task, TaskState
 from a2a.types import Role as A2ARole
 from temporalio.client import Client, WithStartWorkflowOperation, WorkflowHandle
 from temporalio.common import WorkflowIDConflictPolicy
@@ -20,8 +20,10 @@ from tiny_harness.harness.core import (
     AgentState,
     ContextWindowManager,
     HarnessTask,
+    Lifecycle,
     Participant,
     Role,
+    SubState,
     TaskExtensionData,
 )
 from tiny_harness.harness.core.inprocess import InProcessOperations
@@ -109,7 +111,10 @@ class Harness:
         return build_worker(client, self.activities, task_queue=task_queue)
 
 
-def task(task_id: str = "t-1", context_id: str = "ctx-1") -> HarnessTask:
+def task(
+    task_id: str = "t-1", context_id: str = "ctx-1", *, lifecycle: Lifecycle | None = None
+) -> HarnessTask:
+    """A top-level task: a conversation unless ``lifecycle`` says otherwise (R3)."""
     return HarnessTask.new(
         task_id,
         context_id,
@@ -120,6 +125,7 @@ def task(task_id: str = "t-1", context_id: str = "ctx-1") -> HarnessTask:
                 Participant(id="alice", kind="human", role=Role.REPORTER),
                 Participant(id="agent", kind="agent", role=Role.ASSIGNEE),
             ),
+            lifecycle=lifecycle,
         ),
     )
 
@@ -183,6 +189,38 @@ async def send(
     return await operation.workflow_handle()
 
 
+async def until(
+    handle: WorkflowHandle[TaskWorkflow, Task], predicate: Callable[[HarnessTask], bool]
+) -> HarnessTask:
+    """Poll the ``task`` query until ``predicate`` holds; the workflow stays open."""
+    for _ in range(400):
+        current = HarnessTask(await handle.query(TaskWorkflow.task_query))
+        if predicate(current):
+            return current
+        await asyncio.sleep(0.05)
+    raise AssertionError("the task never reached the expected state")
+
+
+def parked(sub_state: SubState) -> Callable[[HarnessTask], bool]:
+    """``INPUT_REQUIRED`` with ``sub_state`` (R3.1, R3.2)."""
+
+    def check(t: HarnessTask) -> bool:
+        return t.state == TaskState.TASK_STATE_INPUT_REQUIRED and t.sub_state is sub_state
+
+    return check
+
+
+async def awaiting_next_message(handle: WorkflowHandle[TaskWorkflow, Task]) -> HarnessTask:
+    """A conversation task's reply parks it rather than completing it (R3.1)."""
+    return await until(handle, parked(SubState.AWAITING_NEXT_MESSAGE))
+
+
+async def close(handle: WorkflowHandle[TaskWorkflow, Task]) -> Task:
+    """Cancel a parked conversation task so its workflow closes and frees its id."""
+    await handle.signal(TaskWorkflow.cancel, "test over")
+    return await handle.result()
+
+
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def env() -> AsyncIterator[WorkflowEnvironment]:
     CACHE.mkdir(parents=True, exist_ok=True)  # the server binary is cached across runs
@@ -199,9 +237,13 @@ __all__ = [
     "FakeTool",
     "Harness",
     "HarnessFactory",
+    "awaiting_next_message",
+    "close",
     "env",
     "message",
+    "parked",
     "send",
     "start",
     "task",
+    "until",
 ]

@@ -35,7 +35,7 @@ from a2a.utils.errors import A2AError
 from temporalio.testing import WorkflowEnvironment
 
 from tests.integration.a2a.conftest import Server, make_server
-from tiny_harness.harness.core import TASK_EXT_KEY
+from tiny_harness.harness.core import STATUS_EXT_KEY, TASK_EXT_KEY, HarnessTask, SubState
 from tiny_harness.harness.models import scripted
 from tiny_harness.harness.persistence import Filter, PushConfigRecord
 from tiny_harness.harness.tools import ToolCall
@@ -67,7 +67,8 @@ def user_message(
 
 
 async def run_to_completion(server: Server, context_id: str, text: str = "hello") -> str:
-    """Send a first message and return the server-assigned task id once it completed."""
+    """Send a first message and return the server-assigned task id once its reply parked
+    it in INPUT_REQUIRED (a reply no longer completes a conversation, issue-25 R3.1)."""
     task_id = ""
     async for event in server.a2a().send_message(
         SendMessageRequest(message=user_message(text, context_id=context_id))
@@ -98,8 +99,9 @@ async def test_sendstreamingmessage_streams_a_task_then_status_updates_through_t
     Scenario: SendStreamingMessage streams a Task then status updates through the bridge
         Given a running worker and the server in-process
         When a client sends a streaming message
-        Then it receives the Task first, then WORKING, then COMPLETED with the answer
-        And the task carries the tiny-harness extension in its metadata
+        Then it receives the Task first, then WORKING, then INPUT_REQUIRED with the answer
+        And the last update's metadata carries the sub-state awaiting-next-message
+        And the task carries the tiny-harness extension, with the conversation lifecycle
     """
     tq, _task_id, context_id = ids()
     server = await make_server(
@@ -116,9 +118,12 @@ async def test_sendstreamingmessage_streams_a_task_then_status_updates_through_t
     assert events[0].task.id and events[0].task.context_id == context_id
     assert kinds[0] == ("task", TaskState.TASK_STATE_SUBMITTED)
     assert kinds[1] == ("status_update", TaskState.TASK_STATE_WORKING)
-    assert kinds[-1] == ("status_update", TaskState.TASK_STATE_COMPLETED)
+    assert kinds[-1] == ("status_update", TaskState.TASK_STATE_INPUT_REQUIRED)
     assert events[-1].status_update.status.message.parts[0].text == "Refunded."
+    sub_state = events[-1].status_update.metadata.fields[STATUS_EXT_KEY]
+    assert sub_state.struct_value.fields["sub_state"].string_value == "awaiting-next-message"
     assert TASK_EXT_KEY in events[0].task.metadata.fields
+    assert HarnessTask(events[0].task).ext.lifecycle == "conversation"  # set by the executor
 
 
 async def test_gettask_and_listtasks_read_the_workflow(env: WorkflowEnvironment) -> None:
@@ -127,16 +132,18 @@ async def test_gettask_and_listtasks_read_the_workflow(env: WorkflowEnvironment)
     Requirement: docs/specs/issue-3/requirements.md#R14
 
     Scenario: GetTask and ListTasks read the workflow
-        Given a task that ran to completion
+        Given a task that ran to its reply
         When the client calls GetTask and ListTasks
-        Then both return the task in its COMPLETED state from the workflow
+        Then both return the task in its INPUT_REQUIRED state from the workflow
+        And GetTask carries the sub-state awaiting-next-message
     """
     tq, _task_id, context_id = ids()
     server = await make_server(env, [scripted("Done.")], task_queue=tq)
     async with server:
         task_id = await run_to_completion(server, context_id)
         task = await server.a2a().get_task(GetTaskRequest(id=task_id))
-        assert task.status.state == TaskState.TASK_STATE_COMPLETED
+        assert task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
+        assert HarnessTask(task).sub_state is SubState.AWAITING_NEXT_MESSAGE
         listed = await server.a2a().list_tasks(ListTasksRequest(context_id=context_id))
     assert [t.id for t in listed.tasks] == [task_id]
 
@@ -178,7 +185,7 @@ async def test_returnimmediately_returns_after_the_task_exists(env: WorkflowEnvi
     Scenario: returnImmediately returns after the task exists
         Given a tool activity that blocks
         When a non-streaming SendMessage with returnImmediately is sent
-        Then it returns the task before the task completes
+        Then it returns the task before the task replies
     """
     tq, task_id, context_id = ids()
     server = await make_server(
@@ -196,16 +203,11 @@ async def test_returnimmediately_returns_after_the_task_exists(env: WorkflowEnvi
             )
         ]
         assert responses and responses[0].HasField("task")
-        assert responses[0].task.status.state != TaskState.TASK_STATE_COMPLETED
+        assert responses[0].task.status.state != TaskState.TASK_STATE_INPUT_REQUIRED
         task_id = responses[0].task.id
         server.harness.get_order.gate.set()
-        task = responses[0].task
-        for _ in range(100):
-            task = await server.a2a().get_task(GetTaskRequest(id=task_id))
-            if task.status.state == TaskState.TASK_STATE_COMPLETED:
-                break
-            await asyncio.sleep(0.1)
-        assert task.status.state == TaskState.TASK_STATE_COMPLETED
+        task = await wait_for_state(server, task_id, TaskState.TASK_STATE_INPUT_REQUIRED)
+        assert task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
 
 
 async def test_push_notification_configs_receive_status_updates(env: WorkflowEnvironment) -> None:
@@ -215,8 +217,8 @@ async def test_push_notification_configs_receive_status_updates(env: WorkflowEnv
 
     Scenario: push notification configs receive status updates
         Given a task waiting in a tool activity and a push config registered for it
-        When the task completes
-        Then the config's URL receives the COMPLETED status update with the token header
+        When the task replies
+        Then the config's URL receives the INPUT_REQUIRED status update with the token header
         And the store holds the token as the client supplied it (issue-23 R2.2, R3.1)
     """
     tq, task_id, context_id = ids()
@@ -243,10 +245,10 @@ async def test_push_notification_configs_receive_status_updates(env: WorkflowEnv
         )
         server.harness.get_order.gate.set()
         for _ in range(100):
-            if any(b"TASK_STATE_COMPLETED" in r.content for r in server.pushes):
+            if any(b"TASK_STATE_INPUT_REQUIRED" in r.content for r in server.pushes):
                 break
             await asyncio.sleep(0.1)
-    completed = [r for r in server.pushes if b"TASK_STATE_COMPLETED" in r.content]
+    completed = [r for r in server.pushes if b"TASK_STATE_INPUT_REQUIRED" in r.content]
     assert completed and completed[0].url.host == "push.test"
     assert completed[0].headers.get("X-A2A-Notification-Token") == "t0k3n-secret"
     records = await server.harness.store.query(PushConfigRecord, Filter(task_id=task_id))
@@ -341,7 +343,7 @@ async def test_legacy_push_config_is_dropped(
 
     Scenario: a push config stored encrypted by an earlier version is dropped, not delivered
         Given a task with a push config row in the 0.5.x shape, its token AES-GCM ciphertext
-        When the client lists the task's push configs and the task completes
+        When the client lists the task's push configs and the task replies
         Then the list is empty and nothing is posted to the config's URL
         And the row is deleted with a warning naming the task and config, not the ciphertext
     """
@@ -370,8 +372,8 @@ async def test_legacy_push_config_is_dropped(
                 ListTaskPushNotificationConfigsRequest(task_id=task_id)
             )
             gate.set()
-            task = await wait_for_state(server, task_id, TaskState.TASK_STATE_COMPLETED)
-    assert task.status.state == TaskState.TASK_STATE_COMPLETED
+            task = await wait_for_state(server, task_id, TaskState.TASK_STATE_INPUT_REQUIRED)
+    assert task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
     assert not listed.configs
     assert not [r for r in server.pushes if r.url.host == "legacy.test"]
     assert not await server.harness.store.query(PushConfigRecord, Filter(task_id=task_id))
@@ -422,19 +424,29 @@ async def test_subscribetotask_after_a_server_restart_replays_the_event_log(
     Requirement: docs/specs/issue-3/requirements.md#R14
 
     Scenario: SubscribeToTask after a server restart replays the event log
-        Given a task that completed under one server process
+        Given a task that replied, then was cancelled, under one server process
         When a fresh server process serves SubscribeToTask for it
         Then the client receives the task and every status update from sequence 0
+        And the parked INPUT_REQUIRED update still carries its sub-state (issue-25 R3.6)
     """
     tq, _task_id, context_id = ids()
     first = await make_server(env, [scripted("Done.")], task_queue=tq)
     async with first:
         task_id = await run_to_completion(first, context_id)
-        await env.client.get_workflow_handle(task_id).result()  # the final persist has run
+        # A parked conversation stays open; closing it makes the final persist run, and
+        # the time-skipping server cannot query an open workflow whose worker is gone.
+        await first.a2a().cancel_task(CancelTaskRequest(id=task_id))
+        await env.client.get_workflow_handle(task_id).result()
     second = await make_server(env, [], task_queue=tq, harness=first.harness)
     async with second:
         events = [e async for e in second.a2a().subscribe(SubscribeToTaskRequest(id=task_id))]
     kinds = [kind(e) for e in events]
     assert kinds[0][0] == "task"
     assert ("status_update", TaskState.TASK_STATE_WORKING) in kinds
-    assert kinds[-1] == ("status_update", TaskState.TASK_STATE_COMPLETED)
+    parked = [
+        e for e in events if kind(e) == ("status_update", TaskState.TASK_STATE_INPUT_REQUIRED)
+    ]
+    assert parked
+    sub_state = parked[0].status_update.metadata.fields[STATUS_EXT_KEY]
+    assert sub_state.struct_value.fields["sub_state"].string_value == "awaiting-next-message"
+    assert kinds[-1] == ("status_update", TaskState.TASK_STATE_CANCELED)

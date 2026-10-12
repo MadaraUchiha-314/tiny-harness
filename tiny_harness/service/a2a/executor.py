@@ -147,6 +147,8 @@ class HarnessExecutor(AgentExecutor):
             if envelope is not None and envelope.kind == "task"
             else default_extension(message, agent)
         )
+        # A participant's first message opens a conversation; only the server sets this (R3).
+        ext = ext.model_copy(update={"lifecycle": "conversation"})
         task = HarnessTask.new(context.task_id, context.context_id, ext)
         start = TaskStart(
             task=task.proto,

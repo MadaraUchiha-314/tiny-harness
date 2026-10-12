@@ -29,9 +29,11 @@ from tiny_harness.harness.channels import (
     ChannelMessageData,
 )
 from tiny_harness.harness.core import (
+    STATUS_EXT_KEY,
     AgentState,
     CompletionDecision,
     HarnessTask,
+    SubState,
     TaskCompleteIn,
     participant_of,
 )
@@ -544,24 +546,40 @@ def describe_action(action: Action) -> str:
     )
 
 
+def _sub_state(metadata: struct_pb2.Struct) -> str | None:
+    """The status extension's sub-state in an event's or a task's metadata (R4.1)."""
+    if STATUS_EXT_KEY not in metadata.fields:
+        return None
+    fields = metadata.fields[STATUS_EXT_KEY].struct_value.fields
+    return fields["sub_state"].string_value if "sub_state" in fields else None
+
+
 async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
     remote_task_id = message.task_id or ""
     state = TaskState.TASK_STATE_SUBMITTED
+    sub_state: str | None = None
     text = ""
     async for event in agent.send_message(message, extensions=SUPPORTED_EXTENSIONS):
         if isinstance(event, Task):
             remote_task_id = event.id
             state = event.status.state
+            sub_state = _sub_state(event.metadata)
             if event.status.HasField("message"):
                 text = "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
         elif isinstance(event, TaskStatusUpdateEvent):
             remote_task_id = event.task_id or remote_task_id
             state = event.status.state
+            sub_state = _sub_state(event.metadata)
             if event.status.HasField("message"):
                 text = "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
         elif isinstance(event, Message):
             text = "\n".join(p.text for p in event.parts if p.HasField("text"))
         activity.heartbeat()
+    if state == TaskState.TASK_STATE_INPUT_REQUIRED and sub_state == SubState.AWAITING_NEXT_MESSAGE:
+        # A tiny-harness peer parks a conversation after its reply instead of completing
+        # it (issue-25 R3.1). It asked nothing, so the delegated sub-task has its answer
+        # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4).
+        state = TaskState.TASK_STATE_COMPLETED
     name = TaskState.Name(state).removeprefix("TASK_STATE_")
     return RemoteTurnOut(
         remote_task_id=remote_task_id,

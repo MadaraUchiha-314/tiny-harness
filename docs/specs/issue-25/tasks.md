@@ -105,7 +105,7 @@ negative test.
     `…resumes the same task and clears the sub-state`;
     `ask_participant parks the task awaiting an answer`;
     `A delegated sub-task still completes when its loop ends`)
-- [ ] 7. `spawn_child` sets the lifecycle and inherits settings
+- [x] 7. `spawn_child` sets the lifecycle and inherits settings
   - `delegated` for `spawn_subtask`. `conversation`, with no first message, for a
     `/sub-task` spawn.
   - The parent's `model` and `reasoning_effort` are copied into every local child.

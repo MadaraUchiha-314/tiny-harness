@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import timedelta
-from typing import Final, cast
+from typing import Final, Literal, cast
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy, SearchAttributeKey
@@ -55,6 +55,7 @@ with workflow.unsafe.imports_passed_through():
         ContextWindow,
         CoreLoop,
         HarnessTask,
+        Lifecycle,
         Participant,
         Role,
         SubState,
@@ -63,6 +64,7 @@ with workflow.unsafe.imports_passed_through():
         TaskRef,
         state_name,
     )
+    from tiny_harness.harness.core.intrinsics import link_subtask
     from tiny_harness.harness.entities import EntityKind, EntityRef
     from tiny_harness.harness.models import LLMRequest, LLMResponse, MessageItem, extract_tool_calls
     from tiny_harness.harness.models import Role as MessageRole
@@ -174,6 +176,32 @@ def text_message(task: HarnessTask, text: str, *, message_id: str) -> Message:
         task_id=task.id,
         role=A2ARole.ROLE_AGENT,
         parts=[Part(text=text)],
+    )
+
+
+def child_extension(
+    parent: HarnessTask,
+    *,
+    name: str,
+    goal: str,
+    participants: tuple[Participant, ...],
+    lifecycle: Lifecycle | None,
+    inherit: bool,
+    criteria: tuple[AcceptanceCriterion, ...] = (),
+) -> TaskExtensionData:
+    """A child's extension, linked to ``parent``. A local agent child (``inherit``) copies
+    the parent's ``model`` and ``reasoning_effort`` (R7.3); a remote or participant child
+    gets neither, as it makes no model call of this harness's."""
+    ext = parent.ext
+    return TaskExtensionData(
+        name=name,
+        goal=goal,
+        acceptance_criteria=criteria,
+        participants=participants,
+        parent_tasks=(TaskRef(task_id=parent.id),),
+        lifecycle=lifecycle,
+        model=ext.model if inherit else None,
+        reasoning_effort=ext.reasoning_effort if inherit else None,
     )
 
 
@@ -423,6 +451,18 @@ class TaskWorkflow:
                 )
         if start.mode == "participant":
             return await self._run_participant()
+        if (
+            not self.mailbox
+            and self.task.state == TaskState.TASK_STATE_SUBMITTED
+            and self.task.lifecycle == "conversation"
+        ):
+            # A /sub-task starts without a first message: it waits for one (R9.2).
+            self.task = await self.set_status(
+                self.task,
+                TaskState.TASK_STATE_INPUT_REQUIRED,
+                sub_state=SubState.AWAITING_NEXT_MESSAGE,
+            )
+            await self.persist(None)
         loop = CoreLoop(WorkflowOperations(self), max_turns=start.config.max_turns)
         while True:
             await workflow.wait_condition(self._ready)
@@ -791,6 +831,8 @@ class TaskWorkflow:
     # --- children ------------------------------------------------------------------
 
     async def spawn_child(self, task: HarnessTask, command: WorkflowCommand) -> TaskRef:
+        """An agent's ``spawn_subtask`` (a delegated child, local or remote) or
+        ``create_task_for_participant`` (a participant task) (R3.4, R7.3)."""
         payload = command.payload
         index = len(self.children) + 1
         child_id = f"{task.id}.{index}"
@@ -801,12 +843,11 @@ class TaskWorkflow:
             AcceptanceCriterion(text=str(c))
             for c in (raw_criteria if isinstance(raw_criteria, list) else [])
         )
-        step = payload.get("step")
+        raw_step = payload.get("step")
+        step = str(raw_step) if raw_step else None
         participants = task.ext.participants
-        mode: str = "agent"
-        kind: str = "local"
+        agent = payload.get("agent")
         if command.kind == "create_participant_task":
-            mode, kind = "participant", "participant"
             target = str(payload.get("participant_id", ""))
             participants = tuple(
                 p.model_copy(
@@ -818,20 +859,33 @@ class TaskWorkflow:
                 )
                 for p in participants
             )
-        elif not participants:
+            ext = child_extension(
+                task,
+                name=name,
+                goal=goal,
+                criteria=criteria,
+                participants=participants,
+                lifecycle=None,
+                inherit=False,
+            )
+            child = HarnessTask.new(child_id, task.context_id, ext)
+            await self._start_local_child(child, mode="participant", mailbox=(), step=step)
+            return TaskRef(task_id=child_id)
+        if not participants:
             participants = (
                 Participant(id=self.start.config.agent, kind="agent", role=Role.ASSIGNEE),
             )
-        ext = TaskExtensionData(
+        ext = child_extension(
+            task,
             name=name,
             goal=goal,
-            acceptance_criteria=criteria,
+            criteria=criteria,
             participants=participants,
-            parent_tasks=(TaskRef(task_id=task.id),),
+            lifecycle="delegated",
+            inherit=not agent,  # a remote child runs on the remote agent's model
         )
         child = HarnessTask.new(child_id, task.context_id, ext)
-        agent = payload.get("agent")
-        if command.kind == "spawn_subtask" and agent:
+        if agent:
             await workflow.start_child_workflow(
                 "RemoteTaskWorkflow",
                 RemoteStart(
@@ -846,12 +900,7 @@ class TaskWorkflow:
                 parent_close_policy=workflow.ParentClosePolicy.ABANDON,
             )
             self.children.append(
-                ChildRef(
-                    task_id=child_id,
-                    workflow_id=child_id,
-                    kind="remote",
-                    step=str(step) if step else None,
-                )
+                ChildRef(task_id=child_id, workflow_id=child_id, kind="remote", step=step)
             )
             return TaskRef(task_id=child_id, agent=EntityRef(kind=EntityKind.AGENT, id=str(agent)))
         first = Message(
@@ -864,30 +913,68 @@ class TaskWorkflow:
         # The delegating agent is the sender, and a participant of the child: intake
         # refuses a message that asserts nobody (abuse case 4).
         first.metadata.update({"participant_id": self.start.config.agent})
+        await self._start_local_child(child, mode="agent", mailbox=(first,), step=step)
+        return TaskRef(task_id=child_id)
+
+    async def spawn_sub_task(self, task: HarnessTask, goal: str, reporter: str) -> TaskRef:
+        """``/sub-task`` (R9.1, R9.2): a conversation child in the same context with the
+        sender as its reporter and this agent as its assignee, inheriting the parent's
+        settings (R7.3). It starts without a first message and waits in
+        ``INPUT_REQUIRED(awaiting-next-message)``. The child is linked into ``self.task``;
+        the caller emits the ``Task`` event and persists."""
+        index = len(self.children) + 1
+        child_id = f"{task.id}.{index}"
+        sender = task.ext.participant(reporter)
+        participants = (
+            Participant(id=reporter, kind=sender.kind if sender else "human", role=Role.REPORTER),
+            Participant(id=self.start.config.agent, kind="agent", role=Role.ASSIGNEE),
+        )
+        first_line = goal.strip().splitlines()[0] if goal.strip() else f"sub-task {index}"
+        ext = child_extension(
+            task,
+            name=first_line[:60],
+            goal=goal,
+            participants=participants,
+            lifecycle="conversation",
+            inherit=True,
+        )
+        child = HarnessTask.new(child_id, task.context_id, ext)
+        await self._start_local_child(child, mode="agent", mailbox=(), step=None)
+        ref = TaskRef(task_id=child_id)
+        self.task = link_subtask(task, ref, None)
+        return ref
+
+    async def _start_local_child(
+        self,
+        child: HarnessTask,
+        *,
+        mode: Literal["agent", "participant"],
+        mailbox: tuple[Message, ...],
+        step: str | None,
+    ) -> None:
         start = TaskStart(
             task=child.proto,
-            state=AgentState(task_id=child_id),
-            mode="participant" if mode == "participant" else "agent",
+            state=AgentState(task_id=child.id),
+            mode=mode,
             config=self.start.config,
             correlation_id=self.correlation_id,
-            mailbox=(first,) if mode == "agent" else (),
+            mailbox=mailbox,
             parent_workflow_id=workflow.info().workflow_id,
         )
         await workflow.start_child_workflow(
             "TaskWorkflow",
             start,
-            id=child_id,
+            id=child.id,
             parent_close_policy=workflow.ParentClosePolicy.ABANDON,
         )
         self.children.append(
             ChildRef(
-                task_id=child_id,
-                workflow_id=child_id,
-                kind="participant" if kind == "participant" else "local",
-                step=str(step) if step else None,
+                task_id=child.id,
+                workflow_id=child.id,
+                kind="participant" if mode == "participant" else "local",
+                step=step,
             )
         )
-        return TaskRef(task_id=child_id)
 
     # --- the activity wrapper (R19.3-R19.6) -----------------------------------------
 
@@ -1099,6 +1186,7 @@ __all__ = [
     "TaskWorkflow",
     "WorkflowOperations",
     "backoff",
+    "child_extension",
     "state_name",
     "text_message",
 ]

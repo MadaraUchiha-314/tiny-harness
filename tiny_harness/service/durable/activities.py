@@ -595,12 +595,16 @@ class Activities:
     # --- watching a parked remote task (issue-27) -------------------------------------
 
     async def _remote(self, agent_id: str) -> Agent:
+        """The delegated agent. Gone from the registry, it will not come back mid-task, so
+        the failure is final: a watch must stop rather than retry it forever."""
         try:
             return await self.engine.registry.get(
                 EntityRef(kind=EntityKind.AGENT, id=agent_id, version="*"), Agent
             )
         except TinyHarnessError as exc:
-            raise _translate(exc) from exc
+            raise ApplicationError(
+                exc.message, exc.to_record(), type=exc.code, non_retryable=True
+            ) from exc
 
     @activity.defn(name=ActivityName.REGISTER_REMOTE_PUSH.value)
     async def register_remote_push(self, arg: RemoteTaskIn) -> RemoteWatch:

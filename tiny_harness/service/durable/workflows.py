@@ -1473,6 +1473,7 @@ class RemoteTaskWorkflow:
             self.remote_task_id = resumed.remote_task_id
             self.watch = resumed.watch
             self.last = resumed.last
+            self.cancel_reason = self.cancel_reason or resumed.cancel_reason
             self.push_pending = resumed.watch.mode == "push"  # reconcile across the gap
         else:
             self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
@@ -1496,6 +1497,9 @@ class RemoteTaskWorkflow:
                 await self._apply(out, always=True)
                 if out.final:
                     return await self._end()
+                # A push during the turn still fetches once (R2.8), but its claim described
+                # the stream the turn already read: it must not start rechecks.
+                self.recheck, self.claimed = None, ""
             resumed = None
             parked = await self._park()
             self.recheck, self.claimed = None, ""  # a recheck belongs to one park only
@@ -1522,7 +1526,10 @@ class RemoteTaskWorkflow:
                 "task": self.task.proto,
                 "mailbox": tuple(self.mailbox),
                 "resume": RemoteResume(
-                    remote_task_id=self.remote_task_id or "", watch=self.watch, last=self.last
+                    remote_task_id=self.remote_task_id or "",
+                    watch=self.watch,
+                    last=self.last,
+                    cancel_reason=self.cancel_reason,
                 ),
             }
         )
@@ -1567,6 +1574,8 @@ class RemoteTaskWorkflow:
             # Fetch once: a change between the turn's end and the registration (R1.4).
             self.push_pending = watch.mode == "push"
         while True:
+            if self._interrupted():
+                return "interrupted"  # before a rollover, so a cancel is never carried over
             if self._history_full():
                 return "roll"
             follow: workflow.ActivityHandle[FollowOut] | None = None
@@ -1580,10 +1589,7 @@ class RemoteTaskWorkflow:
                     retry_policy=ONE_ATTEMPT,
                 )
             try:
-                await workflow.wait_condition(
-                    self._woken(follow),
-                    timeout=PUSH_RECHECKS[self.recheck] if self.recheck is not None else None,
-                )
+                await workflow.wait_condition(self._woken(follow), timeout=self._recheck_delay())
             except TimeoutError:
                 assert self.recheck is not None
                 self.recheck += 1
@@ -1606,7 +1612,11 @@ class RemoteTaskWorkflow:
                         retry_policy=ONE_ATTEMPT,
                     )
                 except ActivityError:
-                    continue  # keep the last state (fail closed); the next push tries again
+                    # Keep the last state (fail closed); a recheck still due tries again, and
+                    # the next push does after the last one.
+                    if self._recheck_delay() is None:
+                        self.recheck, self.claimed = None, ""
+                    continue
                 if await self._apply(out) and out.final:
                     return "ended"
                 self._schedule_recheck(out)
@@ -1635,6 +1645,11 @@ class RemoteTaskWorkflow:
     async def _pause(self) -> None:
         with contextlib.suppress(asyncio.TimeoutError):
             await workflow.wait_condition(self._interrupted, timeout=FOLLOW_RETRY)
+
+    def _recheck_delay(self) -> timedelta | None:
+        if self.recheck is None or self.recheck >= len(PUSH_RECHECKS):
+            return None
+        return PUSH_RECHECKS[self.recheck]
 
     def _schedule_recheck(self, out: RemoteTurnOut) -> None:
         """A remote agent may push before its own ``GetTask`` shows the change: while the

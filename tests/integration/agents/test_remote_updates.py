@@ -324,8 +324,12 @@ async def test_a_redacted_status_text_does_not_spin_the_follow(env: WorkflowEnvi
         handle = await d.begin()
         remote_id = await d.parked_remote()
         await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
+        await until_events(d, "ACTIVITY_TASK_STARTED", "follow_remote_task")
+        completed = await d.events("ACTIVITY_TASK_COMPLETED")
         await asyncio.sleep(1.5)
-        assert await d.events("ACTIVITY_TASK_SCHEDULED", "follow_remote_task") <= 2
+        # The first follow is still open: it saw no "change" in the masked question.
+        assert await d.events("ACTIVITY_TASK_COMPLETED") == completed
+        assert await d.events("ACTIVITY_TASK_SCHEDULED", "follow_remote_task") == 1
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
         await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
@@ -398,4 +402,94 @@ async def test_a_long_parked_stand_in_continues_as_new(env: WorkflowEnvironment)
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
         assert await d.push_configs(remote_id) == []
+        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+
+
+async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Remote sub-tasks hear remote state changes between turns
+    Requirement: docs/specs/issue-27/requirements.md#R2
+
+    Scenario: A failed fetch during the rechecks keeps the last state and the watch alive
+        Given a stand-in watching by push
+        When a push claims a state the remote does not show, and the last recheck's fetch fails
+        Then the stand-in keeps its last state
+        And a third-party cancel afterwards is still heard
+    """
+    calls = 0
+
+    def flaky(agent: RemoteAgent) -> None:
+        real = agent.get_task
+
+        async def get_task(task_id: str, *, participant: str | None = None) -> Task:
+            nonlocal calls
+            calls += 1
+            if calls == 5:  # the reconcile, the push's fetch, rechecks 1, 2 — then 3 fails
+                raise RuntimeError("remote unavailable")
+            return await real(task_id, participant=participant)
+
+        agent.get_task = get_task  # type: ignore[method-assign]
+
+    async with delegation(
+        env, parent_script(), [scripted("", tool_calls=[ask()])], configure=flaky
+    ) as d:
+        handle = await d.begin()
+        remote_id = await d.parked_remote()
+        token = (await d.until_push_config(remote_id)).token.get_secret_value()
+        for _ in range(100):
+            if calls >= 1:
+                break
+            await asyncio.sleep(0.05)
+        claim = {"state": "TASK_STATE_COMPLETED"}
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=d.local.app), base_url="http://local"
+        ) as http:
+            response = await http.post(
+                f"/a2a/push/{d.child_id}",
+                headers={PUSH_TOKEN_HEADER: token},
+                content=json.dumps({"statusUpdate": {"taskId": remote_id, "status": claim}}),
+            )
+        assert response.status_code == 204
+        for _ in range(300):
+            if calls >= 5:
+                break
+            await asyncio.sleep(0.05)
+        assert calls >= 5, "the rechecks never reached the failing fetch"
+        await asyncio.sleep(0.5)
+        assert await d.child_state() == TaskState.TASK_STATE_INPUT_REQUIRED
+        await d.cancel_remote(remote_id)
+        assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
+        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+
+
+async def test_pushes_during_a_turn_are_applied_after_it(env: WorkflowEnvironment) -> None:
+    """
+    Feature: Remote sub-tasks hear remote state changes between turns
+    Requirement: docs/specs/issue-27/requirements.md#R2
+
+    Scenario: A push that arrives while a turn's stream is open is applied only after the turn
+        Given a stand-in watching by push whose remote asks a second question after a reply
+        When the reply's turn runs, and the remote pushes its WORKING and INPUT_REQUIRED events
+        Then the turn's own result is what the parent hears, and the second question is noted
+        And the pushes cost one fetch after the turn and no rechecks
+    """
+    remote = [scripted("", tool_calls=[ask()]), scripted("", tool_calls=[ask("And the year?")])]
+    async with delegation(env, [*parent_script(), scripted("Done.")], remote) as d:
+        handle = await d.begin()
+        remote_id = await d.parked_remote()
+        await d.until_push_config(remote_id)
+        await asyncio.sleep(0.5)  # the reconcile fetch has run
+        before = await d.events("ACTIVITY_TASK_SCHEDULED", "get_remote_task")
+        stand_in = d.env.client.get_workflow_handle(d.child_id)
+        await stand_in.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            "inbox", message_to(d.child_id, "The main ledger."), result_type=InboxReceipt
+        )
+        await until_heard(d.local.harness.llm, "And the year?")
+        await asyncio.sleep(4.0)  # long enough for rechecks at 1 s and 3 s, were any due
+        assert await d.events("ACTIVITY_TASK_SCHEDULED", "get_remote_task") <= before + 1
+        assert not heard(d.local.harness.llm, "is WORKING")
+        await d.cancel_remote(remote_id)
+        assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
         await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")

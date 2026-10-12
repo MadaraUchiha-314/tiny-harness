@@ -1,5 +1,8 @@
 """The TUI's A2A client port (R20.2): the SDK client over JSON-RPC with streaming and
-``A2A-Version: 1.0``, plus a scripted client for tests and snapshots."""
+``A2A-Version: 1.0``, plus a scripted client for tests and snapshots.
+
+issue-25: ``complete`` sends the same control envelope any A2A client can (R5.1), and
+``commands`` reads the card's commands extension for ``/`` completion (R6.7)."""
 
 from __future__ import annotations
 
@@ -8,21 +11,29 @@ from collections.abc import AsyncIterator, Sequence
 from typing import Protocol
 
 import httpx
-from a2a.client import ClientConfig, create_client
+from a2a.client import A2ACardResolver, ClientConfig, create_client
 from a2a.client.client import Client as A2AClient
 from a2a.types import (
+    AgentCard,
     CancelTaskRequest,
+    GetTaskRequest,
     Message,
     Part,
     SendMessageRequest,
     SubscribeToTaskRequest,
     Task,
+    TaskState,
+    TaskStatus,
 )
 from a2a.types import Role as A2ARole
-from google.protobuf import struct_pb2
+from a2a.utils.errors import TaskNotFoundError
+from google.protobuf import json_format, struct_pb2
+from pydantic import ValidationError
 
 from tiny_harness.harness.agents import A2AEvent, unwrap
+from tiny_harness.harness.commands import COMMANDS_EXT_URI, CommandsExtensionParams, CommandSpec
 from tiny_harness.interaction.a2ui import A2UI_MEDIA_TYPE, Action
+from tiny_harness.service.inbox import complete_message
 
 type EventSource = AsyncIterator[A2AEvent]
 
@@ -36,7 +47,28 @@ class A2AClientPort(Protocol):
 
     async def cancel(self, task_id: str) -> Task: ...
 
+    def complete(self, task_id: str) -> EventSource: ...
+
+    async def get_task(self, task_id: str) -> Task: ...
+
+    def commands(self) -> tuple[CommandSpec, ...]: ...
+
     async def close(self) -> None: ...
+
+
+def card_commands(card: AgentCard) -> tuple[CommandSpec, ...]:
+    """The commands the card's commands extension lists; none when it is absent or its
+    params do not parse (the extension is optional, R6.7)."""
+    for extension in card.capabilities.extensions:
+        if extension.uri == COMMANDS_EXT_URI:
+            try:
+                params = CommandsExtensionParams.model_validate(
+                    json_format.MessageToDict(extension.params)
+                )
+            except ValidationError:
+                return ()
+            return params.commands
+    return ()
 
 
 def user_message(
@@ -76,24 +108,31 @@ class SdkClient:
     """``a2a-sdk`` over JSON-RPC with streaming; the card is resolved from the base URL."""
 
     def __init__(
-        self, client: A2AClient, *, http: httpx.AsyncClient, participant: str | None
+        self,
+        client: A2AClient,
+        *,
+        http: httpx.AsyncClient,
+        participant: str | None,
+        card: AgentCard | None = None,
     ) -> None:
         self._client = client
         self._http = http
         self.participant = participant
+        self.card = card
 
     @classmethod
     async def connect(cls, url: str, *, participant: str | None = None) -> SdkClient:
         http = httpx.AsyncClient(timeout=httpx.Timeout(60, read=None))
         if participant:
             http.headers["X-Participant-Id"] = participant
+        card = await A2ACardResolver(http, url).get_agent_card()
         client = await create_client(
-            url,
+            card,
             client_config=ClientConfig(
                 httpx_client=http, streaming=True, supported_protocol_bindings=["JSONRPC"]
             ),
         )
-        return cls(client, http=http, participant=participant)
+        return cls(client, http=http, participant=participant, card=card)
 
     async def _stream(self, message: Message) -> EventSource:
         async for response in self._client.send_message(SendMessageRequest(message=message)):
@@ -118,6 +157,15 @@ class SdkClient:
     async def cancel(self, task_id: str) -> Task:
         return await self._client.cancel_task(CancelTaskRequest(id=task_id))
 
+    def complete(self, task_id: str) -> EventSource:
+        return self._stream(complete_message(task_id, participant_id=self.participant or ""))
+
+    async def get_task(self, task_id: str) -> Task:
+        return await self._client.get_task(GetTaskRequest(id=task_id, history_length=0))
+
+    def commands(self) -> tuple[CommandSpec, ...]:
+        return card_commands(self.card) if self.card is not None else ()
+
     async def close(self) -> None:
         await self._client.close()
         await self._http.aclose()
@@ -126,11 +174,21 @@ class SdkClient:
 class ScriptedClient:
     """Replays scripted events; records what the TUI sent (tests and snapshots)."""
 
-    def __init__(self, scripts: Sequence[Sequence[A2AEvent]] = ()) -> None:
+    def __init__(
+        self,
+        scripts: Sequence[Sequence[A2AEvent]] = (),
+        *,
+        commands: Sequence[CommandSpec] = (),
+        tasks: Sequence[Task] = (),
+    ) -> None:
         self._scripts = [list(s) for s in scripts]
+        self._commands = tuple(commands)
+        self._tasks = {t.id: t for t in tasks}
         self.sent: list[str] = []
         self.actions: list[Action] = []
         self.cancelled: list[str] = []
+        self.completed: list[str] = []
+        self.fetched: list[str] = []
         self.subscribed: list[str] = []
 
     def _next(self) -> list[A2AEvent]:
@@ -154,7 +212,20 @@ class ScriptedClient:
 
     async def cancel(self, task_id: str) -> Task:
         self.cancelled.append(task_id)
-        return Task(id=task_id)
+        return Task(id=task_id, status=TaskStatus(state=TaskState.TASK_STATE_CANCELED))
+
+    def complete(self, task_id: str) -> EventSource:
+        self.completed.append(task_id)
+        return self._replay(self._next())
+
+    async def get_task(self, task_id: str) -> Task:
+        self.fetched.append(task_id)
+        if task_id not in self._tasks:
+            raise TaskNotFoundError(message=f"task {task_id} not found")
+        return self._tasks[task_id]
+
+    def commands(self) -> tuple[CommandSpec, ...]:
+        return self._commands
 
     async def close(self) -> None:
         return None
@@ -166,5 +237,6 @@ __all__ = [
     "ScriptedClient",
     "SdkClient",
     "action_message",
+    "card_commands",
     "user_message",
 ]

@@ -18,12 +18,13 @@ import subprocess
 import sys
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 from temporalio.client import WorkflowExecutionStatus
-from textual.widgets import Input
+from textual.pilot import Pilot
+from textual.widgets import Input, ListView
 
 from tests.integration.durable.conftest import CACHE
 from tests.integration.embedded.conftest import ScriptModel, embedded_settings, free_port
@@ -31,6 +32,7 @@ from tests.integration.embedded.test_embedded_temporal import WaitForRelease
 from tiny_harness.harness.models import scripted
 from tiny_harness.interaction import tui as tui_module
 from tiny_harness.interaction.tui import HarnessApp, SdkClient
+from tiny_harness.interaction.tui.app import Entry, SubTaskRow
 from tiny_harness.service import commands
 from tiny_harness.service.durable import temporal as temporal_module
 from tiny_harness.service.durable.temporal import EmbeddedTemporal
@@ -152,7 +154,103 @@ async def test_tui_sends_a_message_under_the_asserted_participant(
     assert await commands.tui(settings, url=None, participant="alice") == 0
     [app] = apps
     assert app.state_name == "INPUT_REQUIRED", app.state_name
-    assert placeholders == ["Enter to send as alice"]
+    assert placeholders == ["Enter to send as alice · / for commands"]
+
+
+async def until_true(pilot: Pilot[None], check: Callable[[], bool], *, timeout: float = 30) -> None:
+    """Poll the app until ``check`` holds; a subscription worker never ends while its task
+    is open, so ``wait_for_complete`` would not return."""
+    deadline = time.monotonic() + timeout
+    while not check():
+        if time.monotonic() > deadline:
+            app = pilot.app
+            assert isinstance(app, HarnessApp)
+            shown = [e.text for e in app.query(Entry) if e.display]
+            raise AssertionError(f"timed out: {app.topbar_text()}\n{shown}\n{app.trace}")
+        await pilot.pause(0.05)
+
+
+@pytest.mark.usefixtures("isolated_observability")
+async def test_tui_task_controls_against_the_hosted_harness(
+    tmp_path: Path, script_model: ScriptModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Feature: TUI task controls
+    Requirement: docs/specs/issue-25/requirements.md#R5
+    Requirement: docs/specs/issue-25/requirements.md#R6
+    Requirement: docs/specs/issue-25/requirements.md#R9
+
+    Scenario: The real TUI completes a conversation and its sub-task
+        Given the TUI connected to a hosted harness with the built-in commands
+        Then the composer offers the card's commands
+        When a message is sent
+        Then the top bar shows INPUT_REQUIRED · awaiting-next-message
+        When "/sub-task Draft the reply" is sent
+        Then the reply names the new sub-task
+        And the Task tab lists the new sub-task with its goal
+        And its row follows it to INPUT_REQUIRED
+        When Enter opens it and ctrl+d completes it
+        Then the sub-task is COMPLETED
+        When f4 returns to the parent and ctrl+d completes it
+        Then the parent is COMPLETED and both controls are disabled
+    """
+    # The second response is the parent's turn on its sub-task's result.
+    script_model(scripted("Hosted reply."), scripted("Noted."))
+    settings = embedded_settings(tmp_path)
+
+    async def piloted_tui(url: str, *, participant: str) -> int:
+        client = await SdkClient.connect(url, participant=participant)
+        app = HarnessApp(client, url=url, participant=participant)
+        try:
+            async with app.run_test(size=(110, 36)) as pilot:
+                names = [c.name for c in client.commands()]
+                assert {"model", "effort", "status", "sub-task"} <= set(names), names
+                await pilot.press(*"hello", "enter")
+                await until_true(pilot, lambda: app.sub_state == "awaiting-next-message")
+                assert "INPUT_REQUIRED · awaiting-next-message" in app.topbar_text()
+                parent = app.task_id
+                await pilot.press(*"/sub-task Draft the reply", "enter")
+                await until_true(
+                    pilot,
+                    lambda: any(
+                        r.text.endswith("· Draft the reply") for r in app.query(SubTaskRow)
+                    ),
+                )
+                await until_true(
+                    pilot,
+                    lambda: any(
+                        e.text.startswith("\u2318 ") and "Created sub-task" in e.text
+                        for e in app.query(Entry)
+                    ),
+                )
+                texts = [e.text for e in app.query(Entry)]
+                assert texts.count("agent \u203a Hosted reply.") == 1, texts
+                [row] = app.query(SubTaskRow)
+                await until_true(pilot, lambda: " · INPUT_REQUIRED · " in row.text)  # R9.2
+                app.query_one("#sub-tasks", ListView).focus()
+                await pilot.press("enter")
+                await until_true(pilot, lambda: len(app.stack) == 2)
+                assert app.task_id == row.ref.task_id
+                await pilot.press("ctrl+d")
+                await until_true(pilot, lambda: app.state_name == "COMPLETED")
+                await pilot.press("f4")
+                await until_true(pilot, lambda: app.task_id == parent)
+                await until_true(
+                    pilot,
+                    lambda: (
+                        [r.text.split(" · ")[1] for r in app.query(SubTaskRow)] == ["COMPLETED"]
+                    ),
+                )
+                await pilot.press("ctrl+d")
+                await until_true(pilot, lambda: app.state_name == "COMPLETED")
+                assert app.check_action("complete_task", ()) is None
+                assert app.check_action("cancel_task", ()) is None
+        finally:
+            await client.close()
+        return 0
+
+    monkeypatch.setattr(tui_module, "run_tui", piloted_tui)
+    assert await commands.tui(settings, url=None, participant="alice") == 0
 
 
 async def test_tui_with_a_url_starts_no_embedded_server(

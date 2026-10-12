@@ -225,7 +225,7 @@ negative test.
 
 ### Layer D: surfaces
 
-- [ ] 17. TUI: controls, sub-state, `/` completion, sub-task navigation
+- [x] 17. TUI: controls, sub-state, `/` completion, sub-task navigation
   - `A2AClientPort.complete` and `.commands`. `SdkClient` and `ScriptedClient`
     implement both.
   - Bindings: `ctrl+d`, `ctrl+c`, `f4`, and `enter` on a sub-task row.

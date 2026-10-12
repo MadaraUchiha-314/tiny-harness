@@ -216,6 +216,12 @@ def discover(root: Path) -> Plugin:
                 commands = CommandsFile.model_validate(_read_json(commands_file))
             except (PluginError, ValidationError) as exc:
                 notes.append(f"commands.json ignored: {exc}")
+                # Fail closed (critic C1): a hook meant as a command's body must never
+                # load unfiltered, where it would see every command.
+                dropped = [h.name for h in hooks if str(COMMAND_IN) in (h.points or ())]
+                hooks = tuple(h for h in hooks if h.name not in dropped)
+                if dropped:
+                    notes.append(f"command hooks not loaded: {', '.join(dropped)}")
         prompts_dir = ns / "prompts"
         if prompts_dir.is_dir():
             prompts = sorted(p for p in prompts_dir.glob("*.md") if p.is_file())

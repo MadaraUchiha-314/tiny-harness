@@ -194,3 +194,32 @@ async def test_without_a_command_registry_declared_commands_are_skipped(tmp_path
     report = await loader.load(plugin((body_hook(),), (command(),)))
     assert [s.id for s in report.skipped] == ["deploy"]
     assert hooks.executors_for(IN) == []
+
+
+async def test_an_invalid_commands_json_leaves_no_command_hook_unfiltered(tmp_path: Path) -> None:
+    """
+    Feature: Plugin commands (critic C1, fail closed)
+    Scenario: a commands.json that does not validate takes its command hooks with it
+        Given a plugin whose hooks.json declares "deploy-body" on command.invoked.in
+        And whose commands.json is invalid (an entry with no description)
+        When the plugin is discovered and loaded
+        Then "deploy-body" is not registered as an ordinary hook
+        And /status reaches no plugin body, while a hook on another point still loads
+    """
+    root = tmp_path / "ops"
+    (root / NAMESPACE).mkdir(parents=True)
+    (root / "plugin.json").write_text(MANIFEST.model_dump_json(by_alias=True, exclude_none=True))
+    other = HookDef(name="audit", import_path=DEPLOY, points=("task.complete.post",))
+    hooks_json = {
+        "hooks": [h.model_dump(mode="json", exclude_none=True) for h in (body_hook(), other)]
+    }
+    (root / NAMESPACE / "hooks.json").write_text(json.dumps(hooks_json))
+    (root / NAMESPACE / "commands.json").write_text(
+        '{"commands": [{"name": "deploy", "hook": "deploy-body"}]}'
+    )
+    found = discover(root)
+    assert [h.name for h in found.hooks] == ["audit"]
+    loader, hooks, _ = setup(tmp_path / "data")
+    report = await loader.load(found)
+    assert report.loaded_ids(ComponentKind.HOOK) == ("audit",)
+    assert (await hooks.run(IN, invoked("status"))).result is None

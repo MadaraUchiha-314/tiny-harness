@@ -1,8 +1,9 @@
-"""Feature: Commands over the A2A server
+"""Feature: Commands and subscriptions over the A2A server
 Requirement: docs/specs/issue-25/requirements.md#R6
 
 A command that changes the task (``/sub-task``, ``/model``) delivers its reply on the
-sender's own stream, streaming or not.
+sender's own stream, streaming or not, and a ``SubscribeToTask`` on a parked conversation
+stays attached for what happens next.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from a2a.types import (
     Message,
     SendMessageRequest,
     StreamResponse,
+    SubscribeToTaskRequest,
     TaskState,
 )
 from temporalio.testing import WorkflowEnvironment
@@ -112,3 +114,53 @@ async def test_a_command_that_changes_the_task_replies_on_the_senders_stream(
     assert "model-a" in result.task.status.message.parts[0].text
     assert result.task.status.message.metadata.fields["command"].string_value == "model"
     assert len(h.llm.requests) == 1
+
+
+async def test_a_subscriber_to_a_parked_conversation_stays_attached(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: SubscribeToTask
+    Requirement: docs/specs/issue-25/requirements.md#R5
+    Requirement: docs/specs/issue-3/requirements.md#R20
+
+    Scenario: A subscriber to a parked conversation stays attached for live events
+        Given a conversation task awaiting the next message over the A2A server
+        And a second surface subscribed to it, which replays the log so far
+        When the reporter sends the next message and the harness replies
+        Then the subscriber receives WORKING and the new reply, live
+        When the reporter cancels the task
+        Then the subscriber's stream ends with CANCELED, the first terminal state
+    """
+    tq, context_id = ids()
+    server = await make_server(env, [scripted("First."), scripted("Second.")], task_queue=tq)
+    async with server:
+        tid = await run_to_completion(server, context_id)
+        seen: list[StreamResponse] = []
+
+        async def follow() -> None:
+            # The in-process transport hands the stream over once it ends, so what the
+            # subscriber saw is checked after the task is cancelled.
+            async for event in server.a2a().subscribe(SubscribeToTaskRequest(id=tid)):
+                seen.append(event)
+
+        watcher = asyncio.create_task(follow())
+        await asyncio.sleep(0.3)  # subscribed while the task is parked
+        async for _ in server.a2a().send_message(
+            SendMessageRequest(message=user_message("more", context_id=context_id, task_id=tid))
+        ):
+            pass
+        await server.a2a().cancel_task(CancelTaskRequest(id=tid))
+        await asyncio.wait_for(watcher, timeout=30)
+    texts = [
+        e.status_update.status.message.parts[0].text
+        for e in seen
+        if e.HasField("status_update") and e.status_update.status.message.parts
+    ]
+    assert texts[:1] == ["First."] and "Second." in texts
+    states = [e.status_update.status.state for e in seen if e.HasField("status_update")]
+    parked = states.index(TaskState.TASK_STATE_INPUT_REQUIRED)
+    assert TaskState.TASK_STATE_WORKING in states[parked:]
+    last = seen[-1]
+    assert last.HasField("status_update")
+    assert last.status_update.status.state == TaskState.TASK_STATE_CANCELED

@@ -128,10 +128,11 @@ export function App(props: { config: AppConfig }): JSX.Element {
   }, [view]);
 
   /**
-   * Follow a task's event log: the replayed prefix is skipped, the rest folded live. A
-   * subscription ends at every final event (INPUT_REQUIRED included, per the SDK), so
-   * while the task is not finished it is opened again after a pause, which is how a
-   * reply sent from another surface shows up here (R20.3).
+   * Follow a task's event log: the replayed prefix is skipped, the rest folded live. The
+   * harness keeps a subscription open until the task ends (A2A 1.0 SubscribeToTask), so
+   * a reply or a completion from another surface shows up here (R20.3, R5.6); one that
+   * ends early (a dropped connection) is opened again after a pause while the task is
+   * not finished.
    */
   const subscribe = useCallback(
     async (taskId: string) => {

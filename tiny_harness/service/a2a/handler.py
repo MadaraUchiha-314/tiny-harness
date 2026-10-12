@@ -31,7 +31,9 @@ class HarnessRequestHandler(DefaultRequestHandler):
         if task is None:
             raise TaskNotFoundError
         yield task
-        async for event in self._bridge.events(params.id, 1):
+        # Replayed from the start, then followed live until the task ends (A2A 1.0:
+        # SubscribeToTask closes at a terminal state, not at INPUT_REQUIRED; R5.6).
+        async for event in self._bridge.events(params.id, 1, follow=True):
             yield event
 
     async def _refuse_terminal_send(

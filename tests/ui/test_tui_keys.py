@@ -4,8 +4,11 @@ sub-task navigation (R5.5-R5.7, R6.7, R9.4)."""
 
 from __future__ import annotations
 
+import asyncio
+
 from a2a.types import Task, TaskState
 from a2a.utils.errors import UnsupportedOperationError
+from textual.pilot import Pilot
 from textual.widgets import Button, Input, ListView, Static, TabbedContent
 
 from tests.ui.prototype import (
@@ -14,6 +17,7 @@ from tests.ui.prototype import (
     TASK_ID,
     completed_events,
     conversation_events,
+    conversation_task,
     parked,
     prototype_events,
     status,
@@ -344,3 +348,39 @@ async def test_cancel_applies_the_canceled_task() -> None:
         assert client.cancelled == [TASK_ID]
         assert app.state_name == "CANCELED"
         assert app.ext is not None  # a bare Task keeps what the TUI knew
+
+
+async def test_only_a_task_without_a_live_subscription_is_polled() -> None:
+    """R5.6: a subscription follows a sub-task until it ends (SubscribeToTask stays open
+    past INPUT_REQUIRED), so only the task this surface started, which no subscription
+    follows, is re-read; a sub-task's ended subscription hands it back to the poll."""
+    release = asyncio.Event()
+
+    class Following(ScriptedClient):
+        def subscribe(self, task_id: str) -> EventSource:
+            self.subscribed.append(task_id)
+            return self._follow()
+
+        async def _follow(self) -> EventSource:
+            yield sub_task()
+            await release.wait()
+
+    listed = conversation_task((TaskRef(task_id=SUB_TASK_ID),))
+    client = Following(scripts=[sub_task_events()], tasks=[listed, sub_task()])
+    app = HarnessApp(client, poll_interval=0.05)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        await pilot.press(*"/sub-task Draft the reply", "enter")
+        await until_fetched(pilot, client, TASK_ID)
+        assert client.subscribed == [SUB_TASK_ID]
+        assert SUB_TASK_ID not in client.fetched
+        release.set()
+        await until_fetched(pilot, client, SUB_TASK_ID)
+
+
+async def until_fetched(pilot: Pilot[None], client: ScriptedClient, task_id: str) -> None:
+    for _ in range(100):
+        if task_id in client.fetched:
+            return
+        await pilot.pause(0.02)
+    raise AssertionError(f"{task_id} was never fetched: {client.fetched}")

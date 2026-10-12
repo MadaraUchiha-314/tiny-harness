@@ -70,8 +70,9 @@ STEP_MARKS = {
     StepState.FAILED: "✗",
 }
 AWAITING_NEXT_MESSAGE = "awaiting-next-message"
-# A2A streams end at the first INPUT_REQUIRED, so a parked conversation has no live
-# stream: the open tasks are re-read this often to show another surface's change (R5.6).
+# A SubscribeToTask stream follows a task until it ends (R5.6), but the stream of a
+# message this surface sent ends at INPUT_REQUIRED: a task no subscription follows (the
+# conversation started here, or one whose subscription ended) is re-read this often.
 POLL_INTERVAL = 2.0
 # What a refused or failed call raises: the server's A2A error, or the transport's.
 CLIENT_ERRORS = (A2AError, httpx.HTTPError)
@@ -236,6 +237,7 @@ class HarnessApp(App[None]):
         self.help_pending = False
         self._rows: list[SubTaskRow] = []
         self._subscribed: set[str] = set()
+        self._following: set[str] = set()  # tasks a live subscription follows
 
     # --- the task stack ---------------------------------------------------------------
 
@@ -580,12 +582,15 @@ class HarnessApp(App[None]):
 
     async def _subscribe(self, task_id: str) -> None:
         assert self.client is not None
+        self._following.add(task_id)
         try:
             async for event in self.client.subscribe(task_id):
                 self.apply_event(event)
         except CLIENT_ERRORS as exc:  # e.g. the task is already terminal: one snapshot
             self.trace.append(f"subscription {short_id(task_id)} ended: {exc}")
             await self._fetch(task_id)
+        finally:
+            self._following.discard(task_id)  # the poll takes over while it is open
 
     async def _fetch(self, task_id: str) -> None:
         assert self.client is not None
@@ -598,13 +603,14 @@ class HarnessApp(App[None]):
 
     def _poll_open_tasks(self) -> None:
         """Re-read every non-terminal task on the stack and the open task's local
-        sub-tasks. Applying an unchanged task draws nothing: states and messages already
-        shown are not drawn again."""
+        sub-tasks that no live subscription follows. Applying an unchanged task draws
+        nothing: states and messages already shown are not drawn again."""
         ids = [t for t in self.stack if not (t in self.views and self.views[t].terminal)]
         for ref in self.ext.sub_tasks if self.ext else ():
             view = self.views.get(ref.task_id)
             if ref.agent is None and not (view and view.terminal) and ref.task_id not in ids:
                 ids.append(ref.task_id)
+        ids = [t for t in ids if t not in self._following]
         if ids:
             self.run_worker(self._poll(ids), exclusive=True, group="poll")
 

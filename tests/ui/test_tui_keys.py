@@ -370,7 +370,9 @@ async def test_only_a_task_without_a_live_subscription_is_polled() -> None:
     app = HarnessApp(client, poll_interval=0.05)
     async with app.run_test(size=(110, 36)) as pilot:
         app.feed(conversation_events())
-        await pilot.press(*"/sub-task Draft the reply", "enter")
+        # Set, not typed: with a 50 ms poll each simulated key waits seconds for idle.
+        app.query_one("#composer", Input).value = "/sub-task Draft the reply"
+        await pilot.press("enter")
         await until_fetched(pilot, client, TASK_ID)
         assert client.subscribed == [SUB_TASK_ID]
         assert SUB_TASK_ID not in client.fetched

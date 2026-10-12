@@ -24,6 +24,13 @@ from tiny_harness.jsontypes import JsonObject
 EVENT_MEDIA_TYPE = "application/vnd.tiny-harness.event+json"
 OPEN_FIELDS: frozenset[str] = frozenset({"name", "description", "acceptance_criteria"})
 ADMIN_FIELDS: frozenset[str] = frozenset({"participants"})
+SERVER_FIELDS: frozenset[str] = frozenset({"lifecycle", "model", "reasoning_effort"})
+"""Set only by the server (R3, R7.3): any envelope carrying one is refused whole."""
+
+
+def server_controlled(payload: JsonObject) -> list[str]:
+    """The server-controlled fields ``payload`` tries to set, sorted."""
+    return sorted(SERVER_FIELDS & set(payload))
 
 
 class EventEnvelope(BaseModel):
@@ -60,9 +67,13 @@ def apply_task_envelope(
     """The extension after a ``task`` envelope from ``actor``, who is a participant.
 
     Name, description and acceptance criteria are open to every participant; a change of
-    participants or roles needs an admin; anything else in the payload is refused.
+    participants or roles needs an admin; the server-controlled fields (``SERVER_FIELDS``)
+    are refused from anyone; anything else in the payload is refused.
     """
     fields = set(payload)
+    refused = server_controlled(payload)
+    if refused:
+        raise EnvelopeRefused(f"task envelope cannot set server-controlled {', '.join(refused)}")
     unknown = fields - OPEN_FIELDS - ADMIN_FIELDS
     if unknown:
         raise EnvelopeRefused(f"task envelope cannot change {', '.join(sorted(unknown))}")
@@ -79,8 +90,10 @@ __all__ = [
     "ADMIN_FIELDS",
     "EVENT_MEDIA_TYPE",
     "OPEN_FIELDS",
+    "SERVER_FIELDS",
     "EnvelopeRefused",
     "EventEnvelope",
     "apply_task_envelope",
     "envelope_of",
+    "server_controlled",
 ]

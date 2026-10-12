@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from a2a.types import Message, Part, Task, TaskState
 from google.protobuf import json_format
+from pydantic import ValidationError
 
 from tiny_harness.errors import PlanCycleError
 from tiny_harness.harness.core import (
@@ -121,3 +122,36 @@ def test_participant_of_reads_the_asserted_id_from_message_metadata() -> None:
     assert participant_of(message) == "u-1"
     message.metadata.fields["participant_id"].number_value = 5
     assert participant_of(message) is None
+
+
+def test_settings_and_lifecycle_fields_round_trip() -> None:
+    """R3, R7.3: the three server-controlled fields are optional and carried in the extension."""
+    data = ext().model_copy(
+        update={"lifecycle": "conversation", "model": "gpt-6-astra", "reasoning_effort": "high"}
+    )
+    task = HarnessTask.new("t-1", "ctx-1", data)
+    assert task.ext.model == "gpt-6-astra" and task.ext.reasoning_effort == "high"
+    assert task.lifecycle == "conversation"
+    assert ext().model is None and ext().reasoning_effort is None and ext().lifecycle is None
+    with pytest.raises(ValidationError):
+        TaskExtensionData.model_validate({"name": "n", "goal": "g", "reasoning_effort": "max"})
+    with pytest.raises(ValidationError):
+        TaskExtensionData.model_validate({"name": "n", "goal": "g", "lifecycle": "forever"})
+
+
+def test_lifecycle_is_derived_from_parent_tasks_when_absent() -> None:
+    """R3: a task persisted before the field existed is delegated iff it has a parent."""
+    top = HarnessTask.new("t-1", "ctx-1", ext())
+    assert top.lifecycle == "conversation"
+    child = HarnessTask.new(
+        "t-1.1", "ctx-1", ext().model_copy(update={"parent_tasks": (TaskRef(task_id="t-1"),)})
+    )
+    assert child.lifecycle == "delegated"
+    explicit = HarnessTask.new(
+        "t-1.2",
+        "ctx-1",
+        ext().model_copy(
+            update={"parent_tasks": (TaskRef(task_id="t-1"),), "lifecycle": "conversation"}
+        ),
+    )
+    assert explicit.lifecycle == "conversation"

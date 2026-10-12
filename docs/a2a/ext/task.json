@@ -238,6 +238,34 @@
       "title": "Goal",
       "type": "string"
     },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "conversation",
+            "delegated"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lifecycle"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
     "name": {
       "title": "Name",
       "type": "string"
@@ -268,6 +296,23 @@
         }
       ],
       "default": null
+    },
+    "reasoning_effort": {
+      "anyOf": [
+        {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reasoning Effort"
     },
     "sub_tasks": {
       "default": [],

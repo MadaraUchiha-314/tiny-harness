@@ -51,7 +51,7 @@ negative test.
   - _Depends on:_ none
   - _Requirements:_ R4.1, R4.3, R3.3
   - _Test:_ T1 `tests/unit/core/test_status.py`
-- [ ] 3. Task extension fields, lifecycle derivation, and the server-controlled refusal
+- [x] 3. Task extension fields, lifecycle derivation, and the server-controlled refusal
   - `TaskExtensionData` gains `lifecycle`, `model` and `reasoning_effort`.
   - `HarnessTask.lifecycle` derives `delegated` / `conversation` when the field is
     absent.

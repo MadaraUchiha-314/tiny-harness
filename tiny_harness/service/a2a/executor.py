@@ -37,7 +37,7 @@ from tiny_harness.service.durable.workflows import (
     TINY_HARNESS_AGENT,
     TaskWorkflow,
 )
-from tiny_harness.service.inbox import EventEnvelope, envelope_of
+from tiny_harness.service.inbox import EventEnvelope, envelope_of, server_controlled
 
 log = logging.getLogger("tiny_harness.a2a.executor")
 
@@ -69,6 +69,13 @@ def default_extension(message: Message, agent: str) -> TaskExtensionData:
 def extension_from_envelope(
     envelope: EventEnvelope, message: Message, agent: str
 ) -> TaskExtensionData:
+    """A new task's extension from its first message's ``task`` envelope. An envelope that
+    sets a server-controlled field is refused whole and no task is created (abuse case 1)."""
+    refused = server_controlled(envelope.payload)
+    if refused:
+        raise UnsupportedOperationError(
+            message=f"task envelope cannot set server-controlled {', '.join(refused)}"
+        )
     try:
         ext = TaskExtensionData.model_validate(envelope.payload)
     except ValidationError as exc:

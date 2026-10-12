@@ -42,6 +42,7 @@ class HarnessTask(object)
   def ext_json(self) -> 'JsonObject'
   property id
   property is_terminal
+  property lifecycle
   property state
   property state_name
   property sub_state
@@ -50,6 +51,7 @@ class HarnessTask(object)
 model HistoryEntry(id: <class 'int'>, item: InputItem)
 model LLMInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, model: tiny_harness.harness.models.llm.LLMModelInfo | None = ..., response: <class 'tiny_harness.harness.models.llm.LLMResponse'>)
 model LLMInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., request: <class 'tiny_harness.harness.models.llm.LLMRequest'>, model: tiny_harness.harness.models.llm.LLMModelInfo | None = ...)
+Lifecycle = _LiteralGenericAlias
 model LoadedSkillRecord(name: <class 'str'>, body: <class 'str'>, tools: tuple[str, ...] = ...)
 class Operations(Protocol)
   def __init__(self, *args, **kwargs)
@@ -91,7 +93,7 @@ class TaskContext(object)
   def __init__(self, task: 'HarnessTask | None' = None, actor: 'str | None' = None) -> 'None'
   property actor
   property task
-model TaskExtensionData(name: <class 'str'>, type: str | None = ..., goal: <class 'str'>, description: <class 'str'> = ..., acceptance_criteria: tuple[tiny_harness.harness.core.task.AcceptanceCriterion, ...] = ..., participants: tuple[tiny_harness.harness.core.task.Participant, ...] = ..., parent_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., sub_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., plan: tiny_harness.harness.core.task.Plan | None = ...)
+model TaskExtensionData(name: <class 'str'>, type: str | None = ..., goal: <class 'str'>, description: <class 'str'> = ..., acceptance_criteria: tuple[tiny_harness.harness.core.task.AcceptanceCriterion, ...] = ..., participants: tuple[tiny_harness.harness.core.task.Participant, ...] = ..., parent_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., sub_tasks: tuple[tiny_harness.harness.core.task.TaskRef, ...] = ..., plan: tiny_harness.harness.core.task.Plan | None = ..., lifecycle: typing.Literal['conversation', 'delegated'] | None = ..., model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ...)
 model TaskRef(task_id: <class 'str'>, agent: tiny_harness.harness.entities.base.EntityRef | None = ...)
 model ToolCallsExtractedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., response: <class 'tiny_harness.harness.models.llm.LLMResponse'>, calls: tuple[tiny_harness.harness.tools.models.ToolCall, ...])
 model ToolInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., call: <class 'tiny_harness.harness.tools.models.ToolCall'>, result: tiny_harness.harness.tools.models.ToolResult | tiny_harness.harness.tools.models.WorkflowCommand)

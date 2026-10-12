@@ -9,7 +9,15 @@ from typing import cast
 
 from a2a.server.context import ServerCallContext
 from a2a.server.request_handlers import DefaultRequestHandler
-from a2a.types import CancelTaskRequest, Message, SendMessageRequest, SubscribeToTaskRequest, Task
+from a2a.types import (
+    CancelTaskRequest,
+    Message,
+    SendMessageRequest,
+    SubscribeToTaskRequest,
+    Task,
+    TaskStatus,
+    TaskStatusUpdateEvent,
+)
 from a2a.utils.errors import TaskNotFoundError
 
 from tiny_harness.harness.agents import A2AEvent
@@ -68,11 +76,17 @@ class HarnessRequestHandler(DefaultRequestHandler):
         task = await self._refuse_terminal_send(params, context)
         control = self._control(task, params, context)
         if control is not None:
-            async for _ in control:
-                pass
+            last: TaskStatus | None = None
+            async for event in control:
+                if isinstance(event, (Task, TaskStatusUpdateEvent)):
+                    last = event.status
             final: Task | None = await self.task_store.get(params.message.task_id, context)  # type: ignore[arg-type]
             if final is None:
                 raise TaskNotFoundError
+            # The stream can deliver the terminal event before the workflow's ``task``
+            # query reflects it: answer with what the stream delivered (critic B1).
+            if last is not None and final.status.state != last.state:
+                final.status.CopyFrom(last)
             return final
         send = super().on_message_send  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return cast(Message | Task, await send(params, context))

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-27",
-  "currentNode": "evidence",
+  "currentNode": "human-approval",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -117,8 +117,32 @@
     },
     "evidence": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-12T22:54:14+00:00",
+      "exitedAt": "2026-10-12T23:09:01+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "capability-docs": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-12T23:09:01+00:00",
+      "exitedAt": "2026-10-12T23:09:01+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "reviewer-briefing": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-12T23:09:01+00:00",
+      "exitedAt": "2026-10-12T23:09:02+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "human-approval": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-12T23:09:02+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -294,7 +318,11 @@
     }
   },
   "forced": [],
-  "parked": null,
+  "parked": {
+    "node": "human-approval",
+    "reason": "`classify-feedback` did not pass:\n- no authorized feedback yet",
+    "since": "2026-10-12T23:12:00+00:00"
+  },
   "completions": {
     "requirements-definition": {
       "at": "2026-10-12T20:48:05+00:00",
@@ -330,6 +358,22 @@
     },
     "security-review": {
       "at": "2026-10-12T22:54:14+00:00",
+      "by": "cli"
+    },
+    "evidence": {
+      "at": "2026-10-12T23:09:01+00:00",
+      "by": "cli"
+    },
+    "capability-docs": {
+      "at": "2026-10-12T23:09:01+00:00",
+      "by": "cli"
+    },
+    "reviewer-briefing": {
+      "at": "2026-10-12T23:09:02+00:00",
+      "by": "cli"
+    },
+    "human-approval": {
+      "at": "2026-10-12T23:12:00+00:00",
       "by": "cli"
     }
   },

@@ -59,6 +59,19 @@ def isolated_observability(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     logger.propagate, logger.level = saved[1], saved[2]
 
 
+async def until_true(pilot: Pilot[None], check: Callable[[], bool], *, timeout: float = 30) -> None:
+    """Poll the app until ``check`` holds. The TUI follows its open task until the task
+    ends, so ``wait_for_complete`` would not return."""
+    deadline = time.monotonic() + timeout
+    while not check():
+        if time.monotonic() > deadline:
+            app = pilot.app
+            assert isinstance(app, HarnessApp)
+            shown = [e.text for e in app.query(Entry) if e.display]
+            raise AssertionError(f"timed out: {app.topbar_text()}\n{shown}\n{app.trace}")
+        await pilot.pause(0.05)
+
+
 @pytest.mark.usefixtures("isolated_observability")
 async def test_tui_hosts_its_own_harness_in_embedded_mode(
     tmp_path: Path,
@@ -94,9 +107,7 @@ async def test_tui_hosts_its_own_harness_in_embedded_mode(
             async with app.run_test(size=(110, 36)) as pilot:
                 app.query_one("#composer", Input).focus()
                 await pilot.press(*"hello", "enter")
-                await app.workers.wait_for_complete()  # pyright: ignore[reportUnknownMemberType]
-                await pilot.pause()
-                assert app.state_name == "INPUT_REQUIRED", app.state_name
+                await until_true(pilot, lambda: app.state_name == "INPUT_REQUIRED")
         finally:
             await client.close()
         return 0
@@ -147,27 +158,13 @@ async def test_tui_sends_a_message_under_the_asserted_participant(
             placeholders.append(str(composer.placeholder))
             composer.focus()
             await pilot.press(*"hello", "enter")
-            await self.workers.wait_for_complete()  # pyright: ignore[reportUnknownMemberType]
-            await pilot.pause()
+            await until_true(pilot, lambda: self.state_name == "INPUT_REQUIRED")
 
     monkeypatch.setattr(HarnessApp, "run_async", piloted)
     assert await commands.tui(settings, url=None, participant="alice") == 0
     [app] = apps
     assert app.state_name == "INPUT_REQUIRED", app.state_name
     assert placeholders == ["Enter to send as alice · / for commands"]
-
-
-async def until_true(pilot: Pilot[None], check: Callable[[], bool], *, timeout: float = 30) -> None:
-    """Poll the app until ``check`` holds; a subscription worker never ends while its task
-    is open, so ``wait_for_complete`` would not return."""
-    deadline = time.monotonic() + timeout
-    while not check():
-        if time.monotonic() > deadline:
-            app = pilot.app
-            assert isinstance(app, HarnessApp)
-            shown = [e.text for e in app.query(Entry) if e.display]
-            raise AssertionError(f"timed out: {app.topbar_text()}\n{shown}\n{app.trace}")
-        await pilot.pause(0.05)
 
 
 @pytest.mark.usefixtures("isolated_observability")

@@ -616,12 +616,14 @@ class HarnessApp(App[None]):
         found = True
         try:
             async for event in self.client.subscribe(task_id):
+                if not self.is_running:  # shutting down: the screen is being torn down
+                    return
                 self.apply_event(event)
         except CLIENT_ERRORS as exc:
             self.trace.append(f"subscription {short_id(task_id)} ended: {exc}")
             found = await self._fetch(task_id)
         view = self.views.get(task_id)
-        if found and view is not None and not view.terminal:
+        if self.is_running and found and view is not None and not view.terminal:
             self.set_timer(self.resubscribe_delay, lambda: self._resubscribe(task_id))
 
     def _resubscribe(self, task_id: str) -> None:
@@ -635,7 +637,8 @@ class HarnessApp(App[None]):
         except CLIENT_ERRORS as exc:
             self.trace.append(f"task {short_id(task_id)} unavailable: {exc}")
             return False
-        self.apply_event(task)
+        if self.is_running:
+            self.apply_event(task)
         return True
 
     def send_action(self, action: Action) -> None:

@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from tiny_harness.config import RetryPolicies, RetryPolicySpec
 from tiny_harness.harness.channels import ChannelMessage
-from tiny_harness.harness.commands import CommandCall
+from tiny_harness.harness.commands import ChildSnapshot, CommandCall, CommandResult
 from tiny_harness.harness.core import (
     AgentState,
     CompactionRecord,
@@ -60,6 +60,7 @@ class ActivityName(StrEnum):
     POLL_CHANNELS = "poll_channels"
     MONITOR_SNAPSHOT = "monitor_snapshot"
     RETENTION_SWEEP = "retention_sweep"
+    RUN_COMMAND = "run_command"
 
 
 # --- the durable event log ------------------------------------------------------------
@@ -270,6 +271,22 @@ class CompletionOut(_Frozen):
     reason: str = ""
 
 
+class CommandIn(ActivityIn):
+    """One ``/<name>`` to run through ``command.invoked`` (issue-25 R6.2, R6a.2)."""
+
+    call: CommandCall
+    sender: str
+    task: TaskProto
+    children: tuple[ChildSnapshot, ...] = ()
+
+
+class CommandOut(_Frozen):
+    """The command's intents for the workflow to apply, and how the run ended."""
+
+    result: CommandResult
+    outcome: Literal["ok", "refused", "failed", "no_handler"] = "ok"
+
+
 class PersistIn(ActivityIn):
     task: TaskProto
     state: AgentState
@@ -416,6 +433,8 @@ __all__ = [
     "ChannelSendIn",
     "ChildDone",
     "ChildRef",
+    "CommandIn",
+    "CommandOut",
     "CompactIn",
     "CompactOut",
     "CompletionIn",

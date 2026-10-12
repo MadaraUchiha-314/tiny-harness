@@ -17,6 +17,7 @@ from tiny_harness.builtin import load_builtin
 from tiny_harness.config import Settings
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.channels.help import register_default as register_help_default
+from tiny_harness.harness.commands import CommandRegistry
 from tiny_harness.harness.core import ContextWindowManager
 from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
@@ -51,6 +52,7 @@ class Runtime:
     skills: SkillSession
     system_prompt: str
     redactor: Redactor
+    commands: CommandRegistry  # filled before the worker starts, frozen when it does
     sources: list[McpToolSource] = field(default_factory=lambda: list[McpToolSource]())
     reports: list[LoadReport] = field(default_factory=lambda: list[LoadReport]())
 
@@ -196,6 +198,7 @@ async def build_runtime(
         skills=skills,
         system_prompt=system_prompt,
         redactor=redactor,
+        commands=CommandRegistry(hooks),
         sources=sources,
         reports=reports,
     )

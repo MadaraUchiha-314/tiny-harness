@@ -136,8 +136,10 @@ async def running_harness(
             config=workflow_config(settings),
             redactor=runtime.redactor,
         )
+        runtime.commands.freeze()  # no command is registered once the worker runs
         activities = Activities(
             runtime.engine,
+            commands=runtime.commands,
             sink=PushSink(push_store, push_http),
             client=client,
             retention=retention_map(settings),

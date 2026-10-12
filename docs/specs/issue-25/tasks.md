@@ -136,7 +136,7 @@ negative test.
   - _Requirements:_ R5.1, R6.2, R6.3; abuse cases 4, 9
   - _Test:_ T1 `tests/unit/service/test_intake_classify.py`; T8
     `tests/security/test_command_roles.py` (watcher control; `/unknown hi` is ordinary)
-- [ ] 10. `run_command` activity and the workflow dispatcher
+- [x] 10. `run_command` activity and the workflow dispatcher
   - `ActivityName.RUN_COMMAND`, `CommandIn` and `CommandOut`. The activity runs the
     chain through `OperationRunner`: a pre-abort becomes a refusal, an exception
     becomes `/<name> failed: …`, and no result becomes "has no handler".

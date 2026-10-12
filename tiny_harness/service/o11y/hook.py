@@ -17,6 +17,7 @@ from opentelemetry import context as otel_context
 from opentelemetry import trace
 from opentelemetry.trace import Span, SpanKind, Status, StatusCode, TracerProvider
 
+from tiny_harness.harness.commands import CommandInvokedPost, CommandInvokedPre
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
     LLMInvokedPre,
@@ -163,6 +164,8 @@ class O11yExecutor:
             attributes["gen_ai.agent.name"] = AGENT_NAME
         elif point.operation is Operation.PLAN_CREATED:
             attributes["gen_ai.operation.name"] = "plan"
+        elif isinstance(ctx, CommandInvokedPre):  # the name only; arguments are never logged
+            attributes["tiny_harness.command.name"] = ctx.name
         span = tracer.start_span(
             span_name(point, ctx), kind=kind, attributes=self._scrub(attributes)
         )
@@ -194,6 +197,8 @@ class O11yExecutor:
                     span.set_status(Status(StatusCode.ERROR, "tool returned an error result"))
             else:
                 attributes["tiny_harness.tool.command"] = result.kind
+        elif isinstance(ctx, CommandInvokedPost):
+            attributes["tiny_harness.command.outcome"] = "ok" if ctx.result else "no_handler"
         span.set_attributes(self._scrub(attributes))
         otel_context.detach(token)  # type: ignore[arg-type]
         span.end()

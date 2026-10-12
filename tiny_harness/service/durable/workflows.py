@@ -41,11 +41,13 @@ with workflow.unsafe.imports_passed_through():
     from google.protobuf import struct_pb2
 
     from tiny_harness.config import RetryPolicySpec
+    from tiny_harness.errors import HookTransportError
     from tiny_harness.harness.channels import (
         CHANNEL_EXT_MEDIA_TYPE,
         ChannelMessage,
         ChannelMessageData,
     )
+    from tiny_harness.harness.commands import ChildSnapshot, CommandCall, CommandResult
     from tiny_harness.harness.core import (
         STATUS_EXT_KEY,
         AcceptanceCriterion,
@@ -90,6 +92,8 @@ with workflow.unsafe.imports_passed_through():
         ChannelSendIn,
         ChildDone,
         ChildRef,
+        CommandIn,
+        CommandOut,
         CompactIn,
         CompactOut,
         CompletionIn,
@@ -359,6 +363,9 @@ class TaskWorkflow:
         self.closed = False
         self.turns_this_run = 0
         self.last_refusal = ""
+        self.handled = 0  # commands and controls consumed since the last wake
+        self.completion_by: str | None = None  # a participant's accepted control complete
+        self.fresh_run = False
         self.surfaces = SurfaceRegistry()
         self._redactor = Redactor()
 
@@ -465,21 +472,27 @@ class TaskWorkflow:
             await workflow.wait_condition(self._ready)
             if self.cancel_reason is not None:
                 return await self._finish(TaskState.TASK_STATE_CANCELED, text=self.cancel_reason)
-            parked = self.task.sub_state is SubState.AWAITING_NEXT_MESSAGE
-            if (self.pending_help is not None or parked) and not self.notes:
-                # Waiting for a reply or the next message: a refused message must not wake
-                # the loop (abuse case 4).
-                self.state, accepted = await self.drain(self.task, self.state)
-                if accepted == 0 and (self.waiting_for_reply() or parked):
+            # No turn runs here, so an interrupt has nothing to cut; one that arrives from
+            # now on cuts the turn this wake starts.
+            self.interrupted = False
+            self.handled, self.last_refusal = 0, ""
+            # Roll over before intake, so a rollover carries the messages still in the
+            # mailbox and the new run wakes for them (R19.8).
+            await self.maybe_continue_as_new(self.task, self.state)
+            self.turns_this_run += 1
+            # Intake before the loop (issue-25 R6.2): commands and controls are consumed
+            # here, and only ordinary messages or the notes start a turn.
+            self.state, accepted = await self._dispatch(self.state)
+            if self.completion_by is not None:
+                self.completion_by = None
+            if accepted == 0 and not self.notes:
+                if self.last_refusal and self.handled == 0:
                     # The sender is a participant (strangers never reach the workflow), so
-                    # the stream they opened ends with the unchanged state and the reason.
-                    self.task = await self.set_status(
-                        self.task,
-                        self.task.state,
-                        text=f"message not accepted: {self.last_refusal}",
-                        sub_state=self.task.sub_state,
-                    )
-                    continue
+                    # the stream they opened ends with the unchanged state and the reason;
+                    # a refused message never wakes the model (abuse case 4).
+                    await self._re_emit(text=f"message not accepted: {self.last_refusal}")
+                continue
+            self.fresh_run = True  # its first drain must not roll over what was accepted
             runner = asyncio.create_task(loop.run(self.task, self.state, None))
             if not await self._await_runner(runner):
                 if self.cancel_reason is not None:
@@ -498,45 +511,42 @@ class TaskWorkflow:
             return await self._finish(None)
 
     def _ready(self) -> bool:
-        return bool(self.mailbox) or bool(self.notes) or self.cancel_reason is not None
+        return (
+            bool(self.mailbox)
+            or bool(self.notes)
+            or self.cancel_reason is not None
+            or self.completion_by is not None
+        )
 
     def waiting_for_reply(self) -> bool:
         return self.pending_help is not None
 
     async def drain(self, task: HarnessTask, state: AgentState) -> tuple[AgentState, int]:
-        """Top of a turn (R15.3): roll over if due, fold notes and accepted inbox messages
-        into the history; returns how many messages intake accepted. The last refusal's
-        reason is kept in ``last_refusal`` for the waiting path."""
+        """Top of a turn (R15.3): roll over if due, fold notes into the history, then
+        dispatch the mailbox; returns how many ordinary messages intake accepted."""
         self.task = task
-        await self.maybe_continue_as_new(task, state)
+        if self.fresh_run:
+            self.fresh_run = False
+        else:
+            await self.maybe_continue_as_new(task, state)
         self.turns_this_run += 1
         for note in self.take_notes():  # sub-task and remote-agent results: data, not orders
             state = state.append(MessageItem(role=MessageRole.USER, text=note, source="agent"))
+        return await self._dispatch(state)
+
+    async def _dispatch(self, state: AgentState) -> tuple[AgentState, int]:
+        """Intake every pending message (issue-25 R6.2): a command runs and replies, a
+        control is noted for ``_complete``, a refusal keeps its reason in
+        ``last_refusal``, and only an ordinary accepted message joins the history.
+        Returns the history and how many ordinary messages it gained."""
         accepted = 0
         while self.mailbox:
-            # The message leaves the mailbox only once its intake has completed: an
-            # interrupt or a cancel during intake leaves it for the next drain (R15.5).
-            message = self.mailbox[0]
-            out = await self.call(
-                ActivityName.INTAKE,
-                IntakeIn(
-                    task_id=task.id,
-                    correlation_id=self.correlation_id,
-                    task=task.proto,
-                    message=message,
-                    surfaces=self.surfaces,
-                ),
-                IntakeOut,
-            )
-            self.mailbox.pop(0)
-            if not out.accepted:
-                self.last_refusal = out.reason or "not accepted"
+            out = await self._classify()
+            if out is None:
                 continue
-            if out.command is not None or out.control is not None:
-                continue  # a command or a control never joins the model's history (R6.2)
             accepted += 1
             if out.task is not None:  # a task envelope changed the extension (R15.1)
-                self.task = task = HarnessTask(out.task)
+                self.task = HarnessTask(out.task)
                 self._emit(self.task.proto)
             text = out.text
             pending = self.pending_help
@@ -553,6 +563,36 @@ class TaskWorkflow:
             self.state = state
         return state, accepted
 
+    async def _classify(self) -> IntakeOut | None:
+        """Intake the oldest mailbox message; consume it when it is refused, a command or
+        a control, else return it. The message leaves the mailbox only once its intake
+        has completed: an interrupt or a cancel during intake leaves it for the next
+        dispatch (R15.5)."""
+        out = await self.call(
+            ActivityName.INTAKE,
+            IntakeIn(
+                task_id=self.task.id,
+                correlation_id=self.correlation_id,
+                task=self.task.proto,
+                message=self.mailbox[0],
+                surfaces=self.surfaces,
+            ),
+            IntakeOut,
+        )
+        self.mailbox.pop(0)
+        if not out.accepted:
+            self.last_refusal = out.reason or "not accepted"
+            return None
+        if out.command is not None:
+            self.handled += 1
+            await self._run_command(out.command, out.participant_id or "")
+            return None
+        if out.control is not None:
+            self.handled += 1
+            self.completion_by = out.participant_id or ""
+            return None
+        return out
+
     async def _await_runner(self, runner: asyncio.Task[object]) -> bool:
         """Wait for the loop run; False when a cancel or an interrupt cut it short."""
         await workflow.wait_condition(
@@ -566,7 +606,9 @@ class TaskWorkflow:
         return False
 
     async def _run_participant(self) -> Task:
-        """A task assigned to a human: it waits for the assignee's message (R12.3)."""
+        """A task assigned to a human: the assignee's ordinary message completes it
+        (R12.3). Commands and controls are dispatched first, so ``/status`` is never
+        taken for the answer (issue-25 R3.4)."""
         assignee = next((p.id for p in self.task.ext.participants if p.role is Role.ASSIGNEE), None)
         if self.task.state != TaskState.TASK_STATE_INPUT_REQUIRED:
             self.task = await self.set_status(
@@ -574,22 +616,18 @@ class TaskWorkflow:
             )
         while True:
             await workflow.wait_condition(
-                lambda: bool(self.mailbox) or self.cancel_reason is not None
+                lambda: (
+                    bool(self.mailbox)
+                    or self.cancel_reason is not None
+                    or self.completion_by is not None
+                )
             )
             if self.cancel_reason is not None:
                 return await self._finish(TaskState.TASK_STATE_CANCELED, text=self.cancel_reason)
-            message = self.mailbox.pop(0)
-            out = await self.call(
-                ActivityName.INTAKE,
-                IntakeIn(
-                    task_id=self.task.id,
-                    correlation_id=self.correlation_id,
-                    task=self.task.proto,
-                    message=message,
-                ),
-                IntakeOut,
-            )
-            if not out.accepted or (assignee is not None and out.participant_id != assignee):
+            out = await self._classify() if self.mailbox else None
+            if self.completion_by is not None:
+                self.completion_by = None
+            if out is None or (assignee is not None and out.participant_id != assignee):
                 continue
             self.state = self.state.append(MessageItem(role=MessageRole.USER, text=out.text))
             return await self._finish(TaskState.TASK_STATE_COMPLETED, text=out.text)
@@ -608,12 +646,17 @@ class TaskWorkflow:
         if self.start.parent_workflow_id:
             summary = text or self._last_assistant_text()
             handle = workflow.get_external_workflow_handle(self.start.parent_workflow_id)
-            await handle.signal(
-                "child_done",
-                ChildDone(
-                    task_id=self.task.id, state_name=self.task.state_name, summary=summary[:500]
-                ),
-            )
+            # A conversation sub-task (/sub-task) may outlive its parent: a closed parent
+            # has no one to tell, and must not fail the child (issue-25 R9.2).
+            with contextlib.suppress(ApplicationError):
+                await handle.signal(
+                    "child_done",
+                    ChildDone(
+                        task_id=self.task.id,
+                        state_name=self.task.state_name,
+                        summary=summary[:500],
+                    ),
+                )
         return self.task.proto
 
     def _last_assistant_text(self) -> str:
@@ -840,6 +883,73 @@ class TaskWorkflow:
             type(None),
         )
 
+    # --- commands (issue-25 R6, R9) ----------------------------------------------------
+
+    async def _run_command(self, call: CommandCall, sender: str) -> None:
+        """Run ``call`` through the ``run_command`` activity, then apply its intents in
+        order: settings, spawn, reply. The task's state does not change (R6.2, R10.2)."""
+        children = tuple(
+            ChildSnapshot(task_id=c.task_id, state=c.state_name) for c in self.children
+        )
+        try:
+            out = await self.call(
+                ActivityName.RUN_COMMAND,
+                CommandIn(
+                    task_id=self.task.id,
+                    correlation_id=self.correlation_id,
+                    call=call,
+                    sender=sender,
+                    task=self.task.proto,
+                    children=children,
+                ),
+                CommandOut,
+            )
+            result = out.result
+        except ApplicationError as exc:  # a remote executor failed (R6a.9)
+            detail = "hook transport" if exc.type == HookTransportError.code else exc.message
+            result = CommandResult(reply=f"/{call.name} failed: {detail}")
+        changed = False
+        if result.settings is not None:
+            settings = {
+                "model": result.settings.model,
+                "reasoning_effort": result.settings.reasoning_effort,
+            }
+            update = {k: v for k, v in settings.items() if v is not None}
+            if update:
+                self.task = self.task.with_ext(self.task.ext.model_copy(update=update))
+                changed = True
+        ref: TaskRef | None = None
+        if result.spawn is not None:
+            ref = await self.spawn_sub_task(self.task, result.spawn.goal, sender)
+            changed = True
+        if changed:  # R7.3, R8.3, R9.1: published and persisted before the reply
+            self._emit(self.task.proto)
+            await self.persist(None)
+        reply = result.reply
+        metadata: dict[str, str] = {"command": call.name}
+        if ref is not None:
+            # The handler ran before the child existed: the id is the workflow's own line,
+            # concatenated, never a template the reply could inject into (R9.1, R9.4).
+            reply = (reply + "\n" if reply else "") + f"Created sub-task {ref.task_id}."
+            metadata["task_ref"] = ref.task_id
+        message = text_message(
+            self.task, reply, message_id=f"{self.task.id}:command:{self.next_seq}"
+        )
+        message.metadata.update(metadata)
+        await self._re_emit(message=message)
+
+    async def _re_emit(self, *, text: str | None = None, message: Message | None = None) -> None:
+        """Re-emit the current state with ``text`` or ``message``, so the sender's stream
+        ends cleanly. A task that never started (a first message that was a command or
+        was refused) parks as a conversation awaiting the next message."""
+        state, sub_state, persist = self.task.state, self.task.sub_state, False
+        if state == TaskState.TASK_STATE_SUBMITTED:
+            state = TaskState.TASK_STATE_INPUT_REQUIRED
+            sub_state, persist = SubState.AWAITING_NEXT_MESSAGE, True
+        await self.set_status(
+            self.task, state, text=text, message=message, sub_state=sub_state, persist=persist
+        )
+
     # --- children ------------------------------------------------------------------
 
     async def spawn_child(self, task: HarnessTask, command: WorkflowCommand) -> TaskRef:
@@ -886,6 +996,13 @@ class TaskWorkflow:
         if not participants:
             participants = (
                 Participant(id=self.start.config.agent, kind="agent", role=Role.ASSIGNEE),
+            )
+        elif not agent and not any(p.id == self.start.config.agent for p in participants):
+            # The goal message is sent as this agent, and intake accepts only a participant:
+            # without this a refused goal would leave the child idle (issue-25 R6.2).
+            participants = (
+                *participants,
+                Participant(id=self.start.config.agent, kind="agent", role=Role.REPORTER),
             )
         ext = child_extension(
             task,

@@ -16,6 +16,7 @@ from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from tiny_harness.harness.commands import CommandRegistry
 from tiny_harness.harness.core import (
     AgentState,
     ContextWindowManager,
@@ -90,6 +91,7 @@ class Harness:
         self.refund = FakeTool("orders.refund", idempotency=Idempotency.NOT_IDEMPOTENT)
         self.heartbeat_every = 10.0
         self.activities: Activities | None = None
+        self.commands = CommandRegistry(self.hooks)  # empty unless a test registers one
         self.engine = InProcessOperations(
             registry=self.registry,
             hooks=self.hooks,
@@ -106,7 +108,7 @@ class Harness:
         return self
 
     def worker(self, client: Client, task_queue: str, *, sink: EventSink | None = None) -> Worker:
-        self.activities = Activities(self.engine, sink=sink, client=client)
+        self.activities = Activities(self.engine, sink=sink, client=client, commands=self.commands)
         self.activities.heartbeat_every = self.heartbeat_every
         return build_worker(client, self.activities, task_queue=task_queue)
 

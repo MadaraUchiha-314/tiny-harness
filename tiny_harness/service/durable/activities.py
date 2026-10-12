@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Literal, Protocol, cast
@@ -20,7 +21,13 @@ from temporalio.client import Client, WorkflowExecutionStatus, WorkflowUpdateFai
 from temporalio.exceptions import ApplicationError
 from temporalio.service import RPCError
 
-from tiny_harness.errors import HookAbort, ProviderError, TinyHarnessError, ToolNotFoundError
+from tiny_harness.errors import (
+    HookAbort,
+    HookTransportError,
+    ProviderError,
+    TinyHarnessError,
+    ToolNotFoundError,
+)
 from tiny_harness.harness.agents import SUPPORTED_EXTENSIONS, Agent
 from tiny_harness.harness.channels import (
     CHANNEL_EXT_MEDIA_TYPE,
@@ -28,7 +35,16 @@ from tiny_harness.harness.channels import (
     ChannelMessage,
     ChannelMessageData,
 )
-from tiny_harness.harness.commands import CommandCall, CommandRegistry, parse_command
+from tiny_harness.harness.commands import (
+    CommandCall,
+    CommandInvokedIn,
+    CommandInvokedPost,
+    CommandInvokedPre,
+    CommandRegistry,
+    CommandResult,
+    TaskSnapshot,
+    parse_command,
+)
 from tiny_harness.harness.core import (
     STATUS_EXT_KEY,
     AgentState,
@@ -65,6 +81,8 @@ from tiny_harness.service.durable.models import (
     ActivityRetriedPre,
     AssembleIn,
     ChannelSendIn,
+    CommandIn,
+    CommandOut,
     CompactIn,
     CompactOut,
     CompletionIn,
@@ -101,6 +119,7 @@ from tiny_harness.service.inbox import (
     envelope_of,
 )
 
+log = logging.getLogger("tiny_harness.durable.activities")
 HEARTBEAT_EVERY = 10.0
 TERMINAL = frozenset(
     {
@@ -178,6 +197,7 @@ class Activities:
             self.poll_channels,
             self.monitor_snapshot,
             self.retention_sweep,
+            self.run_command,
         )
 
     # --- intake (R15, abuse cases 4 and 6) ------------------------------------------
@@ -307,6 +327,66 @@ class Activities:
             command=command if accepted else None,
             control=control if accepted else None,
         )
+
+    # --- commands (issue-25 R6, R6a) ------------------------------------------------
+
+    @activity.defn(name=ActivityName.RUN_COMMAND.value)
+    async def run_command(self, arg: CommandIn) -> CommandOut:
+        """Run one command through ``command.invoked``: ``pre`` (scrubbed), the ``in``
+        chain whose bodies are the commands, then ``post``. The handler only returns
+        intents; the workflow applies them. A ``pre`` abort is a refusal, a handler's
+        exception a ``/<name> failed`` reply (R6.6), and a remote executor's transport
+        failure the activity's failure path (R6a.9)."""
+        task = HarnessTask(arg.task)
+        name = arg.call.name
+        sender = task.ext.participant(arg.sender)
+        pre = CommandInvokedPre(
+            task_id=task.id,
+            correlation_id=arg.correlation_id,
+            attempt=arg.attempt,
+            name=name,
+            arguments=arg.call.arguments,
+            sender=arg.sender,
+            sender_role=sender.role if sender is not None else None,
+            task=TaskSnapshot.of(task, arg.children),
+        )
+        runner = self.engine.runner
+
+        async def body(ctx: CommandInvokedPre) -> CommandResult | None:
+            out = await runner.run_in(
+                Operation.COMMAND_INVOKED, CommandInvokedIn.model_validate(ctx.model_dump())
+            )
+            return out.result
+
+        try:
+            result = await runner.run(
+                Operation.COMMAND_INVOKED,
+                pre,
+                body,
+                make_post=lambda p, out: CommandInvokedPost.model_validate(
+                    {**p.model_dump(), "result": out}
+                ),
+                extract=lambda post: post.result,
+            )
+        except HookAbort as exc:
+            return CommandOut(
+                result=CommandResult(reply=f"refused: {exc.message}"), outcome="refused"
+            )
+        except HookTransportError as exc:
+            raise _translate(exc) from exc
+        except Exception as exc:  # the handler's own failure: reported, never a state change
+            log.error(
+                "command failed",
+                extra={"command": name, "task_id": task.id, "error": type(exc).__name__},
+            )
+            return CommandOut(
+                result=CommandResult(reply=f"/{name} failed: {exc}"), outcome="failed"
+            )
+        if result is None:
+            return CommandOut(
+                result=CommandResult(reply=f"command /{name} has no handler"), outcome="no_handler"
+            )
+        return CommandOut(result=result)
 
     # --- the loop's operations ------------------------------------------------------
 

@@ -11,6 +11,13 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from tiny_harness.config import O11yConfig
 from tiny_harness.errors import ProviderError
+from tiny_harness.harness.commands import (
+    CommandInvokedPost,
+    CommandInvokedPre,
+    CommandResult,
+    TaskSnapshot,
+)
+from tiny_harness.harness.core import Role
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
     LLMInvokedPre,
@@ -246,3 +253,39 @@ async def test_an_abandoned_operation_ends_its_span_with_an_error_status(
     (span,) = exporter.get_finished_spans()
     assert span.status.status_code.name == "ERROR"
     assert (span.attributes or {})["error.type"] == type(error).__name__
+
+
+async def test_a_command_span_names_the_command_never_its_arguments() -> None:
+    """issue-25 § Error handling: each command run is a span with its name and outcome."""
+    exporter = InMemorySpanExporter()
+    provider = configure_tracing(O11yConfig(), exporter=exporter, set_global=False)
+    hooks = HookManager()
+    hooks.register(O11yExecutor(provider=provider))
+    pre = CommandInvokedPre(
+        task_id="t-1",
+        correlation_id="c-1",
+        name="model",
+        arguments="secret-model-name",
+        sender="alice",
+        sender_role=Role.REPORTER,
+        task=TaskSnapshot(id="t-1", name="Refund", state="INPUT_REQUIRED"),
+    )
+
+    async def body(ctx: CommandInvokedPre) -> CommandResult | None:
+        return CommandResult(reply="ok")
+
+    await OperationRunner(hooks).run(
+        Operation.COMMAND_INVOKED,
+        pre,
+        body,
+        make_post=lambda p, out: CommandInvokedPost.model_validate(
+            {**p.model_dump(), "result": out}
+        ),
+        extract=lambda post: post.result,
+    )
+    (span,) = exporter.get_finished_spans()
+    attributes = dict(span.attributes or {})
+    assert span.name == "command.invoked"
+    assert attributes["tiny_harness.command.name"] == "model"
+    assert attributes["tiny_harness.command.outcome"] == "ok"
+    assert "secret-model-name" not in {str(v) for v in attributes.values()}

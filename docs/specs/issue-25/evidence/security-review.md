@@ -5,7 +5,7 @@ workItem: issue-25
 
 # Security review: Make the CLI/TUI experience seamless
 
-## Security review
+## Security review (gate)
 
 - **Mechanism:** the-loop's checklist, the fallback that `reference/security.md` names.
   This session has no built-in `/security-review` skill. Each item below was checked

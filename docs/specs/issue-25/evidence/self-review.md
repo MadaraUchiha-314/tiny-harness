@@ -8,7 +8,7 @@ workItem: issue-25
 The policy (`the-loop critic policy`): `selfReviewCount: 2`, `stopOnNoNewFindings: true`
 and `escalateOnRepeatFinding: true`.
 
-## Self-review
+## Review cycles
 
 | Round | Reviewer | Scope | Outcome | Link |
 |-------|----------|-------|---------|------|

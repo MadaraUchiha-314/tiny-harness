@@ -253,7 +253,7 @@ negative test.
 
 ### Layer E: proof and documentation
 
-- [ ] 19. Abuse-case suite completeness and the rate limit
+- [x] 19. Abuse-case suite completeness and the rate limit
   - Check that each abuse case 1–10 has a passing negative test.
   - Add case 6: `/sub-task` past `rate_limit_per_minute` gets 429.
   - _Depends on:_ 1, 3, 9, 11, 12, 13

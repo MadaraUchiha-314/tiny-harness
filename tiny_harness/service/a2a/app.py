@@ -1,5 +1,6 @@
 """``create_app`` (R14.1, R14.2): the SDK's agent-card, JSON-RPC and REST routes on one
-Starlette app behind the limits middleware, plus ``GET /_monitor`` (R16.3)."""
+Starlette app behind the limits middleware, plus ``GET /_monitor`` (R16.3) and, when a
+receiver is given, ``POST /a2a/push/{task_id}`` for remote tasks' pushes (issue-27 R2)."""
 
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from a2a.types import AgentCard
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -20,6 +21,12 @@ from tiny_harness.config import ServerConfig
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.handler import HarnessRequestHandler
 from tiny_harness.service.a2a.middleware import LimitsMiddleware
+from tiny_harness.service.a2a.push import (
+    MAX_PUSH_BYTES,
+    PUSH_PATH,
+    PUSH_TOKEN_HEADER,
+    PushReceiver,
+)
 from tiny_harness.service.a2a.task_store import PARTICIPANT_HEADER, PARTICIPANT_STATE_KEY
 
 MonitorSource = Callable[[], Awaitable[JsonObject]]
@@ -42,6 +49,7 @@ def create_app(
     *,
     config: ServerConfig,
     monitor: MonitorSource | None = None,
+    push: PushReceiver | None = None,
 ) -> Starlette:
     builder = HarnessContextBuilder()
 
@@ -49,12 +57,26 @@ def create_app(
         snapshot: JsonObject = await monitor() if monitor is not None else {"tasks": []}
         return JSONResponse(snapshot)
 
+    async def push_view(request: Request) -> Response:
+        assert push is not None
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > MAX_PUSH_BYTES:
+            return Response(status_code=413)  # refused before the body is read
+        status = await push.receive(
+            request.path_params["task_id"],
+            request.headers.get(PUSH_TOKEN_HEADER),
+            await request.body(),
+        )
+        return Response(status_code=status)
+
     # The harness's own routes go first: the SDK's REST routes carry path parameters at
     # the root that would otherwise capture /_monitor and /ui/... and answer 404.
     routes: list[BaseRoute] = [
         *create_agent_card_routes(card),
         Route("/_monitor", monitor_view, methods=["GET"]),
     ]
+    if push is not None:
+        routes.append(Route(PUSH_PATH, push_view, methods=["POST"]))
     if config.ui_dir is not None:  # the built web renderer, same origin as the API
         routes.append(Mount("/ui", app=StaticFiles(directory=config.ui_dir, html=True)))
     routes.extend(create_jsonrpc_routes(handler, rpc_url="/", context_builder=builder))

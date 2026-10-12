@@ -24,7 +24,7 @@ make it pass.
   - _Depends on:_ none
   - _Requirements:_ R4.1, R4.5
   - _Test:_ T1/T10 `tests/unit/test_config_agents.py`; T3 snapshot
-- [ ] 2. `RemoteAgent`: settings plus push, get and subscribe wrappers
+- [x] 2. `RemoteAgent`: settings plus push, get and subscribe wrappers
   - Constructor and `connect` take `updates` and `follow_interval`, and `build_runtime`
     passes them.
   - Add `push_supported`, `set_push_config`, `delete_push_config`, `get_task` and
@@ -32,26 +32,26 @@ make it pass.
   - _Depends on:_ 1
   - _Requirements:_ R1.1, R3.1, R5.1
   - _Test:_ T2 (exercised end-to-end); T3 API snapshot
-- [ ] 3. Push primitives and `PushReceiver`
+- [x] 3. Push primitives and `PushReceiver`
   - In `service/a2a/push.py`: `push_url`, `token_digest`, `PushIn` (in durable models),
     `PushReceiver.receive` with the refusal ordering.
   - _Depends on:_ none
   - _Requirements:_ R2.1, R2.2; abuse cases 1–5, 9
-  - _Test:_ T1 `tests/unit/test_push_receiver.py`
-- [ ] 4. The push route in `create_app`, wired in `running_harness`
+  - _Test:_ T1 `tests/unit/service/test_push_receiver.py`
+- [x] 4. The push route in `create_app`, wired in `running_harness`
   - `POST /a2a/push/{task_id}` before the SDK routes, reading `Content-Length` first.
   - `running_harness` builds `PushReceiver(client)` and passes `push_base_url` to
     `Activities`.
   - _Depends on:_ 3
   - _Requirements:_ R2.1, abuse case 5
   - _Test:_ T8 `tests/security/test_remote_push.py` (route-level cases)
-- [ ] 5. `remote_out` and the new activities
+- [x] 5. `remote_out` and the new activities
   - Factor `remote_out` out of `_remote_turn`.
   - Add `register_remote_push`, `get_remote_task`, `follow_remote_task` and
     `delete_remote_push`, with the new `ActivityName`s and models.
   - _Depends on:_ 2, 3
   - _Requirements:_ R1.1–1.3, R1.5, R2.3, R2.5, R3.1–3.3, R5.1
-  - _Test:_ T1 `tests/unit/test_remote_out.py`; T2
+  - _Test:_ T1 `tests/unit/service/test_remote_out.py`; T2
 - [ ] 6. `RemoteTaskWorkflow`: the watch, the `remote_push` update and its validator,
   `_park`, `_end`
   - _Depends on:_ 5

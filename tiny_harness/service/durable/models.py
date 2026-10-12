@@ -58,6 +58,10 @@ class ActivityName(StrEnum):
     EMIT_EVENT = "emit_event"
     DISPATCH_HOOKS = "dispatch_hooks"
     RUN_REMOTE_AGENT_TURN = "run_remote_agent_turn"
+    REGISTER_REMOTE_PUSH = "register_remote_push"
+    GET_REMOTE_TASK = "get_remote_task"
+    FOLLOW_REMOTE_TASK = "follow_remote_task"
+    DELETE_REMOTE_PUSH = "delete_remote_push"
     POLL_CHANNELS = "poll_channels"
     MONITOR_SNAPSHOT = "monitor_snapshot"
     RETENTION_SWEEP = "retention_sweep"
@@ -339,6 +343,54 @@ class RemoteTurnOut(_Frozen):
     final: bool = False
 
 
+# --- watching a parked remote task (issue-27) ---------------------------------------
+
+
+FOLLOW_WINDOW = timedelta(minutes=10)
+"""How long one ``follow_remote_task`` holds a parked task before the workflow starts the
+next, so its ``start_to_close`` stays finite (issue-27 R3)."""
+
+
+class RemoteTaskIn(ActivityIn):
+    """A remote task to act on; ``task_id`` is the local stand-in's id."""
+
+    agent: str
+    remote_task_id: str
+
+
+class RemoteWatch(_Frozen):
+    """How the stand-in hears a parked remote task change (R4). For ``push`` it keeps the
+    config id and the SHA-256 digest of the token, never the token (abuse case 7)."""
+
+    mode: Literal["push", "follow", "off"]
+    config_id: str = ""
+    token_digest: str = ""
+
+
+class FollowIn(RemoteTaskIn):
+    """The last recorded state; the follow returns the first event that differs."""
+
+    known_state: str
+    known_text: str = ""
+
+
+class FollowOut(_Frozen):
+    changed: bool
+    out: RemoteTurnOut | None = None
+
+
+class RemotePushDelete(RemoteTaskIn):
+    config_id: str
+
+
+class PushIn(_Frozen):
+    """The ``remote_push`` update a verified-looking push sends its stand-in: the digest of
+    the presented token and the remote task id the body names (R2.2)."""
+
+    token_digest: str
+    remote_task_id: str
+
+
 # --- heartbeat (R16) -------------------------------------------------------------------
 
 
@@ -430,6 +482,7 @@ class RetryOut(_Frozen):
 
 
 __all__ = [
+    "FOLLOW_WINDOW",
     "A2AEventProto",
     "ActivityFailedPre",
     "ActivityIn",
@@ -450,6 +503,8 @@ __all__ = [
     "EventEntry",
     "EventKind",
     "EventPage",
+    "FollowIn",
+    "FollowOut",
     "HeartbeatResult",
     "HeartbeatTick",
     "HeartbeatTickPre",
@@ -465,9 +520,13 @@ __all__ = [
     "PersistIn",
     "PollIn",
     "PollOut",
+    "PushIn",
+    "RemotePushDelete",
     "RemoteStart",
+    "RemoteTaskIn",
     "RemoteTurnIn",
     "RemoteTurnOut",
+    "RemoteWatch",
     "RetryIn",
     "RetryOut",
     "SweepIn",

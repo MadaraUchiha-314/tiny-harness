@@ -92,15 +92,41 @@ Committed under `evidence/`, as markdown with the raw output in fenced blocks:
 
 ## Verification activities
 
-- [ ] T1 unit: `uv run pytest tests/unit -q`
-- [ ] T2 integration: `uv run pytest tests/integration/agents -v`
-- [ ] T2 regression: `uv run pytest tests/integration -q`
-- [ ] T3 contract: `uv run pytest tests/contract -q`
-- [ ] T8 security: `uv run pytest tests/security -v`
-- [ ] T10 migration: included in T1 (`tests/unit/test_config_agents.py`)
-- [ ] T12 static: `uv run pre-commit run --all-files`
-- [ ] Scenario table: `the-loop scenarios --root "$PWD" --glob 'tests/integration/agents/*.py' --format markdown`
+- [x] T1 unit: `uv run pytest tests/unit -q`
+- [x] T2 integration: `uv run pytest tests/integration/agents -v`
+- [x] T2 regression: `uv run pytest tests/integration -q`
+- [x] T3 contract: `uv run pytest tests/contract -q`
+- [x] T8 security: `uv run pytest tests/security -v`
+- [x] T10 migration: included in T1 (`tests/unit/test_config_agents.py`)
+- [x] T12 static: `uv run pre-commit run --all-files`
+- [x] Scenario table: `the-loop scenarios --root "$PWD" --glob 'tests/integration/agents/*.py' --format markdown`
 
 ## Verification results
 
-> Filled at the `verification` node.
+All activities ran at commit `2dc0dac` on 2026-10-12 and passed.
+
+| Activity | Command | Outcome | Evidence |
+|----------|---------|---------|----------|
+| T1 / T10 unit | `uv run pytest tests/unit -q` | 547 passed | [unit.md](evidence/unit.md) |
+| T2 integration | `uv run pytest tests/integration/agents -v` | 9 passed (8 new scenarios) | [integration.md](evidence/integration.md) |
+| T2 regression | `uv run pytest tests/integration -q` | 100 passed | [regression.md](evidence/regression.md) |
+| T3 contract | `uv run pytest tests/contract -q` | 36 passed; the settings schema and `tiny_harness.config` snapshots were updated on purpose | [contract.md](evidence/contract.md) |
+| T8 security | `uv run pytest tests/security -v` | 79 passed, including the 8 tests in `test_remote_push.py` | [security.md](evidence/security.md) |
+| T12 static | `uv run pre-commit run --all-files` | every hook passed | [static.md](evidence/static.md) |
+| Scenario table | `the-loop scenarios … --format markdown` | 9 scenarios listed, each linked to a requirement | [scenarios.md](evidence/scenarios.md) |
+
+Stability: the new integration and security files were each run three times in a row
+during implementation with identical results, and the full suite twice (762 passed both
+times).
+
+What verification changed in the spec. Three findings from the tests went back into
+`requirements.md` and `design.md` before this record was written:
+
+- **R1.6:** `X-Participant-Id` on every remote task call. Without it, a tiny-harness peer
+  answered "task not found". This was also a latent bug in replies to a parked peer.
+- **R2.9:** re-fetch while the fetch disagrees with the push's claimed state. A remote
+  pushed before its own `GetTask` showed the change.
+- **Abuse case 7:** the SDK's DEBUG request-body log is dropped.
+
+The "no history" wording was also corrected: a rejected update can leave an empty
+workflow task, but never an update or an activity.

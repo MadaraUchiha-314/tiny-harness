@@ -145,16 +145,16 @@ than `127.0.0.1` appears.
 
 ## Verification activities
 
-- [ ] T1: `uv run pytest tests/unit` and `cd renderers/web && bun run test`
-- [ ] T2: `uv run pytest tests/integration`, then
+- [x] T1: `uv run pytest tests/unit` and `cd renderers/web && bun run test`
+- [x] T2: `uv run pytest tests/integration`, then
   `the-loop scenarios --root "$PWD" --glob 'tests/integration/**/*.py' --format markdown`
-- [ ] T3: `uv run pytest tests/contract`
-- [ ] T4: `uv run pytest tests/e2e/test_demo_ollama.py -m e2e`
-- [ ] T5/T6: `uv run pytest tests/ui` and `cd renderers/web && bun run test:visual`
-- [ ] T8: `uv run pytest tests/security`
-- [ ] T9: `cd renderers/web && bun run test:a11y`
-- [ ] T10: `uv run pytest tests/unit/core/test_task_compat.py tests/unit/test_config.py`
-- [ ] T11: the manual first-run walkthrough below
+- [x] T3: `uv run pytest tests/contract`
+- [x] T4: `uv run pytest tests/e2e/test_demo_ollama.py -m e2e`
+- [x] T5/T6: `uv run pytest tests/ui` and `cd renderers/web && bun run test:visual`
+- [x] T8: `uv run pytest tests/security`
+- [x] T9: `cd renderers/web && bun run test:a11y`
+- [x] T10: `uv run pytest tests/unit/core/test_task_compat.py tests/unit/test_config.py`
+- [x] T11: the manual first-run walkthrough below
 
 **T11 procedure.**
 
@@ -177,13 +177,24 @@ than `127.0.0.1` appears.
 
 ## Verification results
 
-_Not yet executed._
+The run was on 2026-10-12 against `loop/issue-25`, with the whole suite green beforehand
+(task 22): `pre-commit run --all-files` passed in 24 s.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 | `uv run pytest tests/unit`; `bun run test` | pass: 514 Python and 26 web tests | [unit.md](evidence/unit.md) |
+| T2 | `uv run pytest tests/integration`; `the-loop scenarios` | pass: 86 tests in 80 s | [integration.md](evidence/integration.md) |
+| T3 | `uv run pytest tests/contract` | pass: 36 tests | [contract.md](evidence/contract.md) |
+| T4 | `uv run pytest tests/e2e/test_demo_ollama.py -m e2e` (`qwen3:1.7b`) | pass: parks, continues, `/status` without a model call, then `COMPLETED` | [e2e.md](evidence/e2e.md) |
+| T5/T6 | `uv run pytest tests/ui`; `bun run test:visual` | pass: 27 tests, 9 snapshots; 12 Playwright tests | [ui.md](evidence/ui.md) |
+| T8 | `uv run pytest tests/security` | pass: 68 tests, abuse cases 1–10 each covered | [security.md](evidence/security.md) |
+| T9 | `bun run test:a11y`; TUI keys | pass: 4 axe and keyboard tests | [accessibility.md](evidence/accessibility.md) |
+| T10 | `uv run pytest tests/unit/core/test_task_compat.py tests/unit/test_config.py` | pass: 9 tests | [migration.md](evidence/migration.md) |
+| T11 | the manual walkthrough, real TUI over `tmux` against Ollama | pass: every step | [manual.md](evidence/manual.md) |
 
-**Not executed:** none yet.
+**Not executed:** the OpenAI-backed e2e tests (`test_demo.py`,
+`test_demo_embedded.py`, `test_crash_recovery.py`). They need `OPENAI_API_KEY`, which
+this environment does not have. T4 covers the same flow offline.
 
 ## Review comments
 

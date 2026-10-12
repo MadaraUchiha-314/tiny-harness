@@ -279,7 +279,7 @@ negative test.
   - _Depends on:_ 13, 14, 15, 16, 17, 18
   - _Requirements:_ NFR documentation
   - _Test:_ markdownlint (pre-commit) and `cd docs && bun run docs:build`
-- [ ] 22. Verification hand-off
+- [x] 22. Verification hand-off
   - Run the whole suite once, the way CI runs it, so that verification starts green:
     `uv run pre-commit run --all-files`,
     `uv run pytest tests/integration tests/contract tests/security tests/ui`, and the

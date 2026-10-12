@@ -19,7 +19,7 @@ make it pass.
 
 ## Task list
 
-- [ ] 1. Configuration: `updates` and `follow_interval` on `RemoteAgentSpec`
+- [x] 1. Configuration: `updates` and `follow_interval` on `RemoteAgentSpec`
   - Add the fields and the `>= 1 s` validator, and update the settings schema snapshot.
   - _Depends on:_ none
   - _Requirements:_ R4.1, R4.5

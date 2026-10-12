@@ -218,11 +218,28 @@ class AnthropicConfig(_Strict):
 
 
 class RemoteAgentSpec(_Strict):
-    """A remote A2A agent to register at startup (R7.2): its card is fetched from the URL."""
+    """A remote A2A agent to register at startup (R7.2): its card is fetched from the URL.
+    ``updates`` chooses how a parked remote task is watched between turns (issue-27 R4)."""
 
     id: str
     url: HttpUrl
     version: str | None = None
+    updates: Literal["auto", "follow", "off"] = Field(
+        default="auto",
+        description="how a parked remote task's changes are heard: push when the card "
+        "advertises it (auto), SubscribeToTask (follow), or not at all (off)",
+    )
+    follow_interval: timedelta = Field(
+        default=timedelta(seconds=5),
+        description="the pause before re-subscribing when a follow stream ends unchanged",
+    )
+
+    @field_validator("follow_interval")
+    @classmethod
+    def _at_least_a_second(cls, value: timedelta) -> timedelta:
+        if value < timedelta(seconds=1):
+            raise ValueError("follow_interval must be at least 1 second")
+        return value
 
 
 class ServerConfig(_Strict):

@@ -362,10 +362,28 @@
     },
     "RemoteAgentSpec": {
       "additionalProperties": false,
-      "description": "A remote A2A agent to register at startup (R7.2): its card is fetched from the URL.",
+      "description": "A remote A2A agent to register at startup (R7.2): its card is fetched from the URL.\n``updates`` chooses how a parked remote task is watched between turns (issue-27 R4).",
       "properties": {
+        "follow_interval": {
+          "default": "PT5S",
+          "description": "the pause before re-subscribing when a follow stream ends unchanged",
+          "format": "duration",
+          "title": "Follow Interval",
+          "type": "string"
+        },
         "id": {
           "title": "Id",
+          "type": "string"
+        },
+        "updates": {
+          "default": "auto",
+          "description": "how a parked remote task's changes are heard: push when the card advertises it (auto), SubscribeToTask (follow), or not at all (off)",
+          "enum": [
+            "auto",
+            "follow",
+            "off"
+          ],
+          "title": "Updates",
           "type": "string"
         },
         "url": {

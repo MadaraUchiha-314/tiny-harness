@@ -259,7 +259,7 @@ negative test.
   - _Depends on:_ 1, 3, 9, 11, 12, 13
   - _Requirements:_ Security considerations, abuse cases 1–10
   - _Test:_ T8 `uv run pytest tests/security`
-- [ ] 20. E2E demo flow
+- [x] 20. E2E demo flow
   - The offline Ollama demo expects `INPUT_REQUIRED · awaiting-next-message`, a second
     message on the same task, `/status` with no model call, then complete.
   - The demo's own scripted client is updated.

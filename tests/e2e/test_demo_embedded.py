@@ -41,7 +41,7 @@ async def test_demo_completes_a_task_in_embedded_mode_without_temporal_credentia
         Given the demo configured with mode embedded
         And no TEMPORAL_API_KEY in the server's environment
         When the reporter sends the complaint and answers the questions
-        Then the task reaches COMPLETED through the in-process worker
+        Then the turn parks the task and the reporter completes it through the in-process worker
         And the server log shows the embedded server's start, its warning, and its stop
         And no secret reached the trace or the log
     """

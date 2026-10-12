@@ -31,8 +31,10 @@ from a2a.types import Role as A2ARole
 from google.protobuf import json_format, struct_pb2
 
 from tiny_harness import config
+from tiny_harness.harness.core.status import STATUS_EXT_KEY
 from tiny_harness.interaction.a2ui import A2UI_MEDIA_TYPE, Action
 from tiny_harness.jsontypes import JsonObject
+from tiny_harness.service import complete_message
 
 REPO = Path(__file__).resolve().parents[2]
 DEMO = REPO / "examples" / "demo"
@@ -373,6 +375,19 @@ def ollama_unavailable(model: str, tags: JsonObject | None) -> str | None:
     return None
 
 
+AWAITING_ANSWER = "awaiting-answer"
+
+
+def sub_state_of(container: object) -> str | None:
+    """The status extension's sub-state in a Task's or a status update's metadata."""
+    if not isinstance(container, dict):
+        return None
+    metadata = cast(JsonObject, container).get("metadata")
+    status = cast(JsonObject, metadata).get(STATUS_EXT_KEY) if isinstance(metadata, dict) else None
+    value = cast(JsonObject, status).get("sub_state") if isinstance(status, dict) else None
+    return value if isinstance(value, str) else None
+
+
 class Driver:
     """Sends messages for one task and keeps the transcript."""
 
@@ -380,6 +395,7 @@ class Driver:
         self.demo = demo
         self.context_id = context_id or f"ctx-{uuid.uuid4().hex[:8]}"
         self.task_id: str | None = None
+        self.sub_state: str | None = None  # issue-25: why the task waits in INPUT_REQUIRED
         self.events: list[Event] = []
         self.a2ui_parts: list[JsonObject] = []
         self._http: httpx.AsyncClient | None = None
@@ -414,9 +430,11 @@ class Driver:
         at = self.demo.elapsed()
         if response.HasField("task"):
             self.task_id = response.task.id
+            self.sub_state = sub_state_of(raw.get("task"))
             event = Event(at, "task", response.task.status.state, response.task.id, raw)
         elif response.HasField("status_update"):
             status = response.status_update.status
+            self.sub_state = sub_state_of(raw.get("statusUpdate"))
             text = (
                 "".join(p.text for p in status.message.parts if p.HasField("text"))
                 if status.HasField("message")
@@ -457,8 +475,12 @@ class Driver:
         reply: str = REPLY,
         act_on_card: bool = True,
         max_rounds: int = 4,
+        complete: bool = True,
     ) -> int | None:
-        """The whole conversation: the complaint, then a reply per INPUT_REQUIRED."""
+        """The whole conversation: the complaint, then a reply per question (a help
+        request awaiting an answer, or the confirmation card). A finished turn parks the
+        conversation awaiting the next message (issue-25 R3); with ``complete`` the
+        reporter then completes it."""
         state = await self.send(
             user_message(COMPLAINT, context_id=self.context_id), on_event=on_event
         )
@@ -469,10 +491,20 @@ class Driver:
             action = confirm_action(self.a2ui_parts) if act_on_card and rounds == 1 else None
             if action is not None:
                 message = action_message(action, task_id=self.task_id, context_id=self.context_id)
-            else:
+            elif self.sub_state == AWAITING_ANSWER:
                 message = user_message(reply, context_id=self.context_id, task_id=self.task_id)
+            else:
+                break
             state = await self.send(message, on_event=on_event)
+        if complete and state == TaskState.TASK_STATE_INPUT_REQUIRED:
+            state = await self.complete(on_event=on_event)
         return state
+
+    async def complete(self, *, on_event: Callable[[Event], None] | None = None) -> int | None:
+        """The reporter completes the task (issue-25 R3.2), as the UIs' Complete does."""
+        assert self.task_id is not None
+        message = complete_message(self.task_id, participant_id="alice", context_id=self.context_id)
+        return await self.send(message, on_event=on_event)
 
     async def final_task(self) -> JsonObject:
         assert self.task_id is not None

@@ -395,8 +395,14 @@ class TaskWorkflow:
             )
         self.seen.add(mid)
         self.mailbox.append(message)
-        if message.HasField("metadata") and "interrupt" in message.metadata.fields:
-            self.interrupted = bool(message.metadata.fields["interrupt"].bool_value)
+        # A message may ask for an interrupt, never cancel one already asked for, such as
+        # a completion's (critic A3); the wake clears it once nothing runs.
+        if (
+            message.HasField("metadata")
+            and "interrupt" in message.metadata.fields
+            and message.metadata.fields["interrupt"].bool_value
+        ):
+            self.interrupted = True
         if is_control(message):  # authorized by the validator: cut the turn (R5.2)
             self.interrupted = True
         return InboxReceipt(

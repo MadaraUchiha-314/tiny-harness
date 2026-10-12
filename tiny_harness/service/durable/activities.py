@@ -126,6 +126,7 @@ from tiny_harness.service.inbox import (
     controls_task,
     envelope_of,
 )
+from tiny_harness.service.o11y.tracing import no_export
 from tiny_harness.service.push_token import push_url, token_digest
 
 log = logging.getLogger("tiny_harness.durable.activities")
@@ -617,12 +618,14 @@ class Activities:
             return RemoteWatch(mode="follow")
         token = secrets.token_urlsafe(32)  # 256 bits (R1.3)
         try:
-            config_id = await agent.set_push_config(
-                arg.remote_task_id,
-                push_url(self.push_base_url, arg.task_id),
-                token,
-                participant=arg.participant,
-            )
+            # The SDK's client spans record an error's text, which may echo the token.
+            with no_export():
+                config_id = await agent.set_push_config(
+                    arg.remote_task_id,
+                    push_url(self.push_base_url, arg.task_id),
+                    token,
+                    participant=arg.participant,
+                )
         except Exception as exc:  # any failure falls back to follow (R1.5)
             # The type only: an error's text may echo the request, and so the token.
             log.warning(

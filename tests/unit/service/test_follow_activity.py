@@ -5,6 +5,7 @@ remote one is a non-retryable failure."""
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator, Sequence
 from datetime import timedelta
@@ -13,14 +14,19 @@ from typing import cast
 import pytest
 from a2a.client.client import Client as A2AClient
 from a2a.types import AgentCapabilities, AgentCard, Task, TaskState, TaskStatus
+from opentelemetry import context
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import Tracer
 from temporalio.exceptions import ApplicationError
 from temporalio.testing import ActivityEnvironment
 
 from tests.integration.durable.conftest import Harness
+from tiny_harness.config import O11yConfig
 from tiny_harness.harness.agents import A2AEvent, RemoteAgent
 from tiny_harness.harness.entities import EntityKind, EntityRef, RegistryEntry
 from tiny_harness.service.durable.activities import Activities
-from tiny_harness.service.durable.models import FollowIn
+from tiny_harness.service.durable.models import FollowIn, RemoteTaskIn
+from tiny_harness.service.o11y.tracing import NO_EXPORT, configure_tracing
 
 PARKED = Task(id="r-1", status=TaskStatus(state=TaskState.TASK_STATE_INPUT_REQUIRED))
 
@@ -93,3 +99,42 @@ async def test_an_agent_that_is_not_remote_is_not_followed() -> None:
     with pytest.raises(ApplicationError) as info:
         await ActivityEnvironment().run(acts.follow_remote_task, follow_in("missing"))
     assert info.value.non_retryable
+
+
+class LeakyPeer(Peer):
+    """Push-capable; its registration fails with an error echoing the token, inside a span
+    the way the A2A SDK's traced transport records one."""
+
+    def __init__(self, tracer: Tracer) -> None:
+        super().__init__(hold=False, interval=timedelta(seconds=1))
+        self.agent_card.capabilities.push_notifications = True
+        self.tracer = tracer
+        self.suppressed: list[bool] = []
+
+    async def set_push_config(
+        self, task_id: str, url: str, token: str, *, participant: str | None = None
+    ) -> str:
+        self.suppressed.append(bool(context.get_value(NO_EXPORT)))
+        with self.tracer.start_as_current_span("a2a.client.create_push_config"):
+            raise RuntimeError(f"invalid config: token={token}")
+
+
+async def test_a_failed_registration_exports_no_span_and_logs_no_token(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """issue-27 abuse case 7, critic round 1 finding 1."""
+    exporter = InMemorySpanExporter()
+    provider = configure_tracing(O11yConfig(), exporter=exporter, set_global=False)
+    peer = LeakyPeer(provider.get_tracer("a2a"))
+    acts = await activities(peer, window=1)
+    acts.push_base_url = "http://local"
+    caplog.set_level(logging.DEBUG)
+    arg = RemoteTaskIn(task_id="t-1.1", correlation_id="c", agent="peer", remote_task_id="r-1")
+    watch = await ActivityEnvironment().run(acts.register_remote_push, arg)
+    assert watch.mode == "follow"
+    assert peer.suppressed == [True]
+    assert exporter.get_finished_spans() == ()
+    assert "token=" not in caplog.text
+    with provider.get_tracer("a2a").start_as_current_span("ordinary"):
+        pass
+    assert [span.name for span in exporter.get_finished_spans()] == ["ordinary"]

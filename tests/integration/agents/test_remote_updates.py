@@ -159,7 +159,7 @@ async def test_a_reply_while_following_cancels_the_follow(env: WorkflowEnvironme
 
     Scenario: A reply while following cancels the follow and starts a turn
         Given a stand-in following a parked remote task
-        When a reply reaches the stand-in's inbox
+        When a reply from a local participant the remote does not know reaches the inbox
         Then the follow is cancelled and the reply is sent to the remote task
         And the remote answers and the stand-in completes
     """
@@ -170,7 +170,8 @@ async def test_a_reply_while_following_cancels_the_follow(env: WorkflowEnvironme
         await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
         await until_events(d, "ACTIVITY_TASK_STARTED", "follow_remote_task")
         stand_in = d.env.client.get_workflow_handle(d.child_id)
-        reply = message_to(d.child_id, "The main ledger.")
+        # From a participant the remote task does not know: the stand-in asserts itself.
+        reply = message_to(d.child_id, "The main ledger.", participant="alice")
         await stand_in.execute_update(  # pyright: ignore[reportUnknownMemberType]
             "inbox", reply, result_type=InboxReceipt
         )
@@ -292,14 +293,14 @@ async def test_a_remote_resumed_by_a_third_party_wakes_the_model_only_at_its_end
         await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is COMPLETED")
 
 
-def message_to(task_id: str, text: str) -> Message:
+def message_to(task_id: str, text: str, *, participant: str = "tiny-harness") -> Message:
     msg = Message(
         message_id=uuid.uuid4().hex,
         task_id=task_id,
         role=A2ARole.ROLE_USER,
         parts=[Part(text=text)],
     )
-    msg.metadata.update({"participant_id": "tiny-harness"})
+    msg.metadata.update({"participant_id": participant})
     return msg
 
 

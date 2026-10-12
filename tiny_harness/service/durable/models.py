@@ -387,6 +387,8 @@ class RemoteResume(_Frozen):
     watch: RemoteWatch
     last: RemoteTurnOut
     cancel_reason: str | None = None
+    claimed: str = ""
+    recheck: int | None = None
 
 
 RemoteStart.model_rebuild()

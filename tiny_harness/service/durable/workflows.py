@@ -1474,6 +1474,7 @@ class RemoteTaskWorkflow:
             self.watch = resumed.watch
             self.last = resumed.last
             self.cancel_reason = self.cancel_reason or resumed.cancel_reason
+            self.claimed, self.recheck = resumed.claimed, resumed.recheck
             self.push_pending = resumed.watch.mode == "push"  # reconcile across the gap
         else:
             self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
@@ -1502,11 +1503,11 @@ class RemoteTaskWorkflow:
                 self.recheck, self.claimed = None, ""
             resumed = None
             parked = await self._park()
+            if parked == "roll":  # a pending recheck goes with it (R2.9)
+                workflow.continue_as_new(self._resume())
             self.recheck, self.claimed = None, ""  # a recheck belongs to one park only
             if parked == "ended":
                 return await self._end()
-            if parked == "roll":
-                workflow.continue_as_new(self._resume())
             if self.cancel_reason is not None:
                 self.task = self.task.with_state(TaskState.TASK_STATE_CANCELED)
                 await self._tell_parent(
@@ -1517,6 +1518,8 @@ class RemoteTaskWorkflow:
             outbound = Message()
             outbound.CopyFrom(reply)
             outbound.task_id = self.remote_task_id or ""
+            # The remote task knows this harness, not whoever replied here (R1.6).
+            outbound.metadata.update({"participant_id": start.config.agent})
 
     def _resume(self) -> RemoteStart:
         """The next run's input: the same stand-in, still parked (history bound, R19.8)."""
@@ -1530,6 +1533,8 @@ class RemoteTaskWorkflow:
                     watch=self.watch,
                     last=self.last,
                     cancel_reason=self.cancel_reason,
+                    claimed=self.claimed,
+                    recheck=self.recheck,
                 ),
             }
         )

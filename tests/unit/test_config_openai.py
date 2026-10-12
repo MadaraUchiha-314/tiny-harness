@@ -188,3 +188,58 @@ def test_the_ollama_demo_configuration_loads_without_any_key() -> None:
     assert str(settings.openai.base_url) == "http://127.0.0.1:11434/v1"
     assert settings.openai.api_key is None and settings.openai.api == "chat_completions"
     assert settings.openai.context_window_tokens == 16384
+
+
+# issue-25 R7.1, R8.1 — selectable models and the default effort.
+
+
+def test_models_and_effort_default_to_unset(tmp_path: Path) -> None:
+    config = load(tmp_path).openai
+    assert config.models is None
+    assert config.reasoning_effort is None
+
+
+def test_models_and_effort_are_taken_from_the_file(tmp_path: Path) -> None:
+    config = load(
+        tmp_path,
+        'model = "gpt-6-luna"\nmodels = ["gpt-6-luna", "gpt-6.1-sol"]\nreasoning_effort = "high"',
+    ).openai
+    assert config.models == ("gpt-6-luna", "gpt-6.1-sol")
+    assert config.reasoning_effort == "high"
+
+
+@pytest.mark.parametrize(
+    "openai",
+    [
+        "models = []",
+        'models = ["gpt-6-luna"]',  # the default model gpt-6.1-sol is missing
+        'model = "gpt-6-astra"\nmodels = ["gpt-6.1-sol"]',
+    ],
+)
+def test_models_must_contain_the_default_model(tmp_path: Path, openai: str) -> None:
+    assert refused(tmp_path, openai).variable == "openai.models"
+
+
+@pytest.mark.parametrize("effort", ["extreme", "", "HIGH", "none"])
+def test_an_unknown_effort_is_refused(tmp_path: Path, effort: str) -> None:
+    assert refused(tmp_path, f'reasoning_effort = "{effort}"').variable == (
+        "openai.reasoning_effort"
+    )
+
+
+def test_anthropic_gains_the_same_keys_and_validator(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(
+        CONFIG.format(openai="")
+        + '\n[anthropic]\nmodel = "claude-opus-5-5"\nmodels = ["claude-fable-5-1"]\n'
+    )
+    with pytest.raises(ConfigError) as caught:
+        Settings.load(path, env={**ENV, "ANTHROPIC_API_KEY": "sk-ant"})
+    assert caught.value.variable == "anthropic.models"
+    path.write_text(
+        CONFIG.format(openai="")
+        + '\n[anthropic]\nmodel = "claude-opus-5-5"\nreasoning_effort = "low"\n'
+    )
+    anthropic = Settings.load(path, env={**ENV, "ANTHROPIC_API_KEY": "sk-ant"}).anthropic
+    assert anthropic is not None and anthropic.reasoning_effort == "low"
+    assert anthropic.models is None

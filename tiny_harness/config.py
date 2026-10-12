@@ -131,6 +131,20 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
+ReasoningEffort = Literal["low", "medium", "high"]
+
+
+def _models_contain(models: tuple[str, ...] | None, info: ValidationInfo) -> tuple[str, ...] | None:
+    """The selectable models must include the default (issue-25 R7.1): empty, or missing
+    ``model``, fails closed."""
+    if models is None:
+        return models
+    model = info.data.get("model")
+    if not models or model not in models:
+        raise ValueError(f"must be a non-empty list that contains model ({model!r})")
+    return models
+
+
 class OpenAIConfig(_Strict):
     """OpenAI, or any OpenAI-compatible server at ``base_url`` (R18.1, issue-19).
 
@@ -146,11 +160,19 @@ class OpenAIConfig(_Strict):
     )
     api: Literal["responses", "chat_completions"] = "responses"
     model: str = "gpt-6.1-sol"
+    models: tuple[str, ...] | None = Field(
+        default=None, description="the models /model may select; default: model alone"
+    )
+    reasoning_effort: ReasoningEffort | None = Field(
+        default=None, description="the default reasoning effort; default: none sent"
+    )
     timeout: timedelta = timedelta(seconds=60)
     max_output_tokens: int = 2_000
     context_window_tokens: StrictInt | None = Field(
         default=None, gt=0, description="the model's window; default: the adapter's table"
     )
+
+    _models = field_validator("models")(_models_contain)
 
     @field_validator("base_url", mode="before")
     @classmethod
@@ -185,6 +207,14 @@ class AnthropicConfig(_Strict):
 
     api_key: SecretStr = Field(description="from ANTHROPIC_API_KEY; never logged")
     model: str
+    models: tuple[str, ...] | None = Field(
+        default=None, description="the models /model may select; default: model alone"
+    )
+    reasoning_effort: ReasoningEffort | None = Field(
+        default=None, description="the default reasoning effort; default: none sent"
+    )
+
+    _models = field_validator("models")(_models_contain)
 
 
 class RemoteAgentSpec(_Strict):
@@ -403,6 +433,7 @@ __all__ = [
     "HeartbeatConfig",
     "O11yConfig",
     "OpenAIConfig",
+    "ReasoningEffort",
     "RemoteAgentSpec",
     "RetentionConfig",
     "RetryPolicies",

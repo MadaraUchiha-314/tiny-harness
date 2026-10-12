@@ -14,6 +14,40 @@
         "model": {
           "title": "Model",
           "type": "string"
+        },
+        "models": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the models /model may select; default: model alone",
+          "title": "Models"
+        },
+        "reasoning_effort": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the default reasoning effort; default: none sent",
+          "title": "Reasoning Effort"
         }
       },
       "required": [
@@ -281,6 +315,40 @@
           "default": "gpt-6.1-sol",
           "title": "Model",
           "type": "string"
+        },
+        "models": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the models /model may select; default: model alone",
+          "title": "Models"
+        },
+        "reasoning_effort": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the default reasoning effort; default: none sent",
+          "title": "Reasoning Effort"
         },
         "timeout": {
           "default": "PT1M",

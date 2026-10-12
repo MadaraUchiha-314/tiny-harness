@@ -63,7 +63,7 @@ negative test.
   - _Test:_ T1 `tests/unit/core/test_task.py`; T8
     `tests/security/test_server_controlled_fields.py`; T10
     `tests/unit/core/test_task_compat.py`
-- [ ] 4. Model configuration and `ModelCatalog`
+- [x] 4. Model configuration and `ModelCatalog`
   - `[openai]` and `[anthropic]` gain `models` and `reasoning_effort`. A validator
     rejects an empty `models`, or one missing `model` (exit 2, `openai.models`).
   - `ModelCatalog` provides `default`, `selectable`, `default_effort`,

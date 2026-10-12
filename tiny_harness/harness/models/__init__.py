@@ -1,6 +1,7 @@
 """LLM and System One model entities and their provider adapters (R18)."""
 
 from tiny_harness.harness.models.anthropic_adapter import AnthropicLLM
+from tiny_harness.harness.models.catalog import ModelCatalog, ModelChoice
 from tiny_harness.harness.models.llm import (
     LLM,
     FakeLLM,
@@ -47,6 +48,8 @@ __all__ = [
     "LLMResponse",
     "LLMStreamEvent",
     "MessageItem",
+    "ModelCatalog",
+    "ModelChoice",
     "NoulAnswer",
     "NoulQuestion",
     "OpenAILLM",

@@ -98,3 +98,11 @@ def test_missing_file_and_invalid_toml_are_config_errors(tmp_path: Path) -> None
         Settings.load(tmp_path / "nope.toml", env=ENV)
     with pytest.raises(ConfigError):
         Settings.load(write(tmp_path, "[temporal\n"), env=ENV)
+
+
+# issue-25 T10: a configuration written before selectable models and efforts loads as is.
+def test_a_pre_issue_25_file_loads_unchanged(tmp_path: Path) -> None:
+    settings = Settings.load(write(tmp_path), env=ENV)
+    assert settings.openai.models is None
+    assert settings.openai.reasoning_effort is None
+    assert settings.openai.model == "gpt-6.1-sol"

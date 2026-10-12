@@ -169,7 +169,7 @@ negative test.
 
 ### Layer C: commands
 
-- [ ] 12. Plugin `commands.json` and command-owned hooks
+- [x] 12. Plugin `commands.json` and command-owned hooks
   - `PluginLoader.load` resolves `commands.json` before its hook loop, and the hook loop
     skips command-owned `HookDef`s.
   - Command-owned hooks are registered only through `_ForCommand`. Their points must be

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tiny_harness.harness.commands import CommandRegistry
 from tiny_harness.harness.hooks import HookManager
 from tiny_harness.harness.plugins import LoadReport, PluginLoader, Registrar
 
@@ -17,11 +18,17 @@ BUILTIN_ROOT = Path(__file__).resolve().parent
 
 
 async def load_builtin(
-    *, hook_manager: HookManager, registrar: Registrar, data_root: Path
+    *,
+    hook_manager: HookManager,
+    registrar: Registrar,
+    data_root: Path,
+    commands: CommandRegistry | None = None,
 ) -> LoadReport:
     """Load the built-in plugin first; its registrations are the defaults every operator
     plugin may override (R3.9)."""
-    loader = PluginLoader(hook_manager=hook_manager, registrar=registrar, data_root=data_root)
+    loader = PluginLoader(
+        hook_manager=hook_manager, registrar=registrar, data_root=data_root, commands=commands
+    )
     return await loader.load_directory(BUILTIN_ROOT)
 
 

@@ -164,3 +164,19 @@ async def test_publish_adds_each_command_to_the_entity_registry() -> None:
     ref = EntityRef(kind=EntityKind.COMMAND, id="echo")
     assert list(registry.list(EntityKind.COMMAND)) == [ref]
     assert (await registry.get(ref, Command)).spec == spec
+
+
+async def test_an_override_replaces_the_spec_and_retires_the_previous_body() -> None:
+    """A plugin loaded with ``override`` replaces an earlier command of the same name,
+    whatever the two bodies' priorities: the earlier body never answers again."""
+    hooks = HookManager()
+    commands = CommandRegistry(hooks)
+    commands.register(CommandSpec(name="status", description="built-in"), echo, priority=100)
+    commands.register(
+        CommandSpec(name="status", description="plugin"),
+        lambda ctx: CommandResult(reply="plugin"),
+        priority=2000,
+        override=True,
+    )
+    assert [s.description for s in commands.specs] == ["plugin"]
+    assert (await hooks.run(IN, invoked("status"))).result == CommandResult(reply="plugin")

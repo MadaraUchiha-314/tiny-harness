@@ -124,10 +124,17 @@ async def build_runtime(
     registry = Registry()
     hooks = HookManager()
     registrar = RegistryRegistrar(registry)
+    commands = CommandRegistry(hooks)  # plugins declare commands into it (issue-25 R6a.6)
     root = (data_root or settings.store.sqlite_path.resolve().parent / "plugin-data").resolve()
-    reports = [await load_builtin(hook_manager=hooks, registrar=registrar, data_root=root)]
+    reports = [
+        await load_builtin(
+            hook_manager=hooks, registrar=registrar, data_root=root, commands=commands
+        )
+    ]
     registrar.override = True
-    loader = PluginLoader(hook_manager=hooks, registrar=registrar, data_root=root)
+    loader = PluginLoader(
+        hook_manager=hooks, registrar=registrar, data_root=root, commands=commands
+    )
     redactor = Redactor(secrets=secret_values(settings))
     o11y_executor.redactor = redactor  # the plugin's one hook scrubs with the real secrets
     reports.append(await loader.load(o11y_plugin()))
@@ -198,7 +205,7 @@ async def build_runtime(
         skills=skills,
         system_prompt=system_prompt,
         redactor=redactor,
-        commands=CommandRegistry(hooks),
+        commands=commands,
         sources=sources,
         reports=reports,
     )

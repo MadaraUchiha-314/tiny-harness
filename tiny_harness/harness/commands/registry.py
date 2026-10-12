@@ -6,7 +6,9 @@ passes through any context for another command or one already answered. An execu
 registered for a command therefore only ever sees that command (abuse case 10), and a
 lower-priority body that answers first overrides it (R6a.3). The registry is filled at
 build time and frozen before the worker starts; a bad or duplicate name, or a
-registration after the freeze, raises ``CommandError``.
+registration after the freeze, raises ``CommandError``. A registration with
+``override`` (an operator plugin replacing a built-in) replaces the spec and retires the
+earlier body, so the replacement answers whatever its priority.
 """
 
 from __future__ import annotations
@@ -51,6 +53,7 @@ class _ForCommand:
     def __init__(self, name: str, inner: HookExecutor) -> None:
         self._command = name
         self._inner = inner
+        self.retired = False  # set when an override replaces this body
 
     @property
     def name(self) -> str:
@@ -65,7 +68,7 @@ class _ForCommand:
         return self._inner.points
 
     async def handle(self, point: HookPoint, ctx: HookContext) -> HookContext | None:
-        if not isinstance(ctx, CommandInvokedIn) or ctx.name != self._command:
+        if self.retired or not isinstance(ctx, CommandInvokedIn) or ctx.name != self._command:
             return None
         if ctx.result is not None:
             return None
@@ -78,6 +81,7 @@ class CommandRegistry:
     def __init__(self, hooks: HookManager) -> None:
         self._hooks = hooks
         self._specs: dict[str, CommandSpec] = {}
+        self._bodies: dict[str, _ForCommand] = {}
         self._frozen = False
 
     @property
@@ -89,7 +93,14 @@ class CommandRegistry:
         """In registration order."""
         return tuple(self._specs.values())
 
-    def register(self, spec: CommandSpec, handler: CommandHandler, *, priority: int = 500) -> None:
+    def register(
+        self,
+        spec: CommandSpec,
+        handler: CommandHandler,
+        *,
+        priority: int = 500,
+        override: bool = False,
+    ) -> None:
         """Register ``handler`` as the body of ``/<spec.name>`` (R6.1)."""
 
         async def body(point: HookPoint, ctx: HookContext) -> HookContext | None:
@@ -101,14 +112,22 @@ class CommandRegistry:
         executor = FunctionExecutor(
             f"command:{spec.name}", body, priority=priority, points=[COMMAND_IN]
         )
-        self.register_executor(spec, executor)
+        self.register_executor(spec, executor, override=override)
 
-    def register_executor(self, spec: CommandSpec, executor: HookExecutor) -> None:
+    def register_executor(
+        self, spec: CommandSpec, executor: HookExecutor, *, override: bool = False
+    ) -> None:
         """Register any executor (local or remote) as the body of ``/<spec.name>``; it is
-        wrapped so it sees only that command."""
-        self._check(spec.name)
-        self._specs[spec.name] = spec
-        self._hooks.register(_ForCommand(spec.name, executor))
+        wrapped so it sees only that command. ``override`` replaces a command already
+        registered under the name instead of raising."""
+        self._check(spec.name, override=override)
+        previous = self._bodies.get(spec.name)
+        if previous is not None:
+            previous.retired = True
+        body = _ForCommand(spec.name, executor)
+        self._specs[spec.name] = spec  # an override keeps the name's place in the order
+        self._bodies[spec.name] = body
+        self._hooks.register(body)
 
     def freeze(self) -> None:
         self._frozen = True
@@ -119,12 +138,12 @@ class CommandRegistry:
             command = Command(spec)
             await registry.add(RegistryEntry[Command](ref=command.ref, instance=command))
 
-    def _check(self, name: str) -> None:
+    def _check(self, name: str, *, override: bool = False) -> None:
         if self._frozen:
             raise CommandError("command registry is frozen", name=name)
         if NAME_PATTERN.fullmatch(name) is None:
             raise CommandError("invalid command name; expected [a-z][a-z0-9-]*", name=name)
-        if name in self._specs:
+        if name in self._specs and not override:
             raise CommandError("command already registered", name=name)
 
 

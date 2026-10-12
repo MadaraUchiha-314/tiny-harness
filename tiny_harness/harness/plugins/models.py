@@ -1,11 +1,12 @@
 """Agent Plugins 1.0.0 manifest models and the tiny-harness namespace (R3.1-R3.3).
 
 A plugin is a directory with ``plugin.json``, optional ``skills/<name>/SKILL.md``
-directories and an optional ``mcp.json``. Hooks and prompts are outside the
+directories and an optional ``mcp.json``. Hooks, commands and prompts are outside the
 specification's v1 format, so this harness reads them from the plugin's client-specific
-directory ``io.github.madarauchiha-314.tiny-harness/`` (``hooks.json``, ``prompts/*.md``,
-``systemprompt.md``) and ignores other clients' namespaced directories. ``Plugin`` is
-also the programmatic form: build it in code and hand it to the loader (R3.2).
+directory ``io.github.madarauchiha-314.tiny-harness/`` (``hooks.json``,
+``commands.json``, ``prompts/*.md``, ``systemprompt.md``) and ignores other clients'
+namespaced directories. ``Plugin`` is also the programmatic form: build it in code and
+hand it to the loader (R3.2).
 """
 
 from __future__ import annotations
@@ -112,12 +113,32 @@ class HooksFile(BaseModel, extra="forbid"):
     hooks: tuple[HookDef, ...] = ()
 
 
+class CommandDef(BaseModel, extra="forbid"):
+    """One entry of the namespace directory's ``commands.json`` (issue-25 R6a.6): a slash
+    command whose body is the ``HookDef`` named ``hook`` in the same plugin's
+    ``hooks.json``. That hook is *command-owned*: it must declare exactly
+    ``points: ["command.invoked.in"]`` and is registered only as this command's body. The
+    loader checks ``name`` (``[a-z][a-z0-9-]*``), so one bad entry skips only itself."""
+
+    name: str = Field(min_length=1, description="The command, typed as /<name>.")
+    description: str = Field(description="One line, shown to clients as a completion.")
+    argument_hint: str = Field(default="", description="What follows the name, e.g. <env>.")
+    hook: str = Field(min_length=1, description="The HookDef in hooks.json that runs it.")
+
+
+class CommandsFile(BaseModel, extra="forbid"):
+    """The namespace directory's ``commands.json``."""
+
+    commands: tuple[CommandDef, ...] = ()
+
+
 class ComponentKind(StrEnum):
     SKILL = "skill"
     MCP_SERVER = "mcp_server"
     HOOK = "hook"
     PROMPT = "prompt"
     SYSTEM_PROMPT = "system_prompt"
+    COMMAND = "command"
 
 
 class Plugin(BaseModel):
@@ -134,6 +155,7 @@ class Plugin(BaseModel):
     skills: tuple[Path, ...] = ()
     mcp: Mapping[str, McpStdioServer | McpHttpServer | McpSseServer] = Field(default_factory=dict)
     hooks: tuple[HookDef, ...] = ()
+    commands: tuple[CommandDef, ...] = ()
     prompts: tuple[Path, ...] = ()
     systemprompt: Path | None = None
     notes: tuple[str, ...] = ()
@@ -170,6 +192,8 @@ __all__ = [
     "PLUGIN_ROOT_VAR",
     "PLUGIN_SCHEMA_ID",
     "Author",
+    "CommandDef",
+    "CommandsFile",
     "ComponentKind",
     "HookDef",
     "HooksFile",

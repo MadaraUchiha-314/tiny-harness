@@ -308,16 +308,16 @@ def command_reply(text: str, *, command: str, task_ref: str | None = None) -> Me
 
 
 def sub_task_events() -> list[A2AEvent]:
-    """What ``/sub-task Draft the reply`` streams back: the parent with its new sub-task,
-    then the command's reply on the re-emitted status update."""
+    """What ``/sub-task Draft the reply`` streams back: the command's reply on the
+    re-emitted status update, then the parent with its new sub-task."""
     ref = TaskRef(task_id=SUB_TASK_ID)
     return [
-        conversation_task((ref,)),
         parked(
             command_reply(
                 f"Created sub-task {SUB_TASK_ID}.", command="sub-task", task_ref=SUB_TASK_ID
             )
         ),
+        conversation_task((ref,)),
     ]
 
 

@@ -218,10 +218,11 @@ export class FixtureClient implements HarnessPort {
       this.emit(child, TaskState.TASK_STATE_INPUT_REQUIRED);
       entry.children.push(id);
       (ext["sub_tasks"] as JsonObject[]).push({ task_id: id, agent: null });
+      // As the harness does: the reply first, then the task listing the new sub-task.
+      yield reply(`Starting a sub-task.\nCreated sub-task ${id}.`, { task_ref: id });
       const snapshot: StreamResponse = { payload: { $case: "task", value: clone(entry.task) } };
       entry.log.push(snapshot);
       yield clone(snapshot);
-      yield reply(`Starting a sub-task.\nCreated sub-task ${id}.`, { task_ref: id });
     } else {
       // An ordinary message, an unregistered /x included: a turn, then the task parks.
       yield this.emit(entry, TaskState.TASK_STATE_WORKING);

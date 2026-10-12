@@ -816,12 +816,15 @@ class TaskWorkflow:
         message: Message | None = None,
         sub_state: SubState | None = None,
         persist: bool = False,
+        snapshot: bool = False,
     ) -> HarnessTask:
         """Move the task to ``state`` and log the update. ``sub_state`` is written to both
         documented places, ``Task.metadata`` and the status update's metadata (R4.1);
         without one, a stale sub-state is cleared (R3.3). ``persist`` stores the new state
         before anyone can see it (R3.6): a parked task is idle, so a client that reacts
-        to the update never finds the store write still in flight."""
+        to the update never finds the store write still in flight. ``snapshot`` also logs
+        the updated ``Task`` right after the update, in the same activation, so the two
+        reach a stream together and the snapshot is its last event."""
         status = TaskStatus(state=state, timestamp=workflow.now())  # type: ignore[arg-type]
         if message is None and text:
             message = text_message(task, text, message_id=f"{task.id}:status:{self.next_seq}")
@@ -837,6 +840,8 @@ class TaskWorkflow:
                 updated.proto.metadata.fields[STATUS_EXT_KEY]
             )
         entry = self._emit(event)
+        if snapshot:
+            self._emit(updated.proto)
         if self.start.config.search_attributes:
             workflow.upsert_search_attributes(  # pyright: ignore[reportUnknownMemberType]
                 [A2A_TASK_STATE.value_set(updated.state_name)]
@@ -983,8 +988,7 @@ class TaskWorkflow:
         if result.spawn is not None:
             ref = await self.spawn_sub_task(self.task, result.spawn.goal, sender)
             changed = True
-        if changed:  # R7.3, R8.3, R9.1: published and persisted before the reply
-            self._emit(self.task.proto)
+        if changed:  # R7.3, R8.3, R9.1: stored before the reply is seen
             await self.persist(None)
         reply = result.reply
         metadata: dict[str, str] = {"command": call.name}
@@ -997,9 +1001,14 @@ class TaskWorkflow:
             self.task, reply, message_id=f"{self.task.id}:command:{self.next_seq}"
         )
         message.metadata.update(metadata)
-        await self._re_emit(message=message)
+        # A changed task is published as a Task snapshot after the reply, never before it:
+        # a stream ends at the newest INPUT_REQUIRED event, and a snapshot logged while
+        # the reply is still to come would end the sender's stream without it.
+        await self._re_emit(message=message, snapshot=changed)
 
-    async def _re_emit(self, *, text: str | None = None, message: Message | None = None) -> None:
+    async def _re_emit(
+        self, *, text: str | None = None, message: Message | None = None, snapshot: bool = False
+    ) -> None:
         """Re-emit the current state with ``text`` or ``message``, so the sender's stream
         ends cleanly. A task that never started (a first message that was a command or
         was refused) parks as a conversation awaiting the next message."""
@@ -1008,7 +1017,13 @@ class TaskWorkflow:
             state = TaskState.TASK_STATE_INPUT_REQUIRED
             sub_state, persist = SubState.AWAITING_NEXT_MESSAGE, True
         await self.set_status(
-            self.task, state, text=text, message=message, sub_state=sub_state, persist=persist
+            self.task,
+            state,
+            text=text,
+            message=message,
+            sub_state=sub_state,
+            persist=persist,
+            snapshot=snapshot,
         )
 
     # --- children ------------------------------------------------------------------

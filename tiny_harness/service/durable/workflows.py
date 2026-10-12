@@ -517,8 +517,10 @@ class TaskWorkflow:
                 done = await self._complete()
                 if done is not None:
                     return done
-                continue
-            if accepted == 0 and not self.notes:
+                if accepted == 0 and not self.notes:
+                    continue
+                # A message taken in the same intake still gets its turn (critic A2).
+            elif accepted == 0 and not self.notes:
                 if self.last_refusal and self.handled == 0:
                     # The sender is a participant (strangers never reach the workflow), so
                     # the stream they opened ends with the unchanged state and the reason;

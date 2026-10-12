@@ -46,6 +46,7 @@ from tiny_harness.harness.hooks import FunctionExecutor, HookContext, HookPoint,
 from tiny_harness.harness.models import scripted
 from tiny_harness.harness.persistence import TaskRecord
 from tiny_harness.harness.tools import ToolCall
+from tiny_harness.service.durable.models import ChildRef
 from tiny_harness.service.durable.workflows import TaskWorkflow
 from tiny_harness.service.inbox import EVENT_MEDIA_TYPE
 
@@ -267,3 +268,37 @@ async def test_completion_is_refused_while_a_sub_task_is_open(
         assert f"{tid}.1" in refused.proto.status.message.parts[0].text
         assert parked(SubState.AWAITING_NEXT_MESSAGE)(refused)
         await close(handle)
+
+
+async def test_a_refused_completion_still_answers_a_message_taken_with_it(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Participant completion (critic A2)
+    Requirement: docs/specs/issue-25/requirements.md#R5
+
+    Scenario: a message dispatched together with a refused completion gets its turn
+        Given a task with an unresolved sub-task
+        And a mailbox holding an ordinary message, then the complete control
+        When both are taken in one intake and the completion is refused
+        Then the ordinary message still runs a turn and gets its reply
+    """
+    h = await Harness([scripted("Refunded.")]).bind()
+    tq, tid = queue(), task_id()
+    open_child = ChildRef(task_id=f"{tid}.1", workflow_id=f"{tid}.1", kind="local")
+    first = message("refund 48213", task_id=tid, message_id="m1")
+    begin = start(task(tid)).model_copy(
+        update={"children": (open_child,), "mailbox": (control(task_id=tid, message_id="m0"),)}
+    )
+    async with h.worker(env.client, tq):
+        handle = await send(env.client, tq, begin, first)
+        answered = await until(
+            handle,
+            lambda t: (
+                bool(t.proto.status.message.parts)
+                and t.proto.status.message.parts[0].text == "Refunded."
+            ),
+        )
+        await close(handle)
+    assert parked(SubState.AWAITING_NEXT_MESSAGE)(answered)
+    assert len(h.llm.requests) == 1

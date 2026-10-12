@@ -236,6 +236,20 @@ works like this:
    Every exit goes through `_end`: a final turn, a final fetch or follow, and a cancel.
    `closed` is set first, so the validator refuses any push from that point (R5.3).
 
+**Review round 1 hardening.**
+
+- `_park` returns `interrupted`, `ended` or `roll`. On `roll`, when the history passes
+  `history_event_bound` or Temporal suggests it, the run continues as new with
+  `RemoteStart.resume` set to the remote id, the watch and the last state (R2.6a).
+- A follow that fails non-retryably (the agent is gone) switches the watch to `off`
+  instead of retrying every 5 s.
+- A follow whose "change" `_apply` rejects pauses `FOLLOW_RETRY`. The follow also
+  compares scrubbed text, so a redacted status cannot spin the loop.
+- `get_remote_task` keeps the known text when the task has no status message.
+- No watch starts without a remote id, and a pending recheck is cleared when `_park`
+  returns.
+- Push fetches use a single attempt, since the rechecks already retry.
+
 `run_remote_agent_turn` is unchanged apart from using `remote_out`.
 
 ### Parent `child_done` (R2.7)

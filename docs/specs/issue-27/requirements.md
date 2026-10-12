@@ -114,6 +114,9 @@ to it.
    as `COMPLETED`, as a turn's end already is (issue-25 R3.4).
 6. WHEN the fetched state is terminal THEN the stand-in SHALL end in that state after
    signalling the parent.
+6a. WHEN a parked stand-in's history passes `history_event_bound`, or Temporal suggests it,
+    THEN the stand-in SHALL continue as new, keeping its remote task id, its watch and its
+    last recorded state, and SHALL fetch the task once on resuming.
 7. WHEN the parent receives `child_done` for a remote child THEN it SHALL update the
    child's row, and SHALL add a note for its model only when the state is terminal,
    `INPUT_REQUIRED` or `AUTH_REQUIRED`. A remote child moving to `WORKING` SHALL update
@@ -204,8 +207,10 @@ anyone who can reach the server, can call. Everything that arrives on it is untr
      no update and run no activity in any workflow, and SHALL change no record or row.
   2. WHEN `{task_id}` names no running stand-in, a stand-in that registered no push
      config, or a workflow that is not a stand-in (a `TaskWorkflow`) THEN the server SHALL
-     answer exactly as for a wrong token, so that the endpoint does not reveal which task
-     ids exist.
+     answer exactly as for a wrong token, with the same status and body, so that the
+     endpoint does not reveal which task ids exist by what it answers. Response timing
+     may differ. Task ids are not secret (a parent's id plus `.n`); the token is what
+     protects a stand-in.
   3. The token comparison SHALL take time independent of how much of the token matches.
   4. WHEN a push carries a valid token but names a remote task id other than the one its
      stand-in drives THEN the server SHALL refuse it as in abuse case 1.

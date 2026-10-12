@@ -637,9 +637,8 @@ class Activities:
         if not isinstance(agent, RemoteAgent):
             raise ApplicationError("not a remote agent", non_retryable=True)
         task = await agent.get_task(arg.remote_task_id, participant=arg.participant)
-        out = remote_out(
-            arg.remote_task_id, task.status.state, sub_state_of(task.metadata), _status_text(task)
-        )
+        text = _status_text(task) or arg.known_text
+        out = remote_out(arg.remote_task_id, task.status.state, sub_state_of(task.metadata), text)
         return self.engine.runner.redactor.scrub(out)
 
     @activity.defn(name=ActivityName.FOLLOW_REMOTE_TASK.value)
@@ -653,19 +652,22 @@ class Activities:
             raise ApplicationError("not a remote agent", non_retryable=True)
         deadline = time.monotonic() + self.follow_window.total_seconds()
         interval = agent.follow_interval.total_seconds()
-        while time.monotonic() < deadline:
+        every = min(self.heartbeat_every, interval)
+        scrub = self.engine.runner.redactor.scrub
+        while (left := deadline - time.monotonic()) > 0:
             try:
-                out = await _heartbeating(
-                    _first_change(agent, arg), every=min(self.heartbeat_every, interval)
-                )
+                # The window bounds an open stream too: a peer holds it until a change.
+                async with asyncio.timeout(left):
+                    out = await _heartbeating(_first_change(agent, arg, scrub), every=every)
+            except TimeoutError:
+                break
             except Exception as exc:  # the remote refused or the transport broke
                 log.info("following %s: %s; retrying", arg.task_id, type(exc).__name__)
                 out = None
             if out is not None:
-                return FollowOut(changed=True, out=self.engine.runner.redactor.scrub(out))
+                return FollowOut(changed=True, out=out)
             await _heartbeating(
-                asyncio.sleep(min(interval, max(0.0, deadline - time.monotonic()))),
-                every=min(self.heartbeat_every, interval),
+                asyncio.sleep(min(interval, max(0.0, deadline - time.monotonic()))), every=every
             )
         return FollowOut(changed=False)
 
@@ -810,9 +812,12 @@ async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
     return remote_out(remote_task_id, state, sub_state, text)
 
 
-async def _first_change(agent: RemoteAgent, arg: FollowIn) -> RemoteTurnOut | None:
+async def _first_change(
+    agent: RemoteAgent, arg: FollowIn, scrub: Callable[[RemoteTurnOut], RemoteTurnOut]
+) -> RemoteTurnOut | None:
     """The first event on the task's stream whose state or text differs from the known
-    pair; ``None`` when the stream ends without one."""
+    pair, compared as the workflow records it (scrubbed); ``None`` when the stream ends
+    without one."""
     text = arg.known_text
     events = agent.subscribe(
         arg.remote_task_id, extensions=SUPPORTED_EXTENSIONS, participant=arg.participant
@@ -820,8 +825,10 @@ async def _first_change(agent: RemoteAgent, arg: FollowIn) -> RemoteTurnOut | No
     async for event in events:
         if isinstance(event, Task | TaskStatusUpdateEvent):
             text = _status_text(event) or text
-            out = remote_out(
-                arg.remote_task_id, event.status.state, sub_state_of(event.metadata), text
+            out = scrub(
+                remote_out(
+                    arg.remote_task_id, event.status.state, sub_state_of(event.metadata), text
+                )
             )
             if (out.state_name, out.text) != (arg.known_state, arg.known_text):
                 return out

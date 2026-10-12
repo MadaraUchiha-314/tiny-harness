@@ -147,10 +147,12 @@ async def test_a_forged_terminal_push_is_not_applied(env: WorkflowEnvironment) -
         Then the endpoint answers 204
         And the stand-in fetches the task, which is still INPUT_REQUIRED, and stays so
         And it fetches again at most three times, since the fetch disagrees with the claim
+        And it tells the parent nothing, since nothing changed
     """
     async for d, remote_id, token in parked(env):
         await settled_history(d)
         before = await activity_count(d, "get_remote_task")
+        signals = await d.events("SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED")
         async with local(d) as http:
             response = await http.post(
                 f"/a2a/push/{d.child_id}",
@@ -158,10 +160,14 @@ async def test_a_forged_terminal_push_is_not_applied(env: WorkflowEnvironment) -
                 content=body(remote_id, "TASK_STATE_COMPLETED"),
             )
         assert response.status_code == 204
-        await asyncio.sleep(8.0)  # every recheck (1 s, 2 s, 4 s) has run
+        for _ in range(300):  # every recheck (1 s, 2 s, 4 s) runs
+            if await activity_count(d, "get_remote_task") == before + 4:
+                break
+            await asyncio.sleep(0.05)
+        await asyncio.sleep(1.0)  # and no fifth follows
+        assert await activity_count(d, "get_remote_task") == before + 4, "at most four fetches"
         assert await d.child_state() == TaskState.TASK_STATE_INPUT_REQUIRED
-        fetches = await activity_count(d, "get_remote_task")
-        assert fetches == before + 4, "a forged push costs at most four GetTask calls"
+        assert await d.events("SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED") == signals
 
 
 async def test_oversized_and_malformed_pushes_are_refused(env: WorkflowEnvironment) -> None:

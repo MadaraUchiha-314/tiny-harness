@@ -328,6 +328,8 @@ class RemoteStart(_Frozen):
     correlation_id: str = ""
     config: WorkflowConfig = WorkflowConfig()
     mailbox: tuple[MessageProto, ...] = ()
+    resume: RemoteResume | None = None
+    """Set on a continued run: the remote task is parked and is watched straight away."""
 
 
 class RemoteTurnIn(ActivityIn):
@@ -358,6 +360,9 @@ class RemoteTaskIn(ActivityIn):
     agent: str
     remote_task_id: str
     participant: str = ""
+    known_text: str = ""
+    """The last recorded status text: a fetch or an event without one keeps it, as a turn
+    does, so a question sent as a message never reads as a change."""
 
 
 class RemoteWatch(_Frozen):
@@ -373,7 +378,17 @@ class FollowIn(RemoteTaskIn):
     """The last recorded state; the follow returns the first event that differs."""
 
     known_state: str
-    known_text: str = ""
+
+
+class RemoteResume(_Frozen):
+    """A stand-in continued as new while its remote task is parked (issue-27)."""
+
+    remote_task_id: str
+    watch: RemoteWatch
+    last: RemoteTurnOut
+
+
+RemoteStart.model_rebuild()
 
 
 class FollowOut(_Frozen):
@@ -527,6 +542,7 @@ __all__ = [
     "PollOut",
     "PushIn",
     "RemotePushDelete",
+    "RemoteResume",
     "RemoteStart",
     "RemoteTaskIn",
     "RemoteTurnIn",

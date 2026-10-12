@@ -17,6 +17,7 @@ from a2a.types import Message, Part, Task, TaskState
 from a2a.types import Role as A2ARole
 from google.protobuf import struct_pb2
 from starlette.applications import Starlette
+from temporalio.api.enums.v1 import EventType
 from temporalio.client import WorkflowHandle
 from temporalio.testing import WorkflowEnvironment
 
@@ -87,11 +88,15 @@ class Delegation:
     def child_id(self) -> str:
         return f"{self.task_id}.1"
 
-    async def begin(self) -> WorkflowHandle[TaskWorkflow, Task]:
+    async def begin(
+        self, *, history_event_bound: int = 10_000
+    ) -> WorkflowHandle[TaskWorkflow, Task]:
         return await send(
             self.env.client,
             self.queue,
-            start(task(self.task_id, f"ctx-{self.task_id}")),
+            start(
+                task(self.task_id, f"ctx-{self.task_id}"), history_event_bound=history_event_bound
+            ),
             message(
                 "refund 48213",
                 task_id=self.task_id,
@@ -131,6 +136,28 @@ class Delegation:
             "inbox", control_complete(remote_id), result_type=InboxReceipt
         )
         assert receipt.accepted
+
+    async def events(self, event_type: str, activity: str | None = None) -> int:
+        """How many ``EVENT_TYPE_<event_type>`` events the stand-in's current run holds,
+        only for ``activity`` when given (a scheduled activity's name)."""
+        handle = self.env.client.get_workflow_handle(self.child_id)
+        count = 0
+        async for e in handle.fetch_history_events():
+            if EventType.Name(e.event_type) != f"EVENT_TYPE_{event_type}":
+                continue
+            if activity is not None and (
+                e.activity_task_scheduled_event_attributes.activity_type.name != activity
+            ):
+                continue
+            count += 1
+        return count
+
+    async def continued(self) -> bool:
+        """Whether the stand-in's current run was continued as new from an earlier one."""
+        handle = self.env.client.get_workflow_handle(self.child_id)
+        async for e in handle.fetch_history_events():
+            return bool(e.workflow_execution_started_event_attributes.continued_execution_run_id)
+        return False
 
     async def child(self) -> Task:
         return await self.env.client.get_workflow_handle(self.child_id).result()

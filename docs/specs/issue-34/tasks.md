@@ -75,7 +75,7 @@ from the repository root.
   - _Test:_ T1 — `uv run pytest tests/unit/prompts`; T3 —
     `uv run pytest tests/contract/test_prompts_api.py` (red→green)
 
-- [ ] 5. Wire the roster into `build_runtime` (`service/runtime.py`)
+- [x] 5. Wire the roster into `build_runtime` (`service/runtime.py`)
   - After the agents are registered: build the roster, log `INFO` with the ids, log one
     `WARNING` per truncation, and pass `roster.text` to `InProcessOperations`.
   - Integration tests in `tests/integration/agents/test_agents_roster.py`, each with a

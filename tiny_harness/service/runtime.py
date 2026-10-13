@@ -15,7 +15,7 @@ from pydantic import SecretStr
 
 from tiny_harness.builtin import load_builtin
 from tiny_harness.config import Settings
-from tiny_harness.harness.agents import RemoteAgent
+from tiny_harness.harness.agents import Agent, RemoteAgent, build_roster
 from tiny_harness.harness.channels.help import register_default as register_help_default
 from tiny_harness.harness.commands import CommandHandler, CommandRegistry, CommandSpec
 from tiny_harness.harness.core import ContextWindowManager
@@ -181,6 +181,11 @@ async def build_runtime(
             follow_interval=remote.follow_interval,
         )
         await registry.add(RegistryEntry(ref=agent.ref, instance=agent), override=True)
+    agents = [await registry.get(ref, Agent) for ref in registry.list(EntityKind.AGENT)]
+    roster = build_roster(agents)  # once: the static prefix stays stable (issue-34 R1.5)
+    log.info("agents roster: %s", ", ".join(roster.ids) or "(none)")
+    for agent_id, card_field in roster.truncated:
+        log.warning("agent %s: card field %s truncated in the agents roster", agent_id, card_field)
     skills = SkillSession(registry, data_root=root)
     for tool in skill_tools(skills):
         await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
@@ -210,6 +215,7 @@ async def build_runtime(
         store=records,
         system_prompt=system_prompt,
         skills_index=index,
+        agents_roster=roster.text,
         manager=ContextWindowManager(
             turn_budget_tokens=settings.context.turn_budget_tokens,
             compaction_fraction=settings.context.compaction_fraction,

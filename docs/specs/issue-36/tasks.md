@@ -121,7 +121,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ R2.3, R2.4, R4.6, R7.3
   - _Test:_ T1 `tests/unit/service/test_public_url.py`; T5 `tests/contract/test_agent_card.py`
     unchanged
-- [ ] 12. `build_routes`, `DeferredRequestHandler`, `RouteOptions`, `HarnessApp`
+- [x] 12. `build_routes`, `DeferredRequestHandler`, `RouteOptions`, `HarnessApp`
   - Replace `create_app`.
   - The routes are built at definition time over a deferred handler, and the card
     comes through `card_modifier`.

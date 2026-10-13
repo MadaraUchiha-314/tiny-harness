@@ -127,8 +127,8 @@ async def running_harness(
                 harness.asgi_app(),
                 host=host,
                 port=port,
-                # A base_url with a path: requests arrive under it, or with it stripped by
-                # a proxy; either way the app is mounted there (issue-36 R2.5).
+                # A base_url with a path: a proxy forwards the requests with that path
+                # stripped, and the app is mounted there (issue-36 R2.5).
                 root_path=harness.prefix,
                 log_level="info",
                 log_config=uvicorn_log_config(log_stream) if log_stream else LOGGING_CONFIG,

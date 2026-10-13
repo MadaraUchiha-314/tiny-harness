@@ -407,8 +407,11 @@ class HarnessApp:
                 mounted = str(scope.get("path", ""))
                 ok = mounted == self.prefix or mounted.startswith(self.prefix + "/")
             else:
+                # Exactly the prefix: a suffix match would accept /agents/b for /b, and an
+                # unprefixed app mounted under a path would serve a card without that path
+                # (issue-36 self-review 1, #6).
                 mounted = str(scope.get("root_path", ""))
-                ok = mounted.endswith(self.prefix) if self.prefix else True
+                ok = mounted == self.prefix
             if not ok:
                 self._mount_error = (
                     f"agent {self.agent_id} is mounted at {mounted!r} "

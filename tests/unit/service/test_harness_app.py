@@ -158,3 +158,11 @@ async def test_the_top_level_app_starts_its_harness_from_the_lifespan() -> None:
     await app({"type": "lifespan"}, receive, send)  # type: ignore[arg-type]
     assert events == ["start", "stop"]
     assert sent == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
+
+
+@pytest.mark.parametrize(("prefix", "mounted_at"), [("", "/agents/a"), ("/a", "/agents/a")])
+async def test_only_the_exact_prefix_passes_the_mount_check(prefix: str, mounted_at: str) -> None:
+    """Self-review round 1, finding 6: no suffix match, and no unprefixed app under a path."""
+    async with host(harness_app(Flag(True), prefix=prefix), at=mounted_at) as http:
+        response = await http.get(f"{mounted_at}/.well-known/agent-card.json")
+        assert response.status_code == 500

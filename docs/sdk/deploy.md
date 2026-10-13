@@ -51,6 +51,16 @@ in each message. For this reason:
 
 A server without a gateway is not secure.
 
+The agent also sends requests to itself. It does this when it gives a step to a
+sub-task, at its own [`base_url`](../configuration/server#base-url), with
+`X-Participant-Id: tiny-harness`. Make sure that these requests work and stay safe:
+
+- Use a `base_url` that reaches the server on an internal route, without the gateway.
+  Or let the gateway pass the agent's own requests.
+- Do **not** make the gateway pass `X-Participant-Id` values that clients send. The
+  gateway must always replace the header. If it passes a client's value, any client can
+  claim to be the agent and see every task.
+
 The server does protect itself in some ways. It limits the request size
 (`max_request_bytes`), limits requests per client (`rate_limit_per_minute`), checks
 every user interface action and removes every configured secret from logs, traces and

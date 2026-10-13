@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import AsyncGenerator, Iterable
+from collections.abc import AsyncGenerator, Collection, Iterable
 from typing import Literal, cast
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -134,6 +134,14 @@ def extension_from_envelope(
     return ext
 
 
+def check_model(ext: TaskExtensionData, selectable: Collection[str]) -> None:
+    """A briefed ``model`` must be one the configuration allows, as ``/model`` requires;
+    trust lets a delegator set the field, never choose an arbitrary model (issue-34 abuse
+    case 6)."""
+    if ext.model is not None and ext.model not in selectable:
+        raise UnsupportedOperationError(message=f"model {ext.model!r} is not selectable here")
+
+
 def without_envelope(message: Message) -> Message:
     """The first message once its ``task`` envelope has made the task: intake must not
     apply it a second time as a change by a participant (issue-34 R7.2)."""
@@ -171,10 +179,12 @@ class HarnessExecutor(AgentExecutor):
         redactor: Redactor | None = None,
         policy: AccessPolicy | None = None,
         delegators: Iterable[str] = (),
+        models: Collection[str] | None = None,
     ) -> None:
         self._client = client
         # Who may brief a new task fully (issue-34 R7): this agent itself, always.
         self._delegators = frozenset({config.agent, *delegators})
+        self._models = models  # the selectable models; None: not checked (tests)
         self._task_queue = task_queue
         self._bridge = bridge
         self._config = config
@@ -211,6 +221,8 @@ class HarnessExecutor(AgentExecutor):
         if briefed:
             assert envelope is not None
             ext = extension_from_envelope(envelope, message, agent, trusted=trusted)
+            if self._models is not None:
+                check_model(ext, self._models)
             message = without_envelope(message)
         else:
             ext = default_extension(message, agent)
@@ -341,6 +353,7 @@ __all__ = [
     "EventEnvelope",
     "HarnessExecutor",
     "Part",
+    "check_model",
     "default_extension",
     "envelope_json",
     "envelope_of",

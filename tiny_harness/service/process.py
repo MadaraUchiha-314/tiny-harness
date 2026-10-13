@@ -25,6 +25,7 @@ from uvicorn.config import LOGGING_CONFIG
 
 from tiny_harness.config import Settings
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
+from tiny_harness.harness.models import ModelCatalog
 from tiny_harness.harness.plugins import Plugin
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
@@ -157,6 +158,7 @@ async def running_harness(
             config=workflow_config(settings),
             redactor=runtime.redactor,
             delegators=settings.server.delegators,
+            models=ModelCatalog.from_settings(settings).selectable,
         )
         activities = Activities(
             runtime.engine,

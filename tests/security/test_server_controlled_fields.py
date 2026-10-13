@@ -14,7 +14,7 @@ from temporalio.client import Client
 from tiny_harness.harness.core import Participant, Role, TaskExtensionData
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.bridge import EventBridge
-from tiny_harness.service.a2a.executor import HarnessExecutor, extension_from_envelope
+from tiny_harness.service.a2a.executor import HarnessExecutor, check_model, extension_from_envelope
 from tiny_harness.service.durable.models import WorkflowConfig
 from tiny_harness.service.inbox import (
     EVENT_MEDIA_TYPE,
@@ -95,3 +95,13 @@ def test_the_executor_trusts_this_agent_and_the_configured_delegators_only() -> 
         delegators=("ledger-peer",),
     )
     assert executor._delegators == frozenset({"front-desk", "ledger-peer"})  # pyright: ignore[reportPrivateUsage]
+
+
+def test_a_briefed_model_must_be_one_the_configuration_allows() -> None:
+    """issue-34 abuse case 6: even a trusted delegator's brief names only a selectable
+    model, as ``/model`` does; the task is refused whole otherwise."""
+    ext = TaskExtensionData(name="Audit", goal="g", model="model-b")
+    check_model(ext, ("model-a", "model-b"))  # allowed
+    check_model(TaskExtensionData(name="Audit", goal="g"), ("model-a",))  # none set
+    with pytest.raises(UnsupportedOperationError, match="model-x"):
+        check_model(ext.model_copy(update={"model": "model-x"}), ("model-a", "model-b"))

@@ -131,6 +131,7 @@ from tiny_harness.service.inbox import (
 )
 from tiny_harness.service.o11y.tracing import no_export
 from tiny_harness.service.push_token import push_url, token_digest
+from tiny_harness.service.visibility import visibility_literal
 
 log = logging.getLogger("tiny_harness.durable.activities")
 HEARTBEAT_EVERY = 10.0
@@ -958,7 +959,7 @@ async def running_task_workflows(client: Client, task_queue: str | None = None) 
     server supports no query (the test server)."""
     query = "WorkflowType = 'TaskWorkflow' AND ExecutionStatus = 'Running'"
     if task_queue is not None:
-        query += " AND TaskQueue = '" + task_queue.replace("'", "''") + "'"
+        query += " AND TaskQueue = " + visibility_literal(task_queue)
     try:
         return [
             e.id

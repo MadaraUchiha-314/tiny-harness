@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import cast
 
+import pytest
 from a2a.server.context import ServerCallContext
 from a2a.types import ListTasksRequest, Task
 from temporalio.client import Client
@@ -17,12 +18,9 @@ from temporalio.service import RPCError, RPCStatusCode
 
 from tiny_harness.harness.core import HarnessTask, Participant, Role, TaskExtensionData
 from tiny_harness.harness.persistence import SqliteStore, TaskRecord
-from tiny_harness.service.a2a.task_store import (
-    PARTICIPANT_STATE_KEY,
-    TemporalTaskStore,
-    visibility_literal,
-)
+from tiny_harness.service.a2a.task_store import PARTICIPANT_STATE_KEY, TemporalTaskStore
 from tiny_harness.service.durable.activities import running_task_workflows
+from tiny_harness.service.visibility import visibility_literal
 
 ALICE = ServerCallContext(state={PARTICIPANT_STATE_KEY: "alice"})
 
@@ -135,13 +133,22 @@ async def test_without_a_queue_every_task_is_a_candidate() -> None:
     assert fake.describes == []
 
 
-async def test_list_tasks_filters_by_queue_and_quotes_the_context() -> None:
+async def test_list_tasks_filters_by_queue_and_names_the_context() -> None:
     fake = FakeClient({"t1": "a", "t2": "b"})
-    response = await store_for(fake).list(ListTasksRequest(context_id="x' OR 'y"), ALICE)
+    response = await store_for(fake).list(ListTasksRequest(context_id="ctx"), ALICE)
     assert fake.listed == [
-        "WorkflowType = 'TaskWorkflow' AND TaskQueue = 'a' AND A2AContextId = 'x'' OR ''y'"
+        "WorkflowType = 'TaskWorkflow' AND TaskQueue = 'a' AND A2AContextId = 'ctx'"
     ]
-    assert [t.id for t in response.tasks] == []  # t1's context is "ctx", not the request's
+    assert [t.id for t in response.tasks] == ["t1"]
+
+
+@pytest.mark.parametrize("unsafe", ["x' OR 'y", "x\\' OR TaskQueue != '' -- ", "a b", ""])
+async def test_an_unsafe_context_id_lists_nothing_and_reaches_no_query(unsafe: str) -> None:
+    """Self-review round 1, finding 3: fail closed before the query is built."""
+    fake = FakeClient({"t1": "a"})
+    response = await store_for(fake).list(ListTasksRequest(context_id=unsafe or " "), ALICE)
+    assert list(response.tasks) == []
+    assert fake.listed == []
 
 
 async def test_list_tasks_skips_another_agents_executions() -> None:
@@ -156,5 +163,6 @@ async def test_the_heartbeat_scan_is_scoped_to_the_queue() -> None:
     assert "TaskQueue = 'a'" in fake.listed[0]
 
 
-def test_visibility_literal_doubles_quotes() -> None:
-    assert visibility_literal("it's") == "'it''s'"
+def test_visibility_literal_escapes_quotes_and_backslashes() -> None:
+    assert visibility_literal("it's") == "'it\\'s'"
+    assert visibility_literal("a\\b") == "'a\\\\b'"

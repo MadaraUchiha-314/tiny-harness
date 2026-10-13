@@ -6,6 +6,7 @@ the asserted participant is not on. ``save`` is a no-op: the workflow owns the t
 from __future__ import annotations
 
 import logging
+import re
 from collections import OrderedDict
 from collections.abc import Sequence
 
@@ -17,6 +18,7 @@ from temporalio.service import RPCError
 
 from tiny_harness.harness.core import HarnessTask
 from tiny_harness.harness.persistence import Store, TaskRecord
+from tiny_harness.service.visibility import visibility_literal
 
 log = logging.getLogger("tiny_harness.a2a.access")
 PARTICIPANT_STATE_KEY = "participant_id"
@@ -63,10 +65,7 @@ class AccessPolicy:
 OWNERSHIP_CACHE_SIZE = 4096
 
 
-def visibility_literal(value: str) -> str:
-    """``value`` as a quoted visibility-query string: single quotes doubled, so a request's
-    context id cannot end the literal and add a clause (issue-36 design § Security)."""
-    return "'" + value.replace("'", "''") + "'"
+SAFE_CONTEXT_ID = re.compile(r"[A-Za-z0-9._:-]{1,256}")
 
 
 class TemporalTaskStore(TaskStore):
@@ -144,6 +143,11 @@ class TemporalTaskStore(TaskStore):
         if self._task_queue is not None:
             query += f" AND TaskQueue = {visibility_literal(self._task_queue)}"
         if params.context_id:
+            if not SAFE_CONTEXT_ID.fullmatch(params.context_id):
+                # Fail closed: a context id the harness never assigns lists nothing, and never
+                # reaches the query (issue-36 self-review 1, #3).
+                log.info("ListTasks refused an unsafe context id")
+                return ListTasksResponse(tasks=[], page_size=0, total_size=0)
             query += f" AND A2AContextId = {visibility_literal(params.context_id)}"
         tasks: list[Task] = []
         page_size = params.page_size or 50
@@ -189,6 +193,7 @@ class TemporalTaskStore(TaskStore):
 __all__ = [
     "PARTICIPANT_HEADER",
     "PARTICIPANT_STATE_KEY",
+    "SAFE_CONTEXT_ID",
     "STRICT_STATE_KEY",
     "AccessPolicy",
     "TaskState",

@@ -112,7 +112,7 @@ five-agent acceptance and the docs.
   - _Test:_ T1 `tests/unit/service/test_context_builder.py`; T4
     `tests/security/test_participant_resolver.py` (`Scenario: With a resolver a spoofed
     participant header is ignored`)
-- [ ] 11. `public_url` and the card
+- [x] 11. `public_url` and the card
   - Add `public_url(base_url, prefix)` per the design's table, with normalization and
     a `ConfigError` on mismatch.
   - `build_agent_card` takes the public URL and the `[agent]` name and description.

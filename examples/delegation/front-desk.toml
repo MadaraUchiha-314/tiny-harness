@@ -1,0 +1,32 @@
+# The front-desk agent of the delegation example (issue-34). It has no tools of its own.
+# It lists the ledger agent under `agents`, reads the ledger's card at start, and gives
+# the ledger order questions by itself.
+#   unset TEMPORAL_API_KEY
+#   export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+#   uv run tiny-harness --config examples/delegation/front-desk.toml serve
+
+agents = [
+  { id = "ledger", url = "http://127.0.0.1:8091" },
+]
+
+[card]
+name = "Front desk"
+description = "The first contact for Nimbus Kitchen customers. Answers questions and passes order questions to the order ledger."
+
+[temporal]
+mode = "embedded"
+task_queue = "tiny-harness-front-desk"
+
+[openai]
+model = "gpt-6.1-sol"
+timeout = "PT120S"
+
+[server]
+bind = "127.0.0.1:8090"
+base_url = "http://127.0.0.1:8090"
+
+[store]
+sqlite_path = "examples/delegation/.state/front-desk/tiny-harness.sqlite3"
+
+[o11y]
+log_level = "INFO"

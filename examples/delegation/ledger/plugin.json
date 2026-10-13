@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ledger",
+  "version": "0.1.0",
+  "description": "The delegation example's ledger agent: a read-only order book over MCP and a prompt extension.",
+  "license": "Apache-2.0"
+}

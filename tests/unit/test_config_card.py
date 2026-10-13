@@ -84,3 +84,14 @@ def test_an_unset_field_keeps_its_default(tmp_path: Path) -> None:
 def test_an_invalid_card_section_is_refused_at_startup(tmp_path: Path, extra: str) -> None:
     with pytest.raises(ConfigError):
         load(tmp_path, extra)
+
+
+def test_the_delegation_example_pairs_a_described_ledger_with_a_front_desk() -> None:
+    examples = Path(__file__).parents[2] / "examples" / "delegation"
+    ledger = Settings.load(examples / "ledger.toml", env=ENV)
+    front = Settings.load(examples / "front-desk.toml", env=ENV)
+    (agent,) = front.agents
+    assert (agent.id, str(agent.url)) == ("ledger", str(ledger.server.base_url))
+    described = describe(ledger.card)
+    assert described.name == "Order ledger" and "order" in described.description
+    assert [s.id for s in described.skills] == ["order-status"]

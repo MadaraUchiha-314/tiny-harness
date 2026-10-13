@@ -103,7 +103,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ R5.6, R7.1
   - _Test:_ T1 `tests/unit/service/test_heartbeat_id.py`; T6 the `tests/integration/heartbeat`
     suite unchanged
-- [ ] 10. Participant resolver and strict mode
+- [x] 10. Participant resolver and strict mode
   - `HarnessContextBuilder(resolver)`: with a resolver it never reads the header, sets
     `STRICT_STATE_KEY`, and a raising resolver gives `500`.
   - `sender_of` refuses a message that has no resolved participant in strict mode.

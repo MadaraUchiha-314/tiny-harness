@@ -21,6 +21,13 @@ from tiny_harness.harness.persistence import Store, TaskRecord
 log = logging.getLogger("tiny_harness.a2a.access")
 PARTICIPANT_STATE_KEY = "participant_id"
 PARTICIPANT_HEADER = "x-participant-id"
+STRICT_STATE_KEY = "participant_strict"
+"""Set when the host app's resolver, not the header, names the participant (issue-36 R4.2):
+then a message's self-claimed ``participant_id`` is never enough on its own."""
+
+
+def strict_participant(context: ServerCallContext | None) -> bool:
+    return context is not None and bool(context.state.get(STRICT_STATE_KEY))
 
 
 def asserted_participant(context: ServerCallContext | None) -> str | None:
@@ -182,9 +189,11 @@ class TemporalTaskStore(TaskStore):
 __all__ = [
     "PARTICIPANT_HEADER",
     "PARTICIPANT_STATE_KEY",
+    "STRICT_STATE_KEY",
     "AccessPolicy",
     "TaskState",
     "TemporalTaskStore",
     "asserted_participant",
+    "strict_participant",
     "visibility_literal",
 ]

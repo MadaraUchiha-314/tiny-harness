@@ -27,18 +27,36 @@ from tiny_harness.service.a2a.push import (
     PUSH_TOKEN_HEADER,
     PushReceiver,
 )
-from tiny_harness.service.a2a.task_store import PARTICIPANT_HEADER, PARTICIPANT_STATE_KEY
+from tiny_harness.service.a2a.task_store import (
+    PARTICIPANT_HEADER,
+    PARTICIPANT_STATE_KEY,
+    STRICT_STATE_KEY,
+)
 from tiny_harness.service.o11y.logging import drop_sdk_request_bodies
 
 MonitorSource = Callable[[], Awaitable[JsonObject]]
+ParticipantResolver = Callable[[Request], str | None]
+"""The host app's identity hook (issue-36 R4.1): the request's authenticated participant id,
+or ``None``. Synchronous, as the SDK's context builder is; the host's auth middleware has
+already run."""
 
 
 class HarnessContextBuilder(DefaultServerCallContextBuilder):
-    """The default builder plus the self-asserted participant (decision-003)."""
+    """The default builder plus the participant: the self-asserted ``X-Participant-Id``
+    header (decision-003), or, with a ``resolver``, the host app's answer and never the
+    header (issue-36 R4.2). A resolver that raises fails the request; there is no fallback."""
+
+    def __init__(self, resolver: ParticipantResolver | None = None) -> None:
+        super().__init__()
+        self._resolver = resolver
 
     def build(self, request: Request) -> ServerCallContext:
         context = super().build(request)
-        participant = request.headers.get(PARTICIPANT_HEADER)
+        if self._resolver is None:
+            participant = request.headers.get(PARTICIPANT_HEADER)
+        else:
+            context.state[STRICT_STATE_KEY] = True
+            participant = self._resolver(request)
         if participant:
             context.state[PARTICIPANT_STATE_KEY] = participant
         return context
@@ -99,4 +117,4 @@ def create_app(
     return app
 
 
-__all__ = ["HarnessContextBuilder", "MonitorSource", "create_app"]
+__all__ = ["HarnessContextBuilder", "MonitorSource", "ParticipantResolver", "create_app"]

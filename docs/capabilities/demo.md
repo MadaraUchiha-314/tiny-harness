@@ -8,7 +8,7 @@
 The definition of done of issue-3, kept runnable: `examples/demo` is an Agent Plugin
 (the `orders` and `policy` stdio MCP servers, the `support-agent` skill, a prompt
 extension) with a `config.toml`, started by `python -m examples.demo`. The
-[getting started](../guide/getting-started) guide is the walkthrough.
+[support agent example](../sdk/example) is the walkthrough.
 
 ## Current behaviour
 

@@ -1,0 +1,22 @@
+{
+  "name": "tiny-harness-tools",
+  "owner": { "name": "MadaraUchiha-314" },
+  "metadata": {
+    "description": "Third-party plugins that tiny-harness contributors use, pinned to a reviewed release."
+  },
+  "plugins": [
+    {
+      "name": "archify",
+      "description": "Archify: turns a repository or a description into an interactive architecture diagram (https://github.com/tt-a1i/archify). Used for the architecture deep dives under docs/.",
+      "source": {
+        "source": "github",
+        "repo": "tt-a1i/archify",
+        "ref": "v3.0.1",
+        "sha": "2ab3cae7ac2c2a55d7386ca789d03c4fcd31816c"
+      },
+      "strict": false,
+      "skills": ["./archify"],
+      "license": "MIT"
+    }
+  ]
+}

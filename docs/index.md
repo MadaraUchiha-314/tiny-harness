@@ -3,29 +3,29 @@ layout: home
 
 hero:
   name: tiny-harness
-  tagline: A2A 1.0 in and out, MCP tools, skills and plugins, one Temporal workflow per task
+  tagline: Run an AI agent that holds a conversation, calls your tools and survives a crash. In your terminal, or in your Python application.
   actions:
     - theme: brand
-      text: Getting started
-      link: /guide/getting-started
-    - theme: alt
-      text: Deployment
-      link: /guide/deployment
+      text: Chat in your terminal
+      link: /cli/
+    - theme: brand
+      text: Run it in your Python app
+      link: /sdk/
     - theme: alt
       text: GitHub
       link: https://github.com/MadaraUchiha-314/tiny-harness
 
 features:
-  - title: Guide
-    details: Run the demo, deploy the server and workers behind a perimeter, set up a development environment.
-    link: /guide/getting-started
-  - title: Architecture
-    details: How tiny-harness is put together, and the repository layout.
-    link: /architecture/architecture
-  - title: Capabilities
-    details: Current behaviour, one page per capability, each traced to the work items that shaped it.
-    link: /capabilities/capabilities
-  - title: Decisions and specs
-    details: Every durable decision, and the requirements, design and tasks of each work item.
-    link: /decisions/decisions
+  - title: CLI guide
+    details: Install one command and chat with an agent in the terminal. No code. Works with OpenAI or a local model.
+    link: /cli/
+  - title: SDK guide
+    details: Start the agent from your Python code, add your tools and serve it to your users over A2A.
+    link: /sdk/
+  - title: Configuration
+    details: Every setting, what it does, its default and when to change it.
+    link: /configuration/
+  - title: Developer guide
+    details: Set up the repository, read the architecture and change tiny-harness itself.
+    link: /develop/
 ---

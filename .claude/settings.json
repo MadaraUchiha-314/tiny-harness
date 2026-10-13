@@ -81,9 +81,16 @@
         "source": "github",
         "repo": "MadaraUchiha-314/the-loop"
       }
+    },
+    "tiny-harness-tools": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/marketplace"
+      }
     }
   },
   "enabledPlugins": {
-    "the-loop@the-loop": true
+    "the-loop@the-loop": true,
+    "archify@tiny-harness-tools": true
   }
 }

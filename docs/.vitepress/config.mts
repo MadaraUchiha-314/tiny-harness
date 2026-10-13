@@ -74,6 +74,56 @@ function specItems(): DefaultTheme.SidebarItem[] {
     });
 }
 
+const CLI: DefaultTheme.SidebarItem[] = [
+  { text: "Quickstart", link: "/cli/" },
+  { text: "Use the TUI", link: "/cli/tui" },
+];
+
+const SDK: DefaultTheme.SidebarItem[] = [
+  { text: "Quickstart", link: "/sdk/" },
+  { text: "Add tools, commands and skills", link: "/sdk/extend" },
+  { text: "Example: support agent", link: "/sdk/example" },
+  { text: "Deploy", link: "/sdk/deploy" },
+];
+
+const CONFIGURATION: DefaultTheme.SidebarItem[] = [
+  { text: "Overview", link: "/configuration/" },
+  { text: "Temporal", link: "/configuration/temporal" },
+  { text: "Models", link: "/configuration/models" },
+  { text: "Server", link: "/configuration/server" },
+  { text: "Plugins and other agents", link: "/configuration/plugins-and-agents" },
+  { text: "Storage", link: "/configuration/storage" },
+  { text: "Observability", link: "/configuration/observability" },
+  { text: "Tuning", link: "/configuration/tuning" },
+];
+
+const A2A: DefaultTheme.SidebarItem[] = [
+  { text: "Extensions", link: "/a2a/extensions" },
+  { text: "Task extension v1", link: "/a2a/ext/task/v1" },
+  { text: "Channel extension v1", link: "/a2a/ext/channel/v1" },
+  { text: "Status extension v1", link: "/a2a/ext/status/v1" },
+  { text: "Commands extension v1", link: "/a2a/ext/commands/v1" },
+];
+
+// The contributor sidebar: everything that is not a user guide.
+const DEVELOPER: DefaultTheme.SidebarItem[] = [
+  {
+    text: "Developer guide",
+    items: [
+      { text: "Set up and checks", link: "/develop/" },
+      { text: "Tech stack", link: "/develop/tech-stack" },
+      { text: "Releasing", link: "/develop/releasing" },
+      { text: "Write documentation", link: "/develop/writing-docs" },
+    ],
+  },
+  { text: "Architecture", collapsed: false, items: treeItems("architecture", "architecture") },
+  { text: "Capabilities", collapsed: true, items: treeItems("capabilities", "capabilities") },
+  { text: "A2A reference", collapsed: true, items: A2A },
+  { text: "Decisions", collapsed: true, items: treeItems("decisions", "decisions") },
+  { text: "Learnings", collapsed: true, items: treeItems("learnings", "learnings") },
+  { text: "Specs", collapsed: true, items: [{ text: "Overview", link: "/specs/" }, ...specItems()] },
+];
+
 // withMermaid renders ```mermaid fences as diagrams (the-loop's specs use them throughout).
 export default withMermaid({
   title: "tiny-harness",
@@ -86,40 +136,26 @@ export default withMermaid({
   ignoreDeadLinks: [/\/specs\/[^/]+\/(index)?$/],
   themeConfig: {
     nav: [
-      { text: "Guide", link: "/guide/getting-started" },
-      { text: "Architecture", link: "/architecture/architecture" },
-      { text: "Capabilities", link: "/capabilities/capabilities" },
-      { text: "Decisions", link: "/decisions/decisions" },
-      { text: "Specs", link: "/specs/" },
+      { text: "CLI", link: "/cli/" },
+      { text: "SDK", link: "/sdk/" },
+      { text: "Configuration", link: "/configuration/" },
+      { text: "Developers", link: "/develop/" },
     ],
-    sidebar: [
-      {
-        text: "Guide",
-        items: [
-          { text: "Getting started", link: "/guide/getting-started" },
-          { text: "Deployment", link: "/guide/deployment" },
-          { text: "Tech stack", link: "/guide/tech-stack" },
-          { text: "Local development", link: "/guide/local-development" },
-          { text: "Releasing", link: "/guide/releasing" },
-        ],
-      },
-      {
-        text: "A2A",
-        collapsed: false,
-        items: [
-          { text: "Extensions", link: "/a2a/extensions" },
-          { text: "Task extension v1", link: "/a2a/ext/task/v1" },
-          { text: "Channel extension v1", link: "/a2a/ext/channel/v1" },
-          { text: "Status extension v1", link: "/a2a/ext/status/v1" },
-          { text: "Commands extension v1", link: "/a2a/ext/commands/v1" },
-        ],
-      },
-      { text: "Architecture", collapsed: false, items: treeItems("architecture", "architecture") },
-      { text: "Capabilities", collapsed: false, items: treeItems("capabilities", "capabilities") },
-      { text: "Decisions", collapsed: true, items: treeItems("decisions", "decisions") },
-      { text: "Learnings", collapsed: true, items: treeItems("learnings", "learnings") },
-      { text: "Specs", collapsed: true, items: [{ text: "Overview", link: "/specs/" }, ...specItems()] },
-    ],
+    // One sidebar per reader: users never scroll past the-loop's records.
+    sidebar: {
+      "/cli/": [{ text: "CLI guide", items: CLI }, { text: "Configuration", items: CONFIGURATION }],
+      "/sdk/": [
+        { text: "SDK guide", items: SDK },
+        { text: "Configuration", items: CONFIGURATION },
+        { text: "A2A reference", collapsed: true, items: A2A },
+      ],
+      "/configuration/": [
+        { text: "Configuration", items: CONFIGURATION },
+        { text: "Guides", items: [{ text: "CLI quickstart", link: "/cli/" }, { text: "SDK quickstart", link: "/sdk/" }] },
+      ],
+      "/a2a/": [{ text: "A2A reference", items: A2A }, { text: "SDK guide", items: SDK }],
+      "/": DEVELOPER,
+    },
     search: { provider: "local" },
     socialLinks: [{ icon: "github", link: REPO }],
     editLink: {

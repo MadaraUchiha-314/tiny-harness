@@ -86,7 +86,7 @@ How a deployment is described and how the processes come up. Lives in
 ## Design
 
 [design.md § Configuration](../specs/issue-3/design.md#configuration-r21--configpy),
-[deployment guide](../guide/deployment).
+[deploy guide](../sdk/deploy), [configuration](../configuration/).
 
 ## History
 

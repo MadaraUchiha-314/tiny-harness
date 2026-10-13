@@ -117,6 +117,6 @@ docs/                 VitePress site + the-loop's specs, capabilities, decisions
 ```
 
 The tools, and how checks flow from the pre-commit hooks into CI and releases, are in the
-[tech stack guide](../guide/tech-stack) and the
+[tech stack guide](../develop/tech-stack) and the
 [repo-tooling capability](../capabilities/repo-tooling.md);
 [decision-001](../decisions/decision-001.md) has the reasoning.

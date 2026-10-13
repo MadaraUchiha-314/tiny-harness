@@ -6,7 +6,7 @@ from tiny_harness.service.a2a.card import SUPPORTED_EXTENSIONS, build_agent_card
 from tiny_harness.service.a2a.executor import HarnessExecutor
 from tiny_harness.service.a2a.handler import HarnessRequestHandler
 from tiny_harness.service.a2a.middleware import LimitsMiddleware
-from tiny_harness.service.a2a.push import PushSink, StorePushConfigStore
+from tiny_harness.service.a2a.push import PushReceiver, PushSink, StorePushConfigStore
 from tiny_harness.service.a2a.task_store import AccessPolicy, TemporalTaskStore
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "HarnessRequestHandler",
     "LimitsMiddleware",
     "PollingEventBridge",
+    "PushReceiver",
     "PushSink",
     "StorePushConfigStore",
     "TemporalTaskStore",

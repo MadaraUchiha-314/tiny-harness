@@ -173,7 +173,13 @@ async def build_runtime(
             await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         sources.append(source)
     for remote in settings.agents:
-        agent = await RemoteAgent.connect(remote.id, str(remote.url), version=remote.version)
+        agent = await RemoteAgent.connect(
+            remote.id,
+            str(remote.url),
+            version=remote.version,
+            updates=remote.updates,
+            follow_interval=remote.follow_interval,
+        )
         await registry.add(RegistryEntry(ref=agent.ref, instance=agent), override=True)
     skills = SkillSession(registry, data_root=root)
     for tool in skill_tools(skills):

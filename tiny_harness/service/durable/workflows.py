@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import json
+from collections.abc import Callable
 from datetime import timedelta
 from typing import Final, Literal, cast
 
@@ -88,6 +90,7 @@ with workflow.unsafe.imports_passed_through():
     )
     from tiny_harness.jsontypes import JsonObject
     from tiny_harness.service.durable.models import (
+        FOLLOW_WINDOW,
         ActivityIn,
         ActivityName,
         AssembleIn,
@@ -104,6 +107,8 @@ with workflow.unsafe.imports_passed_through():
         ErrorInfo,
         EventEntry,
         EventPage,
+        FollowIn,
+        FollowOut,
         HeartbeatResult,
         HeartbeatTick,
         HelpRequest,
@@ -117,9 +122,14 @@ with workflow.unsafe.imports_passed_through():
         PersistIn,
         PollIn,
         PollOut,
+        PushIn,
+        RemotePushDelete,
+        RemoteResume,
         RemoteStart,
+        RemoteTaskIn,
         RemoteTurnIn,
         RemoteTurnOut,
+        RemoteWatch,
         RetryIn,
         RetryOut,
         SweepIn,
@@ -141,6 +151,11 @@ TINY_HARNESS_AGENT = SearchAttributeKey.for_keyword("TinyHarnessAgent")
 ONE_ATTEMPT: Final = RetryPolicy(maximum_attempts=1)
 EVENT_TAIL: Final = 1000
 DEFAULT_TIMEOUT: Final = timedelta(seconds=60)
+SHORT_TIMEOUT: Final = timedelta(seconds=30)
+FOLLOW_RETRY: Final = timedelta(seconds=5)
+"""The pause after a follow activity itself failed, before the next (issue-27 R3)."""
+PUSH_RECHECKS: Final = (timedelta(seconds=1), timedelta(seconds=2), timedelta(seconds=4))
+"""Delays of the fetches after a push whose claimed state the remote has not yet shown."""
 TERMINAL_NAMES: Final = frozenset({"COMPLETED", "FAILED", "CANCELED", "REJECTED"})
 TERMINAL: Final = frozenset(
     {
@@ -174,6 +189,10 @@ def _error_info(exc: ActivityError) -> ErrorInfo:
     return ErrorInfo(
         type=type(cause).__name__ if cause else "ActivityError", message=str(cause or exc)
     )
+
+
+def _non_retryable(exc: ActivityError) -> bool:
+    return _error_info(exc).non_retryable
 
 
 def text_message(task: HarnessTask, text: str, *, message_id: str) -> Message:
@@ -435,9 +454,10 @@ class TaskWorkflow:
     async def child_done(self, done: ChildDone) -> None:
         """A child's state change; terminal states resolve it (R7.3). Every change
         updates the child's row, which the parent shows on its own stream once idle
-        (issue-25 R5.6); only an ending or a remote child's turn becomes a note for the
-        model, so a local child parking or resuming never wakes it."""
+        (issue-25 R5.6); only an ending, or a remote child parking with something to say,
+        becomes a note for the model, so a child resuming never wakes it (issue-27 R2.7)."""
         terminal = done.state_name in TERMINAL_NAMES
+        interrupted = done.state_name in ("INPUT_REQUIRED", "AUTH_REQUIRED")
         remote = False
         for i, child in enumerate(self.children):
             if child.task_id == done.task_id:
@@ -450,7 +470,7 @@ class TaskWorkflow:
                         "summary": done.summary,
                     }
                 )
-        if terminal or remote:
+        if terminal or (remote and interrupted):
             note = f"Sub-task {done.task_id} is {done.state_name}: {done.summary}"
             self.notes.append(note.strip())
 
@@ -1376,14 +1396,25 @@ class RemoteTaskWorkflow:
     """One delegated remote task (R7.3): each turn is a ``run_remote_agent_turn`` activity
     that streams the remote agent's events; the local sub-task record mirrors the remote
     state and the parent is told through ``child_done``. A waiting remote task resumes
-    when a reply arrives in this workflow's inbox."""
+    when a reply arrives in this workflow's inbox.
+
+    While the remote task is parked, the stand-in watches it (issue-27): by push, where
+    the remote agent calls ``POST /a2a/push/<id>`` and the ``remote_push`` update wakes
+    this workflow to fetch the task, or by following it with ``SubscribeToTask``. A
+    change is relayed to the parent as a turn's end is."""
 
     def __init__(self) -> None:
         self.task: HarnessTask = HarnessTask(Task())
+        self.start: RemoteStart | None = None
         self.mailbox: list[Message] = []
         self.remote_task_id: str | None = None
         self.cancel_reason: str | None = None
         self.closed = False
+        self.watch: RemoteWatch | None = None
+        self.push_pending = False
+        self.claimed = ""  # the state the last push claimed, while a fetch disagrees
+        self.recheck: int | None = None  # the next PUSH_RECHECKS delay, if one is due
+        self.last = RemoteTurnOut(remote_task_id="", state_name="SUBMITTED")
 
     @workflow.update
     async def inbox(self, message: Message) -> InboxReceipt:
@@ -1391,6 +1422,29 @@ class RemoteTaskWorkflow:
         return InboxReceipt(
             message_id=message.message_id, accepted=True, state_name=self.task.state_name, cursor=0
         )
+
+    @workflow.update
+    async def remote_push(self, push: PushIn) -> None:
+        """A verified push (R2.2): a doorbell only. The state comes from ``GetTask``; the
+        state the body claims only says whether to fetch again (R2.3)."""
+        self.push_pending = True
+        self.claimed = push.claimed_state
+        self.recheck = None
+
+    @remote_push.validator
+    def _check_push(self, push: PushIn) -> None:
+        """Refuse before anything is recorded (abuse cases 1-4): a rejected update writes no
+        history. One message for every reason, and a constant-time digest comparison."""
+        watch = self.watch
+        accepted = (
+            not self.closed
+            and watch is not None
+            and watch.mode == "push"
+            and hmac.compare_digest(push.token_digest.encode(), watch.token_digest.encode())
+            and push.remote_task_id == self.remote_task_id
+        )
+        if not accepted:
+            raise ValueError("push not accepted")
 
     @workflow.signal
     async def cancel(self, reason: str) -> None:
@@ -1402,6 +1456,7 @@ class RemoteTaskWorkflow:
 
     @workflow.run
     async def run(self, start: RemoteStart) -> Task:
+        self.start = start
         self.task = HarnessTask(start.task)
         self.mailbox = list(start.mailbox)
         outbound = Message(
@@ -1413,46 +1468,243 @@ class RemoteTaskWorkflow:
         # This harness is the sender the remote agent sees (it becomes the remote task's
         # reporter); a message that asserts nobody is refused by a tiny-harness peer.
         outbound.metadata.update({"participant_id": start.config.agent})
-        self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
+        resumed = start.resume
+        if resumed is not None:  # a continued run: the remote task is parked, watch it
+            self.remote_task_id = resumed.remote_task_id
+            self.watch = resumed.watch
+            self.last = resumed.last
+            self.cancel_reason = self.cancel_reason or resumed.cancel_reason
+            self.claimed, self.recheck = resumed.claimed, resumed.recheck
+            self.push_pending = resumed.watch.mode == "push"  # reconcile across the gap
+        else:
+            self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
         while True:
-            out = await workflow.execute_activity(
-                ActivityName.RUN_REMOTE_AGENT_TURN.value,
-                RemoteTurnIn(
-                    task_id=self.task.id,
-                    correlation_id=start.correlation_id,
-                    agent=start.agent,
-                    message=outbound,
-                    remote_task_id=self.remote_task_id,
-                ),
-                result_type=RemoteTurnOut,
-                start_to_close_timeout=start.config.tool_timeout,
-                heartbeat_timeout=start.config.heartbeat_timeout,
-                retry_policy=ONE_ATTEMPT,
-            )
-            self.remote_task_id = out.remote_task_id
-            state = TaskState.Value(f"TASK_STATE_{out.state_name}")
-            self.task = self.task.with_state(state)
-            await self._tell_parent(start, out)
-            if out.final:
-                self.closed = True
-                return self.task.proto
-            await workflow.wait_condition(
-                lambda: bool(self.mailbox) or self.cancel_reason is not None
-            )
+            if resumed is None:
+                out = await workflow.execute_activity(
+                    ActivityName.RUN_REMOTE_AGENT_TURN.value,
+                    RemoteTurnIn(
+                        task_id=self.task.id,
+                        correlation_id=start.correlation_id,
+                        agent=start.agent,
+                        message=outbound,
+                        remote_task_id=self.remote_task_id,
+                    ),
+                    result_type=RemoteTurnOut,
+                    start_to_close_timeout=start.config.tool_timeout,
+                    heartbeat_timeout=start.config.heartbeat_timeout,
+                    retry_policy=ONE_ATTEMPT,
+                )
+                self.remote_task_id = out.remote_task_id
+                await self._apply(out, always=True)
+                if out.final:
+                    return await self._end()
+                # A push during the turn still fetches once (R2.8), but its claim described
+                # the stream the turn already read: it must not start rechecks.
+                self.recheck, self.claimed = None, ""
+            resumed = None
+            parked = await self._park()
+            if parked == "roll":  # a pending recheck goes with it (R2.9)
+                workflow.continue_as_new(self._resume())
+            self.recheck, self.claimed = None, ""  # a recheck belongs to one park only
+            if parked == "ended":
+                return await self._end()
             if self.cancel_reason is not None:
                 self.task = self.task.with_state(TaskState.TASK_STATE_CANCELED)
-                self.closed = True
                 await self._tell_parent(
-                    start, RemoteTurnOut(remote_task_id=out.remote_task_id, state_name="CANCELED")
+                    RemoteTurnOut(remote_task_id=self.remote_task_id or "", state_name="CANCELED")
                 )
-                return self.task.proto
+                return await self._end()
             reply = self.mailbox.pop(0)
             outbound = Message()
             outbound.CopyFrom(reply)
-            outbound.task_id = out.remote_task_id
+            outbound.task_id = self.remote_task_id or ""
+            # The remote task knows this harness, not whoever replied here (R1.6).
+            outbound.metadata.update({"participant_id": start.config.agent})
 
-    async def _tell_parent(self, start: RemoteStart, out: RemoteTurnOut) -> None:
-        handle = workflow.get_external_workflow_handle(start.parent_workflow_id)
+    def _resume(self) -> RemoteStart:
+        """The next run's input: the same stand-in, still parked (history bound, R19.8)."""
+        assert self.start is not None and self.watch is not None
+        return self.start.model_copy(
+            update={
+                "task": self.task.proto,
+                "mailbox": tuple(self.mailbox),
+                "resume": RemoteResume(
+                    remote_task_id=self.remote_task_id or "",
+                    watch=self.watch,
+                    last=self.last,
+                    cancel_reason=self.cancel_reason,
+                    claimed=self.claimed,
+                    recheck=self.recheck,
+                ),
+            }
+        )
+
+    def _remote_in(self) -> RemoteTaskIn:
+        assert self.start is not None and self.remote_task_id is not None
+        return RemoteTaskIn(
+            task_id=self.task.id,
+            correlation_id=self.start.correlation_id,
+            agent=self.start.agent,
+            remote_task_id=self.remote_task_id,
+            participant=self.start.config.agent,
+            known_text=self.last.text,
+        )
+
+    def _history_full(self) -> bool:
+        assert self.start is not None
+        info = workflow.info()
+        over = info.get_current_history_length() > self.start.config.history_event_bound
+        return over or info.is_continue_as_new_suggested()
+
+    async def _park(self) -> Literal["interrupted", "ended", "roll"]:
+        """Watch the parked remote task until a reply or a cancel arrives, the remote task
+        ends, or the history is due to roll over."""
+        assert self.start is not None
+        watch = self.watch
+        if watch is None:
+            if not self.remote_task_id:
+                watch = RemoteWatch(mode="off")  # nothing to watch without its id
+            else:
+                try:
+                    watch = await workflow.execute_activity(
+                        ActivityName.REGISTER_REMOTE_PUSH.value,
+                        self._remote_in(),
+                        result_type=RemoteWatch,
+                        start_to_close_timeout=SHORT_TIMEOUT,
+                        retry_policy=ONE_ATTEMPT,
+                    )
+                except ActivityError:
+                    watch = RemoteWatch(mode="follow")
+            self.watch = watch
+            # Fetch once: a change between the turn's end and the registration (R1.4).
+            self.push_pending = watch.mode == "push"
+        while True:
+            if self._interrupted():
+                return "interrupted"  # before a rollover, so a cancel is never carried over
+            if self._history_full():
+                return "roll"
+            follow: workflow.ActivityHandle[FollowOut] | None = None
+            if watch.mode == "follow":
+                follow = workflow.start_activity(
+                    ActivityName.FOLLOW_REMOTE_TASK.value,
+                    FollowIn(**self._remote_in().model_dump(), known_state=self.last.state_name),
+                    result_type=FollowOut,
+                    start_to_close_timeout=FOLLOW_WINDOW + timedelta(minutes=1),
+                    heartbeat_timeout=self.start.config.heartbeat_timeout,
+                    retry_policy=ONE_ATTEMPT,
+                )
+            try:
+                await workflow.wait_condition(self._woken(follow), timeout=self._recheck_delay())
+            except TimeoutError:
+                assert self.recheck is not None
+                self.recheck += 1
+                self.push_pending = True  # fetch again: the push outran the remote's record
+            if self._interrupted():
+                if follow is not None and not follow.done():
+                    follow.cancel()  # a reply or a cancel goes first (R3.4)
+                    with contextlib.suppress(ActivityError, asyncio.CancelledError):
+                        await follow
+                return "interrupted"
+            if self.push_pending:
+                self.push_pending = False
+                try:
+                    out = await workflow.execute_activity(
+                        ActivityName.GET_REMOTE_TASK.value,
+                        self._remote_in(),
+                        result_type=RemoteTurnOut,
+                        start_to_close_timeout=SHORT_TIMEOUT,
+                        # One call per fetch: the rechecks are the retries (abuse case 6).
+                        retry_policy=ONE_ATTEMPT,
+                    )
+                except ActivityError:
+                    # Keep the last state (fail closed); a recheck still due tries again, and
+                    # the next push does after the last one.
+                    if self._recheck_delay() is None:
+                        self.recheck, self.claimed = None, ""
+                    continue
+                if await self._apply(out) and out.final:
+                    return "ended"
+                self._schedule_recheck(out)
+                continue
+            assert follow is not None
+            try:
+                followed = await follow
+            except ActivityError as exc:
+                if _non_retryable(exc):
+                    # The agent is gone or not a remote one: following again cannot help.
+                    workflow.logger.warning("stopped following: %s", exc.message)
+                    watch = self.watch = RemoteWatch(mode="off")
+                    continue
+                # The follow died (a worker restart, a heartbeat timeout): pause, then again.
+                await self._pause()
+                continue
+            out = followed.out
+            if not followed.changed or out is None:
+                continue  # the window ended quietly; follow again
+            if not await self._apply(out):
+                await self._pause()  # a "change" that is not one must never spin the loop
+                continue
+            if out.final:
+                return "ended"
+
+    async def _pause(self) -> None:
+        with contextlib.suppress(asyncio.TimeoutError):
+            await workflow.wait_condition(self._interrupted, timeout=FOLLOW_RETRY)
+
+    def _recheck_delay(self) -> timedelta | None:
+        if self.recheck is None or self.recheck >= len(PUSH_RECHECKS):
+            return None
+        return PUSH_RECHECKS[self.recheck]
+
+    def _schedule_recheck(self, out: RemoteTurnOut) -> None:
+        """A remote agent may push before its own ``GetTask`` shows the change: while the
+        fetched state differs from the claimed one, fetch again, at most
+        ``len(PUSH_RECHECKS)`` more times (R2.3, abuse case 6)."""
+        if self.claimed and out.state_name != self.claimed:
+            due = 0 if self.recheck is None else self.recheck
+            self.recheck = due if due < len(PUSH_RECHECKS) else None
+        else:
+            self.recheck = None
+        if self.recheck is None:
+            self.claimed = ""
+
+    def _woken(self, follow: workflow.ActivityHandle[FollowOut] | None) -> Callable[[], bool]:
+        return lambda: (
+            self._interrupted() or self.push_pending or (follow is not None and follow.done())
+        )
+
+    def _interrupted(self) -> bool:
+        return bool(self.mailbox) or self.cancel_reason is not None
+
+    async def _apply(self, out: RemoteTurnOut, *, always: bool = False) -> bool:
+        """Record ``out`` and tell the parent when it differs from the last (R2.4)."""
+        changed = (out.state_name, out.text) != (self.last.state_name, self.last.text)
+        if not (changed or always):
+            return False
+        self.last = out
+        self.task = self.task.with_state(TaskState.Value(f"TASK_STATE_{out.state_name}"))
+        await self._tell_parent(out)
+        return True
+
+    async def _end(self) -> Task:
+        """Every exit: refuse later pushes, then remove the push config (R5)."""
+        self.closed = True
+        watch = self.watch
+        if watch is not None and watch.mode == "push" and self.start is not None:
+            try:
+                await workflow.execute_activity(
+                    ActivityName.DELETE_REMOTE_PUSH.value,
+                    RemotePushDelete(**self._remote_in().model_dump(), config_id=watch.config_id),
+                    start_to_close_timeout=SHORT_TIMEOUT,
+                    retry_policy=RetryPolicy(maximum_attempts=2),
+                )
+            except ActivityError as exc:  # the state reached stands (R5.2)
+                workflow.logger.warning("push config cleanup failed: %s", exc.message)
+        return self.task.proto
+
+    async def _tell_parent(self, out: RemoteTurnOut) -> None:
+        assert self.start is not None
+        handle = workflow.get_external_workflow_handle(self.start.parent_workflow_id)
         with contextlib.suppress(Exception):
             await handle.signal(
                 "child_done",

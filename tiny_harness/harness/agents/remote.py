@@ -10,6 +10,8 @@ client sends ``A2A-Version: 1.0`` on every request (R7.1).
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
+from datetime import timedelta
+from typing import Literal
 
 import httpx
 from a2a.client import A2ACardResolver, ClientConfig, ClientFactory
@@ -18,10 +20,14 @@ from a2a.client.client import ClientCallContext
 from a2a.types import (
     AgentCard,
     CancelTaskRequest,
+    DeleteTaskPushNotificationConfigRequest,
+    GetTaskRequest,
     Message,
     SendMessageRequest,
     StreamResponse,
+    SubscribeToTaskRequest,
     Task,
+    TaskPushNotificationConfig,
 )
 
 from tiny_harness.errors import UnsupportedExtensionError
@@ -29,6 +35,9 @@ from tiny_harness.harness.agents.base import SUPPORTED_EXTENSIONS, A2AEvent, Age
 from tiny_harness.harness.entities import EntityKind, EntityRef
 
 EXTENSIONS_HEADER = "A2A-Extensions"
+PARTICIPANT_HEADER = "X-Participant-Id"
+
+type UpdateMode = Literal["auto", "follow", "off"]
 
 
 def validate_card(card: AgentCard, *, supported: Sequence[str] = SUPPORTED_EXTENSIONS) -> None:
@@ -58,10 +67,20 @@ def unwrap(response: StreamResponse) -> A2AEvent:
 
 
 class RemoteAgent(Agent):
-    def __init__(self, ref: EntityRef, agent_card: AgentCard, *, client: A2AClient) -> None:
+    def __init__(
+        self,
+        ref: EntityRef,
+        agent_card: AgentCard,
+        *,
+        client: A2AClient,
+        updates: UpdateMode = "auto",
+        follow_interval: timedelta = timedelta(seconds=5),
+    ) -> None:
         validate_card(agent_card)
         super().__init__(ref, agent_card)
         self._client = client
+        self.updates: UpdateMode = updates  # how a parked task is watched (issue-27 R4)
+        self.follow_interval = follow_interval
 
     @classmethod
     async def connect(
@@ -71,6 +90,8 @@ class RemoteAgent(Agent):
         *,
         http: httpx.AsyncClient | None = None,
         version: str | None = None,
+        updates: UpdateMode = "auto",
+        follow_interval: timedelta = timedelta(seconds=5),
     ) -> RemoteAgent:
         http = http or httpx.AsyncClient(timeout=60)
         card = await A2ACardResolver(http, url).get_agent_card()
@@ -83,22 +104,43 @@ class RemoteAgent(Agent):
             )
         )
         ref = EntityRef(kind=EntityKind.AGENT, id=agent_id, version=version)
-        return cls(ref, card, client=factory.create(card))
+        return cls(
+            ref,
+            card,
+            client=factory.create(card),
+            updates=updates,
+            follow_interval=follow_interval,
+        )
+
+    @property
+    def push_supported(self) -> bool:
+        return self.agent_card.capabilities.push_notifications
 
     @property
     def advertised_extensions(self) -> frozenset[str]:
         return frozenset(e.uri for e in self.agent_card.capabilities.extensions)
 
-    def _context(self, extensions: Sequence[str]) -> ClientCallContext | None:
+    def _context(
+        self, extensions: Sequence[str], *, participant: str | None = None
+    ) -> ClientCallContext | None:
+        parameters: dict[str, str] = {}
         active = [uri for uri in extensions if uri in self.advertised_extensions]
-        if not active:
-            return None
-        return ClientCallContext(service_parameters={EXTENSIONS_HEADER: ", ".join(active)})
+        if active:
+            parameters[EXTENSIONS_HEADER] = ", ".join(active)
+        if participant:
+            # A tiny-harness peer answers a task-scoped call only for a participant
+            # (decision-003): the harness asserts the id it delegated as.
+            parameters[PARTICIPANT_HEADER] = participant
+        return ClientCallContext(service_parameters=parameters) if parameters else None
 
     async def send_message(
         self, request: Message, *, extensions: Sequence[str] = ()
     ) -> AsyncIterator[A2AEvent]:
-        context = self._context(extensions)
+        # The header asserts the participant the message names: a tiny-harness peer
+        # refuses a reply to an existing task without it (decision-003).
+        claimed = request.metadata.fields.get("participant_id")
+        participant = claimed.string_value if claimed is not None else None
+        context = self._context(extensions, participant=participant)
         async for response in self._client.send_message(
             SendMessageRequest(message=request), context=context
         ):
@@ -107,8 +149,52 @@ class RemoteAgent(Agent):
     async def cancel_task(self, task_id: str) -> Task:
         return await self._client.cancel_task(CancelTaskRequest(id=task_id))
 
+    async def get_task(self, task_id: str, *, participant: str | None = None) -> Task:
+        return await self._client.get_task(
+            GetTaskRequest(id=task_id), context=self._context((), participant=participant)
+        )
+
+    async def subscribe(
+        self,
+        task_id: str,
+        *,
+        extensions: Sequence[str] = (),
+        participant: str | None = None,
+    ) -> AsyncIterator[A2AEvent]:
+        context = self._context(extensions, participant=participant)
+        async for response in self._client.subscribe(
+            SubscribeToTaskRequest(id=task_id), context=context
+        ):
+            yield unwrap(response)
+
+    async def set_push_config(
+        self, task_id: str, url: str, token: str, *, participant: str | None = None
+    ) -> str:
+        """Register ``url`` for the task's updates (issue-27 R1); the remote assigns the
+        config id. The token goes to the remote agent and nowhere else."""
+        config = await self._client.create_task_push_notification_config(
+            TaskPushNotificationConfig(task_id=task_id, url=url, token=token),
+            context=self._context((), participant=participant),
+        )
+        return config.id
+
+    async def delete_push_config(
+        self, task_id: str, config_id: str, *, participant: str | None = None
+    ) -> None:
+        await self._client.delete_task_push_notification_config(
+            DeleteTaskPushNotificationConfigRequest(task_id=task_id, id=config_id),
+            context=self._context((), participant=participant),
+        )
+
     async def close(self) -> None:
         await self._client.close()
 
 
-__all__ = ["EXTENSIONS_HEADER", "RemoteAgent", "unwrap", "validate_card"]
+__all__ = [
+    "EXTENSIONS_HEADER",
+    "PARTICIPANT_HEADER",
+    "RemoteAgent",
+    "UpdateMode",
+    "unwrap",
+    "validate_card",
+]

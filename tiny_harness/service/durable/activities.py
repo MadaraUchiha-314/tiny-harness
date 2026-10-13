@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import secrets
+import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Literal, Protocol, cast
@@ -28,7 +30,7 @@ from tiny_harness.errors import (
     TinyHarnessError,
     ToolNotFoundError,
 )
-from tiny_harness.harness.agents import SUPPORTED_EXTENSIONS, Agent
+from tiny_harness.harness.agents import SUPPORTED_EXTENSIONS, Agent, RemoteAgent
 from tiny_harness.harness.channels import (
     CHANNEL_EXT_MEDIA_TYPE,
     Channel,
@@ -76,6 +78,7 @@ from tiny_harness.interaction.a2ui import (
 )
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.durable.models import (
+    FOLLOW_WINDOW,
     ActivityFailedPre,
     ActivityName,
     ActivityRetriedPre,
@@ -89,6 +92,8 @@ from tiny_harness.service.durable.models import (
     CompletionOut,
     EmitIn,
     EventEntry,
+    FollowIn,
+    FollowOut,
     HeartbeatTickPre,
     InboxReceipt,
     IntakeIn,
@@ -100,8 +105,11 @@ from tiny_harness.service.durable.models import (
     PersistIn,
     PollIn,
     PollOut,
+    RemotePushDelete,
+    RemoteTaskIn,
     RemoteTurnIn,
     RemoteTurnOut,
+    RemoteWatch,
     RetryIn,
     RetryOut,
     SweepIn,
@@ -118,6 +126,8 @@ from tiny_harness.service.inbox import (
     controls_task,
     envelope_of,
 )
+from tiny_harness.service.o11y.tracing import no_export
+from tiny_harness.service.push_token import push_url, token_digest
 
 log = logging.getLogger("tiny_harness.durable.activities")
 HEARTBEAT_EVERY = 10.0
@@ -171,8 +181,12 @@ class Activities:
         client: Client | None = None,
         retention: Mapping[RecordKind, timedelta] | None = None,
         commands: CommandRegistry | None = None,
+        push_base_url: str | None = None,
     ) -> None:
         self.engine = engine
+        # Where a parked remote task is asked to push (issue-27 R1.2); None: follow only.
+        self.push_base_url = push_base_url
+        self.follow_window = FOLLOW_WINDOW
         self.commands = commands  # the registered names intake classifies (issue-25 R6)
         self.sink = sink
         self.client = client
@@ -194,6 +208,10 @@ class Activities:
             self.emit_event,
             self.dispatch_hooks,
             self.run_remote_agent_turn,
+            self.register_remote_push,
+            self.get_remote_task,
+            self.follow_remote_task,
+            self.delete_remote_push,
             self.poll_channels,
             self.monitor_snapshot,
             self.retention_sweep,
@@ -575,6 +593,100 @@ class Activities:
         # the operation runner, which scrubs the others.
         return self.engine.runner.redactor.scrub(out)
 
+    # --- watching a parked remote task (issue-27) -------------------------------------
+
+    async def _remote(self, agent_id: str) -> Agent:
+        """The delegated agent. Gone from the registry, it will not come back mid-task, so
+        the failure is final: a watch must stop rather than retry it forever."""
+        try:
+            return await self.engine.registry.get(
+                EntityRef(kind=EntityKind.AGENT, id=agent_id, version="*"), Agent
+            )
+        except TinyHarnessError as exc:
+            raise ApplicationError(
+                exc.message, exc.to_record(), type=exc.code, non_retryable=True
+            ) from exc
+
+    @activity.defn(name=ActivityName.REGISTER_REMOTE_PUSH.value)
+    async def register_remote_push(self, arg: RemoteTaskIn) -> RemoteWatch:
+        """Choose the watch (R4) and, for push, register this server on the remote task
+        (R1). The token lives in this function only: the workflow gets its digest."""
+        agent = await self._remote(arg.agent)
+        if not isinstance(agent, RemoteAgent) or agent.updates == "off":
+            return RemoteWatch(mode="off")
+        if agent.updates == "follow" or not agent.push_supported or not self.push_base_url:
+            return RemoteWatch(mode="follow")
+        token = secrets.token_urlsafe(32)  # 256 bits (R1.3)
+        try:
+            # The SDK's client spans record an error's text, which may echo the token.
+            with no_export():
+                config_id = await agent.set_push_config(
+                    arg.remote_task_id,
+                    push_url(self.push_base_url, arg.task_id),
+                    token,
+                    participant=arg.participant,
+                )
+        except Exception as exc:  # any failure falls back to follow (R1.5)
+            # The type only: an error's text may echo the request, and so the token.
+            log.warning(
+                "push registration for %s on %s failed (%s); following instead",
+                arg.task_id,
+                arg.agent,
+                type(exc).__name__,
+            )
+            return RemoteWatch(mode="follow")
+        return RemoteWatch(mode="push", config_id=config_id, token_digest=token_digest(token))
+
+    @activity.defn(name=ActivityName.GET_REMOTE_TASK.value)
+    async def get_remote_task(self, arg: RemoteTaskIn) -> RemoteTurnOut:
+        """The remote task as its agent reports it: the only state a push leads to (R2.3)."""
+        agent = await self._remote(arg.agent)
+        if not isinstance(agent, RemoteAgent):
+            raise ApplicationError("not a remote agent", non_retryable=True)
+        task = await agent.get_task(arg.remote_task_id, participant=arg.participant)
+        text = _status_text(task) or arg.known_text
+        out = remote_out(arg.remote_task_id, task.status.state, sub_state_of(task.metadata), text)
+        return self.engine.runner.redactor.scrub(out)
+
+    @activity.defn(name=ActivityName.FOLLOW_REMOTE_TASK.value)
+    async def follow_remote_task(self, arg: FollowIn) -> FollowOut:
+        """Hold ``SubscribeToTask`` open on a parked remote task and return its first change
+        (R3.1, R3.2). A stream that ends unchanged or fails is opened again after the agent's
+        ``follow_interval`` (R3.3); after ``follow_window`` it returns unchanged, and the
+        workflow starts another."""
+        agent = await self._remote(arg.agent)
+        if not isinstance(agent, RemoteAgent):
+            raise ApplicationError("not a remote agent", non_retryable=True)
+        deadline = time.monotonic() + self.follow_window.total_seconds()
+        interval = agent.follow_interval.total_seconds()
+        every = min(self.heartbeat_every, interval)
+        scrub = self.engine.runner.redactor.scrub
+        while (left := deadline - time.monotonic()) > 0:
+            try:
+                # The window bounds an open stream too: a peer holds it until a change.
+                async with asyncio.timeout(left):
+                    out = await _heartbeating(_first_change(agent, arg, scrub), every=every)
+            except TimeoutError:
+                break
+            except Exception as exc:  # the remote refused or the transport broke
+                log.info("following %s: %s; retrying", arg.task_id, type(exc).__name__)
+                out = None
+            if out is not None:
+                return FollowOut(changed=True, out=out)
+            await _heartbeating(
+                asyncio.sleep(min(interval, max(0.0, deadline - time.monotonic()))), every=every
+            )
+        return FollowOut(changed=False)
+
+    @activity.defn(name=ActivityName.DELETE_REMOTE_PUSH.value)
+    async def delete_remote_push(self, arg: RemotePushDelete) -> None:
+        """Remove the stand-in's push config from the remote task (R5.1)."""
+        agent = await self._remote(arg.agent)
+        if isinstance(agent, RemoteAgent):
+            await agent.delete_push_config(
+                arg.remote_task_id, arg.config_id, participant=arg.participant
+            )
+
     # --- heartbeat (R16) --------------------------------------------------------------
 
     @activity.defn(name=ActivityName.POLL_CHANNELS.value)
@@ -653,12 +765,36 @@ def describe_action(action: Action) -> str:
     )
 
 
-def _sub_state(metadata: struct_pb2.Struct) -> str | None:
+def sub_state_of(metadata: struct_pb2.Struct) -> str | None:
     """The status extension's sub-state in an event's or a task's metadata (R4.1)."""
     if STATUS_EXT_KEY not in metadata.fields:
         return None
     fields = metadata.fields[STATUS_EXT_KEY].struct_value.fields
     return fields["sub_state"].string_value if "sub_state" in fields else None
+
+
+def _status_text(event: Task | TaskStatusUpdateEvent) -> str | None:
+    if not event.status.HasField("message"):
+        return None
+    return "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
+
+
+def remote_out(
+    remote_task_id: str, state: TaskState.ValueType, sub_state: str | None, text: str | None
+) -> RemoteTurnOut:
+    """A remote task's state as the stand-in records it, from a turn's stream, a
+    ``GetTask`` or a follow alike (issue-27 R2.5)."""
+    if state == TaskState.TASK_STATE_INPUT_REQUIRED and sub_state == SubState.AWAITING_NEXT_MESSAGE:
+        # A tiny-harness peer parks a conversation after its reply instead of completing
+        # it (issue-25 R3.1). It asked nothing, so the delegated sub-task has its answer
+        # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4).
+        state = TaskState.TASK_STATE_COMPLETED
+    return RemoteTurnOut(
+        remote_task_id=remote_task_id,
+        state_name=TaskState.Name(state).removeprefix("TASK_STATE_"),
+        text=text or "",
+        final=state in TERMINAL,
+    )
 
 
 async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
@@ -670,30 +806,41 @@ async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
         if isinstance(event, Task):
             remote_task_id = event.id
             state = event.status.state
-            sub_state = _sub_state(event.metadata)
-            if event.status.HasField("message"):
-                text = "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
+            sub_state = sub_state_of(event.metadata)
+            text = _status_text(event) or text
         elif isinstance(event, TaskStatusUpdateEvent):
             remote_task_id = event.task_id or remote_task_id
             state = event.status.state
-            sub_state = _sub_state(event.metadata)
-            if event.status.HasField("message"):
-                text = "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
+            sub_state = sub_state_of(event.metadata)
+            text = _status_text(event) or text
         elif isinstance(event, Message):
             text = "\n".join(p.text for p in event.parts if p.HasField("text"))
         activity.heartbeat()
-    if state == TaskState.TASK_STATE_INPUT_REQUIRED and sub_state == SubState.AWAITING_NEXT_MESSAGE:
-        # A tiny-harness peer parks a conversation after its reply instead of completing
-        # it (issue-25 R3.1). It asked nothing, so the delegated sub-task has its answer
-        # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4).
-        state = TaskState.TASK_STATE_COMPLETED
-    name = TaskState.Name(state).removeprefix("TASK_STATE_")
-    return RemoteTurnOut(
-        remote_task_id=remote_task_id,
-        state_name=name,
-        text=text,
-        final=state in TERMINAL,
+    return remote_out(remote_task_id, state, sub_state, text)
+
+
+async def _first_change(
+    agent: RemoteAgent, arg: FollowIn, scrub: Callable[[RemoteTurnOut], RemoteTurnOut]
+) -> RemoteTurnOut | None:
+    """The first event on the task's stream whose state or text differs from the known
+    pair, compared as the workflow records it (scrubbed); ``None`` when the stream ends
+    without one."""
+    text = arg.known_text
+    events = agent.subscribe(
+        arg.remote_task_id, extensions=SUPPORTED_EXTENSIONS, participant=arg.participant
     )
+    async for event in events:
+        if isinstance(event, Task | TaskStatusUpdateEvent):
+            text = _status_text(event) or text
+            out = scrub(
+                remote_out(
+                    arg.remote_task_id, event.status.state, sub_state_of(event.metadata), text
+                )
+            )
+            if (out.state_name, out.text) != (arg.known_state, arg.known_text):
+                return out
+        activity.heartbeat()
+    return None
 
 
 async def running_task_workflows(client: Client) -> list[str]:

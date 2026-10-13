@@ -109,7 +109,15 @@ async def test_sub_task_creates_a_linked_conversation_task_and_replies_with_its_
             TaskWorkflow.inbox,
             message("/sub-task check the ledger", task_id=tid, message_id="m3"),
         )
-        parent = await until(handle, lambda t: len(t.ext.sub_tasks) == 1)
+        # The child is linked before the reply is set: wait for both, not the first.
+        parent = await until(
+            handle,
+            lambda t: (
+                len(t.ext.sub_tasks) == 1
+                and bool(t.proto.status.message.parts)
+                and t.proto.status.message.parts[0].text.endswith(f"Created sub-task {child_id}.")
+            ),
+        )
         assert parent.proto.status.message.parts[0].text.endswith(f"Created sub-task {child_id}.")
         assert parent.state == TaskState.TASK_STATE_INPUT_REQUIRED
         child = env.client.get_workflow_handle_for(TaskWorkflow.run, child_id)

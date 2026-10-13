@@ -289,3 +289,20 @@ async def test_a_command_span_names_the_command_never_its_arguments() -> None:
     assert attributes["tiny_harness.command.name"] == "model"
     assert attributes["tiny_harness.command.outcome"] == "ok"
     assert "secret-model-name" not in {str(v) for v in attributes.values()}
+
+
+def test_the_sdk_request_body_debug_record_is_dropped() -> None:
+    """issue-27 abuse case 7: a JSON-RPC body may carry a push token; the A2A SDK logs it
+    at DEBUG, outside the redactor's reach, so the harness drops that one record."""
+    import logging
+
+    from tiny_harness.service.o11y.logging import SDK_BODY_LOGGER, drop_sdk_request_bodies
+
+    drop_sdk_request_bodies()
+    drop_sdk_request_bodies()  # idempotent
+    logger = logging.getLogger(SDK_BODY_LOGGER)
+    assert len(logger.filters) == 1
+    body = logging.LogRecord(SDK_BODY_LOGGER, logging.DEBUG, "", 0, "Request body: %s", ({},), None)
+    other = logging.LogRecord(SDK_BODY_LOGGER, logging.WARNING, "", 0, "Request Error", (), None)
+    assert not logger.filters[0].filter(body)  # type: ignore[union-attr]
+    assert logger.filters[0].filter(other)  # type: ignore[union-attr]

@@ -434,7 +434,7 @@ async def test_subscribetotask_after_a_server_restart_replays_the_event_log(
     async with first:
         task_id = await run_to_completion(first, context_id)
         # A parked conversation stays open; closing it makes the final persist run, and
-        # the time-skipping server cannot query an open workflow whose worker is gone.
+        # the server cannot answer a query for an open workflow whose worker is gone.
         await first.a2a().cancel_task(CancelTaskRequest(id=task_id))
         await env.client.get_workflow_handle(task_id).result()
     second = await make_server(env, [], task_queue=tq, harness=first.harness)

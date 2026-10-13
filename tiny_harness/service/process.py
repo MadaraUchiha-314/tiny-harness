@@ -32,6 +32,7 @@ from tiny_harness.service.a2a import (
     HarnessExecutor,
     HarnessRequestHandler,
     PollingEventBridge,
+    PushReceiver,
     PushSink,
     StorePushConfigStore,
     TemporalTaskStore,
@@ -162,6 +163,7 @@ async def running_harness(
             sink=PushSink(push_store, push_http),
             client=client,
             retention=retention_map(settings),
+            push_base_url=str(settings.server.base_url),
         )
         handler = HarnessRequestHandler(
             bridge=bridge,
@@ -176,7 +178,9 @@ async def running_harness(
             snapshot = activities.last_snapshot
             return snapshot.model_dump(mode="json") if snapshot is not None else {"tasks": []}
 
-        app = create_app(handler, card, config=settings.server, monitor=monitor)
+        app = create_app(
+            handler, card, config=settings.server, monitor=monitor, push=PushReceiver(client)
+        )
         if with_worker:
             await ensure_search_attributes(client)
             await ensure_heartbeat_schedule(

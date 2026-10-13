@@ -52,6 +52,7 @@ dev = [
     "pytest>=8",
     "pytest-asyncio>=1.4.0",
     "pytest-textual-snapshot>=1.0.0",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.13",
     "types-jsonschema>=4.26.0.20261006",
     "types-pyyaml>=6.0.12.20260906",
@@ -84,6 +85,9 @@ testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# A hang fails its test, named, instead of holding a CI job (issue-27). The slowest
+# offline test takes ~20 s; e2e tests opt out in tests/e2e/conftest.py.
+timeout = 120
 markers = [
     "e2e: needs the live environment (Temporal Cloud, OpenAI); skipped with a reason when a secret is absent",
 ]

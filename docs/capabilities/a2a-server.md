@@ -66,6 +66,13 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 - Push-notification configs SHALL be stored with their token encrypted and every status
   update delivered to them from the `emit_event` activity with the
   `X-A2A-Notification-Token` header.
+- `POST /a2a/push/{task_id}` SHALL receive a remote task's push for its local stand-in
+  (issue-27). A body over 64 KiB is `413` and an unparseable one `400`. A missing or
+  wrong `X-A2A-Notification-Token`, an id that names no stand-in or an ended one, or a
+  body naming another remote task is `401`, all alike. Only a push whose token digest
+  matches, checked in constant time by the `remote_push` update's validator, wakes the
+  stand-in (`204`). The SDK's DEBUG log of JSON-RPC request bodies is dropped, since a
+  body can carry a push token.
 - Every route SHALL sit behind the limits middleware: a body over `max_request_bytes` is
   413 and a peer over `rate_limit_per_minute` is 429, before anything reaches Temporal.
 - `GET /_monitor` SHALL return the last heartbeat snapshot; with `ui_dir` set the built
@@ -84,3 +91,4 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 |-----------|--------------|-------|
 | issue-3 | Executor, handler, card, bridge, task store, push, limits, inbox intake (Layer 5); A2UI params on the card (Layer 7); `/ui` and CORS (Layer 8) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13), [PR #14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) |
 | issue-25 | Status and commands extensions on the card; the `control` completion envelope; terminal and watcher refusals naming the state; slash commands dispatched in the workflow with the reply on a re-emitted status update | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
+| issue-27 | `POST /a2a/push/{task_id}` for remote tasks' pushes; the SDK's request-body DEBUG log dropped | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |

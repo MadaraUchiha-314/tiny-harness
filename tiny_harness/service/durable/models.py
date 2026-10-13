@@ -58,6 +58,10 @@ class ActivityName(StrEnum):
     EMIT_EVENT = "emit_event"
     DISPATCH_HOOKS = "dispatch_hooks"
     RUN_REMOTE_AGENT_TURN = "run_remote_agent_turn"
+    REGISTER_REMOTE_PUSH = "register_remote_push"
+    GET_REMOTE_TASK = "get_remote_task"
+    FOLLOW_REMOTE_TASK = "follow_remote_task"
+    DELETE_REMOTE_PUSH = "delete_remote_push"
     POLL_CHANNELS = "poll_channels"
     MONITOR_SNAPSHOT = "monitor_snapshot"
     RETENTION_SWEEP = "retention_sweep"
@@ -324,6 +328,8 @@ class RemoteStart(_Frozen):
     correlation_id: str = ""
     config: WorkflowConfig = WorkflowConfig()
     mailbox: tuple[MessageProto, ...] = ()
+    resume: RemoteResume | None = None
+    """Set on a continued run: the remote task is parked and is watched straight away."""
 
 
 class RemoteTurnIn(ActivityIn):
@@ -337,6 +343,75 @@ class RemoteTurnOut(_Frozen):
     state_name: str
     text: str = ""
     final: bool = False
+
+
+# --- watching a parked remote task (issue-27) ---------------------------------------
+
+
+FOLLOW_WINDOW = timedelta(minutes=10)
+"""How long one ``follow_remote_task`` holds a parked task before the workflow starts the
+next, so its ``start_to_close`` stays finite (issue-27 R3)."""
+
+
+class RemoteTaskIn(ActivityIn):
+    """A remote task to act on; ``task_id`` is the local stand-in's id and ``participant``
+    the id this harness delegated as, which a tiny-harness peer requires."""
+
+    agent: str
+    remote_task_id: str
+    participant: str = ""
+    known_text: str = ""
+    """The last recorded status text: a fetch or an event without one keeps it, as a turn
+    does, so a question sent as a message never reads as a change."""
+
+
+class RemoteWatch(_Frozen):
+    """How the stand-in hears a parked remote task change (R4). For ``push`` it keeps the
+    config id and the SHA-256 digest of the token, never the token (abuse case 7)."""
+
+    mode: Literal["push", "follow", "off"]
+    config_id: str = ""
+    token_digest: str = ""
+
+
+class FollowIn(RemoteTaskIn):
+    """The last recorded state; the follow returns the first event that differs."""
+
+    known_state: str
+
+
+class RemoteResume(_Frozen):
+    """A stand-in continued as new while its remote task is parked (issue-27)."""
+
+    remote_task_id: str
+    watch: RemoteWatch
+    last: RemoteTurnOut
+    cancel_reason: str | None = None
+    claimed: str = ""
+    recheck: int | None = None
+
+
+RemoteStart.model_rebuild()
+
+
+class FollowOut(_Frozen):
+    changed: bool
+    out: RemoteTurnOut | None = None
+
+
+class RemotePushDelete(RemoteTaskIn):
+    config_id: str
+
+
+class PushIn(_Frozen):
+    """The ``remote_push`` update a verified-looking push sends its stand-in: the digest of
+    the presented token and the remote task id the body names (R2.2)."""
+
+    token_digest: str
+    remote_task_id: str
+    claimed_state: str = ""
+    """The state the body claims, as the stand-in would record it: only a hint for when to
+    fetch again, never applied (abuse case 6)."""
 
 
 # --- heartbeat (R16) -------------------------------------------------------------------
@@ -430,6 +505,7 @@ class RetryOut(_Frozen):
 
 
 __all__ = [
+    "FOLLOW_WINDOW",
     "A2AEventProto",
     "ActivityFailedPre",
     "ActivityIn",
@@ -450,6 +526,8 @@ __all__ = [
     "EventEntry",
     "EventKind",
     "EventPage",
+    "FollowIn",
+    "FollowOut",
     "HeartbeatResult",
     "HeartbeatTick",
     "HeartbeatTickPre",
@@ -465,9 +543,14 @@ __all__ = [
     "PersistIn",
     "PollIn",
     "PollOut",
+    "PushIn",
+    "RemotePushDelete",
+    "RemoteResume",
     "RemoteStart",
+    "RemoteTaskIn",
     "RemoteTurnIn",
     "RemoteTurnOut",
+    "RemoteWatch",
     "RetryIn",
     "RetryOut",
     "SweepIn",

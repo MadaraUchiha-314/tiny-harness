@@ -21,6 +21,7 @@ from typing import TextIO
 from temporalio.client import Client
 
 from tiny_harness.config import Settings
+from tiny_harness.errors import ConfigError
 
 Connector = Callable[[Settings, TextIO | None], AbstractAsyncContextManager[Client]]
 PoolKey = tuple[str, ...]
@@ -89,6 +90,7 @@ class TemporalPool:
                 entry.users += 1
                 first = False
             else:
+                _refuse_second_namespace(key, self._entries)
                 entry = self._entries[key] = _Entry()
                 first = True
         if first:
@@ -122,6 +124,22 @@ class TemporalPool:
                 del self._entries[key]
         if last:
             await entry.stack.aclose()
+
+
+def _refuse_second_namespace(key: PoolKey, entries: dict[PoolKey, _Entry]) -> None:
+    """One embedded database serves one namespace in this process: a second would start a
+    second dev server on the same file and fail on its lock, naming the wrong cause
+    (issue-36 self-review 2, #3)."""
+    if key[0] != "embedded":
+        return
+    for other in entries:
+        if other[0] == "embedded" and other[1] == key[1] and other[2] != key[2]:
+            raise ConfigError(
+                f"embedded Temporal database {key[1]} is already open in this process for "
+                f"namespace {other[2]!r}; namespace {key[2]!r} needs its own "
+                "temporal.embedded.database_path",
+                variable="temporal.namespace",
+            )
 
 
 @asynccontextmanager

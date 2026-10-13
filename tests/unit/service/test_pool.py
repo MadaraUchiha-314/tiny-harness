@@ -239,3 +239,18 @@ def test_the_embedded_key_names_the_namespace(tmp_path: Path) -> None:
     a = embedded(tmp_path, "shared.sqlite3", agent="a")
     other = a.model_copy(update={"temporal": a.temporal.model_copy(update={"namespace": "other"})})
     assert pool_key(a) != pool_key(other)
+
+
+async def test_a_second_namespace_on_one_embedded_database_is_refused(tmp_path: Path) -> None:
+    """Self-review round 2, finding 3: named, not a lock error from the dev server."""
+    from tiny_harness.errors import ConfigError
+
+    pool = TemporalPool(Recorder())
+    a = embedded(tmp_path, "shared.sqlite3", agent="a")
+    other = a.model_copy(update={"temporal": a.temporal.model_copy(update={"namespace": "other"})})
+    async with pool.client(a):
+        with pytest.raises(ConfigError) as caught:
+            async with pool.client(other):
+                pass
+    assert "'other'" in caught.value.message and "'default'" in caught.value.message
+    assert pool.open_connections() == 0

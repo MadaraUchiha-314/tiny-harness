@@ -35,7 +35,9 @@ def pool_key(settings: Settings) -> PoolKey:
         database = temporal.database_path(settings.store)
         if database is None:  # in memory: nothing to share
             return ("embedded-memory", str(next(_private)))
-        return ("embedded", str(database))
+        # The namespace too: a client serves one namespace, and the claims registry keys
+        # queues by the namespace it is told (issue-36 self-review 1, #2).
+        return ("embedded", str(database), temporal.effective_namespace)
     api_key = temporal.api_key.get_secret_value() if temporal.api_key is not None else ""
     digest = hashlib.sha256(api_key.encode()).hexdigest() if api_key else ""
     return (

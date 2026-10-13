@@ -43,6 +43,13 @@ sqlite_path = "{tmp_path / agent}.sqlite3"
     return Settings.load(path, env=ENV)
 
 
+class NamespacedClient:
+    """Just enough of a Temporal client: the namespace it polls in."""
+
+    def __init__(self, namespace: str = "default") -> None:
+        self.namespace = namespace
+
+
 class Boom(Exception):
     pass
 
@@ -52,14 +59,14 @@ async def broken_runtime(*args: object, **kwargs: object) -> None:
 
 
 def test_the_constructor_checks_the_prefix_without_io(tmp_path: Path) -> None:
-    harness = Harness(settings(tmp_path), client=cast(Client, object()))
+    harness = Harness(settings(tmp_path), client=cast(Client, NamespacedClient()))
     assert (harness.prefix, harness.public_url) == ("/agents/a", "http://h/agents/a")
     with pytest.raises(ConfigError):
         Harness(settings(tmp_path), prefix="/agents/b")
 
 
 def test_nothing_that_runs_is_handed_out_before_start(tmp_path: Path) -> None:
-    harness = Harness(settings(tmp_path), client=cast(Client, object()))
+    harness = Harness(settings(tmp_path), client=cast(Client, NamespacedClient()))
     assert not harness.started
     with pytest.raises(HarnessNotStartedError):
         _ = harness.client
@@ -73,7 +80,7 @@ async def test_a_failed_start_undoes_its_claims_and_secrets(
 ) -> None:
     monkeypatch.setattr(harness_module, "build_runtime", broken_runtime)
     held = PROCESS_CLAIMS.held()
-    harness = Harness(settings(tmp_path), client=cast(Client, object()))
+    harness = Harness(settings(tmp_path), client=cast(Client, NamespacedClient()))
     with pytest.raises(Boom):
         await harness.__aenter__()
     assert PROCESS_CLAIMS.held() == held
@@ -101,7 +108,7 @@ async def test_a_second_harness_with_the_same_id_does_not_start(
     PROCESS_CLAIMS.claim(first)
     try:
         with pytest.raises(HarnessConflictError):
-            await Harness(settings(tmp_path), client=cast(Client, object())).__aenter__()
+            await Harness(settings(tmp_path), client=cast(Client, NamespacedClient())).__aenter__()
         assert calls == []
     finally:
         PROCESS_CLAIMS.release(first)
@@ -110,7 +117,7 @@ async def test_a_second_harness_with_the_same_id_does_not_start(
 async def test_a_running_harness_cannot_start_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    harness = Harness(settings(tmp_path), client=cast(Client, object()))
+    harness = Harness(settings(tmp_path), client=cast(Client, NamespacedClient()))
 
     async def started(stack: object) -> None:
         return None
@@ -120,3 +127,23 @@ async def test_a_running_harness_cannot_start_again(
         with pytest.raises(HarnessAlreadyStartedError):
             await harness.__aenter__()
     assert not harness.started
+
+
+async def test_the_claim_uses_the_namespace_of_the_callers_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Self-review round 1, finding 2: a caller's client polls in its own namespace, so two
+    agents with different configured namespaces on one client still clash on one queue."""
+    monkeypatch.setattr(harness_module, "build_runtime", broken_runtime)
+    from tiny_harness.service.claims import Claim
+
+    held = Claim(
+        agent_id="holder", namespace="real", task_queue="a", store_path=tmp_path / "h.sqlite3"
+    )
+    PROCESS_CLAIMS.claim(held)
+    try:
+        client = cast(Client, NamespacedClient("real"))
+        with pytest.raises(HarnessConflictError):  # settings say "default"; the client is "real"
+            await Harness(settings(tmp_path), client=client).__aenter__()
+    finally:
+        PROCESS_CLAIMS.release(held)

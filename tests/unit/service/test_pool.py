@@ -232,3 +232,10 @@ async def test_a_cancelled_first_caller_is_not_the_waiters_cancellation(tmp_path
     with pytest.raises(RuntimeError, match="did not open"):
         await waiter
     assert first.cancelled()
+
+
+def test_the_embedded_key_names_the_namespace(tmp_path: Path) -> None:
+    """Self-review round 1, finding 2: one shared client serves one namespace."""
+    a = embedded(tmp_path, "shared.sqlite3", agent="a")
+    other = a.model_copy(update={"temporal": a.temporal.model_copy(update={"namespace": "other"})})
+    assert pool_key(a) != pool_key(other)

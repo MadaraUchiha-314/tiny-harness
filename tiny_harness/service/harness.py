@@ -263,7 +263,13 @@ class Harness:
         queue = settings.temporal.effective_task_queue
         claim = Claim(
             agent_id=self.agent_id,
-            namespace=settings.temporal.effective_namespace,
+            # The namespace the queue is actually polled in: a client of the caller's own
+            # may serve another than the settings name.
+            namespace=(
+                self._given_client.namespace
+                if self._given_client is not None
+                else settings.temporal.effective_namespace
+            ),
             task_queue=queue,
             store_path=settings.store.sqlite_path,
         )

@@ -50,7 +50,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ R5.3, R5.8; abuse case 4
   - _Test:_ T1 `tests/unit/service/test_claims.py` (each clash names the holder, two
     spellings of one path clash, release frees, all-or-nothing)
-- [ ] 4. `TemporalPool`
+- [x] 4. `TemporalPool`
   - Add `tiny_harness/service/durable/pool.py`: connections reference-counted per key,
     with the embedded key `(embedded, database_path)` and the remote key
     `(address, namespace, sha256(api_key))`.

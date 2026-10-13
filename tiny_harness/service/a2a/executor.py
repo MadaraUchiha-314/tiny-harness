@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import AsyncGenerator, Iterable
-from typing import cast
+from typing import Literal, cast
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.context import ServerCallContext
@@ -207,12 +207,22 @@ class HarnessExecutor(AgentExecutor):
             raise UnsupportedOperationError(message="a control needs an existing task")
         agent = self._config.agent
         trusted = sender in self._delegators
-        if envelope is not None and envelope.kind == "task" and existing is None:
+        briefed = envelope is not None and envelope.kind == "task" and existing is None
+        if briefed:
+            assert envelope is not None
             ext = extension_from_envelope(envelope, message, agent, trusted=trusted)
             message = without_envelope(message)
         else:
             ext = default_extension(message, agent)
-        if not (trusted and ext.lifecycle == "delegated"):
+        # A task assigned to someone other than this agent is theirs to do: it makes no
+        # model call and waits for its assignee (R12.3; issue-34 R7.2).
+        assignee = next((p.id for p in ext.participants if p.role is Role.ASSIGNEE), agent)
+        mode: Literal["agent", "participant"] = "agent" if assignee == agent else "participant"
+        if mode == "participant":
+            ext = ext.model_copy(
+                update={"lifecycle": None, "model": None, "reasoning_effort": None}
+            )
+        elif not (trusted and ext.lifecycle == "delegated"):
             # A participant's first message opens a conversation; only the server, or a
             # trusted delegator briefing a child, sets this (R3, issue-34 R7).
             ext = ext.model_copy(update={"lifecycle": "conversation"})
@@ -220,9 +230,17 @@ class HarnessExecutor(AgentExecutor):
         start = TaskStart(
             task=task.proto,
             state=AgentState(task_id=task.id),
+            mode=mode,
             config=self._config,
             correlation_id=task.id,
         )
+        if briefed and not message.parts:
+            # A brief and nothing else: the task starts without a message for its model, as
+            # a /sub-task or a participant task does (issue-34 R7.2).
+            await self._start(start)
+            async for event in self._bridge.events(task.id, 0):
+                await event_queue.enqueue_event(event)
+            return
         try:
             receipt = await self._update_with_start(start, message)
         except WorkflowUpdateFailedError as exc:  # the inbox validator refused it
@@ -263,17 +281,32 @@ class HarnessExecutor(AgentExecutor):
         async for event in self._bridge.events(task.id, receipt.cursor):
             yield event
 
+    def _attributes(self, task: HarnessTask) -> TypedSearchAttributes | None:
+        if not self._config.search_attributes:
+            return None
+        return TypedSearchAttributes(
+            [
+                SearchAttributePair(A2A_CONTEXT_ID, task.context_id),
+                SearchAttributePair(A2A_TASK_STATE, task.state_name),
+                SearchAttributePair(TINY_HARNESS_AGENT, self._config.agent),
+            ]
+        )
+
+    async def _start(self, start: TaskStart) -> None:
+        """Start the task's workflow with no message in its inbox."""
+        task = HarnessTask(start.task)
+        await self._client.start_workflow(
+            TaskWorkflow.run,
+            start,
+            id=task.id,
+            task_queue=self._task_queue,
+            id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
+            search_attributes=self._attributes(task),
+        )
+
     async def _update_with_start(self, start: TaskStart, message: Message) -> InboxReceipt:
         task = HarnessTask(start.task)
-        attributes = None
-        if self._config.search_attributes:
-            attributes = TypedSearchAttributes(
-                [
-                    SearchAttributePair(A2A_CONTEXT_ID, task.context_id),
-                    SearchAttributePair(A2A_TASK_STATE, task.state_name),
-                    SearchAttributePair(TINY_HARNESS_AGENT, self._config.agent),
-                ]
-            )
+        attributes = self._attributes(task)
         operation: WithStartWorkflowOperation[TaskWorkflow, object] = WithStartWorkflowOperation(
             TaskWorkflow.run,
             start,

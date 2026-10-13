@@ -68,11 +68,14 @@ def control_complete(task_id: str, participant: str = "tiny-harness") -> Message
 
 
 def parent_script() -> list[LLMResponse]:
+    """Spare replies at the end: how many turns the parent takes depends on when it hears
+    each of its child's changes, which a test does not fix."""
     return [
         scripted("", tool_calls=[delegate()]),
         scripted("Waiting on the ledger."),
         scripted("Noted."),
         scripted("Noted again."),
+        *(scripted("Still noted.") for _ in range(4)),
     ]
 
 
@@ -123,6 +126,16 @@ class Delegation:
                     return record.task_id
             await asyncio.sleep(0.05)
         raise AssertionError("the remote never parked its task")
+
+    async def quiet_pushes(self, *, quiet: float = 0.5) -> None:
+        """Until the remote has sent no push for ``quiet`` seconds."""
+        seen = -1
+        for _ in range(100):
+            if len(self.remote.pushes) == seen:
+                return
+            seen = len(self.remote.pushes)
+            await asyncio.sleep(quiet)
+        raise AssertionError("the remote never stopped pushing")
 
     async def push_configs(self, remote_id: str) -> list[PushConfigRecord]:
         return list(

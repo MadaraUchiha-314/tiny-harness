@@ -82,11 +82,12 @@ async def test_sub_tasks_inherit_the_parents_model_and_effort(env: WorkflowEnvir
         # The agent child is a task on this harness's own A2A server (issue-34 R7).
         row = current.ext.sub_tasks[0]
         agent_child = HarnessTask(await env.client.get_workflow_handle(row.task_id).result())
+        participant_id = current.ext.sub_tasks[1].task_id  # alice's task, over A2A too
         participant = HarnessTask(
-            await env.client.get_workflow_handle(f"{tid}.2").query(TaskWorkflow.task_query)
+            await env.client.get_workflow_handle(participant_id).query(TaskWorkflow.task_query)
         )
-        await env.client.get_workflow_handle(f"{tid}.2").signal(TaskWorkflow.cancel, "done")
-        note = f"Sub-task {tid}.2 is CANCELED"
+        await env.client.get_workflow_handle(participant_id).signal(TaskWorkflow.cancel, "done")
+        note = f"Sub-task {participant_id} is CANCELED"
 
         def settled(t: HarnessTask) -> bool:  # close the parent between turns, not mid-turn
             last = [i.text for i in h.llm.requests[-1].input if i.kind == "message"]

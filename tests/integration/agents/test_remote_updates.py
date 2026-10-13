@@ -446,7 +446,7 @@ async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
         # The stand-in starts while the remote works: let it hear the remote park first,
         # so no push of the remote's own overtakes the claim below.
         await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
-        await asyncio.sleep(0.5)
+        await d.quiet_pushes()
         fail_at = calls + 4
         claim = {"state": "TASK_STATE_COMPLETED"}
         async with httpx.AsyncClient(

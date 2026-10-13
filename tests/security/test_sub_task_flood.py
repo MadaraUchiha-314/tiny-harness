@@ -84,9 +84,10 @@ async def test_a_sub_task_flood_is_rate_limited_before_temporal(env: WorkflowEnv
         with pytest.raises(RPCError):  # the refused requests started no workflow
             await env.client.get_workflow_handle(f"{tid}.{PER_MINUTE + 1}").describe()
     assert codes == [200] * PER_MINUTE + [TOO_MANY] * 2
-    assert [r.task_id for r in parent.ext.sub_tasks] == [
-        f"{tid}.{n}" for n in range(1, PER_MINUTE + 1)
-    ]
+    # Each a task on this harness, created through its own A2A interface (issue-34 R7);
+    # the workflows ``<tid>.<n>`` are their stand-ins, and no 4th was started.
+    assert len(parent.ext.sub_tasks) == PER_MINUTE
+    assert all(r.agent is None for r in parent.ext.sub_tasks)  # on this harness
     assert len(h.llm.requests) == 1
 
 

@@ -26,7 +26,6 @@ from tests.integration.durable.conftest import (
     until,
 )
 from tests.integration.routed_llm import RoutedLLM, texts
-from tiny_harness.harness.agents import SELF_AGENT_ID
 from tiny_harness.harness.core import HarnessTask, SubState
 from tiny_harness.harness.models import scripted
 from tiny_harness.harness.persistence import Filter, TaskRecord
@@ -54,7 +53,7 @@ async def test_a_sub_task_on_itself_goes_through_its_own_a2a_interface(
         And a conversation whose history holds the parent's private notes
         When the model calls spawn_subtask with agent null, a goal, a description and a criterion
         Then a new A2A task is created on the harness's own server with that brief
-        And the parent's sub-task row names that task and the agent "self"
+        And the parent's sub-task row names that task, on this harness
         And the child's model input holds its goal, description and criterion
         And none of the parent's history
         And the parent's next model input holds the child's whole answer, as untrusted data
@@ -85,7 +84,7 @@ async def test_a_sub_task_on_itself_goes_through_its_own_a2a_interface(
         )
         current = await until(handle, lambda t: bool(t.ext.sub_tasks))
         (row,) = current.ext.sub_tasks
-        assert row.agent is not None and row.agent.id == SELF_AGENT_ID
+        assert row.agent is None  # on this harness, which surfaces open as their own
         assert row.task_id != tid and not row.task_id.startswith(f"{tid}.")
 
         def heard(t: HarnessTask) -> bool:

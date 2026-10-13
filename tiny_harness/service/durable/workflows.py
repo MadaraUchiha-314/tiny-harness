@@ -1262,9 +1262,26 @@ class TaskWorkflow:
                 lifecycle=None,
                 inherit=False,
             )
-            child = HarnessTask.new(child_id, task.context_id, ext)
-            await self._start_local_child(child, mode="participant", mailbox=(), step=step)
-            return TaskRef(task_id=child_id)
+            # A task on this harness for its assignee (issue-34 R7.2): the brief alone,
+            # which this harness creates in participant mode, waiting for the assignee.
+            brief = brief_message(
+                child_id,
+                task.context_id,
+                sender=self.start.config.agent,
+                text="",
+                envelope=ext.model_dump(
+                    mode="json",
+                    include={"name", "goal", "acceptance_criteria", "participants", "parent_tasks"},
+                    exclude_none=True,
+                ),
+            )
+            return await self._start_agent_child(
+                HarnessTask.new(child_id, task.context_id, ext),
+                agent=SELF_AGENT_ID,
+                brief=brief,
+                step=step,
+                delegated=False,
+            )
         # Every agent child, this harness's own included, is an A2A task on its agent
         # (issue-34 R7.2): ``agent`` null is ``self``.
         target = str(agent) if agent else SELF_AGENT_ID
@@ -1315,7 +1332,9 @@ class TaskWorkflow:
         child that could not be created, or ended in its first answer, is resolved here
         and its parent is told as of any child's end."""
         config = self.start.config
-        agent_ref = EntityRef(kind=EntityKind.AGENT, id=agent)
+        # The row says where the task lives: a child on ``self`` is on this harness, which
+        # ``TaskRef`` writes as no agent, so every surface opens it as its own (R7.4).
+        agent_ref = None if agent == SELF_AGENT_ID else EntityRef(kind=EntityKind.AGENT, id=agent)
         stand_in = record.id
         try:
             out = await workflow.execute_activity(
@@ -1343,12 +1362,15 @@ class TaskWorkflow:
             step=step,
             delegated=delegated,
             state_name=out.state_name,
+            sub_state=out.sub_state,
         )
         if out.final or not out.remote_task_id:
             summary = sub_task_result(out.text)
             self.children.append(child.model_copy(update={"done": True, "summary": summary}))
             self.notes.append(f"Sub-task {task_id} is {out.state_name}: {summary}".strip())
-            return TaskRef(task_id=task_id, agent=agent_ref, state=out.state_name)
+            return TaskRef(
+                task_id=task_id, agent=agent_ref, state=out.state_name, sub_state=out.sub_state
+            )
         await workflow.start_child_workflow(
             "RemoteTaskWorkflow",
             RemoteStart(
@@ -1388,43 +1410,36 @@ class TaskWorkflow:
             lifecycle="conversation",
             inherit=True,
         )
-        child = HarnessTask.new(child_id, task.context_id, ext)
-        await self._start_local_child(child, mode="agent", mailbox=(), step=None)
-        ref = TaskRef(task_id=child_id)
+        # A conversation on this harness, created through its own A2A interface with the
+        # brief alone, so it waits for its reporter's first message (issue-34 R7.2).
+        brief = brief_message(
+            child_id,
+            task.context_id,
+            sender=self.start.config.agent,
+            text="",
+            envelope=ext.model_dump(
+                mode="json",
+                include={
+                    "name",
+                    "goal",
+                    "participants",
+                    "lifecycle",
+                    "model",
+                    "reasoning_effort",
+                    "parent_tasks",
+                },
+                exclude_none=True,
+            ),
+        )
+        ref = await self._start_agent_child(
+            HarnessTask.new(child_id, task.context_id, ext),
+            agent=SELF_AGENT_ID,
+            brief=brief,
+            step=None,
+            delegated=False,
+        )
         self.task = link_subtask(task, ref, None)
         return ref
-
-    async def _start_local_child(
-        self,
-        child: HarnessTask,
-        *,
-        mode: Literal["agent", "participant"],
-        mailbox: tuple[Message, ...],
-        step: str | None,
-    ) -> None:
-        start = TaskStart(
-            task=child.proto,
-            state=AgentState(task_id=child.id),
-            mode=mode,
-            config=self.start.config,
-            correlation_id=self.correlation_id,
-            mailbox=mailbox,
-            parent_workflow_id=workflow.info().workflow_id,
-        )
-        await workflow.start_child_workflow(
-            "TaskWorkflow",
-            start,
-            id=child.id,
-            parent_close_policy=workflow.ParentClosePolicy.ABANDON,
-        )
-        self.children.append(
-            ChildRef(
-                task_id=child.id,
-                workflow_id=child.id,
-                kind="participant" if mode == "participant" else "local",
-                step=step,
-            )
-        )
 
     # --- the activity wrapper (R19.3-R19.6) -----------------------------------------
 
@@ -1816,7 +1831,11 @@ class RemoteTaskWorkflow:
 
     async def _apply(self, out: RemoteTurnOut, *, always: bool = False) -> bool:
         """Record ``out`` and tell the parent when it differs from the last (R2.4)."""
-        changed = (out.state_name, out.text) != (self.last.state_name, self.last.text)
+        changed = (out.state_name, out.sub_state, out.text) != (
+            self.last.state_name,
+            self.last.sub_state,
+            self.last.text,
+        )
         if not (changed or always):
             return False
         self.last = out
@@ -1849,6 +1868,7 @@ class RemoteTaskWorkflow:
                 ChildDone(
                     task_id=self.task.id,
                     state_name=out.state_name,
+                    sub_state=out.sub_state,
                     summary=sub_task_result(out.text),
                 ),
             )

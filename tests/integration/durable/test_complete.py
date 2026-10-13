@@ -29,7 +29,7 @@ from a2a.utils.errors import A2AError
 from google.protobuf import struct_pb2
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.a2a.conftest import make_server
+from tests.integration.a2a.conftest import make_server, self_hosted
 from tests.integration.a2a.test_server import run_to_completion, user_message
 from tests.integration.durable.conftest import (
     Harness,
@@ -251,7 +251,7 @@ async def test_completion_is_refused_while_a_sub_task_is_open(
     h = await Harness([scripted("Refunded.")]).bind()
     h.commands.register(CommandSpec(name="fork", description="Fork"), fork)
     tq, tid = queue(), task_id()
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
         )
@@ -259,14 +259,15 @@ async def test_completion_is_refused_while_a_sub_task_is_open(
         await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox, message("/fork", task_id=tid, message_id="m2")
         )
-        await until(handle, lambda t: bool(t.ext.sub_tasks))
+        forked = await until(handle, lambda t: bool(t.ext.sub_tasks))
+        child_id = forked.ext.sub_tasks[0].task_id
         await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox, control(task_id=tid, message_id="m3")
         )
         refused = await until(
             handle, lambda t: "completion refused" in t.proto.status.message.parts[0].text
         )
-        assert f"{tid}.1" in refused.proto.status.message.parts[0].text
+        assert child_id in refused.proto.status.message.parts[0].text
         assert parked(SubState.AWAITING_NEXT_MESSAGE)(refused)
         await close(handle)
 
@@ -381,7 +382,7 @@ async def test_a_sub_task_note_survives_a_cut_turn_and_a_rollover(
     await h.bind()
     h.get_order.gate = asyncio.Event()
     tq, tid = queue(), task_id()
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client,
             tq,
@@ -398,7 +399,7 @@ async def test_a_sub_task_note_survives_a_cut_turn_and_a_rollover(
         stop.metadata.update({"interrupt": True})
         await handle.execute_update(TaskWorkflow.inbox, stop)  # pyright: ignore[reportUnknownMemberType]
         release.set()
-        await until(
+        stopped = await until(
             handle,
             lambda t: (
                 bool(t.proto.status.message.parts)
@@ -406,5 +407,6 @@ async def test_a_sub_task_note_survives_a_cut_turn_and_a_rollover(
             ),
         )
         await close(handle)
+    child_id = stopped.ext.sub_tasks[0].task_id
     texts = [getattr(item, "text", "") for item in h.llm.requests[-1].input]
-    assert any(f"created sub-task {tid}.1" in t for t in texts), texts
+    assert any(f"created sub-task {child_id}" in t for t in texts), texts

@@ -38,10 +38,14 @@ from tiny_harness.service.a2a import (
 from tiny_harness.service.a2a.card import AgentDescription
 from tiny_harness.service.durable.models import WorkflowConfig
 
+SELF_URL = "http://harness"
+
 
 @dataclass
 class Server:
-    """One server process: app, SDK client over ASGI, the worker, captured push posts."""
+    """One server process: app, SDK client over ASGI, the worker, captured push posts. As
+    ``build_runtime`` does, the harness is registered as its own agent ``self``, reached
+    through its own app (issue-34 R7.1)."""
 
     harness: Harness
     app: Starlette
@@ -52,8 +56,17 @@ class Server:
     http: httpx.AsyncClient | None = None
     client: A2AClient | None = None
     blocking_client: A2AClient | None = None
+    me: RemoteAgent | None = None
+    me_http: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> Server:
+        self.me_http = httpx.AsyncClient(
+            transport=StreamingASGITransport(self.app), base_url=SELF_URL, timeout=60
+        )
+        self.me = RemoteAgent.from_card(SELF_AGENT_ID, self.card, http=self.me_http)
+        await self.harness.registry.add(
+            RegistryEntry(ref=self.me.ref, instance=self.me), override=True
+        )
         await self.worker.__aenter__()
         self.http = httpx.AsyncClient(
             transport=httpx.ASGITransport(app=self.app),
@@ -81,6 +94,10 @@ class Server:
         if self.http is not None:
             await self.http.aclose()
         await self.worker.__aexit__(None, None, None)
+        if self.me is not None:
+            await self.me.close()
+        if self.me_http is not None:
+            await self.me_http.aclose()
 
     def a2a(self) -> A2AClient:
         assert self.client is not None
@@ -145,9 +162,6 @@ async def make_server(
     return Server(harness=h, app=app, card=card, worker=worker, handler=handler, pushes=pushes)
 
 
-SELF_URL = "http://harness"
-
-
 @asynccontextmanager
 async def self_hosted(
     environment: WorkflowEnvironment,
@@ -156,9 +170,9 @@ async def self_hosted(
     task_queue: str,
     harness: Harness | None = None,
 ) -> AsyncGenerator[Server]:
-    """This harness serving its own A2A app, with the agent ``self`` registered over it
-    (issue-34 R7.1): a child it creates leaves through its own A2A interface and comes
-    back in, and its pushes reach its own push endpoint, as over HTTP in production."""
+    """This harness serving its own A2A app (``self`` registered over it, issue-34 R7.1),
+    with its pushes delivered to its own push endpoint, as over HTTP in production: a
+    child it creates leaves through its own A2A interface and its changes come back in."""
     apps: dict[str, Starlette] = {}
 
     async def to_self(request: httpx.Request) -> httpx.Response:
@@ -175,17 +189,8 @@ async def self_hosted(
         push_base_url=SELF_URL,
     )
     apps["self"] = server.app
-    http = httpx.AsyncClient(
-        transport=StreamingASGITransport(server.app), base_url=SELF_URL, timeout=60
-    )
-    me = RemoteAgent.from_card(SELF_AGENT_ID, server.card, http=http)
-    await server.harness.registry.add(RegistryEntry(ref=me.ref, instance=me), override=True)
     async with server:
-        try:
-            yield server
-        finally:
-            await me.close()
-            await http.aclose()
+        yield server
 
 
 __all__ = ["SELF_URL", "Server", "env", "make_server", "self_hosted"]

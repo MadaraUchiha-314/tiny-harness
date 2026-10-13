@@ -841,11 +841,14 @@ def remote_out(
         # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4). A
         # conversation child (/sub-task) parked there is waiting, not done (issue-34 R7).
         state = TaskState.TASK_STATE_COMPLETED
+    waiting = state in (TaskState.TASK_STATE_INPUT_REQUIRED, TaskState.TASK_STATE_AUTH_REQUIRED)
+    known = {s.value for s in SubState}
     return RemoteTurnOut(
         remote_task_id=remote_task_id,
         state_name=TaskState.Name(state).removeprefix("TASK_STATE_"),
         text=text or "",
         final=state in TERMINAL,
+        sub_state=SubState(sub_state) if waiting and sub_state in known else None,
     )
 
 

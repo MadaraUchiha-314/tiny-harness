@@ -15,6 +15,7 @@ import pytest
 from a2a.types import TaskState
 from temporalio.testing import WorkflowEnvironment
 
+from tests.integration.a2a.conftest import self_hosted
 from tests.integration.durable.conftest import (
     Harness,
     close,
@@ -231,8 +232,7 @@ async def test_a_commands_settings_and_spawn_are_applied_by_the_workflow(
     h = await Harness([scripted("Refunded.")]).bind()
     h.commands.register(CommandSpec(name="fork", description="Fork"), fork)
     tq, tid = queue(), task_id()
-    child_id = f"{tid}.1"
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
         )
@@ -243,6 +243,8 @@ async def test_a_commands_settings_and_spawn_are_applied_by_the_workflow(
         current = await until(
             handle, lambda t: t.proto.status.message.parts[0].text.startswith("Forking.")
         )
+        # A task on this harness, created through its own A2A interface (issue-34 R7).
+        child_id = current.ext.sub_tasks[0].task_id
         assert current.proto.status.message.parts[0].text == (
             f"Forking.\nCreated sub-task {child_id}."
         )

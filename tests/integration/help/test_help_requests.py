@@ -17,6 +17,7 @@ from temporalio.client import WorkflowHandle
 from temporalio.service import RPCError
 from temporalio.testing import WorkflowEnvironment
 
+from tests.integration.a2a.conftest import self_hosted
 from tests.integration.durable.conftest import (
     Harness,
     awaiting_next_message,
@@ -26,6 +27,7 @@ from tests.integration.durable.conftest import (
     send,
     start,
     task,
+    until,
 )
 from tiny_harness.harness.models import scripted
 from tiny_harness.harness.persistence import Filter, InboxAuditRecord
@@ -117,11 +119,15 @@ async def test_a_need_that_blocks_on_another_participants_work_creates_a_sub_tas
         [scripted("", tool_calls=[CREATE]), scripted("Waiting for approval."), scripted("Done.")]
     ).bind()
     tq = queue()
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         # Only a delegated task asks task.complete at turn end (issue-25 R3.4, R3.5).
         parent_start = start(task(lifecycle="delegated"))
         handle = await send(env.client, tq, parent_start, message("refund 48213", message_id="m1"))
-        child: WorkflowHandle[TaskWorkflow, Task] = env.client.get_workflow_handle("t-1.1")
+        # The task for alice is a task on this harness, created through its own A2A
+        # interface (issue-34 R7.2); the parent's row names it.
+        created = await until(handle, lambda t: bool(t.ext.sub_tasks))
+        child_id = created.ext.sub_tasks[0].task_id
+        child: WorkflowHandle[TaskWorkflow, Task] = env.client.get_workflow_handle(child_id)
         await until_state(child, TaskState.TASK_STATE_INPUT_REQUIRED)
         child_task = await child.query(TaskWorkflow.task_query)
         assert "Approve the refund" in child_task.status.message.parts[0].text
@@ -129,7 +135,7 @@ async def test_a_need_that_blocks_on_another_participants_work_creates_a_sub_tas
         assert parent.status.state == TaskState.TASK_STATE_WORKING
         receipt = await child.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox,
-            message("Approved in finance.", task_id="t-1.1", message_id="m2"),
+            message("Approved in finance.", task_id=child_id, message_id="m2"),
         )
         assert receipt.accepted
         child_result = await child.result()
@@ -138,7 +144,8 @@ async def test_a_need_that_blocks_on_another_participants_work_creates_a_sub_tas
     assert result.status.state == TaskState.TASK_STATE_COMPLETED
     final_input = [i.text for i in h.llm.requests[-1].input if i.kind == "message"]
     assert any(
-        "Sub-task t-1.1 is COMPLETED" in t and "Approved in finance." in t for t in final_input
+        f"Sub-task {child_id} is COMPLETED" in t and "Approved in finance." in t
+        for t in final_input
     )
 
 

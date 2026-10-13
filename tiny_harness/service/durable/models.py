@@ -360,6 +360,8 @@ class RemoteTurnOut(_Frozen):
     state_name: str
     text: str = ""
     final: bool = False
+    sub_state: SubState | None = None
+    """Why the task waits, as its agent reports it (issue-34 R7.4: the parent's row)."""
 
 
 # --- watching a parked remote task (issue-27) ---------------------------------------

@@ -1,12 +1,17 @@
+---
+type: evidence
+workItem: issue-34
+---
+
 # Documentation: issue-34
 
 ## Capability docs
 
-| Doc | What changed |
-|-----|--------------|
-| [`remote-agents.md`](../../../capabilities/remote-agents.md) | The agents roster built at startup (fields, cleaning, caps, logs). `spawn_subtask` refuses an unknown agent. History row and design link. |
-| [`context-window.md`](../../../capabilities/context-window.md) | The static, never-compacted `agents` section in the declared order and in the compaction keep-set. History row. |
-| [`prompts-and-skills.md`](../../../capabilities/prompts-and-skills.md) | The default system prompt has seven sections. What the `agents` section tells the model. History row. |
+| Capability doc | What changed | History row |
+|----------------|--------------|-------------|
+| [`remote-agents.md`](../../../capabilities/remote-agents.md) | The agents roster built at startup (fields, cleaning, caps, logs). `spawn_subtask` refuses an unknown agent. Design link. | issue-34 |
+| [`context-window.md`](../../../capabilities/context-window.md) | The static, never-compacted `agents` section in the declared order and in the compaction keep-set | issue-34 |
+| [`prompts-and-skills.md`](../../../capabilities/prompts-and-skills.md) | The default system prompt has seven sections. What the `agents` section tells the model | issue-34 |
 
 ## Documentation
 

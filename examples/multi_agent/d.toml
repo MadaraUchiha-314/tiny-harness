@@ -2,6 +2,8 @@
 
 [agent]
 id = "d"
+
+[card]
 name = "Ledger"
 description = "Looks up account balances."
 

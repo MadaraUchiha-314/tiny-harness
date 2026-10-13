@@ -2,6 +2,8 @@
 
 [agent]
 id = "a"
+
+[card]
 name = "Front desk"
 description = "Answers customers and delegates billing and shipping questions."
 

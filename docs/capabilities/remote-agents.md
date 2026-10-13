@@ -18,10 +18,11 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
   be fetched from `/.well-known/agent-card.json` and validated before anything is sent.
   A card that declares a security scheme or requires an extension the harness does not
   implement SHALL be refused with `UnsupportedExtensionError` and the reason recorded.
-- WHEN a registered agent's URL is on the harness's own origin (an agent in the same
-  service) THEN its card SHALL be fetched and validated on first use, not at start. The
-  service is not listening while it starts. Calls still go over HTTP through the other
-  agent's routes.
+- WHEN a registered agent's URL is the public URL of another harness built in this
+  process THEN its card SHALL be built from that harness's settings, as the card of
+  `self` is, and not fetched. The process is not listening while it starts. Calls still
+  go over HTTP through the other agent's routes. Any other URL is fetched at start, as
+  before.
 - `A2A-Extensions` SHALL name only extensions the remote card advertises.
 - WHEN the harness starts THEN it SHALL build an agents roster from the registered
   agents' cards (id, name, description, up to 10 skills; never the URL), sorted by id.
@@ -88,4 +89,4 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
 | issue-27 | Push and follow watches on a parked remote task; push config cleanup; the parent noted only of endings and new questions; `X-Participant-Id` on every remote task call (fixing replies to a parked tiny-harness peer) | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
 | issue-34 | The agents roster in the model's context; `spawn_subtask` refuses an unknown agent | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-34 (R7) | The harness is the agent `self`; children are created with `start_agent_task` and cancelled with `CancelTask`; follows skip replayed history; streams are closed | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
-| issue-36 | Agents in the same service connected on first use (`RemoteAgent.deferred`) | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |
+| issue-36 | Agents of the same process get a card built from their settings; `self` carries the mounted URL | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |

@@ -44,16 +44,14 @@ DEFAULT_AGENT_ID = "tiny-harness"
 
 class AgentConfig(_Strict):
     """Who this agent is (issue-36 R4.6): its participant id on tasks, its default task
-    queue, its heartbeat schedule and its card's name and description. Several agents in
-    one process each need their own id (R5.3)."""
+    queue and its heartbeat schedule. Several agents in one process each need their own id
+    (R5.3). Its card's name and description are ``[card]``'s (issue-34)."""
 
     id: str = Field(
         default=DEFAULT_AGENT_ID,
         pattern=r"^[a-z0-9][a-z0-9-]{0,62}$",
         description="lowercase letters, digits and dashes; unique per process",
     )
-    name: str | None = Field(default=None, description="the agent card's name")
-    description: str | None = Field(default=None, description="the agent card's description")
 
 
 class EmbeddedTemporalConfig(_Strict):

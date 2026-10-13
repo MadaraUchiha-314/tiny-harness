@@ -5,6 +5,7 @@ class Harness(object)
   def asgi_app(self) -> 'HarnessApp'
   property card
   property client
+  property description
   def lifespan(self, app: 'object') -> 'AbstractAsyncContextManager[None]'
   property prefix
   property public_url
@@ -12,6 +13,7 @@ class Harness(object)
   property route_options
   def routes(self) -> 'list[BaseRoute]'
   property started
+  def unstarted_card(self) -> 'AgentCard'
 class RouteOptions(object)
   def __init__(self, limits: 'bool' = True, cors: 'bool' = True, monitor: 'bool' = True, push: 'bool' = True, ui: 'bool' = True) -> None
 class RunningHarness(object)

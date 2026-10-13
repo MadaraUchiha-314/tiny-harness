@@ -37,9 +37,8 @@ def test_no_agent_section_keeps_todays_id_and_queue(tmp_path: Path) -> None:
 
 
 def test_the_queue_defaults_to_the_agent_id(tmp_path: Path) -> None:
-    settings = load(tmp_path, tail='[agent]\nid = "billing"\nname = "Billing"')
+    settings = load(tmp_path, tail='[agent]\nid = "billing"')
     assert settings.agent.id == "billing"
-    assert settings.agent.name == "Billing"
     assert settings.temporal.effective_task_queue == "billing"
 
 

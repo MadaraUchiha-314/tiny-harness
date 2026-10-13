@@ -5,12 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from tiny_harness.config import AgentConfig
 from tiny_harness.errors import ConfigError
 from tiny_harness.service.a2a.card import (
     AgentDescription,
     build_agent_card,
-    describe_agent,
     normalize_prefix,
     public_url,
 )
@@ -46,9 +44,3 @@ def test_normalize_prefix(raw: str | None, normal: str) -> None:
 def test_the_card_carries_the_prefixed_url() -> None:
     card = build_agent_card(AgentDescription(), public_url("http://h:8090", "/agents/b"))
     assert {i.url for i in card.supported_interfaces} == {"http://h:8090/agents/b/"}
-
-
-def test_the_agent_section_names_the_card() -> None:
-    described = describe_agent(AgentConfig(id="billing", name="Billing", description="Bills."))
-    assert (described.name, described.description) == ("Billing", "Bills.")
-    assert describe_agent(AgentConfig()) == AgentDescription()

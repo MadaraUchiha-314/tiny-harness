@@ -33,11 +33,12 @@ them.
 3. **The default agent keeps its names.** For the id `tiny-harness`, the queue, the
    heartbeat schedule id and the participant id are as before. Existing deployments
    change nothing.
-4. **A peer in the same service is connected on first use.** A `[[agents]]` URL on the
-   agent's own origin registers a `RemoteAgent` whose card is fetched the first time it
-   is used. A peer elsewhere is still fetched at start, so a wrong URL still fails fast.
-   Calls between agents in one service go over HTTP through each other's routes. There
-   is no in-process shortcut.
+4. **A peer in the same process gets a card built from its settings.** Every `Harness`
+   is recorded by its public URL when it is built. A `[[agents]]` URL that names one
+   gets that harness's card built from its `[card]` and its public URL, without a fetch,
+   as issue-34 builds the card of `self`. A peer elsewhere is still fetched at start, so
+   a wrong URL still fails fast. Calls between agents in one process go over HTTP through
+   each other's routes. There is no in-process shortcut.
 5. **With a participant resolver, nothing self-asserted counts.** The header is ignored,
    and a message's own `participant_id` claim cannot stand in for a missing resolved
    participant.
@@ -53,12 +54,16 @@ them.
 - **An in-process transport between co-hosted agents.** It is faster, but it would skip
   the routes, the middleware and the access checks that protect an agent from its
   peers.
+- **Fetching a same-process peer's card on first use.** The first version did this. It
+  gave the issue-34 roster a placeholder card with no description, and it also deferred
+  a sibling service behind the same gateway origin.
 - **Retrying a peer's card fetch at start until the service listens.** The service starts
   listening only after every lifespan has finished, so this would wait forever.
 
 ## Consequences
 
 - A lookup of a new task id costs one more Temporal RPC per process.
-- A misconfigured same-origin `[[agents]]` URL is found at first use, not at start.
+- A same-process peer's built card has no registered commands in it. The roster does
+  not use them.
 - Two processes can still be given one agent id. The registry sees one process only, and
   the deploy guide says so.

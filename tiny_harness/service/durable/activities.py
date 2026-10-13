@@ -654,7 +654,6 @@ class Activities:
         agent = await self._remote(arg.agent)
         if not isinstance(agent, RemoteAgent) or agent.updates == "off":
             return RemoteWatch(mode="off")
-        await agent.resolve_card()  # a deferred agent's card says whether it pushes
         if agent.updates == "follow" or not agent.push_supported or not self.push_base_url:
             return RemoteWatch(mode="follow")
         token = secrets.token_urlsafe(32)  # 256 bits (R1.3)

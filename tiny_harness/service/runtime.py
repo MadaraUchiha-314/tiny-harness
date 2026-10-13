@@ -6,12 +6,12 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import urlsplit
 
+from a2a.types import AgentCard
 from pydantic import SecretStr
 
 from tiny_harness.builtin import load_builtin
@@ -33,7 +33,7 @@ from tiny_harness.harness.security import PROCESS_SECRETS, Redactor
 from tiny_harness.harness.skills.loader import skills_index
 from tiny_harness.harness.tools.mcp import McpToolSource, ServerSpec
 from tiny_harness.harness.tools.skill_tools import SkillSession, skill_tools
-from tiny_harness.service.a2a.card import build_agent_card, describe
+from tiny_harness.service.a2a.card import AgentDescription, build_agent_card, describe
 from tiny_harness.service.durable.models import WorkflowConfig
 from tiny_harness.service.o11y.plugin import executor as o11y_executor
 from tiny_harness.service.o11y.plugin import o11y_plugin
@@ -86,12 +86,6 @@ def ignored_environment_warnings(env: Mapping[str, str]) -> tuple[str, ...]:
     )
 
 
-def url_origin(url: str) -> str:
-    """``scheme://host:port`` of ``url``, lowercased: what makes two URLs one server."""
-    split = urlsplit(url)
-    return f"{split.scheme}://{split.netloc}".lower()
-
-
 def secret_values(settings: Settings) -> list[SecretStr]:
     values: list[SecretStr] = []
     if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
@@ -129,14 +123,19 @@ async def build_runtime(
     builtin_commands: bool = True,
     plugins: Sequence[Plugin | Path] = (),
     commands: Iterable[tuple[CommandSpec, CommandHandler]] = (),
-    deferred_origins: Collection[str] = (),
+    public_url: str | None = None,
+    description: AgentDescription | None = None,
+    local_cards: Mapping[str, AgentCard] | None = None,
 ) -> Runtime:
     """Assemble the harness (issue-25 R11): ``plugins`` (a directory or a programmatic
     ``Plugin``) load after ``settings.plugins``, with the same override, and ``commands``
     register from code after every plugin; a bad or duplicate name raises
     ``CommandError`` (R6.5). ``builtin_commands=False`` builds without ``/model``,
-    ``/effort``, ``/sub-task`` and ``/status`` (R6.8). A remote agent whose URL is on one
-    of ``deferred_origins`` (this service's own) is connected on first use (issue-36 R6.1)."""
+    ``/effort``, ``/sub-task`` and ``/status`` (R6.8). ``public_url`` and ``description``
+    are this harness's own (default: ``base_url`` and ``[card]``). A remote agent whose URL
+    is a key of ``local_cards`` (a harness of this process) gets that card, unfetched
+    (issue-36 R6.1)."""
+    local_cards = local_cards or {}
     registry = Registry()
     hooks = HookManager()
     registrar = RegistryRegistrar(registry)
@@ -180,15 +179,18 @@ async def build_runtime(
         for tool in await source.tools():
             await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         sources.append(source)
-    me = self_agent(settings)  # the harness delegates to itself over A2A (issue-34 R7.1)
+    # the harness delegates to itself over A2A (issue-34 R7.1), at its mounted URL (issue-36)
+    me = self_agent(settings, public_url=public_url, description=description)
     await registry.add(RegistryEntry(ref=me.ref, instance=me), override=True)
     for remote in settings.agents:
-        if url_origin(str(remote.url)) in deferred_origins:
-            # In this same service: not listening while the service starts (issue-36 R6.1).
-            log.info("agent %s is in this service; its card is fetched on first use", remote.id)
-            agent = RemoteAgent.deferred(
+        local = local_cards.get(str(remote.url).rstrip("/"))
+        if local is not None:
+            # A harness of this same process: it is not listening while the process starts,
+            # so its card is built from its settings, as this harness's own is (issue-36 R6.1).
+            log.info("agent %s is in this process; its card is built, not fetched", remote.id)
+            agent = RemoteAgent.from_card(
                 remote.id,
-                str(remote.url),
+                local,
                 version=remote.version,
                 updates=remote.updates,
                 follow_interval=remote.follow_interval,
@@ -262,12 +264,19 @@ async def build_runtime(
     )
 
 
-def self_agent(settings: Settings) -> RemoteAgent:
-    """This harness as an agent, ``self``: its own card at its own ``base_url``, reached
-    over HTTP like any remote agent (issue-34 R7.1). The card is built, not fetched, so
-    the server need not be up yet."""
-    base_url = str(settings.server.base_url)
-    return RemoteAgent.from_card(SELF_AGENT_ID, build_agent_card(describe(settings.card), base_url))
+def self_agent(
+    settings: Settings,
+    *,
+    public_url: str | None = None,
+    description: AgentDescription | None = None,
+) -> RemoteAgent:
+    """This harness as an agent, ``self``: its own card at its own URL, reached over HTTP
+    like any remote agent (issue-34 R7.1). The card is built, not fetched, so the server
+    need not be up yet. ``public_url`` is where a mounted harness is served (issue-36)."""
+    url = public_url or str(settings.server.base_url)
+    return RemoteAgent.from_card(
+        SELF_AGENT_ID, build_agent_card(description or describe(settings.card), url)
+    )
 
 
 async def registered_agents(registry: Registry) -> list[Agent]:
@@ -305,6 +314,5 @@ __all__ = [
     "retention_map",
     "secret_values",
     "self_agent",
-    "url_origin",
     "workflow_config",
 ]

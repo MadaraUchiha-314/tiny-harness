@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import weakref
 from collections.abc import AsyncGenerator, Callable, Iterable, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from functools import partial
@@ -68,7 +69,7 @@ from tiny_harness.service.a2a.app import (
 )
 from tiny_harness.service.a2a.card import (
     AgentDescription,
-    describe_agent,
+    describe,
     normalize_prefix,
     public_url,
 )
@@ -81,11 +82,15 @@ from tiny_harness.service.runtime import (
     build_runtime,
     retention_map,
     secret_values,
-    url_origin,
     workflow_config,
 )
 
 log = logging.getLogger("tiny_harness.harness")
+
+_LOCAL_HARNESSES: weakref.WeakValueDictionary[str, Harness] = weakref.WeakValueDictionary()
+"""Every harness built in this process, by public URL: a harness whose ``[[agents]]`` names
+another one's URL gets that agent's card unfetched, since neither is listening while the
+host app starts (issue-36 R6.1)."""
 
 Lifespan = Callable[[object], AbstractAsyncContextManager[None]]
 
@@ -143,6 +148,7 @@ class Harness:
         self._handler = DeferredRequestHandler()
         self._groups: RouteGroups | None = None
         self._app: HarnessApp | None = None
+        _LOCAL_HARNESSES[self._public_url] = self
 
     # --- identity ------------------------------------------------------------------------
 
@@ -159,6 +165,16 @@ class Harness:
     def public_url(self) -> str:
         """Where clients reach the agent, with no trailing slash; the card's URL."""
         return self._public_url
+
+    @property
+    def description(self) -> AgentDescription:
+        """What the card says: ``agent`` when given in code, else ``[card]`` (issue-34)."""
+        return self._agent or describe(self.settings.card)
+
+    def unstarted_card(self) -> AgentCard:
+        """The card as other agents of this process see it before this one has started:
+        built from the settings, without the registered commands."""
+        return build_agent_card(self.description, self._public_url)
 
     @property
     def started(self) -> bool:
@@ -291,7 +307,13 @@ class Harness:
             plugins=self._plugins,
             commands=self._commands,
             builtin_commands=self._builtin_commands,
-            deferred_origins={url_origin(self._public_url)},
+            public_url=self._public_url,
+            description=self.description,
+            local_cards={
+                url: peer.unstarted_card()
+                for url, peer in list(_LOCAL_HARNESSES.items())
+                if peer is not self
+            },
         )
         push_store = StorePushConfigStore(runtime.store)
         push_http = httpx.AsyncClient(timeout=10)
@@ -300,7 +322,7 @@ class Harness:
         runtime.commands.freeze()  # no command is registered once the card is built
         await runtime.commands.publish(runtime.registry)
         card = build_agent_card(
-            describe_agent(settings.agent, self._agent),
+            self.description,
             self._public_url,
             commands=runtime.commands.specs,
         )

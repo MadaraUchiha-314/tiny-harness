@@ -84,7 +84,7 @@ How a deployment is described and how the processes come up. Lives in
   read or create `~/.tiny-harness/`; `tiny_harness.home.resolve_config_path` and
   `ensure_default_config` are what the CLI calls, public for an SDK caller.
 - `[agent]` SHALL name the agent: `id` (lowercase, digits and `-`, default
-  `tiny-harness`), and the card's `name` and `description`. `[temporal] task_queue`
+  `tiny-harness`). The card's name and description stay in `[card]`. `[temporal] task_queue`
   SHALL default to `agent.id`. A file without either keeps the id and queue
   `tiny-harness`.
 - `tiny_harness.service` SHALL also export `Harness`, `harnesses_lifespan` and
@@ -93,8 +93,9 @@ How a deployment is described and how the processes come up. Lives in
 - `build_runtime` SHALL assemble one process from `Settings`: the built-in plugin, the
   operator's plugins, the MCP tool sources, the skills, the system prompt, the model,
   the store and the in-process engine the activities run over, with the plugin data
-  root at `plugin-data/` beside the store. A remote agent whose URL is on one of
-  `deferred_origins` (the harness's own origin) is connected on first use.
+  root at `plugin-data/` beside the store. `self` SHALL carry the harness's
+  `public_url`. A remote agent whose URL is a harness of this process SHALL get that
+  harness's card built from its settings, not fetched.
 - The demo configuration SHALL document the keyring lookups
   `secret-tool lookup service temporal project tiny-harness` and
   `secret-tool lookup service openai project tiny-harness`.

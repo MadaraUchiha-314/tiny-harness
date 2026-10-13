@@ -42,6 +42,8 @@ def agent_settings(
         f"""
 [agent]
 id = "{agent_id}"
+
+[card]
 name = "Agent {agent_id}"
 
 [temporal]

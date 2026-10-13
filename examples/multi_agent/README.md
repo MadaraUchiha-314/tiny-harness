@@ -55,6 +55,7 @@ Open <http://127.0.0.1:8090/docs>. The page shows one group of routes for each a
   when the app starts, and stops them when the app stops.
 - `app_fastapi.py` includes one `harness_router(harness)` for each agent.
 - An agent finds another agent through its `[[agents]]` table. The URL points into the
-  same app, so the agent gets the card of the other agent when it first uses it.
+  same app, so the agent builds the card of the other agent from its configuration. It
+  does not fetch the card, because the app does not listen yet while it starts.
 
 See [Mount agents on your app](../../docs/sdk/mount.md) for the full guide.

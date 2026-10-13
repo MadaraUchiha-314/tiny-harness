@@ -150,8 +150,8 @@ url = "http://127.0.0.1:8000/agents/billing"
 ```
 
 The `support` agent then sends sub-tasks to `billing` over HTTP, through your app. It
-gets the card of `billing` when it first uses it, because your app does not listen
-yet while it starts. A complete example with five agents is in
+builds the card of `billing` from the `billing` configuration in the same process. It
+does not fetch the card, because your app does not listen yet while it starts. A complete example with five agents is in
 [`examples/multi_agent`](https://github.com/MadaraUchiha-314/tiny-harness/tree/main/examples/multi_agent).
 
 ## Use your own login
@@ -178,9 +178,10 @@ With this function:
   start a task for it and shows it no task.
 - If the function raises an error, the request fails with the error 500.
 
-Calls from one agent to another carry only `X-Participant-Id`. If your login refuses
-those calls, the agents cannot use each other. Let your login accept them, or mount
-the agents that work together without the function.
+Calls from one agent to another carry only `X-Participant-Id`. An agent also calls
+itself this way when it gives a step to a sub-task. If your login refuses these calls,
+sub-tasks and delegation fail. Let your login accept them, or mount the agents that
+work together without the function.
 
 ## Options
 

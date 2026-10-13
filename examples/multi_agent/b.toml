@@ -2,6 +2,8 @@
 
 [agent]
 id = "b"
+
+[card]
 name = "Billing"
 description = "Answers billing questions; asks the ledger agent for balances."
 

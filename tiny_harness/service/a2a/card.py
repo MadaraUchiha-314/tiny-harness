@@ -11,7 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
 from pydantic import BaseModel, ConfigDict
 
-from tiny_harness.config import AgentConfig, CardConfig
+from tiny_harness.config import CardConfig
 from tiny_harness.errors import ConfigError
 from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
@@ -91,18 +91,6 @@ def public_url(base_url: str, prefix: str | None = None) -> str:
     return urlunsplit((split.scheme, split.netloc, path, "", ""))
 
 
-def describe_agent(config: AgentConfig, agent: AgentDescription | None = None) -> AgentDescription:
-    """The card's description: ``agent`` when given in code, else the default, with
-    ``[agent]``'s name and description over it when set (issue-36 R4.6)."""
-    base = agent or AgentDescription()
-    updates: dict[str, str] = {}
-    if config.name is not None:
-        updates["name"] = config.name
-    if config.description is not None:
-        updates["description"] = config.description
-    return base.model_copy(update=updates) if updates else base
-
-
 def build_agent_card(
     agent: AgentDescription, base_url: str, *, commands: Sequence[CommandSpec] = ()
 ) -> AgentCard:
@@ -172,7 +160,6 @@ __all__ = [
     "AgentSkillSpec",
     "build_agent_card",
     "describe",
-    "describe_agent",
     "normalize_prefix",
     "public_url",
 ]

@@ -2,6 +2,8 @@
 
 [agent]
 id = "c"
+
+[card]
 name = "Shipping"
 description = "Answers shipping questions."
 

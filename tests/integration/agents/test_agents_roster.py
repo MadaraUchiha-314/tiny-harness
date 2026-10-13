@@ -34,7 +34,7 @@ from tests.integration.durable.conftest import (
     start,
 )
 from tests.integration.embedded.conftest import embedded_settings, free_port
-from tiny_harness.config import RemoteAgentSpec, Settings
+from tiny_harness.config import CardConfig, CardSkillConfig, RemoteAgentSpec, Settings
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.core import AgentState, HarnessTask, TaskExtensionData
 from tiny_harness.harness.core.context import UNTRUSTED_PREAMBLE
@@ -43,6 +43,7 @@ from tiny_harness.harness.entities import EntityKind
 from tiny_harness.harness.models import FakeLLM, LLMResponse, ToolResultItem, scripted
 from tiny_harness.harness.persistence import SqliteStore
 from tiny_harness.harness.tools import ToolCall
+from tiny_harness.service.a2a.card import build_agent_card, describe
 from tiny_harness.service.runtime import Runtime, build_runtime
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -309,3 +310,35 @@ async def test_a_hostile_agent_card_cannot_break_out_of_the_agents_roster(tmp_pa
     assert roster.count("</untrusted>") == 1 and roster.endswith("</untrusted>")
     assert instructions.count("<system_prompt>") == 1
     assert instructions.count("</agents>") == 1
+
+
+async def test_a_tiny_harness_described_by_its_card_section_is_listed_by_another(
+    tmp_path: Path,
+) -> None:
+    """
+    Feature: The model sees the configured remote agents
+    Requirement: docs/specs/issue-34/requirements.md#R5
+
+    Scenario: A tiny-harness described by its card section is listed by another
+        Given a tiny-harness whose [card] section sets a name, a description and a skill
+        And a second tiny-harness that declares it as the agent "ledger"
+        When the second harness starts and the model takes a turn
+        Then the roster entry for "ledger" carries the configured name, description and skill
+        And not the default tiny-harness description
+    """
+    configured = CardConfig(
+        name="Order ledger",
+        description=LEDGER_DESCRIPTION,
+        skills=(
+            CardSkillConfig(id=LEDGER_SKILL[0], name=LEDGER_SKILL[0], description=LEDGER_SKILL[1]),
+        ),
+    )
+    async with card_server(lambda url: build_agent_card(describe(configured), url)) as url:
+        runtime = await runtime_for(tmp_path, url, scripted("Order 48213 is on its way."))
+        await CoreLoop(runtime.engine).run(conversation(), AgentState(task_id="t-1"), "hi")
+        await close_agents(runtime)
+    roster = agents_section(requests_of(runtime).requests[0].instructions)
+    assert "- id: ledger\n  name: Order ledger\n" in roster
+    assert f"  description: {LEDGER_DESCRIPTION}\n" in roster
+    assert f"    - {LEDGER_SKILL[0]}: {LEDGER_SKILL[1]}" in roster
+    assert describe(CardConfig()).description not in roster

@@ -242,6 +242,39 @@ class RemoteAgentSpec(_Strict):
         return value
 
 
+class CardSkillConfig(_Strict):
+    """One skill this agent lists on its own card (issue-34 R5)."""
+
+    id: str = Field(min_length=1, pattern=r"\S")
+    name: str = Field(min_length=1, pattern=r"\S")
+    description: str = ""
+    tags: tuple[str, ...] = ()
+    examples: tuple[str, ...] = ()
+
+
+class CardConfig(_Strict):
+    """This agent's own card (issue-34 R5): what another agent's roster shows about it.
+    An unset field keeps the built-in default."""
+
+    name: str | None = Field(default=None, min_length=1, pattern=r"\S")
+    description: str | None = Field(
+        default=None,
+        min_length=1,
+        pattern=r"\S",
+        description="what this agent does; another agent reads it to decide when to delegate",
+    )
+    version: str | None = Field(default=None, min_length=1, pattern=r"\S")
+    skills: tuple[CardSkillConfig, ...] = ()
+
+    @field_validator("skills")
+    @classmethod
+    def _unique_ids(cls, skills: tuple[CardSkillConfig, ...]) -> tuple[CardSkillConfig, ...]:
+        ids = [s.id for s in skills]
+        if len(ids) != len(set(ids)):
+            raise ValueError("each card skill id must be unique")
+        return skills
+
+
 class ServerConfig(_Strict):
     """The A2A server (R14). Bind and base URL, transport limits, the event bridge interval."""
 
@@ -335,6 +368,7 @@ class Settings(_Strict):
     heartbeat: HeartbeatConfig = HeartbeatConfig()
     plugins: tuple[Path, ...] = ()
     agents: tuple[RemoteAgentSpec, ...] = ()
+    card: CardConfig = CardConfig()
     store: StoreConfig = StoreConfig()
     o11y: O11yConfig = O11yConfig()
     retries: RetryPolicies = RetryPolicies()
@@ -445,6 +479,8 @@ def load_settings[S: Settings](
 __all__ = [
     "SECRET_VARIABLES",
     "AnthropicConfig",
+    "CardConfig",
+    "CardSkillConfig",
     "ContextConfig",
     "EmbeddedTemporalConfig",
     "HeartbeatConfig",

@@ -57,6 +57,110 @@
       "title": "AnthropicConfig",
       "type": "object"
     },
+    "CardConfig": {
+      "additionalProperties": false,
+      "description": "This agent's own card (issue-34 R5): what another agent's roster shows about it.\nAn unset field keeps the built-in default.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "what this agent does; another agent reads it to decide when to delegate",
+          "title": "Description"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "skills": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CardSkillConfig"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "title": "CardConfig",
+      "type": "object"
+    },
+    "CardSkillConfig": {
+      "additionalProperties": false,
+      "description": "One skill this agent lists on its own card (issue-34 R5).",
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "examples": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Examples",
+          "type": "array"
+        },
+        "id": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Name",
+          "type": "string"
+        },
+        "tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "CardSkillConfig",
+      "type": "object"
+    },
     "ContextConfig": {
       "additionalProperties": false,
       "description": "Context window budget and compaction (R10.4) and the history bound (R19.8).",
@@ -709,6 +813,15 @@
         }
       ],
       "default": null
+    },
+    "card": {
+      "$ref": "#/$defs/CardConfig",
+      "default": {
+        "description": null,
+        "name": null,
+        "skills": [],
+        "version": null
+      }
     },
     "context": {
       "$ref": "#/$defs/ContextConfig",

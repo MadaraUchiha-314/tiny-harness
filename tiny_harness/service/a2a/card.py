@@ -10,6 +10,7 @@ from typing import Final
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
 from pydantic import BaseModel, ConfigDict
 
+from tiny_harness.config import CardConfig
 from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
 from tiny_harness.harness.commands import COMMANDS_EXT_URI, CommandsExtensionParams, CommandSpec
@@ -52,6 +53,13 @@ class AgentSkillSpec(BaseModel):
     description: str = ""
     tags: tuple[str, ...] = ()
     examples: tuple[str, ...] = ()
+
+
+def describe(card: CardConfig) -> AgentDescription:
+    """The description ``[card]`` configures (issue-34 R5); an unset field keeps its default."""
+    fields = card.model_dump(exclude_none=True, exclude={"skills"})
+    skills = tuple(AgentSkillSpec.model_validate(s.model_dump()) for s in card.skills)
+    return AgentDescription(**fields, skills=skills)
 
 
 def build_agent_card(
@@ -122,4 +130,5 @@ __all__ = [
     "AgentDescription",
     "AgentSkillSpec",
     "build_agent_card",
+    "describe",
 ]

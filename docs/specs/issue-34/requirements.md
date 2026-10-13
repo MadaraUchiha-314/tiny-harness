@@ -168,6 +168,42 @@ another, so that I can see how to set it up.
    result.
 3. The user documentation SHALL describe the example and the `[card]` section.
 
+### Requirement 7 — Every child task is a task on an agent, reached through A2A
+
+> Added after approval, from PR review: [context isolation](https://github.com/MadaraUchiha-314/tiny-harness/pull/35#issuecomment-6149857965),
+> [one code path](https://github.com/MadaraUchiha-314/tiny-harness/pull/35#issuecomment-6149963265), [the decisions](https://github.com/MadaraUchiha-314/tiny-harness/pull/35#issuecomment-6150205301). Review it in PR #35.
+
+**User story:** As the maintainer, I want tiny-harness to delegate to itself through the
+same A2A interface as to any other agent, so that there is one code path and one payload
+for every sub-task, and the model can use a sub-task on itself to keep its context small.
+
+#### Acceptance criteria (EARS)
+
+1. The harness SHALL register itself in the registry as an agent with the reserved id
+   `self`: its own card (`[card]`) at its own `server.base_url`, reached over HTTP like
+   any remote agent. `spawn_subtask` with `agent` null SHALL mean `self`. A configured
+   agent SHALL NOT use the id `self`.
+2. WHEN a child task is created — `spawn_subtask` (any agent, `self` included),
+   `/sub-task`, or `create_task_for_participant` — THEN the harness SHALL create it with
+   an A2A `SendMessage` to the agent, carrying the child's brief as a task-extension
+   envelope (name, goal, description, acceptance criteria, participants, lifecycle), and
+   SHALL follow it with the one stand-in workflow, which tells the parent of each change
+   through `child_done`. No child SHALL be started as a direct child `TaskWorkflow`.
+3. WHEN an agent's card does not advertise the task extension THEN the brief SHALL be sent
+   as text: the goal, the description and each acceptance criterion.
+4. The parent's sub-task row SHALL name the child's own A2A task id and its agent, so a
+   participant can talk to a `/sub-task` or participant task directly.
+5. WHEN a child reaches a terminal state THEN its last answer SHALL reach the parent's
+   model whole, up to 4,000 characters, a longer one cut and marked with `…`, inside the
+   untrusted block.
+6. WHEN the parent is cancelled THEN each open child SHALL be cancelled with A2A
+   `CancelTask`.
+7. The system prompt SHALL tell the model that a sub-task on itself runs in a clean
+   context, when to use one, and to give it a name, a goal, a description and acceptance
+   criteria that stand alone. `spawn_subtask` SHALL take an optional `description`.
+8. An in-process transport is out of scope here: it is a later optimisation behind the
+   same `Agent` interface.
+
 ## Non-functional requirements
 
 - **Cache stability:** the roster is computed once at startup from the cards already
@@ -210,6 +246,16 @@ another, so that I can see how to set it up.
   side. On the other side it is a remote card like any other, so the roster's untrusted
   block, cleaning and caps (abuse cases 1–3) apply to it unchanged. `[card]` holds no
   secret and adds no endpoint.
+- **R7 (a creator sets a child's brief):** today a task envelope cannot set
+  `lifecycle`, `model` or `reasoning_effort`, and only an admin may set `participants`.
+  On the A2A route the creator of a new task must set them. The trust rule is in
+  design § Addendum R7 and is a decision for the reviewer. Abuse cases:
+  5. WHEN a client that is not a trusted delegator creates a task naming participants
+     other than itself THEN the server SHALL refuse the request and create no task.
+  6. WHEN a creator asks for a `model` or `reasoning_effort` THEN the server SHALL accept
+     only a value the configuration allows (`[openai] models`), else refuse.
+  7. WHEN a creator sets `lifecycle` or `participants` on an existing task THEN the server
+     SHALL refuse it as today; the relaxation is for the first message only.
 - **Fail closed:** an agent whose card could not be fetched or validated is not
   registered and so is not listed and cannot be called. An unknown id is an error, never
   a fallback to a local sub-task.

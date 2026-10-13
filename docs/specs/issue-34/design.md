@@ -246,6 +246,115 @@ flowchart LR
 - Docs: `[card]` in `docs/configuration/plugins-and-agents.md`; a new guide
   `docs/sdk/example-delegation.md`.
 
+### Addendum: every child is an A2A task on an agent (R7)
+
+> Added after approval, from PR review. Review it in PR #35. Decisions taken on the PR:
+> the harness reaches itself over HTTP at its own `server.base_url` (option A), and all
+> three kinds of child take the A2A route. An in-process transport is a later
+> optimisation behind the same `Agent` interface.
+
+**Today** a local child is a child `TaskWorkflow` that the parent starts directly and
+that signals `child_done` from `_finish`; a remote child is a `RemoteTaskWorkflow` stand-in
+that drives an A2A client and signals the same `child_done`. Two paths, and the remote one
+sends the goal as text only (the acceptance criteria are lost). **After** there is one path:
+
+```mermaid
+sequenceDiagram
+    participant P as Parent TaskWorkflow
+    participant S as Stand-in (RemoteTaskWorkflow)
+    participant A as Agent "self" or "ledger" (RemoteAgent, HTTP)
+    participant X as Callee A2A server (this harness or a peer)
+    P->>S: start: agent, brief (task envelope + text), requested lifecycle
+    S->>A: SendMessage (non-blocking) with the brief
+    A->>X: POST / (JSON-RPC)
+    X-->>A: Task (id, SUBMITTED/WORKING)
+    A-->>S: the child's A2A task id
+    S-->>P: child_done(started, task id) → the row names the A2A task and agent
+    S->>A: watch: push to base_url/a2a/push/<stand-in>, or SubscribeToTask
+    X-->>S: state changes → GetTask
+    S-->>P: child_done(state, last answer ≤ 4,000 chars)
+    P->>S: cancel (parent cancelled)
+    S->>A: CancelTask
+```
+
+#### The self agent (R7.1)
+
+- `build_runtime` registers `RemoteAgent` id `self`, built from
+  `build_agent_card(describe(settings.card), settings.server.base_url)` — the card is
+  known, so nothing is fetched at startup (the server may not be up yet). Its HTTP
+  client and `updates = "auto"` are those of any configured agent.
+- `RemoteAgentSpec.id` refuses `self` (config error). The roster lists `self` like any
+  agent, from its own card. The intrinsic maps `agent: null` to `self`; `known_agents`
+  includes it.
+- The worker reaches `base_url` already (remote push needs it, issue-27); a perimeter
+  that authenticates (decision-003) must admit the harness's own calls as it admits a
+  peer's.
+
+#### The brief (R7.2, R7.3)
+
+`child_brief(kind, …) -> Message`: one text part (`sub_task_brief`: goal, description,
+criteria) and, when the agent's card advertises the task extension, one task envelope:
+
+| Kind | Agent | Envelope payload | Requested lifecycle |
+|------|-------|------------------|---------------------|
+| `spawn_subtask` | `self` or the named agent | name, goal, description, acceptance_criteria; the parent's model and reasoning_effort when the agent is `self` | `delegated` |
+| `/sub-task` | `self` | name, goal; participants: the sender as reporter, this agent as assignee; the parent's model and effort | `conversation`, no text part (the child waits for its first message) |
+| `create_task_for_participant` | `self` | name, goal, criteria; the parent's participants with the target as assignee and this agent as watcher | none: a participant task |
+
+#### The callee: creating a task from a brief (server side)
+
+`extension_from_envelope` (first message of a new task only) gains, behind the trust
+rule below:
+
+- `lifecycle`: `conversation` (the default) or `delegated`.
+- `participants` naming anyone other than the sender.
+- `model` / `reasoning_effort`: only a value in the configured `models` (abuse case 6).
+- When the assignee is a human participant, the executor starts the workflow in
+  `participant` mode (no model turn), as `create_task_for_participant` does today.
+- A first message whose only content is the envelope, on a `conversation` task, parks
+  the task in `INPUT_REQUIRED(awaiting-next-message)` without a model turn (the `/sub-task`
+  start). The executor removes the envelope part from the first message once it has
+  built the extension, so intake does not apply it a second time.
+
+**Trust rule (decision needed):** a new `[server] delegators` list names the participant
+ids trusted to create a task that names other participants, sets `lifecycle`, or sets
+`model`/`reasoning_effort`. Default: this server's own agent id, so the harness's own
+stand-ins can create every kind of child and nobody else gains anything. Any other
+sender is refused whole (abuse case 5), as today. Existing tasks keep today's rules
+(abuse case 7).
+
+#### The stand-in (one workflow for every child)
+
+- First turn: `SendMessage` non-blocking returns the task; the stand-in signals the
+  parent `child_done` with `started` and the A2A task id, then watches as today (push or
+  follow). A reply in its inbox is sent the same way.
+- `delegated` requested: a peer parked in `INPUT_REQUIRED(awaiting-next-message)` counts
+  as done (a peer that ignored the lifecycle). Otherwise that state is parked, not done.
+- Cancel: a new `cancel_remote_task` activity calls `CancelTask` as the delegating
+  participant (R7.6).
+- `ChildDone` gains `remote_task_id` and `started`; the parent matches a child by its
+  stand-in workflow id, and its row is `TaskRef(task_id=<A2A id>, agent=<agent>)` (R7.4).
+  `/sub-task` replies with that id once the stand-in has reported it.
+- The result: `sub_task_result` caps the last answer at 4,000 characters (R7.5); the
+  parent folds it into the history as an untrusted `agent` note, as today.
+
+#### Removed
+
+`TaskWorkflow._start_local_child` and the local branch of `spawn_child`. A `TaskWorkflow`
+started with `parent_workflow_id` by an older run still signals `child_done` from
+`_finish`, so children in flight at the upgrade still report; that code goes in a later
+change.
+
+#### Tests
+
+A new integration fixture runs this harness's A2A app over HTTP (uvicorn, a free port as
+`base_url`) with its worker and the `self` agent registered, against the test Temporal.
+The durable tests that start children today (`test_sub_tasks`, `/sub-task` in
+`test_builtin_commands`, `test_core_loop`, `test_conversation_lifecycle`, `test_complete`,
+`test_help_requests`, the embedded TUI test) move onto it. New scenarios: a sub-task on
+`self` sees only its brief and returns its result; the same against a peer; a cancelled
+parent cancels its child over A2A; each abuse case 5–7 is refused.
+
 ## UI/UX design
 
 N/A. The change is in what the model reads. No screen, TUI view or web renderer changes.

@@ -28,9 +28,17 @@ five lines over it. Lives in `tiny_harness/harness/core/`.
   error. `create_plan` attaches it through the `plan.created` operation, `complete_step`
   records a step's output, and the plan is persisted on every change.
 - WHEN `spawn_subtask` runs THEN a sub-task SHALL be created, linked from the current
-  step and recorded in the parent's sub-task list; a local sub-task runs as a child
-  workflow and a remote one as a remote task workflow, and the parent SHALL NOT complete
-  while a sub-task is unresolved unless a hook overrides the rule.
+  step and recorded in the parent's sub-task list, and the parent SHALL NOT complete
+  while a sub-task is unresolved unless a hook overrides the rule. Every child — from
+  `spawn_subtask` (`agent` null is the agent `self`, this harness), `/sub-task` or
+  `create_task_for_participant` — SHALL be an A2A task on its agent, created with
+  `SendMessage` carrying the child's brief and followed by one stand-in workflow (the
+  remote task workflow); no child is started as a direct child workflow (issue-34 R7).
+  The parent's row names the child's own task id; a child on `self` has no `agent` (it
+  is on this harness).
+- WHEN a delegated task's turn ends while a sub-task's result is still unread THEN it
+  SHALL take one more turn before it may complete, so the model reads the result
+  (issue-34 R7.5).
 - The core loop SHALL be: assemble the context (compacting first if over budget), invoke
   the model, extract the tool calls, stop when there are none (then run the completion
   predicate, or park a conversation), otherwise execute each call through the validating
@@ -49,15 +57,17 @@ five lines over it. Lives in `tiny_harness/harness/core/`.
   hook overrides the rule.
 - `/sub-task <description>` SHALL create a `conversation` child in the same `contextId`,
   with the sender as reporter, the agent as assignee and the description as goal; it
-  starts parked. Every local child, from `spawn_subtask` or `/sub-task`, inherits the
-  parent's `model` and `reasoning_effort`. A participant's `/sub-task` notes the child
+  starts parked. Every child on `self`, from `spawn_subtask` or `/sub-task`, inherits the
+  parent's `model` and `reasoning_effort` through its brief. A participant's `/sub-task` notes the child
   in the parent's history without waking it; the child's completion wakes the parent as
   any sub-task's does.
-- A local sub-task SHALL signal its parent on every state change. The parent records the
-  child's `state` and `sub_state` on its `sub_tasks` entry and, once idle (no message
+- A sub-task's stand-in SHALL signal its parent on every state change of the child. The
+  parent records the child's `state` and `sub_state` on its `sub_tasks` entry and, once idle (no message
   waiting on an answer), emits the updated `Task` on its own stream, so a client
   following the parent sees each row change. Only an ending, or a remote child's turn,
-  becomes a note for the parent's model; a child parking or resuming never wakes it.
+  becomes a note for the parent's model; a child parking or resuming never wakes it. A
+  delegated child parking with a question is news; a `/sub-task` or participant task
+  parking is not.
 - WHEN a task reaches a terminal state THEN the matching status update SHALL be emitted
   to every subscriber and the final state persisted before the workflow returns.
 - The plan SHALL be readable through the extension and rendered by both renderers.
@@ -76,3 +86,4 @@ five lines over it. Lives in `tiny_harness/harness/core/`.
 |-----------|--------------|-------|
 | issue-3 | Task extension, plan, state, intrinsic bodies and the core loop (Layer 4); child and remote task workflows (Layer 5) | [spec](../specs/issue-3/), [PR #10](https://github.com/MadaraUchiha-314/tiny-harness/pull/10), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [decision-004](../decisions/decision-004.md) |
 | issue-25 | Conversation tasks park in `INPUT_REQUIRED` (`awaiting-next-message` / `awaiting-answer`) instead of completing; participant completion; `lifecycle`, `model`, `reasoning_effort` as server-controlled fields; `/sub-task` children and settings inheritance | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
+| issue-34 | Every child is an A2A task on its agent (`self` included), followed by the one stand-in; rows name the child's own task; a delegated parent reads an unread result before it completes | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |

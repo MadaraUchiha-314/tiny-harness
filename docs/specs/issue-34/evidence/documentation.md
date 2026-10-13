@@ -13,7 +13,8 @@ workItem: issue-34
 | [`context-window.md`](../../../capabilities/context-window.md) | The static, never-compacted `agents` section in the declared order and in the compaction keep-set | issue-34 |
 | [`prompts-and-skills.md`](../../../capabilities/prompts-and-skills.md) | The default system prompt has seven sections. What the `agents` section tells the model | issue-34 |
 | [`configuration.md`](../../../capabilities/configuration.md) | `[card]` and its validation (R5, added in review) | issue-34 |
-| [`a2a-server.md`](../../../capabilities/a2a-server.md) | The card's name, description, version and skills come from `[card]` (R5) | issue-34 |
+| [`a2a-server.md`](../../../capabilities/a2a-server.md) | The card's name, description, version and skills come from `[card]` (R5); a new task built from its creator's brief, trusted delegators, participant mode and a brief-only start (R7) | issue-34 |
+| [`tasks-and-plans.md`](../../../capabilities/tasks-and-plans.md) | Every child is an A2A task on its agent; rows name the child's task; a delegated parent reads an unread result (R7) | issue-34 |
 
 ## Documentation
 
@@ -22,6 +23,7 @@ workItem: issue-34
 | [`docs/configuration/plugins-and-agents.md`](../../../configuration/plugins-and-agents.md) | CLI and SDK users | New "What the agent sees" section under `agents`: which card values the agent reads, why a clear description matters, the URL is never shown, cleaning and limits, and the error for an unlisted agent. |
 | [`docs/sdk/extend.md`](../../../sdk/extend.md) | SDK users | "Change the system prompt" lists the new `agents` section (seven sections, not six). |
 | [`docs/configuration/plugins-and-agents.md`](../../../configuration/plugins-and-agents.md) | CLI and SDK users | New `[card]` section (R5): what it sets, defaults, an example, the validation. "What the agent sees" points a tiny-harness peer to it. |
+| [`docs/configuration/server.md`](../../../configuration/server.md) | CLI and SDK users | New `delegators` setting (R7). |
 | [`docs/configuration/index.md`](../../../configuration/index.md) | CLI and SDK users | The sections table names `[card]`. |
 | [`docs/sdk/example-delegation.md`](../../../sdk/example-delegation.md) | SDK and CLI users | New guide (R6): run two agents, what you see, a sequence diagram, the files. In the SDK sidebar. |
 | `examples/delegation/README.md` | Repository readers | The commands to run the example, and a link to the guide (R6). |

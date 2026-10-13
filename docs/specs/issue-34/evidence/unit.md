@@ -21,3 +21,12 @@ refusals (empty name, blank description, unknown key, duplicate skill id, empty 
 id); the example's two configurations load and pair up. Red first: collection failed on
 `ImportError: cannot import name 'CardConfig'`. Then
 `uv run pytest tests/unit tests/contract tests/security tests/ui`: 730 passed.
+
+## After R7 (PR review): every child over A2A
+
+New and changed: `tests/unit/service/test_sub_task_brief.py` (the brief text; the 4,000
+character result cap), `tests/unit/core/test_spawn_agents.py` (`description` reaches the
+command), `tests/unit/prompts/test_prompt.py` (the prompt's context-isolation points),
+`tests/unit/service/test_runtime_agents.py` (`self` built from the harness's own card),
+`tests/unit/test_config_agents.py` (`self` is reserved). Each was red first. Then
+`uv run pytest tests/unit tests/contract tests/security tests/ui`: 741 passed.

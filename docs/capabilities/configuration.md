@@ -14,6 +14,10 @@ How a deployment is described and how the processes come up. Lives in
 - `Settings` SHALL be the sections `temporal`, `openai`, `anthropic` (optional),
   `server`, `heartbeat`, `plugins`, `agents`, `card`, `store`, `o11y`, `retries`,
   `context` and `retention`, every model `extra="forbid"`.
+- `[server] delegators` SHALL list the participant ids trusted to set `lifecycle`,
+  `model` and `reasoning_effort` on a new task's first message; this agent's own id is
+  always trusted. `agents[].id` SHALL NOT be `self`, the harness's own agent id
+  (issue-34 R7).
 - `[card]` SHALL take an optional `name`, `description` and `version` and a list of
   `[[card.skills]]` (`id`, `name`, `description`, `tags`, `examples`). A set string SHALL
   not be blank, and skill ids SHALL be unique; otherwise startup exits with status 2. An
@@ -103,3 +107,4 @@ How a deployment is described and how the processes come up. Lives in
 | issue-25 | The default file `~/.tiny-harness/config.toml` (created safely, `--config` wins); bare `tiny-harness` runs the TUI; `--help` names the file; `models` and `reasoning_effort`; `running_harness(plugins=, commands=, builtin_commands=)` and `complete_message` | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
 | issue-27 | `agents[].updates` and `agents[].follow_interval` | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
 | issue-34 | `[card]`: this agent's own card name, description, version and skills | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
+| issue-34 (R7) | `[server] delegators`; the agent id `self` reserved | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |

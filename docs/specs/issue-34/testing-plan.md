@@ -53,6 +53,8 @@ The other rows are `n/a`, each with its reason.
 | T11 | Manual exploratory | yes | Two local harnesses with a real model: harness A declares harness B as an agent; a user task that matches B's card is given to A with no agent named. Proves the model now finds and uses the agent by itself (the issue's complaint). | procedure in Verification activities |
 | T12 | Unit, integration, contract (R5) | yes | `[card]` loads, its defaults equal `AgentDescription()`, each refusal (blank value, unknown key, duplicate or empty skill id) is a `ConfigError`; the example configs load and pair up. Scenario: a tiny-harness card built from `[card]` reaches another harness's roster. The settings schema and config API snapshots gain `card`; `agent-card.json` does not change. | `uv run pytest tests/unit/test_config_card.py tests/integration/agents tests/contract` |
 | T13 | Manual exploratory (R6) | yes | Run `examples/delegation` as its guide says, with a real model: the front desk delegates "What is the status of order 48213?" to the ledger, unprompted, and answers with facts only the ledger holds. | procedure in Verification environment |
+| T14 | Unit, integration, contract, security (R7) | yes | `self` registered from its own card; `spawn_subtask` (null → `self`), `/sub-task` and `create_task_for_participant` each create their child over A2A and follow it with the stand-in; rows name the child's own task; the child sees only its brief; its whole result reaches the parent; a cancelled parent cancels the child; a delegated parent reads an unread result before completing; abuse cases 5–7 (an untrusted creator cannot set `lifecycle`, `model`, `reasoning_effort`). The existing child-task, remote-agent and push scenarios run on the harness's own A2A app over a streaming in-process transport. | `uv run pytest tests/unit tests/contract tests/security tests/integration` |
+| T15 | Manual exploratory (R7) | yes | One harness and a real model: a two-part question, no mention of sub-tasks. The model runs each part as a sub-task on itself with a full brief, and answers with both results. | procedure in Verification environment |
 
 ## Scenarios & requirement trace
 
@@ -72,6 +74,8 @@ The other rows are `n/a`, each with its reason.
 | T11 | R1, R2 (user value) | real model delegates to the listed agent unprompted |
 | T12 | R5.1–R5.4 | `tests/unit/test_config_card.py`; `Scenario: A tiny-harness described by its card section is listed by another` |
 | T13 | R5.2, R6 | the example, run with a real model |
+| T14 | R7.1–R7.7, abuse cases 5–7 | `test_self_delegation.py`; the migrated child-task scenarios; `tests/security/test_server_controlled_fields.py` |
+| T15 | R7 (user value) | a real model delegates to itself for context isolation |
 
 ## Verification environment
 
@@ -103,6 +107,10 @@ The other rows are `n/a`, each with its reason.
   Read the ledger's card, then send the front desk "What is the status of order
   48213?" through a JSON-RPC `SendMessage`, and read the front-desk task and the
   ledger's sub-task with `GetTask`. Stop both by process group.
+- **T15 procedure:** start `examples/delegation/ledger.toml` alone (its roster lists
+  `self`), send it "Look into orders 48213 and 48377 one at a time, each on its own, and
+  then tell me which of them needs a follow-up from us and why." as `alice`, then read
+  the parent and each child with `GetTask`.
 - **If bring-up fails:** record it under Verification results, leave the dependent
   activities unticked, and escalate. If `OPENAI_API_KEY` is not available in the
   verification session, T11 is recorded as not executed and raised on the PR. It is
@@ -121,6 +129,8 @@ hostnames beyond `127.0.0.1`).
 | T8 | security run summary, naming each abuse-case test | `security.md` |
 | T11 | the rendered `agents` section from A's log, the model's `spawn_subtask` call and the sub-task's result, redacted | `manual-delegation.md` |
 | T12 | the new tests, the snapshot diffs | `unit.md`, `contract.md`, `integration.md` |
+| T14 | the test summaries and the scenario table | `unit.md`, `integration.md`, `security.md` |
+| T15 | each child's brief, lifecycle and participants; the parent's answer | `self-delegation.md` |
 | T13 | the ledger's served card, the front desk's roster log, the delegated goal, both answers | `example-delegation.md` |
 | all | full suite as CI runs it (`pre-commit run --all-files`, unit, integration, contract/security/ui) | `ci-parity.md` |
 
@@ -135,6 +145,8 @@ hostnames beyond `127.0.0.1`).
 - [x] T12 — `uv run pytest tests/unit/test_config_card.py tests/integration/agents tests/contract`
 - [x] T13 — the example, per Verification environment, with a real model
 - [x] CI parity (again, after R5 and R6)
+- [x] T14 — `uv run pytest tests/unit tests/contract tests/security tests/integration`
+- [x] T15 — one harness delegating to itself, per Verification environment, with a real model
 - [x] CI parity — `uv run pre-commit run --all-files` and `uv run pytest tests/integration`
 
 ## Verification results
@@ -152,6 +164,9 @@ All activities ran and passed (T12, T13 and the second CI parity run were added 
 | T12 `[card]` (R5) | `uv run pytest tests/unit/test_config_card.py tests/integration/agents tests/contract` | 9 unit tests and the new scenario pass (red first); config snapshots changed on purpose, `agent-card.json` did not | [unit.md](evidence/unit.md), [integration.md](evidence/integration.md), [contract.md](evidence/contract.md) |
 | T13 Example (R6) | `examples/delegation` with `gpt-6.1-sol`, per Verification environment | Pass. The front desk delegated to the ledger unprompted and answered with the ledger's facts | [example-delegation.md](evidence/example-delegation.md) |
 | CI parity, after R5 and R6 | `uv run pre-commit run --all-files`; the four suites; the docs build | All hooks passed; 730 + 112 passed; docs built | [ci-parity.md](evidence/ci-parity.md) |
+
+| T14 R7 | `uv run pytest tests/unit tests/contract tests/security tests/ui`; `uv run pytest tests/integration` | 741 passed; 113 passed. The push security tests needed a settle wait (8 of 8 runs since). One CI-only timeout in `test_a_sub_task_note_survives_a_cut_turn_and_a_rollover` is not reproduced locally and is reported on the PR | [unit.md](evidence/unit.md), [integration.md](evidence/integration.md), [security.md](evidence/security.md) |
+| T15 Self-delegation (R7) | `examples/delegation/ledger.toml` and `gpt-6.1-sol`, per Verification environment | Pass. Two sub-tasks on `self`, each with a full brief, `delegated` and `COMPLETED`; the parent answered with both results | [self-delegation.md](evidence/self-delegation.md) |
 
 **Not executed:** none. In T11, the first attempt failed in the stand-in agent B, not in
 tiny-harness. B was fixed and the run repeated (details in the evidence).

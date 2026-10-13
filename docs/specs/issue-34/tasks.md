@@ -137,7 +137,7 @@ from the repository root.
   - _Depends on:_ 9
   - _Requirements:_ R7.2, R7.4
 
-- [ ] 11. Docs, evidence and a real-model run for R7
+- [x] 11. Docs, evidence and a real-model run for R7
   - _Depends on:_ 10
 
 ## Dependency graph (DAG)

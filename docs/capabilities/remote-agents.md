@@ -52,7 +52,23 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
   config from the remote task, best effort; later pushes with its token are refused.
 - Every call the stand-in makes on the remote task SHALL assert `X-Participant-Id` with
   the id it delegated as, so a tiny-harness peer answers it (decision-003).
-- The harness itself SHALL be a `LocalAgent` with the same interface.
+- The harness itself SHALL be registered as the agent `self`: a `RemoteAgent` built from
+  its own card (`[card]`) at its own `server.base_url`, reached over HTTP like any remote
+  agent, with nothing fetched at startup. A configured agent SHALL NOT use the id `self`
+  (issue-34 R7.1). An in-process transport is a later optimisation behind the same
+  interface.
+- WHEN a child is created on an agent THEN the `start_agent_task` activity SHALL send its
+  brief with `SendMessage` (a text part and, when the card advertises the task extension,
+  a task envelope), read until the agent has the task past `SUBMITTED`, and close the
+  stream; the stand-in then follows the task. A task still `WORKING` is followed even
+  with `updates = "off"`. `self` gets the full brief (`lifecycle: delegated`, the parent's
+  `model` and `reasoning_effort`, `parent_tasks`); another agent gets the name, goal,
+  description and acceptance criteria (issue-34 R7.2, R7.3).
+- WHEN a stand-in is cancelled by its parent THEN it SHALL cancel the child with
+  `CancelTask` (issue-34 R7.6).
+- A follow SHALL skip the history `SubscribeToTask` replays after its first snapshot (by
+  the status timestamp), so a replayed state is never read as a change; every stream the
+  harness opens on an agent SHALL be closed on every exit (issue-34).
 
 ## Design
 
@@ -67,3 +83,4 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
 | issue-3 | The agent entity, `RemoteAgent`, card validation, the remote task workflow (Layer 5) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) |
 | issue-27 | Push and follow watches on a parked remote task; push config cleanup; the parent noted only of endings and new questions; `X-Participant-Id` on every remote task call (fixing replies to a parked tiny-harness peer) | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
 | issue-34 | The agents roster in the model's context; `spawn_subtask` refuses an unknown agent | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
+| issue-34 (R7) | The harness is the agent `self`; children are created with `start_agent_task` and cancelled with `CancelTask`; follows skip replayed history; streams are closed | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |

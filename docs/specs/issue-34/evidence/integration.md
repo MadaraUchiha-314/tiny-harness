@@ -51,3 +51,17 @@ One scenario added for R5. `uv run pytest tests/integration`: 112 passed in 160 
 | 5 | The model sees the configured remote agents | Startup logs the roster and each truncated card field | docs/specs/issue-34/requirements.md#R4 | tests/integration/agents/test_agents_roster.py:269 |
 | 6 | The model sees the configured remote agents | A hostile agent card cannot break out of the agents roster | docs/specs/issue-34/requirements.md#security-considerations | tests/integration/agents/test_agents_roster.py:290 |
 | 7 | The model sees the configured remote agents | A tiny-harness described by its card section is listed by another | docs/specs/issue-34/requirements.md#R5 | tests/integration/agents/test_agents_roster.py:322 |
+
+## After R7 (PR review): every child over A2A
+
+- New: `tests/integration/agents/test_self_delegation.py` — *A sub-task on itself goes
+  through its own A2A interface and returns its result* (R7).
+- The child-task scenarios (`durable/test_core_loop`, `test_conversation_lifecycle`,
+  `test_sub_tasks`, `test_builtin_commands`, `test_commands`, `test_complete`,
+  `help/test_help_requests`, `a2a/test_command_stream`) run on the harness's own A2A app
+  (`self_hosted`); every test server registers `self`, as `build_runtime` does.
+- The remote-agent scenarios use `tests/integration/streaming_asgi.py`: an in-process
+  transport that streams like a socket. `httpx.ASGITransport` buffered a response to its
+  end, which had hidden that a follow read `SubscribeToTask`'s replayed history as a
+  change.
+- `uv run pytest tests/integration`: 113 passed.

@@ -65,6 +65,12 @@ as instructions. It removes line breaks and the characters `<` and `>`. It cuts 
 value and adds `…`. A name can have 80 characters, a description 500 and a skill
 description 200. When tiny-harness cuts a value, it writes a warning to the log at start.
 
+The list also has the agent itself, with the id `self`. The agent gives work to itself
+when a step needs a clean context: for example, research or a long tool result that
+the main task does not need to keep. The sub-task gets only its goal, description and
+acceptance criteria, and it sends back its answer. You cannot use `self` as the `id` of
+an agent in this file.
+
 The agent can give work only to an agent in this list. If it names a different agent,
 the sub-task does not start and the agent gets an error.
 

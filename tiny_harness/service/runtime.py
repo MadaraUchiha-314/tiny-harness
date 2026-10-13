@@ -181,8 +181,7 @@ async def build_runtime(
             follow_interval=remote.follow_interval,
         )
         await registry.add(RegistryEntry(ref=agent.ref, instance=agent), override=True)
-    agents = [await registry.get(ref, Agent) for ref in registry.list(EntityKind.AGENT)]
-    roster = build_roster(agents)  # once: the static prefix stays stable (issue-34 R1.5)
+    roster = build_roster(await registered_agents(registry))  # once: a stable prefix (R1.5)
     log.info("agents roster: %s", ", ".join(roster.ids) or "(none)")
     for agent_id, card_field in roster.truncated:
         log.warning("agent %s: card field %s truncated in the agents roster", agent_id, card_field)
@@ -242,6 +241,16 @@ async def build_runtime(
     )
 
 
+async def registered_agents(registry: Registry) -> list[Agent]:
+    """One agent per id, sorted: the version a delegation reaches (``*``, the latest), so
+    the roster describes the agent ``spawn_subtask`` will call (issue-34)."""
+    ids = sorted({ref.id for ref in registry.list(EntityKind.AGENT)})
+    return [
+        await registry.get(EntityRef(kind=EntityKind.AGENT, id=agent_id, version="*"), Agent)
+        for agent_id in ids
+    ]
+
+
 async def render_system_prompt(registry: Registry) -> str:
     """The built-in system prompt extended by every prompt that declares ``extends``."""
     base = await registry.get(EntityRef(kind=EntityKind.PROMPT, id=SYSTEM_PROMPT_ID), PromptEntity)
@@ -262,6 +271,7 @@ __all__ = [
     "Retention",
     "Runtime",
     "build_runtime",
+    "registered_agents",
     "render_system_prompt",
     "retention_map",
     "secret_values",

@@ -44,6 +44,7 @@ async def worker(settings: Settings) -> int:
             sink=PushSink(push_store, httpx.AsyncClient(timeout=10)),
             client=client,
             retention=retention_map(settings),
+            task_queue=settings.temporal.effective_task_queue,
         )
         await ensure_search_attributes(client)
         await ensure_heartbeat_schedule(

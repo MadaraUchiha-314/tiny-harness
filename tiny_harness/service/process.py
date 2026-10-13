@@ -169,11 +169,14 @@ async def running_harness(
             client=client,
             retention=retention_map(settings),
             push_base_url=str(settings.server.base_url),
+            task_queue=settings.temporal.effective_task_queue,
         )
         handler = HarnessRequestHandler(
             bridge=bridge,
             agent_executor=executor,
-            task_store=TemporalTaskStore(client, runtime.store),
+            task_store=TemporalTaskStore(
+                client, runtime.store, task_queue=settings.temporal.effective_task_queue
+            ),
             agent_card=card,
             push_config_store=push_store,
             push_sender=BasePushNotificationSender(push_http, push_store),

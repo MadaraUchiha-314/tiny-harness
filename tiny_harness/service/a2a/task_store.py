@@ -6,6 +6,7 @@ the asserted participant is not on. ``save`` is a no-op: the workflow owns the t
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 from collections.abc import Sequence
 
 from a2a.server.context import ServerCallContext
@@ -52,25 +53,73 @@ class AccessPolicy:
         return allowed
 
 
+OWNERSHIP_CACHE_SIZE = 4096
+
+
+def visibility_literal(value: str) -> str:
+    """``value`` as a quoted visibility-query string: single quotes doubled, so a request's
+    context id cannot end the literal and add a clause (issue-36 design § Security)."""
+    return "'" + value.replace("'", "''") + "'"
+
+
 class TemporalTaskStore(TaskStore):
-    def __init__(self, client: Client, store: Store, *, policy: AccessPolicy | None = None) -> None:
+    """With ``task_queue`` set, a task belongs to this agent only when its workflow runs on
+    that queue (issue-36 R5.4, abuse case 2): every other task id is as unknown as one that
+    names nothing. The answer never changes for an id, so it is cached. Without it (one
+    agent per namespace, the pre-issue-36 setup) every task in the namespace is a candidate."""
+
+    def __init__(
+        self,
+        client: Client,
+        store: Store,
+        *,
+        policy: AccessPolicy | None = None,
+        task_queue: str | None = None,
+    ) -> None:
         self._client = client
         self._store = store
         self._policy = policy or AccessPolicy()
+        self._task_queue = task_queue
+        self._owned: OrderedDict[str, bool] = OrderedDict()
 
     async def save(self, task: Task, context: ServerCallContext) -> None:
         return None
 
+    async def owns(self, task_id: str) -> bool | None:
+        """Whether ``task_id``'s workflow runs on this agent's queue; ``None`` when no
+        workflow answers (purged, or never existed): only this agent's own store decides."""
+        if self._task_queue is None:
+            return True
+        known = self._owned.get(task_id)
+        if known is not None:
+            self._owned.move_to_end(task_id)
+            return known
+        try:
+            description = await self._client.get_workflow_handle(task_id).describe()
+        except RPCError:
+            return None
+        owned = description.task_queue == self._task_queue
+        self._owned[task_id] = owned
+        if len(self._owned) > OWNERSHIP_CACHE_SIZE:
+            self._owned.popitem(last=False)
+        if not owned:
+            log.info("task %s belongs to another agent", task_id)
+        return owned
+
     async def lookup(self, task_id: str) -> Task | None:
         """The task as the workflow sees it, else the store's record, else nothing."""
-        handle = self._client.get_workflow_handle(task_id)
-        try:
-            return await handle.query("task", result_type=Task)
-        except RPCError as exc:
-            log.info(
-                "task query failed; reading the store",
-                extra={"task_id": task_id, "error": str(exc)},
-            )
+        owned = await self.owns(task_id)
+        if owned is False:
+            return None
+        if owned:
+            handle = self._client.get_workflow_handle(task_id)
+            try:
+                return await handle.query("task", result_type=Task)
+            except RPCError as exc:
+                log.info(
+                    "task query failed; reading the store",
+                    extra={"task_id": task_id, "error": str(exc)},
+                )
         record = await self._store.get(TaskRecord, task_id)
         if record is None:
             log.info("task %s not in the store", task_id)
@@ -85,12 +134,16 @@ class TemporalTaskStore(TaskStore):
 
     async def list(self, params: ListTasksRequest, context: ServerCallContext) -> ListTasksResponse:
         query = "WorkflowType = 'TaskWorkflow'"
+        if self._task_queue is not None:
+            query += f" AND TaskQueue = {visibility_literal(self._task_queue)}"
         if params.context_id:
-            query += f" AND A2AContextId = '{params.context_id}'"
+            query += f" AND A2AContextId = {visibility_literal(params.context_id)}"
         tasks: list[Task] = []
         page_size = params.page_size or 50
         try:
             async for execution in self._client.list_workflows(query):
+                if self._task_queue is not None and execution.task_queue != self._task_queue:
+                    continue
                 task = await self.lookup(execution.id)
                 if task is None or not self._policy.allows(task, context):
                     continue
@@ -133,4 +186,5 @@ __all__ = [
     "TaskState",
     "TemporalTaskStore",
     "asserted_participant",
+    "visibility_literal",
 ]

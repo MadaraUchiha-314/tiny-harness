@@ -76,7 +76,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ NFR observability
   - _Test:_ T1 `tests/unit/service/test_logging_agent.py`; T2 `Scenario: Each log line
     names the agent that wrote it` (in task 13's suite)
-- [ ] 7. Task ownership by queue
+- [x] 7. Task ownership by queue
   - `TemporalTaskStore(task_queue=…)`: `lookup` describes the workflow first, a foreign
     queue gives `None`, and an LRU of 4,096 ids caches the result.
   - `ListTasks` adds `TaskQueue = '<queue>'`, and the fallback compares

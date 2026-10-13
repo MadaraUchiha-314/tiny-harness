@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr
 
@@ -85,6 +86,12 @@ def ignored_environment_warnings(env: Mapping[str, str]) -> tuple[str, ...]:
     )
 
 
+def url_origin(url: str) -> str:
+    """``scheme://host:port`` of ``url``, lowercased: what makes two URLs one server."""
+    split = urlsplit(url)
+    return f"{split.scheme}://{split.netloc}".lower()
+
+
 def secret_values(settings: Settings) -> list[SecretStr]:
     values: list[SecretStr] = []
     if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
@@ -122,12 +129,14 @@ async def build_runtime(
     builtin_commands: bool = True,
     plugins: Sequence[Plugin | Path] = (),
     commands: Iterable[tuple[CommandSpec, CommandHandler]] = (),
+    deferred_origins: Collection[str] = (),
 ) -> Runtime:
     """Assemble the harness (issue-25 R11): ``plugins`` (a directory or a programmatic
     ``Plugin``) load after ``settings.plugins``, with the same override, and ``commands``
     register from code after every plugin; a bad or duplicate name raises
     ``CommandError`` (R6.5). ``builtin_commands=False`` builds without ``/model``,
-    ``/effort``, ``/sub-task`` and ``/status`` (R6.8)."""
+    ``/effort``, ``/sub-task`` and ``/status`` (R6.8). A remote agent whose URL is on one
+    of ``deferred_origins`` (this service's own) is connected on first use (issue-36 R6.1)."""
     registry = Registry()
     hooks = HookManager()
     registrar = RegistryRegistrar(registry)
@@ -174,13 +183,24 @@ async def build_runtime(
     me = self_agent(settings)  # the harness delegates to itself over A2A (issue-34 R7.1)
     await registry.add(RegistryEntry(ref=me.ref, instance=me), override=True)
     for remote in settings.agents:
-        agent = await RemoteAgent.connect(
-            remote.id,
-            str(remote.url),
-            version=remote.version,
-            updates=remote.updates,
-            follow_interval=remote.follow_interval,
-        )
+        if url_origin(str(remote.url)) in deferred_origins:
+            # In this same service: not listening while the service starts (issue-36 R6.1).
+            log.info("agent %s is in this service; its card is fetched on first use", remote.id)
+            agent = RemoteAgent.deferred(
+                remote.id,
+                str(remote.url),
+                version=remote.version,
+                updates=remote.updates,
+                follow_interval=remote.follow_interval,
+            )
+        else:
+            agent = await RemoteAgent.connect(
+                remote.id,
+                str(remote.url),
+                version=remote.version,
+                updates=remote.updates,
+                follow_interval=remote.follow_interval,
+            )
         await registry.add(RegistryEntry(ref=agent.ref, instance=agent), override=True)
     roster = build_roster(await registered_agents(registry))  # once: a stable prefix (R1.5)
     log.info("agents roster: %s", ", ".join(roster.ids) or "(none)")
@@ -285,5 +305,6 @@ __all__ = [
     "retention_map",
     "secret_values",
     "self_agent",
+    "url_origin",
     "workflow_config",
 ]

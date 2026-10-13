@@ -9,6 +9,7 @@ client sends ``A2A-Version: 1.0`` on every request (R7.1).
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Sequence
 from datetime import timedelta
 from typing import Literal
@@ -72,15 +73,17 @@ class RemoteAgent(Agent):
         ref: EntityRef,
         agent_card: AgentCard,
         *,
-        client: A2AClient,
+        client: A2AClient | None,
         updates: UpdateMode = "auto",
         follow_interval: timedelta = timedelta(seconds=5),
     ) -> None:
         validate_card(agent_card)
         super().__init__(ref, agent_card)
-        self._client = client
+        self._client: A2AClient | None = client
         self.updates: UpdateMode = updates  # how a parked task is watched (issue-27 R4)
         self.follow_interval = follow_interval
+        self._pending: tuple[str, httpx.AsyncClient] | None = None
+        self._lock: asyncio.Lock | None = None
 
     @classmethod
     async def connect(
@@ -127,12 +130,53 @@ class RemoteAgent(Agent):
         )
         ref = EntityRef(kind=EntityKind.AGENT, id=agent_id, version=version)
         return cls(
+            ref, card, client=factory.create(card), updates=updates, follow_interval=follow_interval
+        )
+
+    @classmethod
+    def deferred(
+        cls,
+        agent_id: str,
+        url: str,
+        *,
+        http: httpx.AsyncClient | None = None,
+        version: str | None = None,
+        updates: UpdateMode = "auto",
+        follow_interval: timedelta = timedelta(seconds=5),
+    ) -> RemoteAgent:
+        """An agent whose card is fetched on first use, not now (issue-36 R6.1): an agent
+        mounted in the same service as this one is not listening while that service
+        starts. Every call resolves the card first; a card that fails validation fails that
+        call, as it would have failed the start."""
+        ref = EntityRef(kind=EntityKind.AGENT, id=agent_id, version=version)
+        agent = cls(
             ref,
-            card,
-            client=factory.create(card),
+            AgentCard(name=agent_id),
+            client=None,
             updates=updates,
             follow_interval=follow_interval,
         )
+        agent._pending = (url, http or httpx.AsyncClient(timeout=60))
+        return agent
+
+    async def resolve_card(self) -> None:
+        """Fetch a deferred agent's card and build its client, once; a no-op otherwise."""
+        if self._pending is None:
+            return
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            pending = self._pending  # another caller may have resolved it while we waited
+            if pending is not None:  # pyright: ignore[reportUnnecessaryComparison]
+                url, http = pending
+                self.agent_card, self._client = await _resolve(http, url)
+                self._pending = None
+
+    async def ensure_connected(self) -> A2AClient:
+        """The A2A client, resolving a deferred agent's card the first time."""
+        await self.resolve_card()
+        assert self._client is not None
+        return self._client
 
     @property
     def push_supported(self) -> bool:
@@ -160,21 +204,24 @@ class RemoteAgent(Agent):
     ) -> AsyncIterator[A2AEvent]:
         # The header asserts the participant the message names: a tiny-harness peer
         # refuses a reply to an existing task without it (decision-003).
+        client = await self.ensure_connected()
         claimed = request.metadata.fields.get("participant_id")
         participant = claimed.string_value if claimed is not None else None
         context = self._context(extensions, participant=participant)
-        async for response in self._client.send_message(
+        async for response in client.send_message(
             SendMessageRequest(message=request), context=context
         ):
             yield unwrap(response)
 
     async def cancel_task(self, task_id: str, *, participant: str | None = None) -> Task:
-        return await self._client.cancel_task(
+        client = await self.ensure_connected()
+        return await client.cancel_task(
             CancelTaskRequest(id=task_id), context=self._context((), participant=participant)
         )
 
     async def get_task(self, task_id: str, *, participant: str | None = None) -> Task:
-        return await self._client.get_task(
+        client = await self.ensure_connected()
+        return await client.get_task(
             GetTaskRequest(id=task_id), context=self._context((), participant=participant)
         )
 
@@ -185,10 +232,9 @@ class RemoteAgent(Agent):
         extensions: Sequence[str] = (),
         participant: str | None = None,
     ) -> AsyncIterator[A2AEvent]:
+        client = await self.ensure_connected()
         context = self._context(extensions, participant=participant)
-        async for response in self._client.subscribe(
-            SubscribeToTaskRequest(id=task_id), context=context
-        ):
+        async for response in client.subscribe(SubscribeToTaskRequest(id=task_id), context=context):
             yield unwrap(response)
 
     async def set_push_config(
@@ -196,7 +242,8 @@ class RemoteAgent(Agent):
     ) -> str:
         """Register ``url`` for the task's updates (issue-27 R1); the remote assigns the
         config id. The token goes to the remote agent and nowhere else."""
-        config = await self._client.create_task_push_notification_config(
+        client = await self.ensure_connected()
+        config = await client.create_task_push_notification_config(
             TaskPushNotificationConfig(task_id=task_id, url=url, token=token),
             context=self._context((), participant=participant),
         )
@@ -205,13 +252,31 @@ class RemoteAgent(Agent):
     async def delete_push_config(
         self, task_id: str, config_id: str, *, participant: str | None = None
     ) -> None:
-        await self._client.delete_task_push_notification_config(
+        client = await self.ensure_connected()
+        await client.delete_task_push_notification_config(
             DeleteTaskPushNotificationConfigRequest(task_id=task_id, id=config_id),
             context=self._context((), participant=participant),
         )
 
     async def close(self) -> None:
-        await self._client.close()
+        if self._client is not None:
+            await self._client.close()
+        elif self._pending is not None:
+            await self._pending[1].aclose()
+
+
+async def _resolve(http: httpx.AsyncClient, url: str) -> tuple[AgentCard, A2AClient]:
+    """Fetch and check the card at ``url``, then build a client for it."""
+    card = await A2ACardResolver(http, url).get_agent_card()
+    validate_card(card)
+    factory = ClientFactory(
+        ClientConfig(
+            httpx_client=http,
+            streaming=True,
+            supported_protocol_bindings=["JSONRPC", "HTTP+JSON"],
+        )
+    )
+    return card, factory.create(card)
 
 
 __all__ = [

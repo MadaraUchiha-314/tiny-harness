@@ -132,7 +132,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ R2.1, R2.2, R2.5, R4.4, R4.5; abuse case 5
   - _Test:_ T1 `tests/unit/service/test_route_options.py`,
     `tests/unit/service/test_harness_app.py` (503 before start, mount-check refusal)
-- [ ] 13. `Harness` and `harnesses_lifespan`
+- [x] 13. `Harness` and `harnesses_lifespan`
   - Add `tiny_harness/service/harness.py`: the constructor validates without I/O.
     `__aenter__` claims, acquires the pool, builds the runtime (`llm` seam), publishes
     the commands, builds the card, ensures the heartbeat, starts the worker, and

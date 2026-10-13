@@ -38,6 +38,20 @@ def test_default_prompt_says_when_and_how_to_delegate_to_an_agent() -> None:
         assert point in agents, point
 
 
+def test_default_prompt_says_how_to_run_a_step_in_a_clean_context_on_itself() -> None:
+    """Issue-34 R7.1: a sub-task on this harness is the way to isolate context."""
+    agents = " ".join((load_default_system_prompt().section("agents") or "").split())
+    for point in (
+        "fresh copy of you",  # who runs it: this harness
+        "clean context",  # why: context isolation
+        "`agent` null",  # how
+        "`description`",  # the context it needs
+        "`acceptance_criteria`",  # how it knows it is done
+        "its final answer comes back to you",  # the result returns
+    ):
+        assert point in agents, point
+
+
 def test_a_plugin_prompt_extends_the_agents_section() -> None:
     """Issue-34 R2.3."""
     base = load_default_system_prompt()

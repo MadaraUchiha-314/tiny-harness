@@ -21,7 +21,7 @@ import asyncio
 import contextlib
 import hmac
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import Final, Literal, cast
 
@@ -212,6 +212,29 @@ def sub_task_name(goal: str, index: int) -> str:
     return first_line[:60]
 
 
+SUB_TASK_RESULT_CAP: Final = 4_000
+"""How much of a sub-task's last answer reaches its parent: room for a result, which is
+why a sub-task runs in isolation (issue-34 R7.3); a longer one is cut and marked."""
+
+
+def sub_task_result(text: str) -> str:
+    """A finished sub-task's answer as its parent hears it, at most the cap."""
+    if len(text) <= SUB_TASK_RESULT_CAP:
+        return text
+    return text[: SUB_TASK_RESULT_CAP - 1] + "…"
+
+
+def sub_task_brief(goal: str, description: str, criteria: Sequence[str]) -> str:
+    """The message a remote agent is given: the goal, the context and each acceptance
+    criterion, since it sees nothing else of this task (issue-34 R7.2)."""
+    parts = [goal]
+    if description:
+        parts.append(description)
+    if criteria:
+        parts.append("Acceptance criteria:\n" + "\n".join(f"- {c}" for c in criteria))
+    return "\n\n".join(parts)
+
+
 def child_extension(
     parent: HarnessTask,
     *,
@@ -221,6 +244,7 @@ def child_extension(
     lifecycle: Lifecycle | None,
     inherit: bool,
     criteria: tuple[AcceptanceCriterion, ...] = (),
+    description: str = "",
 ) -> TaskExtensionData:
     """A child's extension, linked to ``parent``. A local agent child (``inherit``) copies
     the parent's ``model`` and ``reasoning_effort`` (R7.3); a remote or participant child
@@ -229,6 +253,7 @@ def child_extension(
     return TaskExtensionData(
         name=name,
         goal=goal,
+        description=description,
         acceptance_criteria=criteria,
         participants=participants,
         parent_tasks=(TaskRef(task_id=parent.id),),
@@ -826,7 +851,7 @@ class TaskWorkflow:
                     ChildDone(
                         task_id=self.task.id,
                         state_name=self.task.state_name,
-                        summary=summary[:500],
+                        summary=sub_task_result(summary),
                     ),
                 )
         return self.task.proto
@@ -1170,6 +1195,7 @@ class TaskWorkflow:
         child_id = f"{task.id}.{index}"
         name = str(payload.get("name", f"sub-task {index}"))
         goal = str(payload.get("goal", ""))
+        description = str(payload.get("description") or "")
         raw_criteria = payload.get("acceptance_criteria")
         criteria = tuple(
             AcceptanceCriterion(text=str(c))
@@ -1222,6 +1248,7 @@ class TaskWorkflow:
             participants=participants,
             lifecycle="delegated",
             inherit=not agent,  # a remote child runs on the remote agent's model
+            description=description,
         )
         child = HarnessTask.new(child_id, task.context_id, ext)
         if agent:
@@ -1230,7 +1257,7 @@ class TaskWorkflow:
                 RemoteStart(
                     task=child.proto,
                     agent=str(agent),
-                    goal=goal,
+                    goal=sub_task_brief(goal, description, [c.text for c in criteria]),
                     parent_workflow_id=workflow.info().workflow_id,
                     correlation_id=self.correlation_id,
                     config=self.start.config,
@@ -1708,7 +1735,11 @@ class RemoteTaskWorkflow:
         with contextlib.suppress(Exception):
             await handle.signal(
                 "child_done",
-                ChildDone(task_id=self.task.id, state_name=out.state_name, summary=out.text[:500]),
+                ChildDone(
+                    task_id=self.task.id,
+                    state_name=out.state_name,
+                    summary=sub_task_result(out.text),
+                ),
             )
 
 

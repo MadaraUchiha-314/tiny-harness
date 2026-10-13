@@ -108,3 +108,24 @@ async def test_an_empty_agent_id_is_refused_even_when_one_is_registered() -> Non
     out = await invoke("", ["", "ledger"])
     assert isinstance(out, ToolResult) and out.is_error
     assert "[agent.unknown]" in (out.content[0].text or "")
+
+
+async def test_a_local_sub_task_carries_its_description_to_the_child() -> None:
+    """issue-34 R7.2: ``spawn_subtask`` takes the context an isolated sub-task needs."""
+    tools = {t.ref.id: t for t in core_intrinsics(TaskContext(task()))}
+    call = ToolCall(
+        call_id="c1",
+        name="spawn_subtask",
+        arguments={
+            "name": "Summarise",
+            "goal": "Summarise the refund policy",
+            "description": "The policy is in the policy tool; the customer is in the EU.",
+            "acceptance_criteria": ["Names the refund window"],
+        },
+    )
+    out = await tools["spawn_subtask"].invoke(call)
+    assert isinstance(out, WorkflowCommand)
+    assert out.payload["description"] == (
+        "The policy is in the policy tool; the customer is in the EU."
+    )
+    assert out.payload["agent"] is None

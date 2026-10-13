@@ -189,6 +189,7 @@ class _CoreIntrinsic(Tool):
                 payload={
                     "name": a.name,
                     "goal": a.goal,
+                    "description": a.description,
                     "acceptance_criteria": list(a.acceptance_criteria),
                     "agent": a.agent,
                     "step": a.step,

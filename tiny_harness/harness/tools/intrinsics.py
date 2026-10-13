@@ -64,6 +64,10 @@ class SpawnSubtaskArgs(_Args):
 
     name: str
     goal: str
+    description: str = Field(
+        default="",
+        description="The context the sub-task needs. It sees nothing of this task but this",
+    )
     acceptance_criteria: tuple[str, ...] = ()
     agent: str | None = Field(
         default=None,

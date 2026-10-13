@@ -101,3 +101,10 @@ async def test_the_host_checks_against_the_registry_at_call_time() -> None:
     agent = IdleAgent("ledger")
     await registry.add(RegistryEntry(ref=agent.ref, instance=agent))
     assert isinstance(await tool.invoke(spawn("ledger")), WorkflowCommand)
+
+
+async def test_an_empty_agent_id_is_refused_even_when_one_is_registered() -> None:
+    """Critic C1: an operator-configured ``id = ""`` must not turn into a local run."""
+    out = await invoke("", ["", "ledger"])
+    assert isinstance(out, ToolResult) and out.is_error
+    assert "[agent.unknown]" in (out.content[0].text or "")

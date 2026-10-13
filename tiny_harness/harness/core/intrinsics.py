@@ -177,8 +177,8 @@ class _CoreIntrinsic(Tool):
             if a.agent is not None:
                 # Only a registered agent, never a guess or a URL; an empty id is not a
                 # local run (issue-34 R3.1, abuse case 4).
-                known = sorted(self._known_agents())
-                if a.agent not in known:
+                known = sorted(k for k in self._known_agents() if k)
+                if not a.agent or a.agent not in known:
                     listed = ", ".join(known) or "none are registered"
                     return ToolResult.error(
                         cid, "agent.unknown", f"no agent {a.agent!r}; available: {listed}"

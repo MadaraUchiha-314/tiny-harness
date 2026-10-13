@@ -36,3 +36,18 @@ tests/integration/agents/test_remote_updates.py::test_pushes_during_a_turn_are_a
 | 4 | The model sees the configured remote agents | The durable engine renders the same agents section on every turn | docs/specs/issue-34/requirements.md#non-functional-requirements | tests/integration/agents/test_agents_roster.py:230 |
 | 5 | The model sees the configured remote agents | Startup logs the roster and each truncated card field | docs/specs/issue-34/requirements.md#R4 | tests/integration/agents/test_agents_roster.py:268 |
 | 6 | The model sees the configured remote agents | A hostile agent card cannot break out of the agents roster | docs/specs/issue-34/requirements.md#security-considerations | tests/integration/agents/test_agents_roster.py:289 |
+
+## After R5 (PR review): `[card]`
+
+One scenario added for R5. `uv run pytest tests/integration`: 112 passed in 160 s
+(before: 111). The scenario table, regenerated:
+
+| # | Feature | Scenario | Requirement | Location |
+|---|---|---|---|---|
+| 1 | The model sees the configured remote agents | The model's context lists a configured remote agent | docs/specs/issue-34/requirements.md#R1 | tests/integration/agents/test_agents_roster.py:139 |
+| 2 | The model sees the configured remote agents | A spawn_subtask naming an unknown agent is refused without a sub-task | docs/specs/issue-34/requirements.md#R3 | tests/integration/agents/test_agents_roster.py:170 |
+| 3 | The model sees the configured remote agents | A spawn_subtask naming a listed agent still delegates to it | docs/specs/issue-34/requirements.md#R3 | tests/integration/agents/test_agents_roster.py:202 |
+| 4 | The model sees the configured remote agents | The durable engine renders the same agents section on every turn | docs/specs/issue-34/requirements.md#non-functional-requirements | tests/integration/agents/test_agents_roster.py:231 |
+| 5 | The model sees the configured remote agents | Startup logs the roster and each truncated card field | docs/specs/issue-34/requirements.md#R4 | tests/integration/agents/test_agents_roster.py:269 |
+| 6 | The model sees the configured remote agents | A hostile agent card cannot break out of the agents roster | docs/specs/issue-34/requirements.md#security-considerations | tests/integration/agents/test_agents_roster.py:290 |
+| 7 | The model sees the configured remote agents | A tiny-harness described by its card section is listed by another | docs/specs/issue-34/requirements.md#R5 | tests/integration/agents/test_agents_roster.py:322 |

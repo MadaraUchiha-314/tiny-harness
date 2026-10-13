@@ -26,3 +26,12 @@ The contract and security runs above repeat it on the final code.
 ## `cd docs && bun run docs:build`
 
 Run at task 6: `build complete`, no dead links.
+
+## After R5 and R6 (PR review)
+
+- `uv run pre-commit run --all-files`: every hook passed (ruff, ruff-format, pyright,
+  unit tests, markdownlint) after one markdownlint fix (emphasis style in `tasks.md`).
+- `uv run pytest tests/unit tests/contract tests/security tests/ui`: 730 passed.
+- `uv run pytest tests/integration`: 112 passed.
+- `cd docs && bun run docs:build`: `build complete`, no dead links (the new guide
+  `sdk/example-delegation` included).

@@ -49,8 +49,10 @@ The other rows are `n/a`, each with its reason.
 | T7 | Performance / load | n/a: the roster is built once at startup with no I/O, and adds one fixed string per request. The cap bound (design § Security design, about 3.4k characters per agent) is asserted in T8 rather than measured. | | |
 | T8 | Security / abuse case | yes | One negative test per abuse case in design § Security design: (1) instruction text in a card lands only inside the untrusted block, after the preamble; (2) a card with `</agents>`, `</untrusted>`, newlines and control characters renders as one single-line entry; (3) a 10 kB description and 50 skills stay within the caps; (4) `spawn_subtask(agent="https://evil.example")` returns `agent.unknown`, no command, and no HTTP request is made. Plus: the roster never contains the agent URL. | `uv run pytest tests/security` |
 | T9 | Accessibility | n/a: no user interface changes. | | |
-| T10 | Migration / upgrade | n/a: no stored data or config changes. The one behaviour change (an empty `agent` string is now an error, not a local run) is covered by T1 and noted in the PR briefing. | | |
+| T10 | Migration / upgrade | n/a: no stored data changes. The config gains only the optional `[card]` (R5); a file without it loads and serves the same card (T12). The one behaviour change (an empty `agent` string is now an error, not a local run) is covered by T1 and noted in the PR briefing. | | |
 | T11 | Manual exploratory | yes | Two local harnesses with a real model: harness A declares harness B as an agent; a user task that matches B's card is given to A with no agent named. Proves the model now finds and uses the agent by itself (the issue's complaint). | procedure in Verification activities |
+| T12 | Unit, integration, contract (R5) | yes | `[card]` loads, its defaults equal `AgentDescription()`, each refusal (blank value, unknown key, duplicate or empty skill id) is a `ConfigError`; the example configs load and pair up. Scenario: a tiny-harness card built from `[card]` reaches another harness's roster. The settings schema and config API snapshots gain `card`; `agent-card.json` does not change. | `uv run pytest tests/unit/test_config_card.py tests/integration/agents tests/contract` |
+| T13 | Manual exploratory (R6) | yes | Run `examples/delegation` as its guide says, with a real model: the front desk delegates "What is the status of order 48213?" to the ledger, unprompted, and answers with facts only the ledger holds. | procedure in Verification environment |
 
 ## Scenarios & requirement trace
 
@@ -68,6 +70,8 @@ The other rows are `n/a`, each with its reason.
 | T3 | R2.2, R2.3 | `spawn_subtask.json`; `SECTION_ORDER` contract test |
 | T8 | Security abuse cases 1–4, R1.3 | `Scenario: A hostile agent card cannot break out of the agents roster` plus the four negative tests |
 | T11 | R1, R2 (user value) | real model delegates to the listed agent unprompted |
+| T12 | R5.1–R5.4 | `tests/unit/test_config_card.py`; `Scenario: A tiny-harness described by its card section is listed by another` |
+| T13 | R5.2, R6 | the example, run with a real model |
 
 ## Verification environment
 
@@ -88,11 +92,17 @@ The other rows are `n/a`, each with its reason.
   `127.0.0.1:8091`. Its card is "Order ledger", with the skill `lookup-order` ("Looks up
   an order's status and refund state by order number"), and it answers each message with
   a fixed status line. A tiny-harness peer cannot be B: its card always has the default
-  description and no skills, because nothing in config sets them (a separate gap, out of
-  scope here). Harness A is `examples/demo/config.toml` on `127.0.0.1:8090` plus
+  description and no skills, because nothing in config sets them (a separate gap; R5, added
+  in review, closes it). Harness A is `examples/demo/config.toml` on `127.0.0.1:8090` plus
   `agents = [{ id = "ledger", url = "http://127.0.0.1:8091" }]`. Send A "What is the
   status of order 48213?" through a JSON-RPC `SendMessage`, naming no agent. Start each
   server from a script file and stop it by PID.
+- **T13 procedure:** start `examples/delegation/ledger.toml`, then
+  `examples/delegation/front-desk.toml`, each with `uv run tiny-harness --config … serve`
+  from a script file, with `TEMPORAL_API_KEY` unset and `OPENAI_API_KEY` by reference.
+  Read the ledger's card, then send the front desk "What is the status of order
+  48213?" through a JSON-RPC `SendMessage`, and read the front-desk task and the
+  ledger's sub-task with `GetTask`. Stop both by process group.
 - **If bring-up fails:** record it under Verification results, leave the dependent
   activities unticked, and escalate. If `OPENAI_API_KEY` is not available in the
   verification session, T11 is recorded as not executed and raised on the PR. It is
@@ -110,6 +120,8 @@ hostnames beyond `127.0.0.1`).
 | T3 | contract run summary + the `spawn_subtask.json` diff | `contract.md` |
 | T8 | security run summary, naming each abuse-case test | `security.md` |
 | T11 | the rendered `agents` section from A's log, the model's `spawn_subtask` call and the sub-task's result, redacted | `manual-delegation.md` |
+| T12 | the new tests, the snapshot diffs | `unit.md`, `contract.md`, `integration.md` |
+| T13 | the ledger's served card, the front desk's roster log, the delegated goal, both answers | `example-delegation.md` |
 | all | full suite as CI runs it (`pre-commit run --all-files`, unit, integration, contract/security/ui) | `ci-parity.md` |
 
 ## Verification activities
@@ -120,11 +132,14 @@ hostnames beyond `127.0.0.1`).
 - [x] T3 — `uv run pytest tests/contract`
 - [x] T8 — `uv run pytest tests/security`
 - [x] T11 — the manual procedure in Verification environment, with a real model
+- [x] T12 — `uv run pytest tests/unit/test_config_card.py tests/integration/agents tests/contract`
+- [x] T13 — the example, per Verification environment, with a real model
+- [x] CI parity (again, after R5 and R6)
 - [x] CI parity — `uv run pre-commit run --all-files` and `uv run pytest tests/integration`
 
 ## Verification results
 
-All six activities ran and passed. Nothing was skipped.
+All activities ran and passed (T12, T13 and the second CI parity run were added with R5 and R6). Nothing was skipped.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
@@ -134,6 +149,9 @@ All six activities ran and passed. Nothing was skipped.
 | T8 Security | `uv run pytest tests/security` | 83 passed. One test per abuse case 1–4, plus the end-to-end hostile-card scenario | [security.md](evidence/security.md) |
 | T11 Manual | Two local agents and `gpt-6.1-sol`, per Verification environment | Pass. The model delegated to `ledger` unprompted with a self-contained goal, and answered the user with the agent's result | [manual-delegation.md](evidence/manual-delegation.md) |
 | CI parity | `uv run pre-commit run --all-files`; `uv run pytest tests/integration` | All hooks passed; 111 passed | [ci-parity.md](evidence/ci-parity.md) |
+| T12 `[card]` (R5) | `uv run pytest tests/unit/test_config_card.py tests/integration/agents tests/contract` | 9 unit tests and the new scenario pass (red first); config snapshots changed on purpose, `agent-card.json` did not | [unit.md](evidence/unit.md), [integration.md](evidence/integration.md), [contract.md](evidence/contract.md) |
+| T13 Example (R6) | `examples/delegation` with `gpt-6.1-sol`, per Verification environment | Pass. The front desk delegated to the ledger unprompted and answered with the ledger's facts | [example-delegation.md](evidence/example-delegation.md) |
+| CI parity, after R5 and R6 | `uv run pre-commit run --all-files`; the four suites; the docs build | All hooks passed; 730 + 112 passed; docs built | [ci-parity.md](evidence/ci-parity.md) |
 
 **Not executed:** none. In T11, the first attempt failed in the stand-in agent B, not in
 tiny-harness. B was fixed and the run repeated (details in the evidence).

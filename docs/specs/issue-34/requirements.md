@@ -130,6 +130,44 @@ card cannot use up the turn budget.
 2. WHEN a card field is truncated THEN the harness SHALL log it once at startup at
    `WARNING`, naming the agent id and the field.
 
+### Requirement 5 — A tiny-harness describes itself on its card
+
+> Added after approval, from PR review: [comment](https://github.com/MadaraUchiha-314/tiny-harness/pull/35#issuecomment-6148956745). Review it in PR #35.
+
+**User story:** As an operator who runs two tiny-harness agents, I want to set the name,
+description and skills on each one's agent card, so that the other agent's model knows
+what it is for.
+
+#### Acceptance criteria (EARS)
+
+1. The configuration SHALL accept an optional `[card]` section with `name`,
+   `description`, `version` and a list of `[[card.skills]]`, each with `id`, `name`,
+   `description`, `tags` and `examples`.
+2. WHEN `[card]` sets a value THEN the agent card at `/.well-known/agent-card.json`
+   SHALL carry it.
+3. WHEN `[card]` or one of its keys is absent THEN the card SHALL keep its built-in
+   default, so an existing configuration serves the same card as before.
+4. IF a set `name`, `description`, `version` or skill `id`/`name` is blank, or two skills
+   share an `id`, or the section has an unknown key THEN startup SHALL fail with a
+   configuration error naming the setting.
+
+### Requirement 6 — An example shows delegation
+
+> Added after approval, from PR review: [comment](https://github.com/MadaraUchiha-314/tiny-harness/pull/35#issuecomment-6148967346).
+
+**User story:** As a new user, I want a runnable example of one agent giving work to
+another, so that I can see how to set it up.
+
+#### Acceptance criteria (EARS)
+
+1. The repository SHALL contain `examples/delegation/`: two tiny-harness configurations,
+   a ledger agent that describes itself with `[card]` and a front-desk agent that lists
+   the ledger under `agents`, and the commands to run them.
+2. WHEN a user asks the front desk a question that matches the ledger's card, without
+   naming an agent THEN the front desk SHALL delegate to the ledger and answer with its
+   result.
+3. The user documentation SHALL describe the example and the `[card]` section.
+
 ## Non-functional requirements
 
 - **Cache stability:** the roster is computed once at startup from the cards already
@@ -168,6 +206,10 @@ card cannot use up the turn budget.
   4. WHEN the model calls `spawn_subtask` with an id that is not registered (a guess, a
      URL, an id copied from untrusted content) THEN the harness SHALL refuse it (R3.1) and
      SHALL NOT contact any URL.
+- **R5 (the operator's own card):** `[card]` is operator configuration, trusted on this
+  side. On the other side it is a remote card like any other, so the roster's untrusted
+  block, cleaning and caps (abuse cases 1–3) apply to it unchanged. `[card]` holds no
+  secret and adds no endpoint.
 - **Fail closed:** an agent whose card could not be fetched or validated is not
   registered and so is not listed and cannot be called. An unknown id is an error, never
   a fallback to a local sub-task.

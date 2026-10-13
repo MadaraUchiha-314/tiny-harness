@@ -214,6 +214,38 @@ for agent_id, field in roster.truncated:
 `roster.text` goes to `InProcessOperations(agents_roster=…)`. Each warning is logged
 once, because the roster is built once (R4.2, NFR observability).
 
+### Addendum: `[card]` and the delegation example (R5, R6)
+
+> Added after approval, from PR review. Review it in PR #35.
+
+```mermaid
+flowchart LR
+    toml["ledger.toml<br/>[card]"] --> cfg["Settings.card<br/>(CardConfig)"]
+    cfg --> describe["describe()"] --> desc["AgentDescription"]
+    desc --> build["build_agent_card"] --> card["/.well-known/agent-card.json"]
+    card -- "fetched at start" --> front["front desk's roster (R1)"]
+```
+
+- `tiny_harness/config.py`: `CardConfig` (`name`, `description`, `version`, each
+  `str | None = None`, not blank when set) and `CardSkillConfig` (`id`, `name` required
+  and not blank; `description`, `tags`, `examples` optional). A validator refuses
+  duplicate skill ids. `Settings.card: CardConfig = CardConfig()`. `None` means "the
+  default", so the defaults stay in one place, `AgentDescription`.
+- `tiny_harness/service/a2a/card.py`: `describe(card: CardConfig) -> AgentDescription`
+  passes only the set fields, and converts each skill to `AgentSkillSpec`. The
+  extensions are not configurable: they are what the harness implements.
+- `tiny_harness/service/process.py`: `build_agent_card(describe(settings.card), …)`
+  in place of `AgentDescription()`.
+- With no `[card]`, `describe` returns `AgentDescription()`, so the pinned
+  `agent-card.json` snapshot does not change (R5.3).
+- `examples/delegation/`: `ledger.toml` (port 8091, `[card]`, a plugin with one
+  read-only MCP tool `get_order` and a prompt extension) and `front-desk.toml` (port
+  8090, no tools, `agents = [{ id = "ledger", url = "http://127.0.0.1:8091" }]`). Both
+  use embedded Temporal with their own task queue and store, so they run side by side.
+  The ledger has no tool that changes an order, so the example cannot refund or ship.
+- Docs: `[card]` in `docs/configuration/plugins-and-agents.md`; a new guide
+  `docs/sdk/example-delegation.md`.
+
 ## UI/UX design
 
 N/A. The change is in what the model reads. No screen, TUI view or web renderer changes.

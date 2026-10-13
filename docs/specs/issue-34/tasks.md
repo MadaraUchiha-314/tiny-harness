@@ -101,6 +101,25 @@ from the repository root.
   - _Test:_ `uv run pre-commit run --all-files` (markdownlint) and
     `cd docs && bun run docs:build` (no dead links)
 
+- [x] 7. `[card]` configures this agent's own card (`config.py`, `service/a2a/card.py`, `service/process.py`)
+  - Added after approval, from PR review (R5). `CardConfig`, `CardSkillConfig`,
+    `Settings.card`; `describe()`; `serve` builds the card from `describe(settings.card)`.
+  - Unit tests in `tests/unit/test_config_card.py`; the scenario _"A tiny-harness
+    described by its card section is listed by another"_; the settings schema and config
+    API snapshots regenerated on purpose.
+  - Docs: `[card]` in `docs/configuration/plugins-and-agents.md`, the `configuration`
+    and `a2a-server` capability docs.
+  - _Depends on:_ 5
+  - _Requirements:_ R5.1–R5.4
+  - _Test:_ T12 (red→green)
+
+- [x] 8. The delegation example (`examples/delegation/`, `docs/sdk/example-delegation.md`)
+  - Added after approval, from PR review (R6). The ledger and front-desk configurations,
+    the ledger's read-only plugin, the README, the guide and its sidebar entry.
+  - _Depends on:_ 7
+  - _Requirements:_ R6.1–R6.3
+  - _Test:_ T12 (the example configs load and pair up); T13 (run with a real model)
+
 ## Dependency graph (DAG)
 
 ```mermaid
@@ -110,6 +129,8 @@ flowchart LR
     t3["3 spawn_subtask check"] --> t5
     t4["4 system prompt"] --> t5
     t5 --> t6["6 docs"]
+    t5 --> t7["7 card config"]
+    t7 --> t8["8 delegation example"]
 ```
 
 Tasks 1–4 touch separate files and can run in any order.

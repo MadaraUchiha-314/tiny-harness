@@ -24,10 +24,10 @@ overrides: {}
 
 **What is broken.** An operator can declare remote A2A agents in `config.toml`
 (`agents = [{id, url, …}]`). At startup the harness fetches and validates each agent's
-card and registers it ([`runtime.py`](../../../tiny_harness/service/runtime.py)). But
+card and registers it (`tiny_harness/service/runtime.py`). But
 nothing tells the model those agents exist. The context window has a `skills_index` and a
 `participants` section, and no section for agents. The system prompt
-([`systemprompt.md`](../../../tiny_harness/builtin/io.github.madarauchiha-314.tiny-harness/systemprompt.md))
+(`tiny_harness/builtin/io.github.madarauchiha-314.tiny-harness/systemprompt.md`)
 does not mention delegation at all. The only hint is the `spawn_subtask` tool's `agent`
 parameter: *"A registered remote agent id, or null for this harness"* — with no list of
 ids. So the model can only reach a remote agent by guessing its id, and in practice never

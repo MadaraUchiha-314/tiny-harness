@@ -128,6 +128,7 @@ class Harness:
         plugins: Sequence[Plugin | Path] = (),
         commands: Iterable[tuple[CommandSpec, CommandHandler]] = (),
         builtin_commands: bool = True,
+        llm: LLM | None = None,                # build_runtime's existing seam: a custom or scripted model
         log_stream: TextIO | None = None,
     ) -> None: ...
 

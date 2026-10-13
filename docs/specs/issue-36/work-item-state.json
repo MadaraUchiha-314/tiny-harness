@@ -96,7 +96,7 @@
       "outcome": "",
       "enteredAt": "2026-10-13T23:25:30+00:00",
       "exitedAt": "",
-      "lastBlock": "",
+      "lastBlock": "`validate-artifacts` did not pass:\n- required artifact is missing (docs/specs/issue-36/evidence/self-review.md)",
       "forced": false
     }
   },

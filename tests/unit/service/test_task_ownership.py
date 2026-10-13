@@ -13,6 +13,7 @@ from typing import cast
 import pytest
 from a2a.server.context import ServerCallContext
 from a2a.types import ListTasksRequest, Task
+from a2a.utils.errors import InvalidParamsError
 from temporalio.client import Client
 from temporalio.service import RPCError, RPCStatusCode
 
@@ -142,12 +143,12 @@ async def test_list_tasks_filters_by_queue_and_names_the_context() -> None:
     assert [t.id for t in response.tasks] == ["t1"]
 
 
-@pytest.mark.parametrize("unsafe", ["x' OR 'y", "x\\' OR TaskQueue != '' -- ", "a b", ""])
-async def test_an_unsafe_context_id_lists_nothing_and_reaches_no_query(unsafe: str) -> None:
-    """Self-review round 1, finding 3: fail closed before the query is built."""
+@pytest.mark.parametrize("unsafe", ["x' OR 'y", "x\\' OR TaskQueue != '' -- ", "a b", " "])
+async def test_an_unsafe_context_id_is_refused_before_any_query(unsafe: str) -> None:
+    """Self-review round 1, finding 3, and round 2, finding 4: refused, and said so."""
     fake = FakeClient({"t1": "a"})
-    response = await store_for(fake).list(ListTasksRequest(context_id=unsafe or " "), ALICE)
-    assert list(response.tasks) == []
+    with pytest.raises(InvalidParamsError):
+        await store_for(fake).list(ListTasksRequest(context_id=unsafe), ALICE)
     assert fake.listed == []
 
 

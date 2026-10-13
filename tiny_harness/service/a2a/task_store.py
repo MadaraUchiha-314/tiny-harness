@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from a2a.server.context import ServerCallContext
 from a2a.server.tasks import TaskStore
 from a2a.types import ListTasksRequest, ListTasksResponse, Task, TaskState
+from a2a.utils.errors import InvalidParamsError
 from temporalio.client import Client
 from temporalio.service import RPCError
 
@@ -144,10 +145,11 @@ class TemporalTaskStore(TaskStore):
             query += f" AND TaskQueue = {visibility_literal(self._task_queue)}"
         if params.context_id:
             if not SAFE_CONTEXT_ID.fullmatch(params.context_id):
-                # Fail closed: a context id the harness never assigns lists nothing, and never
-                # reaches the query (issue-36 self-review 1, #3).
-                log.info("ListTasks refused an unsafe context id")
-                return ListTasksResponse(tasks=[], page_size=0, total_size=0)
+                # Fail closed and say so: the id never reaches the query (issue-36
+                # self-review 1, #3; round 2, #4).
+                raise InvalidParamsError(
+                    message="contextId may use only letters, digits, '.', '_', ':' and '-'"
+                )
             query += f" AND A2AContextId = {visibility_literal(params.context_id)}"
         tasks: list[Task] = []
         page_size = params.page_size or 50

@@ -1,4 +1,4 @@
-"""The Temporal time-skipping test environment and a worker over fakes (T2)."""
+"""A local Temporal dev server and a worker over fakes (T2)."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ class Harness:
         sink: EventSink | None = None,
         sticky: bool = True,
     ) -> Worker:
-        """``sticky=False`` lets a later worker answer queries without the test server's
+        """``sticky=False`` lets a later worker answer queries without the server's
         30 s sticky-queue timeout (a "restarted" process)."""
         self.activities = Activities(self.engine, sink=sink, client=client, commands=self.commands)
         self.activities.heartbeat_every = self.heartbeat_every
@@ -249,7 +249,10 @@ async def close(handle: WorkflowHandle[TaskWorkflow, Task]) -> Task:
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def env() -> AsyncIterator[WorkflowEnvironment]:
     CACHE.mkdir(parents=True, exist_ok=True)  # the server binary is cached across runs
-    async with await WorkflowEnvironment.start_time_skipping(
+    # The dev server, not the time-skipping test server: no test skips time, and the test
+    # server loses a query or a whole workflow task when one races a continue-as-new (about
+    # 1 run in 20 of the rollover tests hung; 0 in 40 on the dev server, issue-27).
+    async with await WorkflowEnvironment.start_local(  # pyright: ignore[reportUnknownMemberType]
         data_converter=pydantic_data_converter, download_dest_dir=str(CACHE)
     ) as environment:
         yield environment

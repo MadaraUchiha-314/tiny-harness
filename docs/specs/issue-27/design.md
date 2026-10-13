@@ -379,8 +379,14 @@ The full matrix is in [`testing-plan.md`](testing-plan.md). In short:
   brute-force. Speed matters on the hot path.
 - **A follow window.** A 10-minute window keeps `start_to_close` finite and lets a
   restarted worker pick the task up again.
-- **No new dependency.** `hmac`, `hashlib` and `secrets` from the standard library; the
-  A2A SDK client already offers every call.
+- **No new runtime dependency.** `hmac`, `hashlib` and `secrets` come from the standard
+  library, and the A2A SDK client already offers every call.
+- **One new dev dependency: `pytest-timeout`.** Review found CI's integration job held
+  20+ minutes by a hang (see `testing-plan.md` § Verification results). pytest has no
+  per-test time limit of its own, and the `faulthandler_timeout` it does have only dumps
+  stacks. A job-level `timeout-minutes` would fail the job without naming the test.
+  `pytest-timeout` fails the hung test by name. It is the standard plugin, MIT
+  licensed, and has no dependencies beyond pytest.
 
 ## Open questions
 

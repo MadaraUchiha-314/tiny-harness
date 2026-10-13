@@ -40,7 +40,7 @@ from the repository root.
   - _Test:_ T1 — `uv run pytest tests/unit/agents/test_roster.py`; T8 —
     `uv run pytest tests/security/test_agent_roster.py` (red→green)
 
-- [ ] 2. `agents` section in the context window (`core/context.py`, `core/inprocess.py`)
+- [x] 2. `agents` section in the context window (`core/context.py`, `core/inprocess.py`)
   - `ORDER` gains `agents` after `participants`. `NEVER_COMPACT` gains `agents`.
     `ContextWindowManager.assemble(agents_roster=…)` adds the `STATIC` section.
     `InProcessOperations(agents_roster=…)` stores it and passes it through.

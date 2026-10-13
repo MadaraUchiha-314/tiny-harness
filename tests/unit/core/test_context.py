@@ -22,7 +22,7 @@ from tiny_harness.harness.core import (
     StepState,
     TaskExtensionData,
 )
-from tiny_harness.harness.core.context import UNTRUSTED_PREAMBLE
+from tiny_harness.harness.core.context import NEVER_COMPACT, UNTRUSTED_PREAMBLE
 from tiny_harness.harness.hooks import FunctionExecutor, HookContext, HookManager, HookPoint
 from tiny_harness.harness.models import (
     FakeLLM,
@@ -117,13 +117,14 @@ def test_sections_follow_the_declared_order_by_stability() -> None:
     assert names == [
         "system_prompt",
         "participants",
+        "agents",
         "skills_index",
         "task",
         "plan",
         "state_summary",
     ]
     stabilities = [s.stability for s in window.sections]
-    assert stabilities == [Stability.STATIC] * 3 + [Stability.PER_TASK] * 2 + [Stability.PER_TURN]
+    assert stabilities == [Stability.STATIC] * 4 + [Stability.PER_TASK] * 2 + [Stability.PER_TURN]
     assert [t.name for t in window.tools] == ["alpha", "zeta"], (
         "tool definitions are sorted (stable prefix)"
     )
@@ -146,6 +147,42 @@ def test_static_prefix_is_byte_identical_across_turns() -> None:
     assert first.instructions() == second.instructions()
     assert "<system_prompt>\nSYS\n</system_prompt>" in first.instructions()
     assert "<participants>" in first.instructions() and "<task>" not in first.instructions()
+
+
+def test_the_agents_section_defaults_to_no_agents() -> None:
+    window = ContextWindowManager().assemble(
+        task=task(), state=AgentState(task_id="t-1"), system_prompt="SYS", skills_index="", tools=()
+    )
+    section = window.section("agents")
+    assert section is not None and section.content == "(no agents)"
+    assert "<agents>\n(no agents)\n</agents>" in window.instructions()
+
+
+def test_the_agents_roster_is_static_never_compacted_and_stable_across_turns() -> None:
+    manager = ContextWindowManager()
+    roster = "- id: ledger\n  name: Ledger"
+    first = manager.assemble(
+        task=task(),
+        state=AgentState(task_id="t-1"),
+        system_prompt="SYS",
+        skills_index="",
+        agents_roster=roster,
+        tools=tools(),
+    )
+    second = manager.assemble(
+        task=task(),
+        state=state_with_history(),
+        system_prompt="SYS",
+        skills_index="",
+        agents_roster=roster,
+        tools=tools(),
+    )
+    section = first.section("agents")
+    assert section is not None
+    assert section.stability is Stability.STATIC and section.never_compact
+    assert "agents" in NEVER_COMPACT
+    assert f"<agents>\n{roster}\n</agents>" in first.instructions()
+    assert first.instructions() == second.instructions()
 
 
 def test_tool_results_are_rendered_as_untrusted_blocks() -> None:
@@ -248,7 +285,7 @@ async def test_compaction_keeps_the_never_compact_sections_intact() -> None:
     after = manager.assemble(
         task=task(), state=new_state, system_prompt="SYS", skills_index="", tools=()
     )
-    for name in ("system_prompt", "participants", "task", "plan", "skill:orders"):
+    for name in ("system_prompt", "participants", "agents", "task", "plan", "skill:orders"):
         b, a = before.section(name), after.section(name)
         assert b is not None
         assert a is not None

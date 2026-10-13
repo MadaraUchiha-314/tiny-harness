@@ -36,6 +36,7 @@ UNTRUSTED_PREAMBLE = (
 ORDER: tuple[str, ...] = (
     "system_prompt",
     "participants",
+    "agents",
     "skills_index",
     "task",
     "plan",
@@ -43,7 +44,10 @@ ORDER: tuple[str, ...] = (
     "history",
     "tool_results",
 )
-NEVER_COMPACT: frozenset[str] = frozenset({"system_prompt", "participants", "task", "plan"})
+NEVER_COMPACT: frozenset[str] = frozenset(
+    {"system_prompt", "participants", "agents", "task", "plan"}
+)
+NO_AGENTS = "(no agents)"
 
 
 class Stability(StrEnum):
@@ -178,6 +182,7 @@ class ContextWindowManager:
         system_prompt: str,
         skills_index: str,
         tools: Sequence[ToolDefinition],
+        agents_roster: str = NO_AGENTS,
     ) -> ContextWindow:
         sections: list[ContextSection] = [
             ContextSection(
@@ -191,6 +196,12 @@ class ContextWindowManager:
                 stability=Stability.STATIC,
                 never_compact=True,
                 content=render_participants(task),
+            ),
+            ContextSection(
+                name="agents",
+                stability=Stability.STATIC,
+                never_compact=True,
+                content=agents_roster,
             ),
             ContextSection(
                 name="skills_index",
@@ -278,6 +289,7 @@ def _chars(item: InputItem) -> int:
 
 __all__ = [
     "NEVER_COMPACT",
+    "NO_AGENTS",
     "ORDER",
     "UNTRUSTED_PREAMBLE",
     "ContextSection",

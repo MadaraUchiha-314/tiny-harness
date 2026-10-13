@@ -17,7 +17,7 @@ from typing import Protocol
 from a2a.types import AgentCard
 from pydantic import BaseModel
 
-from tiny_harness.harness.core.context import render_untrusted_text
+from tiny_harness.harness.core.context import NO_AGENTS, render_untrusted_text
 from tiny_harness.harness.entities import EntityRef
 
 NAME_CAP = 80
@@ -25,7 +25,6 @@ DESCRIPTION_CAP = 500
 SKILL_DESCRIPTION_CAP = 200
 SKILLS_CAP = 10
 ELLIPSIS = "…"
-NO_AGENTS = "(no agents)"
 OPEN_ANGLE = "\u2039"  # replaces "<": a field can never open or close a tag
 CLOSE_ANGLE = "\u203a"  # replaces ">"
 SOURCE = "agent-cards"

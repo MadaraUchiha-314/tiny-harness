@@ -88,7 +88,7 @@ from the repository root.
   - _Test:_ T2 — `uv run pytest tests/integration/agents/test_agents_roster.py`; T3 —
     `uv run pytest tests/contract` (red→green)
 
-- [ ] 6. Documentation
+- [x] 6. Documentation
   - Capability docs: `remote-agents.md` (the roster, the unknown-id refusal),
     `context-window.md` (the `agents` section), `prompts-and-skills.md` (the `agents`
     prompt section), each with an issue-34 history row.

@@ -19,6 +19,15 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
   A card that declares a security scheme or requires an extension the harness does not
   implement SHALL be refused with `UnsupportedExtensionError` and the reason recorded.
 - `A2A-Extensions` SHALL name only extensions the remote card advertises.
+- WHEN the harness starts THEN it SHALL build an agents roster from the registered
+  agents' cards (id, name, description, up to 10 skills; never the URL), sorted by id.
+  Each field is flattened to one line, `<`/`>` become `‹`/`›`, and long fields are cut
+  with `…` (name 80, description 500, skill description 200 characters), with one
+  `WARNING` per cut. The roster is the context window's `agents` section, and the ids
+  are logged at `INFO` (issue-34).
+- IF `spawn_subtask` names an `agent` that is not registered (an empty string included)
+  THEN it SHALL return an `agent.unknown` error listing the valid ids, and no sub-task
+  SHALL be created (issue-34).
 - WHEN the harness delegates (`spawn_subtask` naming a remote agent) THEN a sub-task
   SHALL be created, linked to the remote A2A task id, and tracked through the remote
   task's status updates, including `INPUT_REQUIRED` and `AUTH_REQUIRED`; the child
@@ -48,7 +57,8 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
 ## Design
 
 [design.md § Agents, local and remote](../specs/issue-3/design.md#agents-local-and-remote-r11-r7--harnessagents),
-[issue-27 design](../specs/issue-27/design.md).
+[issue-27 design](../specs/issue-27/design.md),
+[issue-34 design](../specs/issue-34/design.md).
 
 ## History
 
@@ -56,3 +66,4 @@ task and reports back. Lives in `tiny_harness/harness/agents/` and the
 |-----------|--------------|-------|
 | issue-3 | The agent entity, `RemoteAgent`, card validation, the remote task workflow (Layer 5) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) |
 | issue-27 | Push and follow watches on a parked remote task; push config cleanup; the parent noted only of endings and new questions; `X-Participant-Id` on every remote task call (fixing replies to a parked tiny-harness peer) | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
+| issue-34 | The agents roster in the model's context; `spawn_subtask` refuses an unknown agent | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |

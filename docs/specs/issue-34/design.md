@@ -355,10 +355,19 @@ next message, as before.
   participant (R7.6).
 - The parent matches a `child_done` by the stand-in's workflow id; `ChildRef.task_id` and
   the row are the A2A task on the agent, `TaskRef(task_id=<A2A id>, agent=<agent>)`
-  (R7.4). A conversation or participant child parking is not news for the parent's
+  (R7.4). A child on `self` is on this harness, which `TaskRef` writes as `agent: None`,
+  so every surface (the TUI, the web renderer) opens it as its own; the row carries the
+  sub-state the agent reports. A conversation or participant child parking is not news for the parent's
   model; a delegated one asking a question is.
 - The result: `sub_task_result` caps the last answer at 4,000 characters (R7.5); the
   parent folds it into the history as an untrusted `agent` note, as today.
+
+#### The callee for `/sub-task` and participant tasks
+
+- A brief that names an assignee other than this agent starts the task in `participant`
+  mode: no model call, it waits for its assignee (as `create_task_for_participant` did).
+- A first message that is the brief alone starts the workflow with no message in its
+  inbox: a conversation parks awaiting its first message (the `/sub-task` start).
 
 #### Removed
 

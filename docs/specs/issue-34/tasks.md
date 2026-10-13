@@ -130,7 +130,7 @@ from the repository root.
   - _Depends on:_ 8
   - _Requirements:_ R7.1–R7.7, abuse cases 5–7
 
-- [ ] 10. `/sub-task` and `create_task_for_participant` on the A2A route (R7.2)
+- [x] 10. `/sub-task` and `create_task_for_participant` on the A2A route (R7.2)
   - The brief for a conversation child (no text; the person as reporter) and for a
     participant task (the person as assignee, a `participant`-mode workflow); the direct
     `_start_local_child` path removed.

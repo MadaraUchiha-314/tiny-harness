@@ -95,7 +95,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ R5.4; abuse case 3
   - _Test:_ T1 `tests/unit/service/test_push_receiver.py` (foreign queue ⇒ 401, no
     update call); T4 `Scenario: A push for agent b's stand-in at agent a's route is refused`
-- [ ] 9. Heartbeat per agent
+- [x] 9. Heartbeat per agent
   - `schedule_id(agent_id)` keeps `tiny-harness-heartbeat` for the default agent.
   - `ensure_heartbeat_schedule` and `delete_heartbeat_schedule` take the agent id, and
     `tiny-harness schedules delete` passes it.

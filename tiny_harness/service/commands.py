@@ -51,6 +51,7 @@ async def worker(settings: Settings) -> int:
             client,
             interval=settings.heartbeat.interval,
             task_queue=settings.temporal.effective_task_queue,
+            agent_id=settings.agent.id,
         )
         print(
             f"worker {settings.agent.id} on {settings.temporal.effective_task_queue}",
@@ -91,7 +92,7 @@ async def tui(settings: Settings, *, url: str | None, participant: str) -> int:
 async def schedules_delete(settings: Settings) -> int:
     async with temporal_client(settings) as client:
         try:
-            await delete_heartbeat_schedule(client)
+            await delete_heartbeat_schedule(client, settings.agent.id)
         except RPCError as exc:
             print(f"no heartbeat schedule to delete: {exc.message}", file=sys.stderr)
             return 1

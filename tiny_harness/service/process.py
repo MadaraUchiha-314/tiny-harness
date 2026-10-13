@@ -199,6 +199,7 @@ async def running_harness(
                 client,
                 interval=settings.heartbeat.interval,
                 task_queue=settings.temporal.effective_task_queue,
+                agent_id=settings.agent.id,
             )
             await stack.enter_async_context(
                 build_worker(

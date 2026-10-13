@@ -83,6 +83,7 @@ const SDK: DefaultTheme.SidebarItem[] = [
   { text: "Quickstart", link: "/sdk/" },
   { text: "Add tools, commands and skills", link: "/sdk/extend" },
   { text: "Example: support agent", link: "/sdk/example" },
+  { text: "Example: two agents", link: "/sdk/example-delegation" },
   { text: "Deploy", link: "/sdk/deploy" },
 ];
 

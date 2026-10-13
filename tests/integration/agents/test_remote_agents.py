@@ -24,6 +24,7 @@ from tests.integration.durable.conftest import (
     start,
     until,
 )
+from tests.integration.streaming_asgi import StreamingASGITransport
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.core import HarnessTask
 from tiny_harness.harness.entities import RegistryEntry
@@ -55,7 +56,7 @@ async def test_delegation_to_a_remote_a2a_agent_tracks_the_sub_task_state(
     Scenario: delegation to a remote A2A agent tracks the sub-task state
         Given a second harness serving A2A as the "ledger" agent, registered from its card
         When the local LLM spawns a sub-task on that agent
-        Then a remote task workflow sends the goal and follows the remote task to its answer
+        Then the goal is sent and a stand-in follows the remote task to its answer
         And the remote parks its own task awaiting the next message (issue-25 R3.1)
         And the local sub-task completes with that answer (issue-25 R3.4)
         And the parent resumes with the remote answer and parks awaiting the next message
@@ -71,7 +72,7 @@ async def test_delegation_to_a_remote_a2a_agent_tracks_the_sub_task_state(
     ).bind()
     async with remote:
         http = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=remote.app), base_url="http://harness"
+            transport=StreamingASGITransport(remote.app), base_url="http://harness"
         )
         agent = await RemoteAgent.connect("ledger", "http://harness", http=http)
         assert agent.agent_card.name == "tiny-harness"
@@ -80,9 +81,12 @@ async def test_delegation_to_a_remote_a2a_agent_tracks_the_sub_task_state(
             handle = await send(
                 env.client, f"tq-l-{suffix}", start(), message("refund 48213", message_id="m1")
             )
-            await until(handle, lambda t: bool(t.ext.sub_tasks))  # the child has started
+            current = await until(handle, lambda t: bool(t.ext.sub_tasks))  # child created
+            # The row names the child's own task on the agent (issue-34 R7.4); the stand-in
+            # that follows it is this task's workflow ``t-1.1``.
+            remote_id = current.ext.sub_tasks[0].task_id
             child = await env.client.get_workflow_handle("t-1.1").result()
-            note = "Sub-task t-1.1 is COMPLETED: Ledger is balanced."
+            note = f"Sub-task {remote_id} is COMPLETED: Ledger is balanced."
 
             async def heard() -> HarnessTask:
                 for _ in range(200):
@@ -99,9 +103,9 @@ async def test_delegation_to_a_remote_a2a_agent_tracks_the_sub_task_state(
     assert result.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
     assert child.status.state == TaskState.TASK_STATE_COMPLETED
     ext = HarnessTask(result).ext
-    assert [t.task_id for t in ext.sub_tasks] == ["t-1.1"]
+    assert [t.task_id for t in ext.sub_tasks] == [remote_id]
     assert ext.sub_tasks[0].agent is not None and ext.sub_tasks[0].agent.id == "ledger"
     final_input = [i.text for i in local.llm.requests[-1].input if i.kind == "message"]
-    assert any("Sub-task t-1.1 is COMPLETED: Ledger is balanced." in t for t in final_input)
-    remote_records = await remote.harness.store.query(TaskRecord, Filter())
-    assert any(r.state_name == "INPUT_REQUIRED" for r in remote_records), "the remote ran its task"
+    assert any(note in t for t in final_input)
+    remote_records = {r.task_id: r for r in await remote.harness.store.query(TaskRecord, Filter())}
+    assert remote_records[remote_id].state_name == "INPUT_REQUIRED", "the remote ran its task"

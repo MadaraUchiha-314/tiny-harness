@@ -21,7 +21,7 @@ import asyncio
 import contextlib
 import hmac
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import Final, Literal, cast
 
@@ -45,6 +45,7 @@ with workflow.unsafe.imports_passed_through():
 
     from tiny_harness.config import RetryPolicySpec
     from tiny_harness.errors import HookTransportError
+    from tiny_harness.harness.agents import SELF_AGENT_ID
     from tiny_harness.harness.channels import (
         CHANNEL_EXT_MEDIA_TYPE,
         ChannelMessage,
@@ -132,6 +133,7 @@ with workflow.unsafe.imports_passed_through():
         RemoteWatch,
         RetryIn,
         RetryOut,
+        StartAgentTaskIn,
         SweepIn,
         SweepOut,
         TaskMonitor,
@@ -142,7 +144,7 @@ with workflow.unsafe.imports_passed_through():
         TriggerOut,
         event_entry,
     )
-    from tiny_harness.service.inbox import controls_task, is_control
+    from tiny_harness.service.inbox import EVENT_MEDIA_TYPE, controls_task, is_control
 
 A2A_CONTEXT_ID = SearchAttributeKey.for_keyword("A2AContextId")
 A2A_TASK_STATE = SearchAttributeKey.for_keyword("A2ATaskState")
@@ -212,6 +214,47 @@ def sub_task_name(goal: str, index: int) -> str:
     return first_line[:60]
 
 
+SUB_TASK_RESULT_CAP: Final = 4_000
+"""How much of a sub-task's last answer reaches its parent: room for a result, which is
+why a sub-task runs in isolation (issue-34 R7.3); a longer one is cut and marked."""
+
+
+def sub_task_result(text: str) -> str:
+    """A finished sub-task's answer as its parent hears it, at most the cap."""
+    if len(text) <= SUB_TASK_RESULT_CAP:
+        return text
+    return text[: SUB_TASK_RESULT_CAP - 1] + "…"
+
+
+def sub_task_brief(goal: str, description: str, criteria: Sequence[str]) -> str:
+    """The message a remote agent is given: the goal, the context and each acceptance
+    criterion, since it sees nothing else of this task (issue-34 R7.2)."""
+    parts = [goal]
+    if description:
+        parts.append(description)
+    if criteria:
+        parts.append("Acceptance criteria:\n" + "\n".join(f"- {c}" for c in criteria))
+    return "\n\n".join(parts)
+
+
+def brief_message(
+    child_id: str, context_id: str, *, sender: str, text: str, envelope: JsonObject | None
+) -> Message:
+    """The first message of a child task on an agent (issue-34 R7.2): the brief as text,
+    and as a task envelope that a callee with the task extension creates the task from.
+    ``text`` empty: the child starts without a message for its model (``/sub-task``)."""
+    parts: list[Part] = [Part(text=text)] if text else []
+    if envelope is not None:
+        value = struct_pb2.Value()
+        value.struct_value.update({"kind": "task", "payload": envelope})
+        parts.append(Part(data=value, media_type=EVENT_MEDIA_TYPE))
+    message = Message(
+        message_id=f"{child_id}:brief", context_id=context_id, role=A2ARole.ROLE_USER, parts=parts
+    )
+    message.metadata.update({"participant_id": sender})
+    return message
+
+
 def child_extension(
     parent: HarnessTask,
     *,
@@ -221,6 +264,7 @@ def child_extension(
     lifecycle: Lifecycle | None,
     inherit: bool,
     criteria: tuple[AcceptanceCriterion, ...] = (),
+    description: str = "",
 ) -> TaskExtensionData:
     """A child's extension, linked to ``parent``. A local agent child (``inherit``) copies
     the parent's ``model`` and ``reasoning_effort`` (R7.3); a remote or participant child
@@ -229,6 +273,7 @@ def child_extension(
     return TaskExtensionData(
         name=name,
         goal=goal,
+        description=description,
         acceptance_criteria=criteria,
         participants=participants,
         parent_tasks=(TaskRef(task_id=parent.id),),
@@ -324,6 +369,16 @@ class WorkflowOperations:
 
     async def decide_completion(self, task: HarnessTask) -> TaskCompleteIn:
         unresolved = self._wf.unresolved()
+        if not unresolved and self._wf.notes:
+            # A sub-task ended during this turn: its result is the reason it ran, so the
+            # model reads it in one more turn before the task may end (issue-34 R7.5).
+            return TaskCompleteIn(
+                task_id=task.id,
+                correlation_id=self._wf.correlation_id,
+                unresolved=unresolved,
+                result=CompletionDecision.WAIT,
+                reason="a sub-task's result is still to be read",
+            )
         out = await self._wf.call(
             ActivityName.DECIDE_COMPLETION,
             self._arg(CompletionIn, task=task.proto, unresolved=unresolved),
@@ -385,6 +440,10 @@ class TaskWorkflow:
         self.next_seq = 0
         self.pending_help: HelpRequest | None = None
         self.children: list[ChildRef] = []
+        # A child's signal can run before ``run`` loads the children from the snapshot
+        # (a continued run's first activation): it waits here for the load (issue-34).
+        self.loaded = False
+        self.early_child_done: list[ChildDone] = []
         self.notes: list[str] = []
         self.history_notes: list[str] = []
         self.command_run: asyncio.Task[None] | None = None  # a command a cut turn left running
@@ -456,12 +515,24 @@ class TaskWorkflow:
         updates the child's row, which the parent shows on its own stream once idle
         (issue-25 R5.6); only an ending, or a remote child parking with something to say,
         becomes a note for the model, so a child resuming never wakes it (issue-27 R2.7)."""
+        if not self.loaded:
+            self.early_child_done.append(done)
+            return
+        self._apply_child_done(done)
+
+    def _apply_child_done(self, done: ChildDone) -> None:
         terminal = done.state_name in TERMINAL_NAMES
         interrupted = done.state_name in ("INPUT_REQUIRED", "AUTH_REQUIRED")
         remote = False
+        task_id = done.task_id
         for i, child in enumerate(self.children):
-            if child.task_id == done.task_id:
-                remote = child.kind == "remote"
+            # A child is signalled by its workflow: an agent child's stand-in, whose
+            # A2A task (the row) has its own id on the agent (issue-34 R7.4).
+            if child.workflow_id == done.task_id:
+                # A delegated child parking has something to say; a conversation or a
+                # participant task parks after every exchange, which is not news.
+                remote = child.kind == "remote" or (child.kind == "agent" and child.delegated)
+                task_id = child.task_id
                 self.children[i] = child.model_copy(
                     update={
                         "done": terminal,
@@ -471,7 +542,7 @@ class TaskWorkflow:
                     }
                 )
         if terminal or (remote and interrupted):
-            note = f"Sub-task {done.task_id} is {done.state_name}: {done.summary}"
+            note = f"Sub-task {task_id} is {done.state_name}: {done.summary}"
             self.notes.append(note.strip())
 
     @workflow.query(name="task")
@@ -727,8 +798,15 @@ class TaskWorkflow:
         if runner.done():
             return True
         runner.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
+        try:
             await runner
+        except asyncio.CancelledError:
+            pass
+        except ActivityError as exc:
+            # An activity the turn awaited directly (an event's delivery) reports the cut as
+            # its own cancellation: that is the cut, not a failure of the task.
+            if not isinstance(exc.cause, CancelledError):
+                raise
         if self.command_run is not None:  # finish the command the cut interrupted (A1)
             await self.command_run
             self.command_run = None
@@ -826,7 +904,7 @@ class TaskWorkflow:
                     ChildDone(
                         task_id=self.task.id,
                         state_name=self.task.state_name,
-                        summary=summary[:500],
+                        summary=sub_task_result(summary),
                     ),
                 )
         return self.task.proto
@@ -858,6 +936,10 @@ class TaskWorkflow:
         self.unanswered = start.unanswered
         self.attempts = dict(start.attempt_counters)
         self.surfaces = start.surfaces
+        self.loaded = True
+        early, self.early_child_done = self.early_child_done, []
+        for done in early:  # a child's change that came before the load (issue-34)
+            self._apply_child_done(done)
 
     def _snapshot(self, task: HarnessTask, state: AgentState) -> TaskStart:
         return self.start.model_copy(
@@ -1170,6 +1252,7 @@ class TaskWorkflow:
         child_id = f"{task.id}.{index}"
         name = str(payload.get("name", f"sub-task {index}"))
         goal = str(payload.get("goal", ""))
+        description = str(payload.get("description") or "")
         raw_criteria = payload.get("acceptance_criteria")
         criteria = tuple(
             AcceptanceCriterion(text=str(c))
@@ -1200,60 +1283,132 @@ class TaskWorkflow:
                 lifecycle=None,
                 inherit=False,
             )
-            child = HarnessTask.new(child_id, task.context_id, ext)
-            await self._start_local_child(child, mode="participant", mailbox=(), step=step)
-            return TaskRef(task_id=child_id)
-        if not participants:
-            participants = (
-                Participant(id=self.start.config.agent, kind="agent", role=Role.ASSIGNEE),
+            # A task on this harness for its assignee (issue-34 R7.2): the brief alone,
+            # which this harness creates in participant mode, waiting for the assignee.
+            brief = brief_message(
+                child_id,
+                task.context_id,
+                sender=self.start.config.agent,
+                text="",
+                envelope=ext.model_dump(
+                    mode="json",
+                    include={"name", "goal", "acceptance_criteria", "participants", "parent_tasks"},
+                    exclude_none=True,
+                ),
             )
-        elif not agent and not any(p.id == self.start.config.agent for p in participants):
-            # The goal message is sent as this agent, and intake accepts only a participant:
-            # without this a refused goal would leave the child idle (issue-25 R6.2).
-            participants = (
-                *participants,
-                Participant(id=self.start.config.agent, kind="agent", role=Role.REPORTER),
+            return await self._start_agent_child(
+                HarnessTask.new(child_id, task.context_id, ext),
+                agent=SELF_AGENT_ID,
+                brief=brief,
+                step=step,
+                delegated=False,
             )
+        # Every agent child, this harness's own included, is an A2A task on its agent
+        # (issue-34 R7.2): ``agent`` null is ``self``.
+        target = str(agent) if agent else SELF_AGENT_ID
+        mine = target == SELF_AGENT_ID
         ext = child_extension(
             task,
             name=name,
             goal=goal,
             criteria=criteria,
-            participants=participants,
+            participants=task.ext.participants,
             lifecycle="delegated",
-            inherit=not agent,  # a remote child runs on the remote agent's model
+            inherit=mine,  # another agent runs on its own model
+            description=description,
         )
-        child = HarnessTask.new(child_id, task.context_id, ext)
-        if agent:
-            await workflow.start_child_workflow(
-                "RemoteTaskWorkflow",
-                RemoteStart(
-                    task=child.proto,
-                    agent=str(agent),
-                    goal=goal,
-                    parent_workflow_id=workflow.info().workflow_id,
+        # This harness trusts itself to brief a child fully (issue-34 R7): it finishes by
+        # itself on the parent's settings. Another agent gets the open fields, which any
+        # creator may set; a peer that ignores the lifecycle is still read as done when it
+        # parks awaiting its next message.
+        fields = {"name", "goal", "description", "acceptance_criteria"}
+        if mine:
+            fields |= {"lifecycle", "model", "reasoning_effort", "parent_tasks"}
+        brief = brief_message(
+            child_id,
+            task.context_id,
+            sender=self.start.config.agent,
+            text=sub_task_brief(goal, description, [c.text for c in criteria]),
+            envelope=ext.model_dump(mode="json", include=fields, exclude_none=True),
+        )
+        return await self._start_agent_child(
+            HarnessTask.new(child_id, task.context_id, ext),
+            agent=target,
+            brief=brief,
+            step=step,
+            delegated=True,
+        )
+
+    async def _start_agent_child(
+        self,
+        record: HarnessTask,
+        *,
+        agent: str,
+        brief: Message,
+        step: str | None,
+        delegated: bool,
+    ) -> TaskRef:
+        """Create a child task on ``agent`` with its brief, then follow it with a stand-in
+        (issue-34 R7.2). The row names the child's own A2A task on the agent (R7.4). A
+        child that could not be created, or ended in its first answer, is resolved here
+        and its parent is told as of any child's end."""
+        config = self.start.config
+        # The row says where the task lives: a child on ``self`` is on this harness, which
+        # ``TaskRef`` writes as no agent, so every surface opens it as its own (R7.4).
+        agent_ref = None if agent == SELF_AGENT_ID else EntityRef(kind=EntityKind.AGENT, id=agent)
+        stand_in = record.id
+        try:
+            out = await workflow.execute_activity(
+                ActivityName.START_AGENT_TASK.value,
+                StartAgentTaskIn(
+                    task_id=stand_in,
                     correlation_id=self.correlation_id,
-                    config=self.start.config,
+                    agent=agent,
+                    message=brief,
+                    delegated=delegated,
                 ),
-                id=child_id,
-                parent_close_policy=workflow.ParentClosePolicy.ABANDON,
+                result_type=RemoteTurnOut,
+                start_to_close_timeout=config.tool_timeout,
+                heartbeat_timeout=config.heartbeat_timeout,
+                retry_policy=ONE_ATTEMPT,  # a create is not idempotent
             )
-            self.children.append(
-                ChildRef(task_id=child_id, workflow_id=child_id, kind="remote", step=step)
-            )
-            return TaskRef(task_id=child_id, agent=EntityRef(kind=EntityKind.AGENT, id=str(agent)))
-        first = Message(
-            message_id=f"{child_id}:goal",
-            context_id=task.context_id,
-            task_id=child_id,
-            role=A2ARole.ROLE_USER,
-            parts=[Part(text=goal)],
+        except ActivityError as exc:
+            reason = _error_info(exc).message
+            out = RemoteTurnOut(remote_task_id="", state_name="FAILED", text=reason, final=True)
+        task_id = out.remote_task_id or stand_in
+        child = ChildRef(
+            task_id=task_id,
+            workflow_id=stand_in,
+            kind="agent",
+            step=step,
+            delegated=delegated,
+            state_name=out.state_name,
+            sub_state=out.sub_state,
         )
-        # The delegating agent is the sender, and a participant of the child: intake
-        # refuses a message that asserts nobody (abuse case 4).
-        first.metadata.update({"participant_id": self.start.config.agent})
-        await self._start_local_child(child, mode="agent", mailbox=(first,), step=step)
-        return TaskRef(task_id=child_id)
+        if out.final or not out.remote_task_id:
+            summary = sub_task_result(out.text)
+            self.children.append(child.model_copy(update={"done": True, "summary": summary}))
+            self.notes.append(f"Sub-task {task_id} is {out.state_name}: {summary}".strip())
+            return TaskRef(
+                task_id=task_id, agent=agent_ref, state=out.state_name, sub_state=out.sub_state
+            )
+        await workflow.start_child_workflow(
+            "RemoteTaskWorkflow",
+            RemoteStart(
+                task=record.proto,
+                agent=agent,
+                goal=sub_task_brief(record.ext.goal, record.ext.description, []),
+                parent_workflow_id=workflow.info().workflow_id,
+                correlation_id=self.correlation_id,
+                config=config,
+                delegated=delegated,
+                resume=RemoteResume(remote_task_id=out.remote_task_id, watch=None, last=out),
+            ),
+            id=stand_in,
+            parent_close_policy=workflow.ParentClosePolicy.ABANDON,
+        )
+        self.children.append(child)
+        return TaskRef(task_id=task_id, agent=agent_ref)
 
     async def spawn_sub_task(self, task: HarnessTask, goal: str, reporter: str) -> TaskRef:
         """``/sub-task`` (R9.1, R9.2): a conversation child in the same context with the
@@ -1276,43 +1431,36 @@ class TaskWorkflow:
             lifecycle="conversation",
             inherit=True,
         )
-        child = HarnessTask.new(child_id, task.context_id, ext)
-        await self._start_local_child(child, mode="agent", mailbox=(), step=None)
-        ref = TaskRef(task_id=child_id)
+        # A conversation on this harness, created through its own A2A interface with the
+        # brief alone, so it waits for its reporter's first message (issue-34 R7.2).
+        brief = brief_message(
+            child_id,
+            task.context_id,
+            sender=self.start.config.agent,
+            text="",
+            envelope=ext.model_dump(
+                mode="json",
+                include={
+                    "name",
+                    "goal",
+                    "participants",
+                    "lifecycle",
+                    "model",
+                    "reasoning_effort",
+                    "parent_tasks",
+                },
+                exclude_none=True,
+            ),
+        )
+        ref = await self._start_agent_child(
+            HarnessTask.new(child_id, task.context_id, ext),
+            agent=SELF_AGENT_ID,
+            brief=brief,
+            step=None,
+            delegated=False,
+        )
         self.task = link_subtask(task, ref, None)
         return ref
-
-    async def _start_local_child(
-        self,
-        child: HarnessTask,
-        *,
-        mode: Literal["agent", "participant"],
-        mailbox: tuple[Message, ...],
-        step: str | None,
-    ) -> None:
-        start = TaskStart(
-            task=child.proto,
-            state=AgentState(task_id=child.id),
-            mode=mode,
-            config=self.start.config,
-            correlation_id=self.correlation_id,
-            mailbox=mailbox,
-            parent_workflow_id=workflow.info().workflow_id,
-        )
-        await workflow.start_child_workflow(
-            "TaskWorkflow",
-            start,
-            id=child.id,
-            parent_close_policy=workflow.ParentClosePolicy.ABANDON,
-        )
-        self.children.append(
-            ChildRef(
-                task_id=child.id,
-                workflow_id=child.id,
-                kind="participant" if mode == "participant" else "local",
-                step=step,
-            )
-        )
 
     # --- the activity wrapper (R19.3-R19.6) -----------------------------------------
 
@@ -1475,7 +1623,12 @@ class RemoteTaskWorkflow:
             self.last = resumed.last
             self.cancel_reason = self.cancel_reason or resumed.cancel_reason
             self.claimed, self.recheck = resumed.claimed, resumed.recheck
-            self.push_pending = resumed.watch.mode == "push"  # reconcile across the gap
+            # A continued run reconciles across the gap; a new stand-in (no watch yet,
+            # issue-34 R7.2) registers its watch, which fetches once, when it parks.
+            self.push_pending = resumed.watch is not None and resumed.watch.mode == "push"
+            self.task = self.task.with_state(
+                TaskState.Value(f"TASK_STATE_{resumed.last.state_name}")
+            )
         else:
             self.task = self.task.with_state(TaskState.TASK_STATE_WORKING)
         while True:
@@ -1488,6 +1641,7 @@ class RemoteTaskWorkflow:
                         agent=start.agent,
                         message=outbound,
                         remote_task_id=self.remote_task_id,
+                        delegated=start.delegated,
                     ),
                     result_type=RemoteTurnOut,
                     start_to_close_timeout=start.config.tool_timeout,
@@ -1509,6 +1663,7 @@ class RemoteTaskWorkflow:
             if parked == "ended":
                 return await self._end()
             if self.cancel_reason is not None:
+                await self._cancel_remote()
                 self.task = self.task.with_state(TaskState.TASK_STATE_CANCELED)
                 await self._tell_parent(
                     RemoteTurnOut(remote_task_id=self.remote_task_id or "", state_name="CANCELED")
@@ -1547,8 +1702,24 @@ class RemoteTaskWorkflow:
             agent=self.start.agent,
             remote_task_id=self.remote_task_id,
             participant=self.start.config.agent,
+            delegated=self.start.delegated,
             known_text=self.last.text,
         )
+
+    async def _cancel_remote(self) -> None:
+        """The parent was cancelled: cancel the child on its agent, best effort; the
+        stand-in ends cancelled whatever the agent answers (issue-34 R7.6)."""
+        if not self.remote_task_id:
+            return
+        try:
+            await workflow.execute_activity(
+                ActivityName.CANCEL_REMOTE_TASK.value,
+                self._remote_in(),
+                start_to_close_timeout=SHORT_TIMEOUT,
+                retry_policy=RetryPolicy(maximum_attempts=2),
+            )
+        except ActivityError as exc:
+            workflow.logger.warning("cancelling the child on its agent failed: %s", exc.message)
 
     def _history_full(self) -> bool:
         assert self.start is not None
@@ -1584,7 +1755,10 @@ class RemoteTaskWorkflow:
             if self._history_full():
                 return "roll"
             follow: workflow.ActivityHandle[FollowOut] | None = None
-            if watch.mode == "follow":
+            # ``off`` watches no parked task, but a child still working must be followed
+            # until it parks or ends: a new stand-in has read no turn's stream (R7.2).
+            working = self.last.state_name in ("SUBMITTED", "WORKING")
+            if watch.mode == "follow" or (watch.mode == "off" and working):
                 follow = workflow.start_activity(
                     ActivityName.FOLLOW_REMOTE_TASK.value,
                     FollowIn(**self._remote_in().model_dump(), known_state=self.last.state_name),
@@ -1619,7 +1793,13 @@ class RemoteTaskWorkflow:
                 except ActivityError:
                     # Keep the last state (fail closed); a recheck still due tries again, and
                     # the next push does after the last one.
-                    if self._recheck_delay() is None:
+                    active = self.last.state_name in ("SUBMITTED", "WORKING")
+                    if self.recheck is None and active:
+                        # A new stand-in's child may already have parked, and no push will
+                        # tell of it again: retry the fetch on the bounded rechecks
+                        # (issue-34 R7.2).
+                        self.recheck = 0
+                    elif self._recheck_delay() is None:
                         self.recheck, self.claimed = None, ""
                     continue
                 if await self._apply(out) and out.final:
@@ -1678,7 +1858,11 @@ class RemoteTaskWorkflow:
 
     async def _apply(self, out: RemoteTurnOut, *, always: bool = False) -> bool:
         """Record ``out`` and tell the parent when it differs from the last (R2.4)."""
-        changed = (out.state_name, out.text) != (self.last.state_name, self.last.text)
+        changed = (out.state_name, out.sub_state, out.text) != (
+            self.last.state_name,
+            self.last.sub_state,
+            self.last.text,
+        )
         if not (changed or always):
             return False
         self.last = out
@@ -1708,7 +1892,12 @@ class RemoteTaskWorkflow:
         with contextlib.suppress(Exception):
             await handle.signal(
                 "child_done",
-                ChildDone(task_id=self.task.id, state_name=out.state_name, summary=out.text[:500]),
+                ChildDone(
+                    task_id=self.task.id,
+                    state_name=out.state_name,
+                    sub_state=out.sub_state,
+                    summary=sub_task_result(out.text),
+                ),
             )
 
 

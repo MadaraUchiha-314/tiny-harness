@@ -23,6 +23,7 @@ cors_origins = ["https://app.example.com"]
 | [`max_request_bytes`](#max-request-bytes) | `1048576` (1 MiB) |
 | [`rate_limit_per_minute`](#rate-limit-per-minute) | `120` |
 | [`bridge_interval`](#bridge-interval) | `"PT0.25S"` (250 milliseconds) |
+| [`delegators`](#delegators) | none |
 
 ### `base_url` {#base-url}
 
@@ -80,3 +81,18 @@ How often the server checks Temporal for new events to stream to clients.
 - **Default:** `"PT0.25S"` (250 milliseconds)
 - **Set it when:** you want faster updates (a smaller value) or less load on Temporal
   (a larger value).
+
+### `delegators`
+
+The other agents that can give this agent a full task. A full task sets how the task
+ends and which model it uses.
+
+- **Default:** none. Only this agent itself can give itself a full task. It does this
+  when it runs a step in a sub-task on itself.
+- **Set it when:** another tiny-harness agent gives work to this one, and you trust it.
+  Then its sub-tasks end by themselves when they are done. Without it, the other agent
+  still gives work to this one, but its sub-tasks stay open after they answer.
+- **Example:** `delegators = ["front-desk"]`. Use the participant id that the other
+  agent sends.
+- Any other sender that tries to set these values gets an error, and tiny-harness does
+  not create the task.

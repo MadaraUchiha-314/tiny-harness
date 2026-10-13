@@ -20,6 +20,7 @@ from pydantic import HttpUrl
 from temporalio.testing import WorkflowEnvironment
 
 from tests.fixtures.plugins.registrar import RecordingRegistrar
+from tests.integration.a2a.conftest import self_hosted
 from tests.integration.durable.conftest import (
     Harness,
     awaiting_next_message,
@@ -94,8 +95,7 @@ async def test_sub_task_creates_a_linked_conversation_task_and_replies_with_its_
     """
     h = await with_builtins(Harness([scripted("Refunded.")]))
     tq, tid = ids()
-    child_id = f"{tid}.1"
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
         )
@@ -115,9 +115,11 @@ async def test_sub_task_creates_a_linked_conversation_task_and_replies_with_its_
             lambda t: (
                 len(t.ext.sub_tasks) == 1
                 and bool(t.proto.status.message.parts)
-                and t.proto.status.message.parts[0].text.endswith(f"Created sub-task {child_id}.")
+                and "Created sub-task " in t.proto.status.message.parts[0].text
             ),
         )
+        # A task on this harness, created through its own A2A interface (issue-34 R7).
+        child_id = parent.ext.sub_tasks[0].task_id
         assert parent.proto.status.message.parts[0].text.endswith(f"Created sub-task {child_id}.")
         assert parent.state == TaskState.TASK_STATE_INPUT_REQUIRED
         child = env.client.get_workflow_handle_for(TaskWorkflow.run, child_id)
@@ -149,8 +151,7 @@ async def test_sub_task_notifies_the_parent_without_a_model_turn(
     """
     h = await with_builtins(Harness([scripted("Refunded."), scripted("Noted.")]))
     tq, tid = ids()
-    child_id = f"{tid}.1"
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
         )
@@ -159,7 +160,8 @@ async def test_sub_task_notifies_the_parent_without_a_model_turn(
             TaskWorkflow.inbox,
             message("/sub-task check the ledger", task_id=tid, message_id="m2"),
         )
-        await until(handle, lambda t: len(t.ext.sub_tasks) == 1)
+        created = await until(handle, lambda t: len(t.ext.sub_tasks) == 1)
+        child_id = created.ext.sub_tasks[0].task_id
         assert len(h.llm.requests) == 1
         await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox, message("any news?", task_id=tid, message_id="m3")
@@ -188,8 +190,7 @@ async def test_the_parent_stream_carries_each_sub_task_state_change(
     """
     h = await with_builtins(Harness([scripted("Refunded."), scripted("Ledger checked.")]))
     tq, tid = ids()
-    child_id = f"{tid}.1"
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
         )
@@ -208,6 +209,7 @@ async def test_the_parent_stream_carries_each_sub_task_state_change(
 
         parent = await until(handle, row("INPUT_REQUIRED"))
         assert parent.ext.sub_tasks[0].sub_state is SubState.AWAITING_NEXT_MESSAGE
+        child_id = parent.ext.sub_tasks[0].task_id
         child = env.client.get_workflow_handle(child_id, result_type=Task)
         await child.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox, message("check it", task_id=child_id, message_id="c1")

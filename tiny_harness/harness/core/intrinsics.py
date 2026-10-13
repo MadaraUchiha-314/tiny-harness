@@ -11,6 +11,7 @@ the LLM reads next turn.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Collection
 from contextvars import ContextVar
 from typing import cast
 
@@ -90,12 +91,18 @@ def plan_from_args(args: CreatePlanArgs) -> Plan:
 
 
 class _CoreIntrinsic(Tool):
-    def __init__(self, name: IntrinsicName, context: TaskContext) -> None:
+    def __init__(
+        self,
+        name: IntrinsicName,
+        context: TaskContext,
+        known_agents: Callable[[], Collection[str]] = frozenset,
+    ) -> None:
         super().__init__(
             EntityRef(kind=EntityKind.TOOL, id=name.value, version=None), definition(name)
         )
         self._name = name
         self._context = context
+        self._known_agents = known_agents
 
     async def invoke(self, call: ToolCall) -> ToolResult | WorkflowCommand:
         try:
@@ -167,12 +174,22 @@ class _CoreIntrinsic(Tool):
             )
         if self._name is IntrinsicName.SPAWN_SUBTASK:
             a = cast(SpawnSubtaskArgs, args)
+            if a.agent is not None:
+                # Only a registered agent, never a guess or a URL; an empty id is not a
+                # local run (issue-34 R3.1, abuse case 4).
+                known = sorted(k for k in self._known_agents() if k)
+                if not a.agent or a.agent not in known:
+                    listed = ", ".join(known) or "none are registered"
+                    return ToolResult.error(
+                        cid, "agent.unknown", f"no agent {a.agent!r}; available: {listed}"
+                    )
             return WorkflowCommand(
                 kind="spawn_subtask",
                 call_id=cid,
                 payload={
                     "name": a.name,
                     "goal": a.goal,
+                    "description": a.description,
                     "acceptance_criteria": list(a.acceptance_criteria),
                     "agent": a.agent,
                     "step": a.step,
@@ -221,8 +238,11 @@ CORE_INTRINSICS: tuple[IntrinsicName, ...] = (
 )
 
 
-def core_intrinsics(context: TaskContext) -> tuple[Tool, ...]:
-    return tuple(_CoreIntrinsic(name, context) for name in CORE_INTRINSICS)
+def core_intrinsics(
+    context: TaskContext, *, known_agents: Callable[[], Collection[str]] = frozenset
+) -> tuple[Tool, ...]:
+    """The core intrinsics; ``known_agents`` returns the ids ``spawn_subtask`` may name."""
+    return tuple(_CoreIntrinsic(name, context, known_agents) for name in CORE_INTRINSICS)
 
 
 # --- applying commands to the task (pure; the workflow runs this) -------------------------

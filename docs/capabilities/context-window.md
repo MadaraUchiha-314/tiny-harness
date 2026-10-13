@@ -17,18 +17,23 @@ three `in` hook points. Lives in `tiny_harness/harness/core/context.py`,
   `data`, a JSON object whose named subsets a plugin may describe with a JSON schema. A
   write to a described subset SHALL be validated before it is accepted.
 - The context SHALL be assembled in a declared order: the static sections (system
-  prompt, participant roles, skills index) go in the provider's `instructions` and,
-  with the tool definitions sent as the request's tool list, form the cached prefix;
-  the per-task sections (task, plan) and the per-turn sections (state summary, history,
-  tool results) go in the input.
+  prompt, participant roles, agents roster, skills index) go in the provider's
+  `instructions` and, with the tool definitions sent as the request's tool list, form
+  the cached prefix; the per-task sections (task, plan) and the per-turn sections (state
+  summary, history, tool results) go in the input.
+- The `agents` section SHALL list each registered remote agent by its configured `id`,
+  with its card's name, description and skills, inside the untrusted block, or say
+  `(no agents)`. It SHALL be built once at startup, so it is byte-identical on every
+  turn (issue-34).
 - For OpenAI, `prompt_cache_key` SHALL be the task id and the request SHALL be
   `store=false`; the usage of every call SHALL record cached tokens.
 - Tool results and other untrusted content SHALL be rendered inside a delimited block
   with a fixed preamble that they are data, never instructions.
 - `compaction.trigger.in` SHALL decide whether the window is over budget (default: the
   configured fraction of the smaller of the model window and the turn budget);
-  `compaction.keep.in` SHALL name what survives (default: the system prompt, the task's
-  goal and acceptance criteria, the current plan and every loaded skill's body);
+  `compaction.keep.in` SHALL name what survives (default: the system prompt, the
+  participants, the agents roster, the task's goal and acceptance criteria, the current
+  plan and every loaded skill's body);
   `compaction.summarise.in` SHALL replace the oldest half of the history with a summary
   (default: a model call). Each is replaceable by a plugin executor that sets `result`.
 - WHEN compaction runs THEN a `CompactionRecord` naming what was removed and the summary
@@ -45,3 +50,4 @@ three `in` hook points. Lives in `tiny_harness/harness/core/context.py`,
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Agent state, the context window manager, compaction (Layer 4) | [spec](../specs/issue-3/), [PR #10](https://github.com/MadaraUchiha-314/tiny-harness/pull/10) |
+| issue-34 | The static, never-compacted `agents` section | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |

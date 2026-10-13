@@ -49,6 +49,7 @@ from tiny_harness.harness.commands import (
 )
 from tiny_harness.harness.core import (
     STATUS_EXT_KEY,
+    TASK_EXT_URI,
     AgentState,
     CompletionDecision,
     HarnessTask,
@@ -112,6 +113,7 @@ from tiny_harness.service.durable.models import (
     RemoteWatch,
     RetryIn,
     RetryOut,
+    StartAgentTaskIn,
     SweepIn,
     SweepOut,
     TaskMonitor,
@@ -121,6 +123,7 @@ from tiny_harness.service.durable.models import (
     TriggerOut,
 )
 from tiny_harness.service.inbox import (
+    EVENT_MEDIA_TYPE,
     EnvelopeRefused,
     apply_task_envelope,
     controls_task,
@@ -208,6 +211,8 @@ class Activities:
             self.emit_event,
             self.dispatch_hooks,
             self.run_remote_agent_turn,
+            self.start_agent_task,
+            self.cancel_remote_task,
             self.register_remote_push,
             self.get_remote_task,
             self.follow_remote_task,
@@ -587,11 +592,42 @@ class Activities:
             message.task_id = arg.remote_task_id
         else:
             message.ClearField("task_id")
-        out = await _heartbeating(_remote_turn(agent, message), every=self.heartbeat_every)
+        out = await _heartbeating(
+            _remote_turn(agent, message, delegated=arg.delegated), every=self.heartbeat_every
+        )
         # The remote agent's text is recorded in history and relayed to the parent: scrub
         # it like every other activity result (abuse case 6); this activity runs outside
         # the operation runner, which scrubs the others.
         return self.engine.runner.redactor.scrub(out)
+
+    @activity.defn(name=ActivityName.START_AGENT_TASK.value)
+    async def start_agent_task(self, arg: StartAgentTaskIn) -> RemoteTurnOut:
+        """Create a child task on an agent, this harness included, with its brief
+        (issue-34 R7.2): ``SendMessage``, read until the agent names the task, and return;
+        the stand-in follows it from there. An agent whose card lacks the task extension
+        gets the brief's text alone (R7.3). Not retried: a create is not idempotent."""
+        agent = await self._remote(arg.agent)
+        message = Message()
+        message.CopyFrom(arg.message)
+        message.ClearField("task_id")
+        if TASK_EXT_URI not in advertised(agent):
+            kept = [p for p in message.parts if p.media_type != EVENT_MEDIA_TYPE]
+            del message.parts[:]
+            message.parts.extend(kept)
+        out = await _heartbeating(
+            _remote_turn(agent, message, delegated=arg.delegated, first=True),
+            every=self.heartbeat_every,
+        )
+        return self.engine.runner.redactor.scrub(out)
+
+    @activity.defn(name=ActivityName.CANCEL_REMOTE_TASK.value)
+    async def cancel_remote_task(self, arg: RemoteTaskIn) -> None:
+        """Cancel a child task on its agent when its parent is cancelled (issue-34 R7.6)."""
+        agent = await self._remote(arg.agent)
+        if isinstance(agent, RemoteAgent):
+            await agent.cancel_task(arg.remote_task_id, participant=arg.participant)
+        else:
+            await agent.cancel_task(arg.remote_task_id)
 
     # --- watching a parked remote task (issue-27) -------------------------------------
 
@@ -645,7 +681,13 @@ class Activities:
             raise ApplicationError("not a remote agent", non_retryable=True)
         task = await agent.get_task(arg.remote_task_id, participant=arg.participant)
         text = _status_text(task) or arg.known_text
-        out = remote_out(arg.remote_task_id, task.status.state, sub_state_of(task.metadata), text)
+        out = remote_out(
+            arg.remote_task_id,
+            task.status.state,
+            sub_state_of(task.metadata),
+            text,
+            delegated=arg.delegated,
+        )
         return self.engine.runner.redactor.scrub(out)
 
     @activity.defn(name=ActivityName.FOLLOW_REMOTE_TASK.value)
@@ -780,43 +822,83 @@ def _status_text(event: Task | TaskStatusUpdateEvent) -> str | None:
 
 
 def remote_out(
-    remote_task_id: str, state: TaskState.ValueType, sub_state: str | None, text: str | None
+    remote_task_id: str,
+    state: TaskState.ValueType,
+    sub_state: str | None,
+    text: str | None,
+    *,
+    delegated: bool = True,
 ) -> RemoteTurnOut:
     """A remote task's state as the stand-in records it, from a turn's stream, a
     ``GetTask`` or a follow alike (issue-27 R2.5)."""
-    if state == TaskState.TASK_STATE_INPUT_REQUIRED and sub_state == SubState.AWAITING_NEXT_MESSAGE:
+    if (
+        delegated
+        and state == TaskState.TASK_STATE_INPUT_REQUIRED
+        and sub_state == SubState.AWAITING_NEXT_MESSAGE
+    ):
         # A tiny-harness peer parks a conversation after its reply instead of completing
         # it (issue-25 R3.1). It asked nothing, so the delegated sub-task has its answer
-        # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4).
+        # and completes here, as a spawned sub-task keeps doing (issue-25 R3.4). A
+        # conversation child (/sub-task) parked there is waiting, not done (issue-34 R7).
         state = TaskState.TASK_STATE_COMPLETED
+    waiting = state in (TaskState.TASK_STATE_INPUT_REQUIRED, TaskState.TASK_STATE_AUTH_REQUIRED)
+    known = {s.value for s in SubState}
     return RemoteTurnOut(
         remote_task_id=remote_task_id,
         state_name=TaskState.Name(state).removeprefix("TASK_STATE_"),
         text=text or "",
         final=state in TERMINAL,
+        sub_state=SubState(sub_state) if waiting and sub_state in known else None,
     )
 
 
-async def _remote_turn(agent: Agent, message: Message) -> RemoteTurnOut:
+async def _remote_turn(
+    agent: Agent, message: Message, *, delegated: bool = True, first: bool = False
+) -> RemoteTurnOut:
+    """Send ``message`` and read the agent's stream: to its end, or with ``first`` only
+    until the agent has the task under way, which the stand-in then follows (issue-34
+    R7.2)."""
     remote_task_id = message.task_id or ""
     state = TaskState.TASK_STATE_SUBMITTED
     sub_state: str | None = None
     text = ""
-    async for event in agent.send_message(message, extensions=SUPPORTED_EXTENSIONS):
-        if isinstance(event, Task):
-            remote_task_id = event.id
-            state = event.status.state
-            sub_state = sub_state_of(event.metadata)
-            text = _status_text(event) or text
-        elif isinstance(event, TaskStatusUpdateEvent):
-            remote_task_id = event.task_id or remote_task_id
-            state = event.status.state
-            sub_state = sub_state_of(event.metadata)
-            text = _status_text(event) or text
-        elif isinstance(event, Message):
-            text = "\n".join(p.text for p in event.parts if p.HasField("text"))
-        activity.heartbeat()
-    return remote_out(remote_task_id, state, sub_state, text)
+    events = agent.send_message(message, extensions=SUPPORTED_EXTENSIONS)
+    try:
+        async for event in events:
+            if isinstance(event, Task):
+                remote_task_id = event.id
+                state = event.status.state
+                sub_state = sub_state_of(event.metadata)
+                text = _status_text(event) or text
+            elif isinstance(event, TaskStatusUpdateEvent):
+                remote_task_id = event.task_id or remote_task_id
+                state = event.status.state
+                sub_state = sub_state_of(event.metadata)
+                text = _status_text(event) or text
+            elif isinstance(event, Message):
+                text = "\n".join(p.text for p in event.parts if p.HasField("text"))
+            activity.heartbeat()
+            if first and remote_task_id and state != TaskState.TASK_STATE_SUBMITTED:
+                # Past SUBMITTED the agent has the task under way: leaving the stream earlier
+                # could abandon a request the agent has not acted on yet.
+                break
+    finally:
+        await close_stream(events)
+    return remote_out(remote_task_id, state, sub_state, text, delegated=delegated)
+
+
+async def close_stream(events: object) -> None:
+    """Hang up on an agent's stream: an early exit must not leave it open, streaming to
+    nobody (a stream is an async generator; an iterator without ``aclose`` has nothing to
+    close)."""
+    aclose = getattr(events, "aclose", None)
+    if aclose is not None:
+        await aclose()
+
+
+def advertised(agent: Agent) -> frozenset[str]:
+    """The extensions an agent's card advertises."""
+    return frozenset(e.uri for e in agent.agent_card.capabilities.extensions)
 
 
 async def _first_change(
@@ -824,22 +906,45 @@ async def _first_change(
 ) -> RemoteTurnOut | None:
     """The first event on the task's stream whose state or text differs from the known
     pair, compared as the workflow records it (scrubbed); ``None`` when the stream ends
-    without one."""
+    without one.
+
+    ``SubscribeToTask`` opens with the task as it is, then may replay its history before
+    following it live (a tiny-harness peer does). A replayed status is older than that
+    first snapshot and says nothing new: it is skipped by its timestamp, or the stand-in
+    would flip back to a state the task has left."""
     text = arg.known_text
+    baseline: int | None = None
     events = agent.subscribe(
         arg.remote_task_id, extensions=SUPPORTED_EXTENSIONS, participant=arg.participant
     )
-    async for event in events:
-        if isinstance(event, Task | TaskStatusUpdateEvent):
-            text = _status_text(event) or text
-            out = scrub(
-                remote_out(
-                    arg.remote_task_id, event.status.state, sub_state_of(event.metadata), text
+    try:
+        async for event in events:
+            if isinstance(event, Task | TaskStatusUpdateEvent):
+                stamp = (
+                    event.status.timestamp.ToNanoseconds()
+                    if event.status.HasField("timestamp")
+                    else 0
                 )
-            )
-            if (out.state_name, out.text) != (arg.known_state, arg.known_text):
-                return out
-        activity.heartbeat()
+                if baseline is None:
+                    baseline = stamp
+                elif stamp and stamp <= baseline:
+                    activity.heartbeat()
+                    continue  # history replayed after the snapshot
+                text = _status_text(event) or text
+                out = scrub(
+                    remote_out(
+                        arg.remote_task_id,
+                        event.status.state,
+                        sub_state_of(event.metadata),
+                        text,
+                        delegated=arg.delegated,
+                    )
+                )
+                if (out.state_name, out.text) != (arg.known_state, arg.known_text):
+                    return out
+            activity.heartbeat()
+    finally:
+        await close_stream(events)
     return None
 
 

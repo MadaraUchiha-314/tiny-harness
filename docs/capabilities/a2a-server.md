@@ -16,7 +16,8 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   `SubscribeToTask`, the four push-notification config operations and
   `GetExtendedAgentCard`. No gRPC.
 - The agent card at `/.well-known/agent-card.json` SHALL be built from the agent's
-  description, so every extension (task, channel, status, commands with the registered
+  description: the name, description, version and skills set in `[card]`, or the
+  built-in defaults where unset (issue-34), so every extension (task, channel, status, commands with the registered
   commands in its `params`, A2UI with its catalog ids) reaches
   `capabilities.extensions`; the command registry is frozen and published before the
   card is built; it declares no security scheme (decision-003) and is pinned
@@ -77,6 +78,16 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   413 and a peer over `rate_limit_per_minute` is 429, before anything reaches Temporal.
 - `GET /_monitor` SHALL return the last heartbeat snapshot; with `ui_dir` set the built
   web renderer is served under `/ui`; `cors_origins` enables CORS for a dev renderer.
+- WHEN a new task's first message carries a `task` envelope THEN the server SHALL build
+  the task from it, add the sender as reporter when it is not on the task, and remove the
+  envelope from the message so intake does not apply it again. `lifecycle`, `model` and
+  `reasoning_effort` SHALL be accepted only from a trusted delegator — this agent itself,
+  or an id in `[server] delegators` — and refused whole from anyone else; an existing
+  task keeps refusing them from everyone (issue-34 R7, abuse cases 5–7).
+- WHEN the brief names an assignee other than this agent THEN the task SHALL run in
+  participant mode (no model call; it waits for its assignee). WHEN the first message is
+  the brief alone THEN the task SHALL start with no message for its model: a
+  conversation parks awaiting its first message (issue-34 R7.2).
 
 ## Design
 
@@ -92,3 +103,5 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 | issue-3 | Executor, handler, card, bridge, task store, push, limits, inbox intake (Layer 5); A2UI params on the card (Layer 7); `/ui` and CORS (Layer 8) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13), [PR #14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) |
 | issue-25 | Status and commands extensions on the card; the `control` completion envelope; terminal and watcher refusals naming the state; slash commands dispatched in the workflow with the reply on a re-emitted status update | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
 | issue-27 | `POST /a2a/push/{task_id}` for remote tasks' pushes; the SDK's request-body DEBUG log dropped | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
+| issue-34 | The card's name, description, version and skills come from `[card]` | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
+| issue-34 (R7) | A new task built from its creator's brief: trusted delegators (`[server] delegators`, this agent always), participant mode for an assignee other than this agent, a brief-only start | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |

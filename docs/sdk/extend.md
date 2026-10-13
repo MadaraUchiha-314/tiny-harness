@@ -140,8 +140,8 @@ The directory name must be the same as `name`. A skill can also hold `scripts/`,
 
 ## Change the system prompt
 
-The system prompt has six sections: `role`, `task`, `participants`, `tools`, `skills`
-and `rules`.
+The system prompt has seven sections: `role`, `task`, `participants`, `tools`, `skills`,
+`agents` and `rules`.
 
 - To add text to one section, write a Markdown file in
   `io.github.madarauchiha-314.tiny-harness/prompts/`. Name the section in its front

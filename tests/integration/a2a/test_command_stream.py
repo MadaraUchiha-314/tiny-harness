@@ -98,10 +98,12 @@ async def test_a_command_that_changes_the_task_replies_on_the_senders_stream(
             )
         ]
         await server.a2a().cancel_task(CancelTaskRequest(id=tid))
-    child_id = f"{tid}.1"
     [reply] = command_replies(spawned)
+    # The sub-task is a task on this harness, created through its own A2A interface; the
+    # reply names its id there (issue-34 R7.4).
+    child_id = reply.metadata.fields["task_ref"].string_value
+    assert child_id and child_id != tid
     assert reply.parts[0].text.endswith(f"Created sub-task {child_id}.")
-    assert reply.metadata.fields["task_ref"].string_value == child_id
     assert reply.metadata.fields["command"].string_value == "sub-task"
     assert spawned[-1].HasField("task")
     assert [r.task_id for r in HarnessTask(spawned[-1].task).ext.sub_tasks] == [child_id]

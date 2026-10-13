@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from a2a.types import TaskState
 
 from tiny_harness.harness.core.compaction import CompactionRecord, Compactor
-from tiny_harness.harness.core.context import ContextWindow, ContextWindowManager
+from tiny_harness.harness.core.context import NO_AGENTS, ContextWindow, ContextWindowManager
 from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
@@ -103,6 +103,7 @@ class InProcessOperations:
         store: Store,
         system_prompt: str,
         skills_index: str = "",
+        agents_roster: str = NO_AGENTS,
         manager: ContextWindowManager | None = None,
         redactor: Redactor | None = None,
         correlation_id: str = "local",
@@ -115,6 +116,7 @@ class InProcessOperations:
         self.store = store
         self.system_prompt = system_prompt
         self.skills_index = skills_index
+        self.agents_roster = agents_roster
         self.manager = manager or ContextWindowManager()
         # Without a configured catalog the adapter's own model and window are the defaults.
         self.catalog = catalog or ModelCatalog(
@@ -138,7 +140,11 @@ class InProcessOperations:
         """Register the core intrinsics and the default ``in`` bodies; idempotent."""
         if self._bound:
             return
-        for tool in core_intrinsics(self.context):
+
+        def known_agents() -> frozenset[str]:  # read at call time (issue-34 R3)
+            return frozenset(ref.id for ref in self.registry.list(EntityKind.AGENT))
+
+        for tool in core_intrinsics(self.context, known_agents=known_agents):
             await self.registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         self.compactor.register_defaults()
         register_completion_default(self.hooks)
@@ -183,6 +189,7 @@ class InProcessOperations:
             state=state,
             system_prompt=self.system_prompt,
             skills_index=self.skills_index,
+            agents_roster=self.agents_roster,
             tools=await self.tool_definitions(),
         )
         model, effort = self.catalog.settings_for(task.ext)  # issue-25 R7.3, R8.3

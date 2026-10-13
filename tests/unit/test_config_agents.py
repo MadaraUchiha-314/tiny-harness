@@ -63,3 +63,13 @@ def test_a_follow_interval_below_one_second_is_refused(tmp_path: Path) -> None:
 def test_a_follow_interval_is_read(tmp_path: Path) -> None:
     (agent,) = load(tmp_path, 'follow_interval = "PT30S"').agents
     assert agent.follow_interval == timedelta(seconds=30)
+
+
+def test_the_id_self_is_reserved_for_the_harness_itself(tmp_path: Path) -> None:
+    """issue-34 R7.1: ``self`` names this harness; a configured agent cannot take it."""
+    path = tmp_path / "config.toml"
+    path.write_text(
+        BASE.format(store=tmp_path / "s.sqlite3", extra="").replace('id = "ledger"', 'id = "self"')
+    )
+    with pytest.raises(ConfigError, match="self"):
+        Settings.load(path, env=ENV)

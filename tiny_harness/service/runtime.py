@@ -15,7 +15,7 @@ from pydantic import SecretStr
 
 from tiny_harness.builtin import load_builtin
 from tiny_harness.config import Settings
-from tiny_harness.harness.agents import RemoteAgent
+from tiny_harness.harness.agents import SELF_AGENT_ID, Agent, RemoteAgent, build_roster
 from tiny_harness.harness.channels.help import register_default as register_help_default
 from tiny_harness.harness.commands import CommandHandler, CommandRegistry, CommandSpec
 from tiny_harness.harness.core import ContextWindowManager
@@ -32,6 +32,7 @@ from tiny_harness.harness.security import Redactor
 from tiny_harness.harness.skills.loader import skills_index
 from tiny_harness.harness.tools.mcp import McpToolSource, ServerSpec
 from tiny_harness.harness.tools.skill_tools import SkillSession, skill_tools
+from tiny_harness.service.a2a.card import build_agent_card, describe
 from tiny_harness.service.durable.models import WorkflowConfig
 from tiny_harness.service.o11y.plugin import executor as o11y_executor
 from tiny_harness.service.o11y.plugin import o11y_plugin
@@ -172,6 +173,8 @@ async def build_runtime(
         for tool in await source.tools():
             await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         sources.append(source)
+    me = self_agent(settings)  # the harness delegates to itself over A2A (issue-34 R7.1)
+    await registry.add(RegistryEntry(ref=me.ref, instance=me), override=True)
     for remote in settings.agents:
         agent = await RemoteAgent.connect(
             remote.id,
@@ -181,6 +184,10 @@ async def build_runtime(
             follow_interval=remote.follow_interval,
         )
         await registry.add(RegistryEntry(ref=agent.ref, instance=agent), override=True)
+    roster = build_roster(await registered_agents(registry))  # once: a stable prefix (R1.5)
+    log.info("agents roster: %s", ", ".join(roster.ids) or "(none)")
+    for agent_id, card_field in roster.truncated:
+        log.warning("agent %s: card field %s truncated in the agents roster", agent_id, card_field)
     skills = SkillSession(registry, data_root=root)
     for tool in skill_tools(skills):
         await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
@@ -210,6 +217,7 @@ async def build_runtime(
         store=records,
         system_prompt=system_prompt,
         skills_index=index,
+        agents_roster=roster.text,
         manager=ContextWindowManager(
             turn_budget_tokens=settings.context.turn_budget_tokens,
             compaction_fraction=settings.context.compaction_fraction,
@@ -236,6 +244,24 @@ async def build_runtime(
     )
 
 
+def self_agent(settings: Settings) -> RemoteAgent:
+    """This harness as an agent, ``self``: its own card at its own ``base_url``, reached
+    over HTTP like any remote agent (issue-34 R7.1). The card is built, not fetched, so
+    the server need not be up yet."""
+    base_url = str(settings.server.base_url)
+    return RemoteAgent.from_card(SELF_AGENT_ID, build_agent_card(describe(settings.card), base_url))
+
+
+async def registered_agents(registry: Registry) -> list[Agent]:
+    """One agent per id, sorted: the version a delegation reaches (``*``, the latest), so
+    the roster describes the agent ``spawn_subtask`` will call (issue-34)."""
+    ids = sorted({ref.id for ref in registry.list(EntityKind.AGENT)})
+    return [
+        await registry.get(EntityRef(kind=EntityKind.AGENT, id=agent_id, version="*"), Agent)
+        for agent_id in ids
+    ]
+
+
 async def render_system_prompt(registry: Registry) -> str:
     """The built-in system prompt extended by every prompt that declares ``extends``."""
     base = await registry.get(EntityRef(kind=EntityKind.PROMPT, id=SYSTEM_PROMPT_ID), PromptEntity)
@@ -253,11 +279,14 @@ Retention = Mapping[RecordKind, timedelta]
 
 __all__ = [
     "AGENT_ID",
+    "SELF_AGENT_ID",
     "Retention",
     "Runtime",
     "build_runtime",
+    "registered_agents",
     "render_system_prompt",
     "retention_map",
     "secret_values",
+    "self_agent",
     "workflow_config",
 ]

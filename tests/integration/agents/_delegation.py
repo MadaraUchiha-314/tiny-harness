@@ -23,6 +23,7 @@ from temporalio.testing import WorkflowEnvironment
 
 from tests.integration.a2a.conftest import Server, make_server
 from tests.integration.durable.conftest import message, send, start, task
+from tests.integration.streaming_asgi import StreamingASGITransport
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.agents.remote import UpdateMode
 from tiny_harness.harness.entities import RegistryEntry
@@ -67,11 +68,14 @@ def control_complete(task_id: str, participant: str = "tiny-harness") -> Message
 
 
 def parent_script() -> list[LLMResponse]:
+    """Spare replies at the end: how many turns the parent takes depends on when it hears
+    each of its child's changes, which a test does not fix."""
     return [
         scripted("", tool_calls=[delegate()]),
         scripted("Waiting on the ledger."),
         scripted("Noted."),
         scripted("Noted again."),
+        *(scripted("Still noted.") for _ in range(4)),
     ]
 
 
@@ -105,6 +109,15 @@ class Delegation:
             ),
         )
 
+    async def remote_id(self) -> str:
+        """The child's own task on the remote agent, which the parent's row and notes name
+        (issue-34 R7.4); ``child_id`` is the stand-in that follows it."""
+        for _ in range(400):
+            if records := await self.remote.harness.store.query(TaskRecord, Filter()):
+                return records[0].task_id
+            await asyncio.sleep(0.05)
+        raise AssertionError("the remote never created the child's task")
+
     async def parked_remote(self) -> str:
         """The remote task id once the remote has parked it awaiting an answer."""
         for _ in range(400):
@@ -113,6 +126,18 @@ class Delegation:
                     return record.task_id
             await asyncio.sleep(0.05)
         raise AssertionError("the remote never parked its task")
+
+    async def quiet_pushes(self, *, quiet: float = 2.0) -> None:
+        """Until the remote has sent no push for ``quiet`` seconds. A tiny-harness remote
+        can push the same status twice, the second a few seconds after the first (both
+        doorbells, harmless); a test measuring a window waits for it to pass."""
+        seen = -1
+        for _ in range(100):
+            if len(self.remote.pushes) == seen:
+                return
+            seen = len(self.remote.pushes)
+            await asyncio.sleep(quiet)
+        raise AssertionError("the remote never stopped pushing")
 
     async def push_configs(self, remote_id: str) -> list[PushConfigRecord]:
         return list(
@@ -168,7 +193,7 @@ class Delegation:
         return current.status.state
 
     async def until_child(self, state: int) -> None:
-        for _ in range(400):
+        for _ in range(1200):  # 60 s: a slow CI runner
             if await self.child_state() == state:
                 return
             await asyncio.sleep(0.05)
@@ -199,7 +224,7 @@ async def delegation(
     apps["local"] = local_server.app
     async with remote_server, local_server:
         http = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=remote_server.app), base_url="http://harness"
+            transport=StreamingASGITransport(remote_server.app), base_url="http://harness"
         )
         agent = await RemoteAgent.connect("ledger", "http://harness", http=http, updates=updates)
         if configure is not None:

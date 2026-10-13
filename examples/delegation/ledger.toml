@@ -1,0 +1,37 @@
+# The ledger agent of the delegation example (issue-34). It describes itself in [card],
+# so the front-desk agent's model knows when to give it work.
+#   unset TEMPORAL_API_KEY
+#   export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+#   uv run tiny-harness --config examples/delegation/ledger.toml serve
+
+plugins = ["examples/delegation/ledger"]
+
+[card]
+name = "Order ledger"
+description = "Answers questions about the status of a Nimbus Kitchen order: shipping, delivery and refunds. Give it the order number."
+version = "0.1.0"
+
+[[card.skills]]
+id = "order-status"
+name = "Order status"
+description = "Looks up an order by its number and reports its status, carrier, dates and any refund."
+tags = ["orders"]
+examples = ["What is the status of order 48213?"]
+
+[temporal]
+mode = "embedded"
+task_queue = "tiny-harness-ledger"
+
+[openai]
+model = "gpt-6.1-sol"
+timeout = "PT120S"
+
+[server]
+bind = "127.0.0.1:8091"
+base_url = "http://127.0.0.1:8091"
+
+[store]
+sqlite_path = "examples/delegation/.state/ledger/tiny-harness.sqlite3"
+
+[o11y]
+log_level = "INFO"

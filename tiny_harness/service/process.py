@@ -25,6 +25,7 @@ from uvicorn.config import LOGGING_CONFIG
 
 from tiny_harness.config import Settings
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
+from tiny_harness.harness.models import ModelCatalog
 from tiny_harness.harness.plugins import Plugin
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
@@ -39,7 +40,7 @@ from tiny_harness.service.a2a import (
     build_agent_card,
     create_app,
 )
-from tiny_harness.service.a2a.card import AgentDescription
+from tiny_harness.service.a2a.card import describe
 from tiny_harness.service.durable.activities import Activities
 from tiny_harness.service.durable.temporal import temporal_client
 from tiny_harness.service.durable.worker import build_worker, ensure_search_attributes
@@ -148,7 +149,7 @@ async def running_harness(
         runtime.commands.freeze()  # no command is registered once the card is built
         await runtime.commands.publish(runtime.registry)
         card = build_agent_card(
-            AgentDescription(), str(settings.server.base_url), commands=runtime.commands.specs
+            describe(settings.card), str(settings.server.base_url), commands=runtime.commands.specs
         )
         executor = HarnessExecutor(
             client,
@@ -156,6 +157,8 @@ async def running_harness(
             bridge=bridge,
             config=workflow_config(settings),
             redactor=runtime.redactor,
+            delegators=settings.server.delegators,
+            models=ModelCatalog.from_settings(settings).selectable,
         )
         activities = Activities(
             runtime.engine,

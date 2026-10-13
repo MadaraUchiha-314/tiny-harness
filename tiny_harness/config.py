@@ -234,12 +234,52 @@ class RemoteAgentSpec(_Strict):
         description="the pause before re-subscribing when a follow stream ends unchanged",
     )
 
+    @field_validator("id")
+    @classmethod
+    def _not_self(cls, value: str) -> str:
+        if value == "self":  # tiny_harness.harness.agents.SELF_AGENT_ID
+            raise ValueError("the id self is reserved for this harness (issue-34 R7.1)")
+        return value
+
     @field_validator("follow_interval")
     @classmethod
     def _at_least_a_second(cls, value: timedelta) -> timedelta:
         if value < timedelta(seconds=1):
             raise ValueError("follow_interval must be at least 1 second")
         return value
+
+
+class CardSkillConfig(_Strict):
+    """One skill this agent lists on its own card (issue-34 R5)."""
+
+    id: str = Field(min_length=1, pattern=r"\S")
+    name: str = Field(min_length=1, pattern=r"\S")
+    description: str = ""
+    tags: tuple[str, ...] = ()
+    examples: tuple[str, ...] = ()
+
+
+class CardConfig(_Strict):
+    """This agent's own card (issue-34 R5): what another agent's roster shows about it.
+    An unset field keeps the built-in default."""
+
+    name: str | None = Field(default=None, min_length=1, pattern=r"\S")
+    description: str | None = Field(
+        default=None,
+        min_length=1,
+        pattern=r"\S",
+        description="what this agent does; another agent reads it to decide when to delegate",
+    )
+    version: str | None = Field(default=None, min_length=1, pattern=r"\S")
+    skills: tuple[CardSkillConfig, ...] = ()
+
+    @field_validator("skills")
+    @classmethod
+    def _unique_ids(cls, skills: tuple[CardSkillConfig, ...]) -> tuple[CardSkillConfig, ...]:
+        ids = [s.id for s in skills]
+        if len(ids) != len(set(ids)):
+            raise ValueError("each card skill id must be unique")
+        return skills
 
 
 class ServerConfig(_Strict):
@@ -253,6 +293,11 @@ class ServerConfig(_Strict):
     rate_limit_per_minute: int = 120
     bridge_interval: timedelta = timedelta(milliseconds=250)
     cors_origins: tuple[str, ...] = ()
+    delegators: tuple[str, ...] = Field(
+        default=(),
+        description="participant ids trusted to brief a new task fully (lifecycle, model, "
+        "reasoning_effort) on its first message; this agent itself always is (issue-34 R7)",
+    )
     ui_dir: Path | None = Field(
         default=None, description="a built web renderer to serve under /ui (R20.2)"
     )
@@ -335,6 +380,7 @@ class Settings(_Strict):
     heartbeat: HeartbeatConfig = HeartbeatConfig()
     plugins: tuple[Path, ...] = ()
     agents: tuple[RemoteAgentSpec, ...] = ()
+    card: CardConfig = CardConfig()
     store: StoreConfig = StoreConfig()
     o11y: O11yConfig = O11yConfig()
     retries: RetryPolicies = RetryPolicies()
@@ -445,6 +491,8 @@ def load_settings[S: Settings](
 __all__ = [
     "SECRET_VARIABLES",
     "AnthropicConfig",
+    "CardConfig",
+    "CardSkillConfig",
     "ContextConfig",
     "EmbeddedTemporalConfig",
     "HeartbeatConfig",

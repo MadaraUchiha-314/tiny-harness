@@ -24,8 +24,14 @@
           }
         ],
         "default": null,
-        "description": "A registered remote agent id, or null for this harness",
+        "description": "An agent id listed under `agents`, or null to run this step on this harness",
         "title": "Agent"
+      },
+      "description": {
+        "default": "",
+        "description": "The context the sub-task needs. It sees nothing of this task but this",
+        "title": "Description",
+        "type": "string"
       },
       "goal": {
         "title": "Goal",

@@ -82,7 +82,7 @@ otlp_endpoint = "https://otel.example.com"
 | `[temporal]`, `[temporal.embedded]` | Where tiny-harness keeps the steps of each task | [Temporal](temporal) |
 | `[openai]`, `[anthropic]` | Which AI model the agent uses | [Models](models) |
 | `[server]` | The address, limits and web access of the server | [Server](server) |
-| `plugins`, `agents` | Tools, skills and other agents | [Plugins and other agents](plugins-and-agents) |
+| `plugins`, `agents`, `[card]` | Tools, skills, other agents, and how other agents see this one | [Plugins and other agents](plugins-and-agents) |
 | `[store]`, `[retention]` | Where data is saved, and for how long | [Storage](storage) |
 | `[o11y]` | Logs and traces | [Observability](observability) |
 | `[heartbeat]`, `[retries]`, `[context]` | Timers, retries and the size of the model's input | [Tuning](tuning) |

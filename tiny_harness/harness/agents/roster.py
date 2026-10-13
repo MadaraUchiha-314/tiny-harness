@@ -85,9 +85,12 @@ def build_roster(agents: Sequence[CardHolder]) -> AgentRoster:
             lines.append("  skills: (none)")
             continue
         lines.append("  skills:")
-        for skill in skills[:SKILLS_CAP]:
-            name = field(agent_id, "skill name", skill.name, NAME_CAP)
-            about = field(agent_id, "skill description", skill.description, SKILL_DESCRIPTION_CAP)
+        for i, skill in enumerate(skills[:SKILLS_CAP]):
+            # By position, not by the skill's own (remote) name: one record per field (R4.2).
+            name = field(agent_id, f"skills[{i}].name", skill.name, NAME_CAP)
+            about = field(
+                agent_id, f"skills[{i}].description", skill.description, SKILL_DESCRIPTION_CAP
+            )
             lines.append(f"    - {name}: {about}")
         if len(skills) > SKILLS_CAP:
             lines.append(f"    - {ELLIPSIS} ({len(skills) - SKILLS_CAP} more)")
@@ -95,7 +98,7 @@ def build_roster(agents: Sequence[CardHolder]) -> AgentRoster:
     return AgentRoster(
         text=render_untrusted_text("\n".join(lines), SOURCE),
         ids=tuple(a.ref.id for a in ordered),
-        truncated=tuple(dict.fromkeys(truncated)),
+        truncated=tuple(truncated),
     )
 
 

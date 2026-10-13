@@ -115,3 +115,13 @@ def test_clean_field_makes_one_line_without_tag_delimiters() -> None:
     )
     assert clean_field("abcdef", 4) == ("abc" + ELLIPSIS, True)
     assert clean_field("abcd", 4) == ("abcd", False)
+
+
+def test_each_truncated_skill_field_is_reported_by_its_position() -> None:
+    """Critic C2: R4.2 logs every truncated field, so skills are told apart by position."""
+    roster = build_roster([agent("ledger", skills=[("a", "x" * 300), ("b" * 100, "y" * 300)])])
+    assert roster.truncated == (
+        ("ledger", "skills[0].description"),
+        ("ledger", "skills[1].name"),
+        ("ledger", "skills[1].description"),
+    )

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-34",
-  "currentNode": "design",
+  "currentNode": "test-planning",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -37,8 +37,24 @@
     },
     "design": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-13T07:23:20+00:00",
+      "exitedAt": "2026-10-13T07:25:36+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "design-critic-review": {
+      "attempts": 0,
+      "outcome": "skipped",
+      "enteredAt": "2026-10-13T07:25:36+00:00",
+      "exitedAt": "2026-10-13T07:25:36+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "test-planning": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-13T07:25:36+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -220,6 +236,10 @@
     "requirements-definition": {
       "at": "2026-10-13T06:36:00+00:00",
       "by": "cli"
+    },
+    "design": {
+      "at": "2026-10-13T07:25:36+00:00",
+      "by": "cli"
     }
   },
   "skips": {
@@ -252,5 +272,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "design"
+  "phase": "test-planning"
 }

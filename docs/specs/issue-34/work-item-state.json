@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-34",
-  "currentNode": "verification",
+  "currentNode": "reviewer-briefing",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -85,10 +85,58 @@
     },
     "verification": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-13T07:52:10+00:00",
-      "exitedAt": "",
+      "exitedAt": "2026-10-13T08:03:27+00:00",
       "lastBlock": "",
+      "forced": false
+    },
+    "self-review": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-13T08:03:27+00:00",
+      "exitedAt": "2026-10-13T08:06:44+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "critic-review": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-13T08:06:44+00:00",
+      "exitedAt": "2026-10-13T08:26:00+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "security-review": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-13T08:26:00+00:00",
+      "exitedAt": "2026-10-13T08:26:14+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "evidence": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-13T08:26:14+00:00",
+      "exitedAt": "2026-10-13T08:27:09+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "capability-docs": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-13T08:27:09+00:00",
+      "exitedAt": "2026-10-13T08:27:09+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "reviewer-briefing": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-13T08:27:09+00:00",
+      "exitedAt": "",
+      "lastBlock": "`validate-artifacts` did not pass:\n- required section is missing: Pull requests (docs/specs/issue-34/evidence/pull-requests.md)",
       "forced": false
     }
   },
@@ -284,6 +332,34 @@
     "implementation": {
       "at": "2026-10-13T07:52:10+00:00",
       "by": "cli"
+    },
+    "verification": {
+      "at": "2026-10-13T08:03:27+00:00",
+      "by": "cli"
+    },
+    "self-review": {
+      "at": "2026-10-13T08:06:44+00:00",
+      "by": "cli"
+    },
+    "critic-review": {
+      "at": "2026-10-13T08:26:00+00:00",
+      "by": "cli"
+    },
+    "security-review": {
+      "at": "2026-10-13T08:26:14+00:00",
+      "by": "cli"
+    },
+    "evidence": {
+      "at": "2026-10-13T08:27:09+00:00",
+      "by": "cli"
+    },
+    "capability-docs": {
+      "at": "2026-10-13T08:27:09+00:00",
+      "by": "cli"
+    },
+    "reviewer-briefing": {
+      "at": "2026-10-13T08:31:06+00:00",
+      "by": "cli"
     }
   },
   "skips": {
@@ -316,5 +392,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "verification"
+  "phase": "needs-review"
 }

@@ -20,3 +20,15 @@ workItem: issue-34
 
 The cap is one round, so the loop stops here. Neither finding repeats a self-review
 finding (F1, F2). Both fixes are red→green.
+
+## Critic on R5–R7 (after PR review)
+
+| Round | Critic | Outcome | Findings → disposition |
+|-------|--------|---------|------------------------|
+| 2 (attempt 1, `--timeout 1800`) | `[codex/gpt-6.1-sol]` | **unavailable**: no output at the 1,800 s limit, 0 tokens | none. Does not count as a round |
+| 2 (attempt 2, `--timeout 2400`, scope narrowed to `executor.py`, `activities.py`, `workflows.py`, `models.py`) | `[codex/gpt-6.1-sol]` | **unavailable**: no output at the 2,400 s limit, 0 tokens | none. Does not count as a round |
+
+Both attempts used no tokens: the critic did not start, so neither is a review that ran
+long. The critic round on R5–R7 is therefore missing. The self-review (round 3) and the
+security review (round 2) covered the same diff. This is reported on PR #35, where the
+reviewer can ask for another attempt once the critic is reachable.

@@ -25,7 +25,7 @@ overrides: {}
 Each task is test-first: write the test, watch it fail, then make it pass. Commands run
 from the repository root.
 
-- [ ] 1. Agent roster builder (`tiny_harness/harness/agents/roster.py`)
+- [x] 1. Agent roster builder (`tiny_harness/harness/agents/roster.py`)
   - `AgentRoster`, `clean_field`, `build_roster` and the caps, as in design
     § Components. Wrap a non-empty body with `render_untrusted_text(…, "agent-cards")`.
     `(no agents)` when empty. Export from `tiny_harness.harness.agents`.

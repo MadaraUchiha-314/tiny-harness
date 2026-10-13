@@ -440,6 +440,10 @@ class TaskWorkflow:
         self.next_seq = 0
         self.pending_help: HelpRequest | None = None
         self.children: list[ChildRef] = []
+        # A child's signal can run before ``run`` loads the children from the snapshot
+        # (a continued run's first activation): it waits here for the load (issue-34).
+        self.loaded = False
+        self.early_child_done: list[ChildDone] = []
         self.notes: list[str] = []
         self.history_notes: list[str] = []
         self.command_run: asyncio.Task[None] | None = None  # a command a cut turn left running
@@ -511,6 +515,12 @@ class TaskWorkflow:
         updates the child's row, which the parent shows on its own stream once idle
         (issue-25 R5.6); only an ending, or a remote child parking with something to say,
         becomes a note for the model, so a child resuming never wakes it (issue-27 R2.7)."""
+        if not self.loaded:
+            self.early_child_done.append(done)
+            return
+        self._apply_child_done(done)
+
+    def _apply_child_done(self, done: ChildDone) -> None:
         terminal = done.state_name in TERMINAL_NAMES
         interrupted = done.state_name in ("INPUT_REQUIRED", "AUTH_REQUIRED")
         remote = False
@@ -926,6 +936,10 @@ class TaskWorkflow:
         self.unanswered = start.unanswered
         self.attempts = dict(start.attempt_counters)
         self.surfaces = start.surfaces
+        self.loaded = True
+        early, self.early_child_done = self.early_child_done, []
+        for done in early:  # a child's change that came before the load (issue-34)
+            self._apply_child_done(done)
 
     def _snapshot(self, task: HarnessTask, state: AgentState) -> TaskStart:
         return self.start.model_copy(

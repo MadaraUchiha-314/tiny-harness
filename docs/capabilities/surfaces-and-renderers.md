@@ -46,6 +46,9 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   from another surface and each sub-task row's state (relayed by the parent) show
   without a reload or polling. A sub-task is read once for its row's goal and followed
   only when opened. Conversation entries render as plain text (no Rich markup).
+- WHEN a command reply marked `close_client` (the built-in `/exit`) arrives on the stream
+  of the TUI's own message THEN the TUI SHALL close; the same reply seen on a
+  subscription or a replay SHALL only be drawn.
 - The TUI SHALL assert a participant on every message and action it sends, as the
   `X-Participant-Id` header and the `participant_id` metadata: `--participant <id>`, else
   the OS user name. IF neither yields a non-empty printable-ASCII id (a blank

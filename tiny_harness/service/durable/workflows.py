@@ -1131,6 +1131,8 @@ class TaskWorkflow:
             # concatenated, never a template the reply could inject into (R9.1, R9.4).
             reply = (reply + "\n" if reply else "") + f"Created sub-task {ref.task_id}."
             metadata["task_ref"] = ref.task_id
+        if result.close_client:
+            metadata["close_client"] = "true"
         message = text_message(
             self.task, reply, message_id=f"{self.task.id}:command:{self.next_seq}"
         )

@@ -50,10 +50,10 @@ in `tiny_harness/builtin/`.
   `command.invoked` are ordinary `HookDef`s and see every command.
 - The built-in plugin SHALL ship the default system prompt, the intrinsic tools and the
   default `in` bodies, loaded first and overridable through the same mechanism. The
-  built-in commands `/model`, `/effort`, `/sub-task` and `/status` come from code
+  built-in commands `/model`, `/effort`, `/sub-task`, `/status` and `/exit` come from code
   (`harness/commands/builtins.py`) at the default body priority, with the role policy
   registered whenever there is a command registry; `builtin_commands=False` leaves the
-  four out.
+  five out.
 
 ## Design
 

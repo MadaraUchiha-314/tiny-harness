@@ -5,7 +5,8 @@ namespace directory with ``systemprompt.md``), loaded by the same loader before 
 operator's plugins. The intrinsic tools and the default ``in`` bodies register through
 ``register_defaults`` as later layers add them. With a command registry it also
 registers the command role policy and, given the model catalog, the built-in commands
-``/model``, ``/effort``, ``/sub-task`` and ``/status`` (issue-25 R6.8, R6a.3).
+``/model``, ``/effort``, ``/sub-task``, ``/status`` and ``/exit`` (issue-25 R6.8, R6a.3;
+issue-32).
 """
 
 from __future__ import annotations

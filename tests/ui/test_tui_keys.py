@@ -15,6 +15,7 @@ from tests.ui.prototype import (
     COMMANDS,
     SUB_TASK_ID,
     TASK_ID,
+    command_reply,
     completed_events,
     conversation_events,
     conversation_task,
@@ -24,6 +25,7 @@ from tests.ui.prototype import (
     sub_task,
     sub_task_events,
 )
+from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.core import TaskRef
 from tiny_harness.interaction.tui import EventSource, HarnessApp, ScriptedClient
 from tiny_harness.interaction.tui.a2ui import SurfaceView
@@ -236,32 +238,32 @@ async def test_slash_suggests_commands_and_the_hint_lists_them() -> None:
         assert static_text(app, "#hint") == ""
 
 
-async def test_exit_closes_the_tui_without_sending() -> None:
-    """issue-32: ``/exit`` is listed with the card's commands, closes the TUI and is
-    never sent to the agent."""
-    client = ScriptedClient(commands=COMMANDS)
+def exit_reply() -> list[A2AEvent]:
+    """What ``/exit`` streams back: the built-in's reply, marked ``close_client``."""
+    return [parked(command_reply("Closing this client.", command="exit", close_client=True))]
+
+
+async def test_exit_is_sent_and_its_reply_closes_the_sending_tui() -> None:
+    """issue-32: ``/exit`` is an ordinary command of the card; the TUI that sent it
+    closes when the reply asks it to."""
+    client = ScriptedClient(scripts=[exit_reply()], commands=COMMANDS)
     app = HarnessApp(client, task_id=TASK_ID)
     async with app.run_test(size=(110, 36)) as pilot:
-        await pilot.press("/")
-        assert "/exit" in static_text(app, "#hint")
-        await pilot.press(*"exit", "enter")
-        await pilot.pause()
-        assert client.sent == []
-    assert app.return_code == 0
-
-
-async def test_exit_works_on_a_terminal_task() -> None:
-    """issue-32: ``/exit`` closes the TUI even when the open task takes no more messages."""
-    client = ScriptedClient()
-    app = HarnessApp(client)
-    async with app.run_test(size=(110, 36)) as pilot:
-        app.feed(completed_events())
-        await pilot.pause()
-        assert app.view is not None and app.view.terminal
         await pilot.press(*"/exit", "enter")
+        await settle(app)
         await pilot.pause()
-        assert client.sent == []
+        assert client.sent == ["/exit"]
     assert app.return_code == 0
+
+
+async def test_a_close_reply_on_a_subscription_does_not_close_the_tui() -> None:
+    """issue-32: another surface's ``/exit`` (or a replay of one) is drawn and nothing more."""
+    app = HarnessApp(ScriptedClient(), task_id=TASK_ID)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(exit_reply())
+        await pilot.pause()
+        assert "⌘ Closing this client." in entries(app)
+        assert app.return_code is None
 
 
 async def test_sub_task_reply_adds_a_row_enter_opens_it_and_f4_returns() -> None:

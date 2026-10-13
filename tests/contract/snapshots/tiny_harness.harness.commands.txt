@@ -21,7 +21,7 @@ class CommandRegistry(object)
   def register(self, spec: 'CommandSpec', handler: 'CommandHandler', *, priority: 'int' = 500, override: 'bool' = False) -> 'None'
   def register_executor(self, spec: 'CommandSpec', executor: 'HookExecutor', *, override: 'bool' = False) -> 'None'
   property specs
-model CommandResult(reply: <class 'str'>, settings: tiny_harness.harness.commands.models.TaskSettings | None = ..., spawn: tiny_harness.harness.commands.models.SpawnIntent | None = ...)
+model CommandResult(reply: <class 'str'>, settings: tiny_harness.harness.commands.models.TaskSettings | None = ..., spawn: tiny_harness.harness.commands.models.SpawnIntent | None = ..., close_client: <class 'bool'> = ...)
 model CommandSpec(name: <class 'str'>, description: <class 'str'>, argument_hint: <class 'str'> = ...)
 model CommandsExtensionParams(commands: tuple[tiny_harness.harness.commands.models.CommandSpec, ...] = ...)
 model SpawnIntent(goal: <class 'str'>)
@@ -29,6 +29,7 @@ model TaskSettings(model: str | None = ..., reasoning_effort: typing.Literal['lo
 model TaskSnapshot(id: <class 'str'>, name: <class 'str'>, state: <class 'str'>, sub_state: tiny_harness.harness.core.status.SubState | None = ..., settings: <class 'tiny_harness.harness.commands.models.TaskSettings'> = ..., steps_done: <class 'int'> = ..., steps_total: <class 'int'> = ..., children: tuple[tiny_harness.harness.commands.models.ChildSnapshot, ...] = ...)
 def commands_extension_schema() -> 'dict[str, object]'
 def effort_command(ctx: 'CommandInvokedIn', catalog: 'ModelCatalog') -> 'CommandResult'
+def exit_command(ctx: 'CommandInvokedIn') -> 'CommandResult'
 def model_command(ctx: 'CommandInvokedIn', catalog: 'ModelCatalog') -> 'CommandResult'
 def parse_command(message: 'Message', names: 'Container[str]') -> 'CommandCall | None'
 def parse_command_text(text: 'str', names: 'Container[str]') -> 'CommandCall | None'

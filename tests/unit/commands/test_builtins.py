@@ -17,6 +17,7 @@ from tiny_harness.harness.commands import (
     TaskSettings,
     TaskSnapshot,
     effort_command,
+    exit_command,
     model_command,
     register_builtin_commands,
     register_role_policy,
@@ -60,8 +61,8 @@ def ctx(
     )
 
 
-def test_the_four_built_ins_are_declared() -> None:
-    assert [s.name for s in BUILTIN_SPECS] == ["model", "effort", "sub-task", "status"]
+def test_the_built_ins_are_declared() -> None:
+    assert [s.name for s in BUILTIN_SPECS] == ["model", "effort", "sub-task", "status", "exit"]
     assert all(s.description for s in BUILTIN_SPECS)
 
 
@@ -174,6 +175,20 @@ def test_status_of_a_bare_task() -> None:
     ]
 
 
+# --- /exit (issue-32) -----------------------------------------------------------------
+
+
+def test_exit_asks_the_senders_client_to_close_and_changes_nothing() -> None:
+    out = exit_command(ctx("exit"))
+    assert out.close_client and out.reply
+    assert out.settings is None and out.spawn is None
+
+
+def test_other_commands_do_not_ask_the_client_to_close() -> None:
+    assert not status_command(ctx("status"), CATALOG).close_client
+    assert not sub_task_command(ctx("sub-task", "notes")).close_client
+
+
 # --- registration and the role policy -------------------------------------------------
 
 
@@ -207,7 +222,9 @@ async def test_the_role_policy_refuses_a_watchers_state_changing_command(
         await hooks.run(PRE, pre(name, arguments))
 
 
-@pytest.mark.parametrize(("name", "arguments"), [("model", ""), ("effort", " "), ("status", "")])
+@pytest.mark.parametrize(
+    ("name", "arguments"), [("model", ""), ("effort", " "), ("status", ""), ("exit", "")]
+)
 async def test_the_role_policy_lets_a_watcher_read(name: str, arguments: str) -> None:
     hooks = HookManager()
     register_role_policy(hooks)

@@ -26,11 +26,13 @@ from tests.integration.durable.conftest import (
     until,
 )
 from tiny_harness.harness.commands import (
+    BUILTIN_SPECS,
     CommandInvokedIn,
     CommandResult,
     CommandSpec,
     SpawnIntent,
     TaskSettings,
+    exit_command,
 )
 from tiny_harness.harness.core import HarnessTask, Participant, Role, SubState, TaskExtensionData
 from tiny_harness.harness.models import scripted
@@ -125,6 +127,51 @@ async def test_a_command_runs_without_invoking_the_model_and_the_state_is_unchan
         (ctx,) = seen
         assert (ctx.sender, ctx.sender_role, ctx.arguments) == ("alice", Role.REPORTER, "brief")
         assert ctx.task.sub_state is SubState.AWAITING_NEXT_MESSAGE
+        await close(handle)
+
+
+async def test_exit_marks_its_reply_for_the_sender_client_and_the_task_is_unchanged(
+    env: WorkflowEnvironment,
+) -> None:
+    """
+    Feature: Slash commands
+    Requirement: issue-32
+
+    Scenario: The built-in /exit asks the sender's client to close
+        Given a conversation task awaiting the next message and the built-in "/exit"
+        When the reporter sends "/exit"
+        Then the reply is tagged with the command's name and "close_client"
+        And the model is not called
+        And the task stays INPUT_REQUIRED awaiting the next message
+    """
+    h = await Harness([scripted("Refunded.")]).bind()
+    h.commands.register(next(s for s in BUILTIN_SPECS if s.name == "exit"), exit_command)
+    tq, tid = queue(), task_id()
+    async with h.worker(env.client, tq):
+        handle = await send(
+            env.client, tq, start(task(tid)), message("refund 48213", task_id=tid, message_id="m1")
+        )
+        await until(handle, parked(SubState.AWAITING_NEXT_MESSAGE))
+        await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
+            TaskWorkflow.inbox, message("/exit", task_id=tid, message_id="m2")
+        )
+        page = None
+        for _ in range(400):
+            page = await handle.query(TaskWorkflow.events_since, 0)
+            if replies(page.events):
+                break
+            await asyncio.sleep(0.05)
+        assert page is not None
+        assert replies(page.events) == [
+            (
+                "TASK_STATE_INPUT_REQUIRED",
+                "Closing this client.",
+                {"command": "exit", "close_client": "true"},
+            )
+        ]
+        current = await until(handle, parked(SubState.AWAITING_NEXT_MESSAGE))
+        assert current.state == TaskState.TASK_STATE_INPUT_REQUIRED
+        assert len(h.llm.requests) == 1
         await close(handle)
 
 

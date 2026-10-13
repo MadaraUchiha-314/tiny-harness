@@ -3,6 +3,7 @@
 A command's handler is a pure function of ``CommandInvokedIn``: it reads the snapshot of
 the task and returns a ``CommandResult``. It never touches the task itself; the workflow
 applies ``settings`` and ``spawn`` deterministically and emits the ``reply``.
+``close_client`` asks the sender's client to close; the workflow only marks the reply.
 """
 
 from __future__ import annotations
@@ -79,6 +80,7 @@ class CommandResult(BaseModel, frozen=True):
     reply: str
     settings: TaskSettings | None = None  # applied by the workflow
     spawn: SpawnIntent | None = None  # spawned by the workflow
+    close_client: bool = False  # the reply asks the sender's client to close (issue-32)
 
 
 class ChildSnapshot(BaseModel, frozen=True):

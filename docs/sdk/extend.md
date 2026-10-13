@@ -38,9 +38,11 @@ async with running_harness(settings, commands=[(echo_spec, echo)]) as harness:
 - `ctx.arguments` is the text after the command name. `ctx.sender` is the sender's
   name. `ctx.task` describes the task.
 - The function can be `async`.
+- To close the client that sent the command, return `CommandResult(reply=...,
+  close_client=True)`. The built-in `/exit` does this. The task does not change.
 - Clients see the command in the agent card, so the TUI and the web renderer show it
   when the user types `/`.
-- To remove the built-in commands (`/model`, `/effort`, `/sub-task`, `/status`), add
+- To remove the built-in commands (`/model`, `/effort`, `/sub-task`, `/status`, `/exit`), add
   `builtin_commands=False`.
 
 ## Make a plugin

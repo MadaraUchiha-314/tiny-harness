@@ -46,6 +46,11 @@
               "argument_hint": "",
               "description": "Show this task's status",
               "name": "status"
+            },
+            {
+              "argument_hint": "",
+              "description": "Close this client; the task does not change",
+              "name": "exit"
             }
           ]
         },

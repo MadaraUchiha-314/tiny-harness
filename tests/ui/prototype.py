@@ -301,9 +301,12 @@ def conversation_events() -> list[A2AEvent]:
     ]
 
 
-def command_reply(text: str, *, command: str, task_ref: str | None = None) -> Message:
+def command_reply(
+    text: str, *, command: str, task_ref: str | None = None, close_client: bool = False
+) -> Message:
     message = agent_text(text, f"{TASK_ID}:command:1")
     metadata = {"command": command} | ({"task_ref": task_ref} if task_ref else {})
+    metadata |= {"close_client": "true"} if close_client else {}
     message.metadata.update(metadata)
     return message
 

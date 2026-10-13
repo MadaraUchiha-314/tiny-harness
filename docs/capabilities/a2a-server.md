@@ -45,7 +45,9 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   workflow's dispatcher SHALL run it through the `run_command` activity before (or, mid
   turn, between) model calls, never invoking the model for it; the reply arrives as the
   message of a re-emitted status update with metadata `{"command": "<name>"}` (and
-  `"task_ref"` for a created sub-task), and the state is unchanged. Commands and
+  `"task_ref"` for a created sub-task, `"close_client": "true"` for a result that asks
+  the sender's client to close, as the built-in `/exit` does), and the state is
+  unchanged. Commands and
   controls skip `request.received`; `command.invoked` is their policy point. An
   unregistered `/<name>` is an ordinary message. A command or refused message as a
   task's first message parks the task instead of re-emitting `SUBMITTED`.

@@ -1,21 +1,38 @@
 {
   "version": 1,
   "workItem": "issue-32",
-  "currentNode": "work",
+  "currentNode": "review",
   "nodes": {
     "work": {
-      "attempts": 1,
-      "outcome": "",
+      "attempts": 2,
+      "outcome": "pass",
       "enteredAt": "2026-10-13T04:34:27+00:00",
-      "exitedAt": "",
+      "exitedAt": "2026-10-13T05:20:27+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "review": {
+      "attempts": 2,
+      "outcome": "more-work",
+      "enteredAt": "2026-10-13T04:41:03+00:00",
+      "exitedAt": "2026-10-13T04:53:36+00:00",
       "lastBlock": "",
       "forced": false
     }
   },
   "decisions": {},
   "forced": [],
-  "parked": null,
-  "completions": {},
+  "parked": {
+    "node": "review",
+    "reason": "awaiting a human",
+    "since": "2026-10-13T05:20:27+00:00"
+  },
+  "completions": {
+    "work": {
+      "at": "2026-10-13T04:41:03+00:00",
+      "by": "cli"
+    }
+  },
   "skips": {},
   "optIns": {},
   "surface": "",
@@ -25,7 +42,18 @@
   "effort": "",
   "claudeArtifact": false,
   "repos": [],
-  "pullRequests": [],
+  "pullRequests": [
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#33",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 33,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/33",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-33",
+      "state": "open",
+      "linkedAt": "2026-10-13T04:40:55+00:00",
+      "linkedBy": "session"
+    }
+  ],
   "loop": "pdlc-adhoc-loop",
   "phase": "implementation"
 }

@@ -7,11 +7,12 @@ answers first, or a plugin command loaded with ``override``, replaces one.
 
 Arguments are opaque text. ``/model`` compares against the catalog's allowlist exactly and
 ``/effort`` against a closed set; neither echoes a refused value. ``/sub-task`` only
-stores its description as a goal. Nothing here touches a shell, a path or the network.
+stores its description as a goal. ``/exit`` only asks the sender's client to close; the
+task does not change. Nothing here touches a shell, a path or the network.
 
 The role policy is a ``pre`` executor at priority 100: a ``watcher`` may read (``/model``,
-``/effort`` without an argument, ``/status``) but not change, and a sender with no role on
-the task may run nothing. An operator tightens it with an executor of their own.
+``/effort`` without an argument, ``/status``, ``/exit``) but not change, and a sender with
+no role on the task may run nothing. An operator tightens it with an executor of their own.
 """
 
 from __future__ import annotations
@@ -57,7 +58,8 @@ SUB_TASK = CommandSpec(
     name="sub-task", description="Start a linked sub-task", argument_hint="<description>"
 )
 STATUS = CommandSpec(name="status", description="Show this task's status")
-BUILTIN_SPECS: Final = (MODEL, EFFORT, SUB_TASK, STATUS)
+EXIT = CommandSpec(name="exit", description="Close this client; the task does not change")
+BUILTIN_SPECS: Final = (MODEL, EFFORT, SUB_TASK, STATUS, EXIT)
 
 # Commands that change the task when given an argument (/sub-task always does).
 _CHANGES_WITH_ARGUMENT: Final = frozenset({MODEL.name, EFFORT.name})
@@ -131,8 +133,14 @@ def status_command(ctx: CommandInvokedIn, catalog: ModelCatalog) -> CommandResul
     return CommandResult(reply="\n".join(lines))
 
 
+def exit_command(ctx: CommandInvokedIn) -> CommandResult:
+    """``/exit``: ask the sender's client to close (issue-32). The task does not change;
+    a client that cannot close shows the reply."""
+    return CommandResult(reply="Closing this client.", close_client=True)
+
+
 def register_builtin_commands(commands: CommandRegistry, catalog: ModelCatalog) -> None:
-    """Register the four built-ins at ``DEFAULT_BODY_PRIORITY`` (R6.8, R6a.3)."""
+    """Register the built-ins at ``DEFAULT_BODY_PRIORITY`` (R6.8, R6a.3)."""
     commands.register(
         MODEL, lambda ctx: model_command(ctx, catalog), priority=DEFAULT_BODY_PRIORITY
     )
@@ -143,6 +151,7 @@ def register_builtin_commands(commands: CommandRegistry, catalog: ModelCatalog) 
     commands.register(
         STATUS, lambda ctx: status_command(ctx, catalog), priority=DEFAULT_BODY_PRIORITY
     )
+    commands.register(EXIT, exit_command, priority=DEFAULT_BODY_PRIORITY)
 
 
 async def _role_policy(point: HookPoint, ctx: HookContext) -> HookContext | None:
@@ -173,11 +182,13 @@ __all__ = [
     "BUILTIN_SPECS",
     "EFFORT",
     "EFFORTS",
+    "EXIT",
     "MODEL",
     "ROLE_POLICY_PRIORITY",
     "STATUS",
     "SUB_TASK",
     "effort_command",
+    "exit_command",
     "model_command",
     "register_builtin_commands",
     "register_role_policy",

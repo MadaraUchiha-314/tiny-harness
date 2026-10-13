@@ -17,6 +17,7 @@ when either is set. Install with ``pip install 'tiny_harness[fastapi]'``.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
@@ -30,7 +31,7 @@ except ImportError as exc:  # pragma: no cover - exercised by the packaging test
     raise ImportError(
         "tiny_harness.fastapi needs FastAPI: pip install 'tiny_harness[fastapi]'"
     ) from exc
-from starlette.routing import BaseRoute, Route
+from starlette.routing import BaseRoute, Route, compile_path
 
 from tiny_harness.service.a2a.middleware import TokenBucket
 from tiny_harness.service.harness import Harness, Lifespan
@@ -43,29 +44,38 @@ class _Gate:
     """The router's per-request checks: started, mounted where configured, and the agent
     named on the request's log lines."""
 
-    def __init__(self, harness: Harness) -> None:
+    def __init__(self, harness: Harness, paths: Sequence[str]) -> None:
         self.harness = harness
+        # The full paths the routes must be served at: the harness prefix and each route's
+        # own path, exactly (issue-36 self-review 1, #6).
+        self.paths = [compile_path(harness.prefix + path)[0] for path in paths]
         self.checked = False
         self.error: str | None = None
 
-    async def __call__(self, request: Request) -> None:
-        CURRENT_AGENT.set(self.harness.agent_id)  # this request's task context only
-        if not self.harness.started:
-            raise HTTPException(503, f"agent {self.harness.agent_id} is not started")
-        if not self.checked:
-            self.checked = True
-            path = request.url.path
-            root = str(request.scope.get("root_path", ""))
-            relative = path[len(root) :] if root and path.startswith(root) else path
-            prefix = self.harness.prefix
-            if prefix and not (relative == prefix or relative.startswith(prefix + "/")):
-                self.error = (
-                    f"agent {self.harness.agent_id} is mounted at {relative!r} "
-                    f"but configured for {prefix!r}"
-                )
-                log.error("%s", self.error)
-        if self.error is not None:
-            raise HTTPException(500, self.error)
+    async def __call__(self, request: Request) -> AsyncGenerator[None]:
+        token = CURRENT_AGENT.set(self.harness.agent_id)
+        try:
+            if not self.harness.started:
+                raise HTTPException(503, f"agent {self.harness.agent_id} is not started")
+            if not self.checked:
+                self.checked = True
+                path = request.url.path
+                root = str(request.scope.get("root_path", ""))
+                relative = path[len(root) :] if root and path.startswith(root) else path
+                if not any(pattern.fullmatch(relative) for pattern in self.paths):
+                    self.error = (
+                        f"agent {self.harness.agent_id} is mounted at {relative!r} "
+                        f"but configured for {self.harness.prefix or '/'!r}"
+                    )
+                    log.error("%s", self.error)
+            if self.error is not None:
+                raise HTTPException(500, self.error)
+            yield
+        finally:
+            # Self-review 1, #7: no agent left on the caller. A teardown in another context
+            # cannot reset it, and that context ends with the request anyway.
+            with contextlib.suppress(ValueError):
+                CURRENT_AGENT.reset(token)
 
 
 class _Limits:
@@ -100,13 +110,18 @@ def harness_router(harness: Harness, *, tags: Sequence[str] | None = None) -> AP
     ``app.include_router(router)`` and no further prefix: the prefix is the harness's own,
     and a request under any other path is refused with 500."""
     tag_list: list[str | Enum] = list(tags) if tags is not None else [f"A2A: {harness.agent_id}"]
-    dependencies = [Depends(_Gate(harness))]
+    groups = harness.route_groups()
+    own_paths = [
+        r.path
+        for r in [*groups.card, *groups.own, *groups.jsonrpc, *groups.rest]
+        if isinstance(r, Route)
+    ]
+    dependencies = [Depends(_Gate(harness, own_paths))]
     if harness.route_options.limits:
         dependencies.append(Depends(_Limits(harness)))
     router = APIRouter(
         prefix=harness.prefix, lifespan=_router_lifespan(harness), dependencies=dependencies
     )
-    groups = harness.route_groups()
     scratch = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
     add_a2a_routes_to_fastapi(
         scratch,

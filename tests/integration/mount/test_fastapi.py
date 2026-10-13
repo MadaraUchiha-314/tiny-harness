@@ -27,6 +27,7 @@ from tests.integration.mount.conftest import (
 from tiny_harness.fastapi import harness_router
 from tiny_harness.harness.models import FakeLLM, scripted
 from tiny_harness.service import Harness
+from tiny_harness.service.o11y.logging import CURRENT_AGENT
 
 __all__ = ["env"]
 
@@ -143,3 +144,54 @@ async def test_a_router_included_under_another_prefix_refuses_every_request(
             response = await http.get("/extra/agents/p/.well-known/agent-card.json")
             assert response.status_code == 500
             assert "/extra/agents/p" in response.json()["detail"]
+
+
+async def test_a_router_request_leaves_no_agent_on_the_caller(
+    env: WorkflowEnvironment, tmp_path: Path
+) -> None:
+    """
+    Requirement: docs/specs/issue-36/requirements.md#R5 (non-functional: observability)
+
+    Scenario: A router request leaves no agent on the caller
+        Given an agent router served in-process, in the caller's own task
+        When the caller makes a request to the agent
+        Then the caller's own later log lines name no agent
+    """
+    harness = Harness(
+        agent_settings(tmp_path, f"fc-{suffix()}", "http://h/agents/c"),
+        client=env.client,
+        llm=FakeLLM([]),
+    )
+    app = FastAPI()
+    app.include_router(harness_router(harness))
+    async with (
+        harness,
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://h") as http,
+    ):
+        assert (await http.get("/agents/c/.well-known/agent-card.json")).status_code == 200
+        assert CURRENT_AGENT.get() is None
+
+
+async def test_an_unprefixed_router_included_under_a_prefix_is_refused(
+    env: WorkflowEnvironment, tmp_path: Path
+) -> None:
+    """
+    Requirement: docs/specs/issue-36/requirements.md#R3
+
+    Scenario: An unprefixed router included under a prefix is refused
+        Given an agent with no prefix whose router is included with prefix /x
+        When a client reads the card at /x
+        Then the answer is 500, because the card would not carry /x
+    """
+    harness = Harness(
+        agent_settings(tmp_path, f"fu-{suffix()}", "http://h"),
+        client=env.client,
+        llm=FakeLLM([]),
+    )
+    app = FastAPI()
+    app.include_router(harness_router(harness), prefix="/x")
+    async with (
+        harness,
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://h") as http,
+    ):
+        assert (await http.get("/x/.well-known/agent-card.json")).status_code == 500

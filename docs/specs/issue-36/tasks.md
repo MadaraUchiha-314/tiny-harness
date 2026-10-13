@@ -37,13 +37,13 @@ five-agent acceptance and the docs.
   - _Requirements:_ R4.6, R5.3, R7.2
   - _Test:_ T1 `tests/unit/test_config_agent.py` (defaults, explicit queue kept, bad id
     refused); T6/T13 `examples/demo/config.toml` loads with id and queue `tiny-harness`
-- [ ] 2. New errors
+- [x] 2. New errors
   - Add `HarnessConflictError`, `HarnessAlreadyStartedError`, `HarnessStoppedError`
     and `HarnessNotStartedError` under `TinyHarnessError` in `tiny_harness/errors.py`.
   - _Depends on:_ none
   - _Requirements:_ design § Error handling
   - _Test:_ T1 `tests/unit/test_errors.py` (hierarchy, messages)
-- [ ] 3. `Claims` registry
+- [x] 3. `Claims` registry
   - Add `tiny_harness/service/claims.py`. It claims the agent id, the namespace and
     queue, and the resolved store path, all or nothing, under a lock, and releases them.
   - _Depends on:_ 2

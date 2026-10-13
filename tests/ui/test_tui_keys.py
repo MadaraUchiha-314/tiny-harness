@@ -236,6 +236,34 @@ async def test_slash_suggests_commands_and_the_hint_lists_them() -> None:
         assert static_text(app, "#hint") == ""
 
 
+async def test_exit_closes_the_tui_without_sending() -> None:
+    """issue-32: ``/exit`` is listed with the card's commands, closes the TUI and is
+    never sent to the agent."""
+    client = ScriptedClient(commands=COMMANDS)
+    app = HarnessApp(client, task_id=TASK_ID)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("/")
+        assert "/exit" in static_text(app, "#hint")
+        await pilot.press(*"exit", "enter")
+        await pilot.pause()
+        assert client.sent == []
+    assert app.return_code == 0
+
+
+async def test_exit_works_on_a_terminal_task() -> None:
+    """issue-32: ``/exit`` closes the TUI even when the open task takes no more messages."""
+    client = ScriptedClient()
+    app = HarnessApp(client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(completed_events())
+        await pilot.pause()
+        assert app.view is not None and app.view.terminal
+        await pilot.press(*"/exit", "enter")
+        await pilot.pause()
+        assert client.sent == []
+    assert app.return_code == 0
+
+
 async def test_sub_task_reply_adds_a_row_enter_opens_it_and_f4_returns() -> None:
     """R9.4: ``/sub-task`` replies with the id and a row; Enter opens it, F4 goes back."""
     client = ScriptedClient(

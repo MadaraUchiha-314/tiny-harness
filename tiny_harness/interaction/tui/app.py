@@ -11,6 +11,9 @@ both disabled once it is terminal (R5.5); the composer completes ``/`` commands 
 card with a hint line of their descriptions (R6.7); the Task tab lists sub-tasks, Enter
 opens one and ``f4`` returns to its parent (R9.4). The open tasks form a stack; each has
 its own conversation, shown while it is on top.
+
+issue-32: ``/exit`` is the TUI's own command. It closes the TUI and is never sent; the
+open task stays as it is, the same as ``q``.
 """
 
 from __future__ import annotations
@@ -74,6 +77,8 @@ AWAITING_NEXT_MESSAGE = "awaiting-next-message"
 RESUBSCRIBE_DELAY = 2.0
 # What a refused or failed call raises: the server's A2A error, or the transport's.
 CLIENT_ERRORS = (A2AError, httpx.HTTPError)
+# The TUI's own command: it closes the app and never reaches the agent (issue-32).
+EXIT = CommandSpec(name="exit", description="Close the TUI")
 
 
 def short_id(task_id: str) -> str:
@@ -245,7 +250,11 @@ class HarnessApp(App[None]):
         self.context_id = context_id
         self.stack: list[str] = [task_id] if task_id else []
         self.views: dict[str, TaskView] = {}
-        self.commands: tuple[CommandSpec, ...] = client.commands() if client else ()
+        card = client.commands() if client else ()
+        self.commands: tuple[CommandSpec, ...] = (
+            *(c for c in card if c.name != EXIT.name),
+            EXIT,
+        )
         self.renderer = TuiRenderer()
         self.surfaces = Surfaces()
         self.trace: list[str] = []
@@ -578,6 +587,9 @@ class HarnessApp(App[None]):
         if not text:
             return
         event.input.value = ""
+        if text == f"/{EXIT.name}":
+            self.exit()
+            return
         view = self.view
         if view is not None and view.terminal:
             self._notice(f"── task is {view.state_name}; nothing sent")
@@ -738,6 +750,7 @@ async def run_tui(url: str, *, participant: str) -> int:
 
 __all__ = [
     "CHEVRON",
+    "EXIT",
     "STEP_MARKS",
     "Entry",
     "HarnessApp",

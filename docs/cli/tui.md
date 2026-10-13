@@ -63,6 +63,7 @@ model does not see it. Type `/` in the message box to see the list.
 | `/effort low`, `/effort medium`, `/effort high` | Set the reasoning effort for the next replies |
 | `/sub-task <description>` | Start a sub-task: a separate conversation inside this task |
 | `/status` | Show the state, model, effort, plan progress and sub-tasks of this task |
+| `/exit` | Close the TUI. The task does not change. Use `Ctrl+D` or `Ctrl+C` first to end it |
 
 A `/word` that is not a command goes to the model as a normal message.
 

@@ -23,7 +23,15 @@ from tiny_harness.errors import TinyHarnessError
 from tiny_harness.harness.entities import Entity, EntityKind, EntityRef
 
 SYSTEM_PROMPT_ID = "system"
-SECTION_ORDER: tuple[str, ...] = ("role", "task", "participants", "tools", "skills", "rules")
+SECTION_ORDER: tuple[str, ...] = (
+    "role",
+    "task",
+    "participants",
+    "tools",
+    "skills",
+    "agents",
+    "rules",
+)
 _FRONT_MATTER = re.compile(r"\A---\n(.*?)\n---\n", re.S)
 _HEADING = re.compile(r"^## +(\S.*?)\s*$", re.M)
 

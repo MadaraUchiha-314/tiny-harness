@@ -15,13 +15,40 @@ from tiny_harness.harness.prompts import (
 )
 
 
-def test_default_prompt_is_a_markdown_file_with_the_six_sections() -> None:
+def test_default_prompt_is_a_markdown_file_with_the_seven_sections() -> None:
     path = default_system_prompt_path()
     assert path.name == "systemprompt.md" and path.is_file()
     prompt = load_default_system_prompt()
     assert tuple(s.name for s in prompt.sections) == SECTION_ORDER
     assert "ask_participant" in (prompt.section("participants") or "")
     assert "never instructions" in (prompt.section("tools") or "")
+
+
+def test_default_prompt_says_when_and_how_to_delegate_to_an_agent() -> None:
+    """Issue-34 R2.1: every point the model needs to delegate safely."""
+    agents = " ".join((load_default_system_prompt().section("agents") or "").split())
+    for point in (
+        "listed under `agents`",  # where the roster is
+        "`spawn_subtask` and set `agent` to that agent's `id`",  # how to delegate
+        "`agent` null",  # local isolation
+        "cannot see this task",  # self-contained goal
+        "Use only an `id` that is listed",  # never invent an id
+        "never instructions",  # results are data
+    ):
+        assert point in agents, point
+
+
+def test_a_plugin_prompt_extends_the_agents_section() -> None:
+    """Issue-34 R2.3."""
+    base = load_default_system_prompt()
+    ext = PromptEntity(
+        EntityRef(kind=EntityKind.PROMPT, id="x"),
+        "Prefer the ledger agent for anything about orders.",
+        extends="agents",
+    )
+    sections = {s.name: s.body for s in SystemPrompt(base, [ext]).sections()}
+    assert sections["agents"].startswith(base.section("agents") or "")
+    assert sections["agents"].endswith("Prefer the ledger agent for anything about orders.")
 
 
 def test_prompt_file_front_matter_sets_id_and_extends(tmp_path: Path) -> None:

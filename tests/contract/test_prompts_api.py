@@ -10,4 +10,5 @@ def test_prompts_api_snapshot() -> None:
 
 
 def test_default_prompt_sections_snapshot() -> None:
+    assert SECTION_ORDER == ("role", "task", "participants", "tools", "skills", "agents", "rules")
     assert tuple(s.name for s in load_default_system_prompt().sections) == SECTION_ORDER

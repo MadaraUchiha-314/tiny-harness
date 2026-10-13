@@ -65,7 +65,7 @@ from the repository root.
     `uv run pytest tests/contract/test_intrinsic_schemas.py`; T8 —
     `uv run pytest tests/security/test_agent_roster.py -k unknown` (red→green)
 
-- [ ] 4. System prompt `## agents` section (`systemprompt.md`, `prompts/entity.py`)
+- [x] 4. System prompt `## agents` section (`systemprompt.md`, `prompts/entity.py`)
   - Add the section text from design § System prompt between `skills` and `rules`.
     `SECTION_ORDER` gains `agents` in the same place.
   - Unit tests in `tests/unit/prompts/`: the section exists and states each R2.1

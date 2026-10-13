@@ -661,6 +661,15 @@
           "title": "Cors Origins",
           "type": "array"
         },
+        "delegators": {
+          "default": [],
+          "description": "participant ids trusted to brief a new task fully (lifecycle, model, reasoning_effort) on its first message; this agent itself always is (issue-34 R7)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Delegators",
+          "type": "array"
+        },
         "max_request_bytes": {
           "default": 1048576,
           "title": "Max Request Bytes",

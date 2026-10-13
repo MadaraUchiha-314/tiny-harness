@@ -13,6 +13,7 @@ import pytest
 from a2a.types import TaskState
 from temporalio.testing import WorkflowEnvironment
 
+from tests.integration.a2a.conftest import self_hosted
 from tests.integration.durable.conftest import (
     Harness,
     close,
@@ -255,23 +256,24 @@ async def test_a_delegated_sub_task_still_completes_when_its_loop_ends(
         ]
     ).bind()
     tq, tid = queue(), task_id()
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client,
             tq,
             start(task(tid)),
             message("refund 48213", task_id=tid, message_id="m1"),
         )
-        await until(handle, lambda t: bool(t.ext.sub_tasks))  # the child workflow started
-        child = await env.client.get_workflow_handle(f"{tid}.1").result()
+        current = await until(handle, lambda t: bool(t.ext.sub_tasks))  # the child exists
+        row = current.ext.sub_tasks[0]  # a task on this harness's own A2A server (R7)
+        child = await env.client.get_workflow_handle(row.task_id).result()
         assert child.status.state == TaskState.TASK_STATE_COMPLETED
         assert HarnessTask(child).lifecycle == "delegated"
-        note = f"Sub-task {tid}.1 is COMPLETED"
+        note = f"Sub-task {row.task_id} is COMPLETED"
 
         def heard(t: HarnessTask) -> bool:
             last = [i.text for i in h.llm.requests[-1].input if i.kind == "message"]
             return parked(SubState.AWAITING_NEXT_MESSAGE)(t) and any(note in x for x in last)
 
         current = await until(handle, heard)
-        assert [r.task_id for r in current.ext.sub_tasks] == [f"{tid}.1"]
+        assert [r.task_id for r in current.ext.sub_tasks] == [row.task_id]
         await close(handle)

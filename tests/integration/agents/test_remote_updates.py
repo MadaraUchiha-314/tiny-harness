@@ -37,10 +37,12 @@ def heard(llm: FakeLLM, note: str) -> bool:
     )
 
 
-async def until_events(d: Delegation, event_type: str, activity: str) -> None:
-    """Until the stand-in has scheduled ``activity`` and the event ``event_type`` follows."""
+async def until_events(d: Delegation, event_type: str, activity: str, *, count: int = 1) -> None:
+    """Until the stand-in has scheduled ``activity`` ``count`` times and the event
+    ``event_type`` follows."""
     for _ in range(200):
-        if await d.events("ACTIVITY_TASK_SCHEDULED", activity) and await d.events(event_type):
+        scheduled = await d.events("ACTIVITY_TASK_SCHEDULED", activity)
+        if scheduled >= count and await d.events(event_type):
             return
         await asyncio.sleep(0.05)
     raise AssertionError(f"{activity} never reached {event_type}")
@@ -85,15 +87,15 @@ async def test_a_third_party_cancel_is_heard_through_push(env: WorkflowEnvironme
         await d.cancel_remote(remote_id)
         child = await d.child()
         assert child.status.state == TaskState.TASK_STATE_CANCELED
-        await until_heard(d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await until_heard(d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
         parked = await until(
             handle, lambda t: bool(t.ext.sub_tasks) and t.ext.sub_tasks[0].state == "CANCELED"
         )
-        assert parked.ext.sub_tasks[0].task_id == d.child_id
+        assert parked.ext.sub_tasks[0].task_id == await d.remote_id()
         assert len(d.remote.harness.llm.requests) == 1, "nothing was sent to the remote again"
         assert await d.push_configs(remote_id) == []
         assert any(p.url.path == f"/a2a/push/{d.child_id}" for p in d.remote.pushes)
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_without_push_the_stand_in_follows_and_hears_a_completion(
@@ -120,10 +122,10 @@ async def test_without_push_the_stand_in_follows_and_hears_a_completion(
         await d.complete_remote(remote_id)
         child = await d.child()
         assert child.status.state == TaskState.TASK_STATE_COMPLETED
-        await until_heard(d.local.harness.llm, f"Sub-task {d.child_id} is COMPLETED")
+        await until_heard(d.local.harness.llm, f"Sub-task {await d.remote_id()} is COMPLETED")
         assert len(d.remote.harness.llm.requests) == 1
         assert await d.push_configs(remote_id) == []
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is COMPLETED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is COMPLETED")
 
 
 async def test_a_card_without_push_is_followed(env: WorkflowEnvironment) -> None:
@@ -149,7 +151,7 @@ async def test_a_card_without_push_is_followed(env: WorkflowEnvironment) -> None
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
         assert await d.push_configs(remote_id) == []
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_a_reply_while_following_cancels_the_follow(env: WorkflowEnvironment) -> None:
@@ -168,7 +170,9 @@ async def test_a_reply_while_following_cancels_the_follow(env: WorkflowEnvironme
         handle = await d.begin()
         await d.parked_remote()
         await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
-        await until_events(d, "ACTIVITY_TASK_STARTED", "follow_remote_task")
+        # The stand-in starts while the remote works (issue-34 R7.2): its first follow
+        # ends when the task parks, and the second one is the follow a reply cancels.
+        await until_events(d, "ACTIVITY_TASK_SCHEDULED", "follow_remote_task", count=2)
         stand_in = d.env.client.get_workflow_handle(d.child_id)
         # From a participant the remote task does not know: the stand-in asserts itself.
         reply = message_to(d.child_id, "The main ledger.", participant="alice")
@@ -180,7 +184,7 @@ async def test_a_reply_while_following_cancels_the_follow(env: WorkflowEnvironme
         assert len(d.remote.harness.llm.requests) == 2
         assert await d.events("ACTIVITY_TASK_CANCEL_REQUESTED") >= 1, "the follow was cancelled"
         await until_heard(d.local.harness.llm, "Ledger is balanced.")
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is COMPLETED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is COMPLETED")
 
 
 async def test_updates_off_keeps_todays_behaviour(env: WorkflowEnvironment) -> None:
@@ -205,7 +209,7 @@ async def test_updates_off_keeps_todays_behaviour(env: WorkflowEnvironment) -> N
         assert await d.push_configs(remote_id) == []
         await d.env.client.get_workflow_handle(d.child_id).signal("cancel", "test over")
         await d.child()
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_the_push_config_is_deleted_when_the_stand_in_is_cancelled(
@@ -219,7 +223,7 @@ async def test_the_push_config_is_deleted_when_the_stand_in_is_cancelled(
         Given a stand-in that registered a push config on its parked remote task
         When the stand-in is cancelled
         Then it ends CANCELED and the push config is gone from the remote task
-        And the remote task itself is left as it was
+        And the remote task is cancelled on its agent too (issue-34 R7.6)
     """
     async with delegation(env, parent_script(), [scripted("", tool_calls=[ask()])]) as d:
         handle = await d.begin()
@@ -228,12 +232,9 @@ async def test_the_push_config_is_deleted_when_the_stand_in_is_cancelled(
         await d.env.client.get_workflow_handle(d.child_id).signal("cancel", "parent cancelled")
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
         assert await d.push_configs(remote_id) == []
-        remote_task = await d.env.client.get_workflow_handle(remote_id).query(
-            "task", result_type=Task
-        )
-        assert remote_task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
-        await d.cancel_remote(remote_id, "test over")
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        remote_task = await d.env.client.get_workflow_handle(remote_id).result()
+        assert remote_task.status.state == TaskState.TASK_STATE_CANCELED
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_a_failed_registration_falls_back_to_follow(env: WorkflowEnvironment) -> None:
@@ -262,7 +263,7 @@ async def test_a_failed_registration_falls_back_to_follow(env: WorkflowEnvironme
         await asyncio.sleep(0.3)
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_a_remote_resumed_by_a_third_party_wakes_the_model_only_at_its_end(
@@ -288,9 +289,9 @@ async def test_a_remote_resumed_by_a_third_party_wakes_the_model_only_at_its_end
         )
         child = await d.child()
         assert child.status.state == TaskState.TASK_STATE_COMPLETED
-        await until_heard(d.local.harness.llm, f"Sub-task {d.child_id} is COMPLETED")
+        await until_heard(d.local.harness.llm, f"Sub-task {await d.remote_id()} is COMPLETED")
         assert not heard(d.local.harness.llm, "is WORKING")
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is COMPLETED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is COMPLETED")
 
 
 def message_to(task_id: str, text: str, *, participant: str = "tiny-harness") -> Message:
@@ -326,14 +327,16 @@ async def test_a_redacted_status_text_does_not_spin_the_follow(env: WorkflowEnvi
         remote_id = await d.parked_remote()
         await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
         await until_events(d, "ACTIVITY_TASK_STARTED", "follow_remote_task")
+        await asyncio.sleep(0.3)  # the follow that saw the task park ends; the next opens
         completed = await d.events("ACTIVITY_TASK_COMPLETED")
+        follows = await d.events("ACTIVITY_TASK_SCHEDULED", "follow_remote_task")
         await asyncio.sleep(1.5)
-        # The first follow is still open: it saw no "change" in the masked question.
+        # The open follow saw no "change" in the masked question: no follow after follow.
         assert await d.events("ACTIVITY_TASK_COMPLETED") == completed
-        assert await d.events("ACTIVITY_TASK_SCHEDULED", "follow_remote_task") == 1
+        assert await d.events("ACTIVITY_TASK_SCHEDULED", "follow_remote_task") == follows
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_a_failed_cleanup_still_ends_in_the_state_reached(env: WorkflowEnvironment) -> None:
@@ -361,7 +364,7 @@ async def test_a_failed_cleanup_still_ends_in_the_state_reached(env: WorkflowEnv
         await d.until_push_config(remote_id)
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_a_long_parked_stand_in_continues_as_new(env: WorkflowEnvironment) -> None:
@@ -403,7 +406,7 @@ async def test_a_long_parked_stand_in_continues_as_new(env: WorkflowEnvironment)
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
         assert await d.push_configs(remote_id) == []
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
@@ -420,6 +423,7 @@ async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
         And a third-party cancel afterwards is still heard
     """
     calls = 0
+    fail_at: int | None = None
 
     def flaky(agent: RemoteAgent) -> None:
         real = agent.get_task
@@ -427,7 +431,7 @@ async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
         async def get_task(task_id: str, *, participant: str | None = None) -> Task:
             nonlocal calls
             calls += 1
-            if calls == 5:  # the reconcile, the push's fetch, rechecks 1, 2 — then 3 fails
+            if calls == fail_at:  # the push's fetch, rechecks 1, 2 — then 3 fails
                 raise RuntimeError("remote unavailable")
             return await real(task_id, participant=participant)
 
@@ -439,10 +443,11 @@ async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
         handle = await d.begin()
         remote_id = await d.parked_remote()
         token = (await d.until_push_config(remote_id)).token.get_secret_value()
-        for _ in range(100):
-            if calls >= 1:
-                break
-            await asyncio.sleep(0.05)
+        # The stand-in starts while the remote works: let it hear the remote park first,
+        # so no push of the remote's own overtakes the claim below.
+        await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
+        await asyncio.sleep(0.5)
+        fail_at = calls + 4
         claim = {"state": "TASK_STATE_COMPLETED"}
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=d.local.app), base_url="http://local"
@@ -454,15 +459,15 @@ async def test_a_fetch_failing_on_the_last_recheck_leaves_the_stand_in_working(
             )
         assert response.status_code == 204
         for _ in range(300):
-            if calls >= 5:
+            if calls >= fail_at:
                 break
             await asyncio.sleep(0.05)
-        assert calls >= 5, "the rechecks never reached the failing fetch"
+        assert calls >= fail_at, "the rechecks never reached the failing fetch"
         await asyncio.sleep(0.5)
         assert await d.child_state() == TaskState.TASK_STATE_INPUT_REQUIRED
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")
 
 
 async def test_pushes_during_a_turn_are_applied_after_it(env: WorkflowEnvironment) -> None:
@@ -493,4 +498,4 @@ async def test_pushes_during_a_turn_are_applied_after_it(env: WorkflowEnvironmen
         assert not heard(d.local.harness.llm, "is WORKING")
         await d.cancel_remote(remote_id)
         assert (await d.child()).status.state == TaskState.TASK_STATE_CANCELED
-        await finish(handle, d.local.harness.llm, f"Sub-task {d.child_id} is CANCELED")
+        await finish(handle, d.local.harness.llm, f"Sub-task {await d.remote_id()} is CANCELED")

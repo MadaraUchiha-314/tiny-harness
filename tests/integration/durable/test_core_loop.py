@@ -14,6 +14,7 @@ import pytest
 from a2a.types import TaskState
 from temporalio.testing import WorkflowEnvironment
 
+from tests.integration.a2a.conftest import self_hosted
 from tests.integration.durable.conftest import (
     Harness,
     awaiting_next_message,
@@ -23,6 +24,7 @@ from tests.integration.durable.conftest import (
     start,
     task,
 )
+from tests.integration.routed_llm import RoutedLLM
 from tiny_harness.harness.core import HarnessTask, SubState
 from tiny_harness.harness.hooks import FunctionExecutor, HookContext, HookPoint, Operation, Phase
 from tiny_harness.harness.models import ToolResultItem, scripted
@@ -335,29 +337,37 @@ async def test_a_parent_waits_for_an_unresolved_sub_task_before_completing(
 
     Scenario: a parent waits for an unresolved sub-task before completing
         Given a delegated parent whose LLM spawns a sub-task then emits no tool call
-        When the child workflow completes
+        When the child, a task on this harness's own A2A server (issue-34 R7), completes
         Then the parent resumes with the child's result and completes
     """
     spawn = ToolCall(
         call_id="c1", name="spawn_subtask", arguments={"name": "Check", "goal": "Check the ledger"}
     )
-    h = await Harness(
-        [
+    h = await Harness([]).bind()
+    h.llm = h.engine.llm = RoutedLLM(
+        parent=[
             scripted("", tool_calls=[spawn]),
             scripted("Waiting on the check."),
-            scripted("Ledger checked."),
             scripted("All done."),
-        ]
-    ).bind()
+        ],
+        child=[scripted("Ledger checked.")],
+        child_goal="Check the ledger",
+        parent_message="refund 48213",
+    )
     tq = queue()
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         # Only a delegated task asks task.complete at turn end (issue-25 R3.4, R3.5).
         parent = start(task(lifecycle="delegated"))
         handle = await send(env.client, tq, parent, message("refund 48213", message_id="m1"))
         result = await handle.result()
-        child = await env.client.get_workflow_handle("t-1.1").result()
+        (row,) = HarnessTask(result).ext.sub_tasks
+        child = await env.client.get_workflow_handle(row.task_id).result()
+    # The child may finish before or after the parent's second turn: the parent completes
+    # once it has, with the child's result in its model's last input.
     assert result.status.state == TaskState.TASK_STATE_COMPLETED
-    assert result.status.message.parts[0].text == "All done."
     assert child.status.state == TaskState.TASK_STATE_COMPLETED
-    final_input = [i.text for i in h.llm.requests[-1].input if i.kind == "message"]
-    assert any("Sub-task t-1.1 is COMPLETED" in t for t in final_input)
+    llm = h.llm
+    assert isinstance(llm, RoutedLLM)
+    last = [r for r in llm.requests if not llm.is_child(r)][-1]
+    final_input = [i.text for i in last.input if i.kind == "message"]
+    assert any(f"Sub-task {row.task_id} is COMPLETED" in t for t in final_input)

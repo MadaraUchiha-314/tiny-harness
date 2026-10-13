@@ -156,6 +156,7 @@ async def running_harness(
             bridge=bridge,
             config=workflow_config(settings),
             redactor=runtime.redactor,
+            delegators=settings.server.delegators,
         )
         activities = Activities(
             runtime.engine,

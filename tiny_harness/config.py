@@ -293,6 +293,11 @@ class ServerConfig(_Strict):
     rate_limit_per_minute: int = 120
     bridge_interval: timedelta = timedelta(milliseconds=250)
     cors_origins: tuple[str, ...] = ()
+    delegators: tuple[str, ...] = Field(
+        default=(),
+        description="participant ids trusted to brief a new task fully (lifecycle, model, "
+        "reasoning_effort) on its first message; this agent itself always is (issue-34 R7)",
+    )
     ui_dir: Path | None = Field(
         default=None, description="a built web renderer to serve under /ui (R20.2)"
     )

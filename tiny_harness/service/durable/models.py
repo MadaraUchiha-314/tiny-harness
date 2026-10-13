@@ -58,6 +58,8 @@ class ActivityName(StrEnum):
     EMIT_EVENT = "emit_event"
     DISPATCH_HOOKS = "dispatch_hooks"
     RUN_REMOTE_AGENT_TURN = "run_remote_agent_turn"
+    START_AGENT_TASK = "start_agent_task"
+    CANCEL_REMOTE_TASK = "cancel_remote_task"
     REGISTER_REMOTE_PUSH = "register_remote_push"
     GET_REMOTE_TASK = "get_remote_task"
     FOLLOW_REMOTE_TASK = "follow_remote_task"
@@ -129,8 +131,11 @@ class ChildRef(_Frozen):
 
     task_id: str
     workflow_id: str
-    kind: Literal["local", "participant", "remote"]
+    kind: Literal["local", "participant", "remote", "agent"]
+    """``agent``: a task created on an agent over A2A and followed by a stand-in
+    (issue-34 R7.2); the others are kept for children started before it."""
     step: str | None = None
+    delegated: bool = True
     done: bool = False
     state_name: str = "SUBMITTED"
     sub_state: SubState | None = None
@@ -325,6 +330,9 @@ class RemoteStart(_Frozen):
     agent: str
     goal: str
     parent_workflow_id: str
+    delegated: bool = True
+    """The child was asked to finish by itself: a peer parked awaiting its next message
+    has answered (issue-34 R7.2). ``False`` for a conversation or a participant task."""
     correlation_id: str = ""
     config: WorkflowConfig = WorkflowConfig()
     mailbox: tuple[MessageProto, ...] = ()
@@ -336,6 +344,15 @@ class RemoteTurnIn(ActivityIn):
     agent: str
     message: MessageProto
     remote_task_id: str | None = None
+    delegated: bool = True
+
+
+class StartAgentTaskIn(ActivityIn):
+    """Create a child task on ``agent`` with ``message``, the brief (issue-34 R7.2)."""
+
+    agent: str
+    message: MessageProto
+    delegated: bool = True
 
 
 class RemoteTurnOut(_Frozen):
@@ -360,6 +377,7 @@ class RemoteTaskIn(ActivityIn):
     agent: str
     remote_task_id: str
     participant: str = ""
+    delegated: bool = True
     known_text: str = ""
     """The last recorded status text: a fetch or an event without one keeps it, as a turn
     does, so a question sent as a message never reads as a change."""
@@ -384,7 +402,8 @@ class RemoteResume(_Frozen):
     """A stand-in continued as new while its remote task is parked (issue-27)."""
 
     remote_task_id: str
-    watch: RemoteWatch
+    watch: RemoteWatch | None
+    """``None`` at a stand-in's start: the task exists, and is watched from here on."""
     last: RemoteTurnOut
     cancel_reason: str | None = None
     claimed: str = ""
@@ -553,6 +572,7 @@ __all__ = [
     "RemoteWatch",
     "RetryIn",
     "RetryOut",
+    "StartAgentTaskIn",
     "SweepIn",
     "SweepOut",
     "TaskMonitor",

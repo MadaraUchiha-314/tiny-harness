@@ -168,8 +168,10 @@ class RemoteAgent(Agent):
         ):
             yield unwrap(response)
 
-    async def cancel_task(self, task_id: str) -> Task:
-        return await self._client.cancel_task(CancelTaskRequest(id=task_id))
+    async def cancel_task(self, task_id: str, *, participant: str | None = None) -> Task:
+        return await self._client.cancel_task(
+            CancelTaskRequest(id=task_id), context=self._context((), participant=participant)
+        )
 
     async def get_task(self, task_id: str, *, participant: str | None = None) -> Task:
         return await self._client.get_task(

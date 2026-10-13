@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -18,7 +19,10 @@ from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from tests.integration.durable.conftest import Harness, env
+from tests.integration.streaming_asgi import StreamingASGITransport
 from tiny_harness.config import ServerConfig
+from tiny_harness.harness.agents import SELF_AGENT_ID, RemoteAgent
+from tiny_harness.harness.entities import RegistryEntry
 from tiny_harness.harness.models import LLMResponse
 from tiny_harness.service.a2a import (
     HarnessExecutor,
@@ -141,7 +145,50 @@ async def make_server(
     return Server(harness=h, app=app, card=card, worker=worker, handler=handler, pushes=pushes)
 
 
-__all__ = ["Server", "env", "make_server"]
+SELF_URL = "http://harness"
+
+
+@asynccontextmanager
+async def self_hosted(
+    environment: WorkflowEnvironment,
+    responses: Sequence[LLMResponse] = (),
+    *,
+    task_queue: str,
+    harness: Harness | None = None,
+) -> AsyncGenerator[Server]:
+    """This harness serving its own A2A app, with the agent ``self`` registered over it
+    (issue-34 R7.1): a child it creates leaves through its own A2A interface and comes
+    back in, and its pushes reach its own push endpoint, as over HTTP in production."""
+    apps: dict[str, Starlette] = {}
+
+    async def to_self(request: httpx.Request) -> httpx.Response:
+        response = await httpx.ASGITransport(app=apps["self"]).handle_async_request(request)
+        await response.aread()
+        return response
+
+    server = await make_server(
+        environment,
+        responses,
+        task_queue=task_queue,
+        harness=harness,
+        push_to=to_self,
+        push_base_url=SELF_URL,
+    )
+    apps["self"] = server.app
+    http = httpx.AsyncClient(
+        transport=StreamingASGITransport(server.app), base_url=SELF_URL, timeout=60
+    )
+    me = RemoteAgent.from_card(SELF_AGENT_ID, server.card, http=http)
+    await server.harness.registry.add(RegistryEntry(ref=me.ref, instance=me), override=True)
+    async with server:
+        try:
+            yield server
+        finally:
+            await me.close()
+            await http.aclose()
+
+
+__all__ = ["SELF_URL", "Server", "env", "make_server", "self_hosted"]
 
 
 @pytest_asyncio.fixture(loop_scope="module")

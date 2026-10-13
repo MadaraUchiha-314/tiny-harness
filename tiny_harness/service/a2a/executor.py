@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterable
 from typing import cast
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -42,6 +42,7 @@ from tiny_harness.service.durable.workflows import (
     TaskWorkflow,
 )
 from tiny_harness.service.inbox import (
+    EVENT_MEDIA_TYPE,
     EventEnvelope,
     controls_task,
     envelope_of,
@@ -100,11 +101,13 @@ def default_extension(message: Message, agent: str) -> TaskExtensionData:
 
 
 def extension_from_envelope(
-    envelope: EventEnvelope, message: Message, agent: str
+    envelope: EventEnvelope, message: Message, agent: str, *, trusted: bool = False
 ) -> TaskExtensionData:
     """A new task's extension from its first message's ``task`` envelope. An envelope that
-    sets a server-controlled field is refused whole and no task is created (abuse case 1)."""
-    refused = server_controlled(envelope.payload)
+    sets a server-controlled field is refused whole and no task is created (abuse case 1),
+    unless its sender is a ``trusted`` delegator: the harness itself, or a peer the operator
+    names in ``[server] delegators``, may brief a child fully (issue-34 R7, abuse case 5)."""
+    refused = [] if trusted else server_controlled(envelope.payload)
     if refused:
         raise UnsupportedOperationError(
             message=f"task envelope cannot set server-controlled {', '.join(refused)}"
@@ -122,7 +125,22 @@ def extension_from_envelope(
                 )
             }
         )
+    sender = participant_of(message)
+    if sender is not None and not ext.is_participant(sender):
+        # The creator reports the task it created, as with a plain first message; intake
+        # takes messages from participants only (issue-34 R7.2).
+        reporter = Participant(id=sender, kind="human", role=Role.REPORTER)
+        ext = ext.model_copy(update={"participants": (reporter, *ext.participants)})
     return ext
+
+
+def without_envelope(message: Message) -> Message:
+    """The first message once its ``task`` envelope has made the task: intake must not
+    apply it a second time as a change by a participant (issue-34 R7.2)."""
+    kept = [p for p in message.parts if p.media_type != EVENT_MEDIA_TYPE]
+    del message.parts[:]
+    message.parts.extend(kept)
+    return message
 
 
 def sender_of(message: Message, call_context: ServerCallContext | None) -> str:
@@ -152,8 +170,11 @@ class HarnessExecutor(AgentExecutor):
         config: WorkflowConfig,
         redactor: Redactor | None = None,
         policy: AccessPolicy | None = None,
+        delegators: Iterable[str] = (),
     ) -> None:
         self._client = client
+        # Who may brief a new task fully (issue-34 R7): this agent itself, always.
+        self._delegators = frozenset({config.agent, *delegators})
         self._task_queue = task_queue
         self._bridge = bridge
         self._config = config
@@ -180,18 +201,21 @@ class HarnessExecutor(AgentExecutor):
         message = redact_message(self._redactor, message)
         message.task_id = context.task_id
         message.context_id = context.context_id
-        sender_of(message, context.call_context)
+        sender = sender_of(message, context.call_context)
         envelope = envelope_of(message)
         if envelope is not None and envelope.kind == "control" and existing is None:
             raise UnsupportedOperationError(message="a control needs an existing task")
         agent = self._config.agent
-        ext = (
-            extension_from_envelope(envelope, message, agent)
-            if envelope is not None and envelope.kind == "task"
-            else default_extension(message, agent)
-        )
-        # A participant's first message opens a conversation; only the server sets this (R3).
-        ext = ext.model_copy(update={"lifecycle": "conversation"})
+        trusted = sender in self._delegators
+        if envelope is not None and envelope.kind == "task" and existing is None:
+            ext = extension_from_envelope(envelope, message, agent, trusted=trusted)
+            message = without_envelope(message)
+        else:
+            ext = default_extension(message, agent)
+        if not (trusted and ext.lifecycle == "delegated"):
+            # A participant's first message opens a conversation; only the server, or a
+            # trusted delegator briefing a child, sets this (R3, issue-34 R7).
+            ext = ext.model_copy(update={"lifecycle": "conversation"})
         task = HarnessTask.new(context.task_id, context.context_id, ext)
         start = TaskStart(
             task=task.proto,

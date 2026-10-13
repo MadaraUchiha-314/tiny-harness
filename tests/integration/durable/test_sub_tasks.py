@@ -14,6 +14,7 @@ import pytest
 from a2a.types import TaskState
 from temporalio.testing import WorkflowEnvironment
 
+from tests.integration.a2a.conftest import self_hosted
 from tests.integration.durable.conftest import (
     Harness,
     awaiting_next_message,
@@ -70,15 +71,17 @@ async def test_sub_tasks_inherit_the_parents_model_and_effort(env: WorkflowEnvir
         [scripted("", tool_calls=[SPAWN, CREATE]), *(scripted("Ok.") for _ in range(5))]
     ).bind()
     tq, tid = ids()
-    async with h.worker(env.client, tq):
+    async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
             env.client,
             tq,
             start(configured(tid)),
             message("refund 48213", task_id=tid, message_id="m1"),
         )
-        await until(handle, lambda t: len(t.ext.sub_tasks) == 2)
-        agent_child = HarnessTask(await env.client.get_workflow_handle(f"{tid}.1").result())
+        current = await until(handle, lambda t: len(t.ext.sub_tasks) == 2)
+        # The agent child is a task on this harness's own A2A server (issue-34 R7).
+        row = current.ext.sub_tasks[0]
+        agent_child = HarnessTask(await env.client.get_workflow_handle(row.task_id).result())
         participant = HarnessTask(
             await env.client.get_workflow_handle(f"{tid}.2").query(TaskWorkflow.task_query)
         )

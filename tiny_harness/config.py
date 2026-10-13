@@ -234,6 +234,13 @@ class RemoteAgentSpec(_Strict):
         description="the pause before re-subscribing when a follow stream ends unchanged",
     )
 
+    @field_validator("id")
+    @classmethod
+    def _not_self(cls, value: str) -> str:
+        if value == "self":  # tiny_harness.harness.agents.SELF_AGENT_ID
+            raise ValueError("the id self is reserved for this harness (issue-34 R7.1)")
+        return value
+
     @field_validator("follow_interval")
     @classmethod
     def _at_least_a_second(cls, value: timedelta) -> timedelta:

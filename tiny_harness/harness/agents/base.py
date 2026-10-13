@@ -31,6 +31,9 @@ SUPPORTED_EXTENSIONS: Final[tuple[str, ...]] = (
 """Every extension the harness implements: what the card advertises and what a remote
 card may require without being refused (R7.4, R14.3)."""
 
+SELF_AGENT_ID: Final = "self"
+"""The id this harness is registered under as an agent of its own (issue-34 R7.1)."""
+
 
 class Agent(Entity):
     """An agent reachable over A2A, local or remote; its card is the contract."""
@@ -50,4 +53,4 @@ class Agent(Entity):
     async def cancel_task(self, task_id: str) -> Task: ...
 
 
-__all__ = ["A2UI_EXT_URI", "SUPPORTED_EXTENSIONS", "A2AEvent", "Agent"]
+__all__ = ["A2UI_EXT_URI", "SELF_AGENT_ID", "SUPPORTED_EXTENSIONS", "A2AEvent", "Agent"]

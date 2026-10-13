@@ -95,7 +95,29 @@ class RemoteAgent(Agent):
     ) -> RemoteAgent:
         http = http or httpx.AsyncClient(timeout=60)
         card = await A2ACardResolver(http, url).get_agent_card()
+        return cls.from_card(
+            agent_id,
+            card,
+            http=http,
+            version=version,
+            updates=updates,
+            follow_interval=follow_interval,
+        )
+
+    @classmethod
+    def from_card(
+        cls,
+        agent_id: str,
+        card: AgentCard,
+        *,
+        http: httpx.AsyncClient | None = None,
+        version: str | None = None,
+        updates: UpdateMode = "auto",
+        follow_interval: timedelta = timedelta(seconds=5),
+    ) -> RemoteAgent:
+        """An agent whose card is already known: the harness itself (issue-34 R7.1)."""
         validate_card(card)
+        http = http or httpx.AsyncClient(timeout=60)
         factory = ClientFactory(
             ClientConfig(
                 httpx_client=http,

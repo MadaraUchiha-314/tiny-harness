@@ -140,6 +140,7 @@ async def test_the_models_context_lists_a_configured_remote_agent(tmp_path: Path
         Given a remote agent "ledger" declared in config, whose card has a description and a skill
         When the harness starts and the model takes a turn
         Then the request's static instructions carry an agents section listing "ledger"
+        And listing "self", the harness itself
         And the entry gives the card's name, description and skill, inside the untrusted block
         And the system prompt tells the model how to delegate to it
         And the agent's URL is not in the context
@@ -156,6 +157,7 @@ async def test_the_models_context_lists_a_configured_remote_agent(tmp_path: Path
     assert "- id: ledger\n  name: Order ledger\n" in roster
     assert f"  description: {LEDGER_DESCRIPTION}\n" in roster
     assert f"    - {LEDGER_SKILL[0]}: {LEDGER_SKILL[1]}" in roster
+    assert "- id: self\n  name: tiny-harness\n" in roster
     assert "## agents" in instructions and "set `agent` to that agent's `id`" in instructions
     assert url not in instructions and "127.0.0.1" not in instructions
 
@@ -189,7 +191,7 @@ async def test_a_spawn_subtask_naming_an_unknown_agent_is_refused_without_a_sub_
     second = requests_of(runtime).requests[1].input
     errors = [i.result for i in second if isinstance(i, ToolResultItem)]
     assert errors and errors[-1].is_error
-    assert "[agent.unknown] no agent 'billing'; available: ledger" in (
+    assert "[agent.unknown] no agent 'billing'; available: ledger, self" in (
         errors[-1].content[0].text or ""
     )
 
@@ -277,7 +279,7 @@ async def test_startup_logs_the_roster_and_each_truncated_card_field(
         runtime = await runtime_for(tmp_path, url)
         await close_agents(runtime)
     messages = [(r.levelno, r.getMessage()) for r in caplog.records]
-    assert (logging.INFO, "agents roster: ledger") in messages
+    assert (logging.INFO, "agents roster: ledger, self") in messages  # self: issue-34 R7.1
     warnings = [m for level, m in messages if level == logging.WARNING and "truncated" in m]
     assert warnings == ["agent ledger: card field description truncated in the agents roster"]
 
@@ -306,7 +308,8 @@ async def test_a_hostile_agent_card_cannot_break_out_of_the_agents_roster(tmp_pa
         await close_agents(runtime)
     instructions = requests_of(runtime).requests[0].instructions
     roster = agents_section(instructions)
-    assert [line for line in roster.splitlines() if line.startswith("- id: ")] == ["- id: ledger"]
+    entries = [line for line in roster.splitlines() if line.startswith("- id: ")]
+    assert entries == ["- id: ledger", "- id: self"]  # self is the harness itself (R7.1)
     assert roster.count("</untrusted>") == 1 and roster.endswith("</untrusted>")
     assert instructions.count("<system_prompt>") == 1
     assert instructions.count("</agents>") == 1
@@ -341,4 +344,5 @@ async def test_a_tiny_harness_described_by_its_card_section_is_listed_by_another
     assert "- id: ledger\n  name: Order ledger\n" in roster
     assert f"  description: {LEDGER_DESCRIPTION}\n" in roster
     assert f"    - {LEDGER_SKILL[0]}: {LEDGER_SKILL[1]}" in roster
-    assert describe(CardConfig()).description not in roster
+    ledger_entry = roster.split("- id: ledger\n")[1].split("\n- id: ")[0]
+    assert describe(CardConfig()).description not in ledger_entry

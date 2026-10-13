@@ -26,7 +26,7 @@ five-agent acceptance and the docs.
 
 ## Task list
 
-- [ ] 1. `[agent]` configuration and the task queue default
+- [x] 1. `[agent]` configuration and the task queue default
   - Add `AgentConfig` (`id` with its pattern, `name`, `description`) to `Settings`.
   - Make `TemporalConfig.task_queue` optional, add `effective_task_queue`, and fill it
     from `agent.id` in a `Settings` validator.

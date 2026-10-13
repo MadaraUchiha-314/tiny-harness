@@ -153,7 +153,7 @@ async def running_harness(
         )
         executor = HarnessExecutor(
             client,
-            task_queue=settings.temporal.task_queue,
+            task_queue=settings.temporal.effective_task_queue,
             bridge=bridge,
             config=workflow_config(settings),
             redactor=runtime.redactor,
@@ -189,10 +189,10 @@ async def running_harness(
             await ensure_heartbeat_schedule(
                 client,
                 interval=settings.heartbeat.interval,
-                task_queue=settings.temporal.task_queue,
+                task_queue=settings.temporal.effective_task_queue,
             )
             await stack.enter_async_context(
-                build_worker(client, activities, task_queue=settings.temporal.task_queue)
+                build_worker(client, activities, task_queue=settings.temporal.effective_task_queue)
             )
         host, port = bind_address(settings)
         server = uvicorn.Server(

@@ -39,8 +39,6 @@ from tiny_harness.service.o11y.plugin import o11y_plugin
 
 log = logging.getLogger("tiny_harness.runtime")
 
-AGENT_ID = "tiny-harness"
-
 
 @dataclass
 class Runtime:
@@ -106,9 +104,9 @@ def retention_map(settings: Settings) -> dict[RecordKind, timedelta]:
     return {kind: getattr(config, kind.value) for kind in RecordKind}
 
 
-def workflow_config(settings: Settings, *, agent: str = AGENT_ID) -> WorkflowConfig:
+def workflow_config(settings: Settings, *, agent: str | None = None) -> WorkflowConfig:
     return WorkflowConfig(
-        agent=agent,
+        agent=agent or settings.agent.id,
         retries=settings.retries,
         history_event_bound=settings.context.history_event_bound,
         search_attributes=settings.temporal.search_attributes,
@@ -278,7 +276,6 @@ async def render_system_prompt(registry: Registry) -> str:
 Retention = Mapping[RecordKind, timedelta]
 
 __all__ = [
-    "AGENT_ID",
     "SELF_AGENT_ID",
     "Retention",
     "Runtime",

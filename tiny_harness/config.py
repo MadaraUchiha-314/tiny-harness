@@ -39,6 +39,23 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+DEFAULT_AGENT_ID = "tiny-harness"
+
+
+class AgentConfig(_Strict):
+    """Who this agent is (issue-36 R4.6): its participant id on tasks, its default task
+    queue, its heartbeat schedule and its card's name and description. Several agents in
+    one process each need their own id (R5.3)."""
+
+    id: str = Field(
+        default=DEFAULT_AGENT_ID,
+        pattern=r"^[a-z0-9][a-z0-9-]{0,62}$",
+        description="lowercase letters, digits and dashes; unique per process",
+    )
+    name: str | None = Field(default=None, description="the agent card's name")
+    description: str | None = Field(default=None, description="the agent card's description")
+
+
 class EmbeddedTemporalConfig(_Strict):
     """The local Temporal dev server of embedded mode (issue-17 R2-R4). Every key has a
     default, so ``mode = "embedded"`` alone is a complete Temporal configuration."""
@@ -76,7 +93,11 @@ class TemporalConfig(_Strict):
     api_key: SecretStr | None = Field(
         default=None, description="from TEMPORAL_API_KEY; never logged"
     )
-    task_queue: str = "tiny-harness"
+    task_queue: str | None = Field(
+        default=None,
+        description="the agent's Temporal task queue; default: the agent id ([agent] id), "
+        "so two agents in one namespace never share one",
+    )
     tls: bool = True
     search_attributes: bool = Field(
         default=False,
@@ -106,6 +127,12 @@ class TemporalConfig(_Strict):
     @property
     def effective_namespace(self) -> str:
         return self.namespace or "default"
+
+    @property
+    def effective_task_queue(self) -> str:
+        """The queue this agent's workflows run on: ``task_queue``, else the agent id
+        (``Settings`` fills it in; issue-36 R5.3)."""
+        return self.task_queue or DEFAULT_AGENT_ID
 
     def database_path(self, store: StoreConfig) -> Path | None:
         """The embedded server's SQLite file, or ``None`` when it runs in memory."""
@@ -373,6 +400,7 @@ class RetentionConfig(_Strict):
 class Settings(_Strict):
     """Everything a harness process needs. Built by ``load_settings``."""
 
+    agent: AgentConfig = AgentConfig()
     temporal: TemporalConfig
     openai: OpenAIConfig
     anthropic: AnthropicConfig | None = None
@@ -386,6 +414,13 @@ class Settings(_Strict):
     retries: RetryPolicies = RetryPolicies()
     context: ContextConfig = ContextConfig()
     retention: RetentionConfig = RetentionConfig()
+
+    @model_validator(mode="after")
+    def _queue_from_agent(self) -> Self:
+        """No ``task_queue`` means the agent's own queue (issue-36 R5.3, R7.2)."""
+        if self.temporal.task_queue is None:
+            self.temporal = self.temporal.model_copy(update={"task_queue": self.agent.id})
+        return self
 
     @classmethod
     def load(cls, path: Path | None = None, *, env: Mapping[str, str] | None = None) -> Self:
@@ -489,7 +524,9 @@ def load_settings[S: Settings](
 
 
 __all__ = [
+    "DEFAULT_AGENT_ID",
     "SECRET_VARIABLES",
+    "AgentConfig",
     "AnthropicConfig",
     "CardConfig",
     "CardSkillConfig",

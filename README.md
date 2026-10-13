@@ -81,6 +81,7 @@ Read more: [SDK guide](https://madarauchiha-314.github.io/tiny-harness/sdk/).
 |-------------|------|
 | Chat with an agent in my terminal | [CLI guide](https://madarauchiha-314.github.io/tiny-harness/cli/) |
 | Run the agent in my Python application | [SDK guide](https://madarauchiha-314.github.io/tiny-harness/sdk/) |
+| Add one or more agents to my Starlette or FastAPI app | [Mount agents on your app](https://madarauchiha-314.github.io/tiny-harness/sdk/mount) |
 | Change a setting | [Configuration](https://madarauchiha-314.github.io/tiny-harness/configuration/) |
 | Put the agent in production | [Deploy](https://madarauchiha-314.github.io/tiny-harness/sdk/deploy) |
 | Work on tiny-harness itself | [Developer guide](https://madarauchiha-314.github.io/tiny-harness/develop/) |

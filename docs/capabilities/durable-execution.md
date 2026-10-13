@@ -72,6 +72,16 @@ reuses them. Lives in `tiny_harness/service/durable/`.
   refused. A failed start raises
   `EmbeddedTemporalError` and never falls back to a remote Temporal.
 
+- `temporal_client` SHALL acquire through the process's `TemporalPool`
+  (`durable/pool.py`). Settings that name one connection (an embedded `database_path`,
+  or a remote address, namespace, TLS flag and API-key digest) share one client and one
+  embedded dev server. The last release closes it. An in-memory server is never shared.
+- Several harnesses SHALL run in one process, each on its own task queue (default:
+  `[agent] id`). `Claims` (`service/claims.py`) SHALL refuse a second harness with the
+  same agent id, namespace and queue, or store file before it connects
+  (`HarnessConflictError`). Each worker sets the agent id on every activity's log lines
+  (`AgentContextInterceptor`).
+
 ## Design
 
 [design.md § Durable execution](../specs/issue-3/design.md#durable-execution-r19--servicedurable),
@@ -85,3 +95,4 @@ reuses them. Lives in `tiny_harness/service/durable/`.
 |-----------|--------------|-------|
 | issue-3 | Workflows, activities, client, worker, child and remote workflows, heartbeat (Layer 5); `emit_ui` and surfaces in the workflow (Layer 7); opt-in search attributes (Layer 9) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [decision-002](../decisions/decision-002.md) |
 | issue-17 | `temporal_client` and embedded Temporal mode: the dev server as an owned child process, loopback-only, persisted `0600` under a state lock | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18), [decision-005](../decisions/decision-005.md) |
+| issue-36 | `TemporalPool`; one task queue per agent; the process `Claims` registry; the agent id on every activity | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |

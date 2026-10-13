@@ -181,7 +181,7 @@ five-agent acceptance and the docs.
     parked sub-task on agent b pushes to agent a's prefixed route`, `Scenario: five agents
     in one FastAPI app delegate to each other`; T4 the cross-agent cases on the same
     fixture; T11 the asserted single connection
-- [ ] 17. Contract snapshots and documentation
+- [x] 17. Contract snapshots and documentation
   - Update the snapshots on purpose: `settings.schema.json`, `tiny_harness.service`,
     `tiny_harness.config`, `tiny_harness.errors`, the new `tiny_harness.fastapi`; the
     card stays unchanged.

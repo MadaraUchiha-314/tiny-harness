@@ -76,6 +76,31 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   body can carry a push token.
 - Every route SHALL sit behind the limits middleware: a body over `max_request_bytes` is
   413 and a peer over `rate_limit_per_minute` is 429, before anything reaches Temporal.
+- A `Harness` (`tiny_harness/service/harness.py`) SHALL serve the agent without opening a
+  port: `asgi_app()` is the app a host mounts and exists from construction. WHILE the
+  harness is not started, every request SHALL be `503` and reach no route. WHEN the app is
+  mounted somewhere other than its prefix THEN every request SHALL be `500` naming both
+  paths. As the top-level app it SHALL start its harness from the `lifespan` scope.
+  `running_harness` is a `Harness` behind its own uvicorn, with `root_path` set to the
+  prefix.
+- The routes SHALL be built before start over a `DeferredRequestHandler` and the card
+  through `card_modifier`, so they can be mounted early and listed in OpenAPI.
+  `tiny_harness.fastapi.harness_router(harness)` SHALL return an `APIRouter` with the
+  harness's lifespan and prefix, its routes tagged `A2A: <agent id>`. The 503 gate, the
+  prefix check and the limits are router dependencies there, and CORS and `/ui` are not
+  served (a warning names each).
+- The card and the push callback SHALL carry `public_url`: `base_url` with the mount
+  prefix. A prefix that disagrees with `base_url`'s path is a `ConfigError`.
+  `RouteOptions` SHALL turn off the limits, CORS, `/_monitor`, the push route (the agent
+  then follows remote tasks) and `/ui` one by one.
+- WHEN a participant resolver is given THEN the participant SHALL come from it only, the
+  `X-Participant-Id` header SHALL be ignored, and a message with no resolved participant
+  SHALL be refused even when its metadata names one. A resolver that raises fails the
+  request.
+- A task SHALL belong to the agent whose task queue runs its workflow. `TemporalTaskStore`
+  describes the workflow first (cached per id), and a foreign queue is answered as an
+  unknown id. `ListTasks` filters on `TaskQueue`, and the `context_id` in that query is
+  quoted. `PushReceiver` answers `401` for a stand-in on another queue.
 - `GET /_monitor` SHALL return the last heartbeat snapshot; with `ui_dir` set the built
   web renderer is served under `/ui`; `cors_origins` enables CORS for a dev renderer.
 - WHEN a new task's first message carries a `task` envelope THEN the server SHALL build
@@ -105,3 +130,4 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 | issue-27 | `POST /a2a/push/{task_id}` for remote tasks' pushes; the SDK's request-body DEBUG log dropped | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
 | issue-34 | The card's name, description, version and skills come from `[card]` | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-34 (R7) | A new task built from its creator's brief: trusted delegators (`[server] delegators`, this agent always), participant mode for an assignee other than this agent, a brief-only start | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
+| issue-36 | `Harness` and `asgi_app()` mounted on a host app (503 before start, mount check, lifespan); routes built before start; `tiny_harness.fastapi.harness_router`; `public_url` in the card and push URL; `RouteOptions`; the participant resolver with strict mode; task and push ownership by queue | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |

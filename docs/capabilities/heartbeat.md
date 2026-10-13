@@ -11,9 +11,12 @@ server process and is visible in Temporal. Lives in `tiny_harness/service/heartb
 
 ## Current behaviour
 
-- The worker SHALL ensure the schedule `tiny-harness-heartbeat` exists, starting
-  `HeartbeatWorkflow` every `[heartbeat] interval` (30 s by default) on the configured
-  task queue; `tiny-harness schedules delete` removes it.
+- The worker SHALL ensure the agent's schedule exists, starting `HeartbeatWorkflow`
+  every `[heartbeat] interval` (30 s by default) on the agent's task queue:
+  `tiny-harness-heartbeat` for the default agent id, `tiny-harness-heartbeat-<id>` for any
+  other. `tiny-harness schedules delete` removes the configured agent's schedule.
+- `monitor_snapshot` SHALL scan only the running task workflows on the agent's own task
+  queue.
 - Each tick SHALL run `poll_channels` (forwarding pending channel items to their tasks),
   `monitor_snapshot` (the task states and pending items) and `retention_sweep` (deleting
   expired store rows per kind).
@@ -32,3 +35,4 @@ server process and is visible in Temporal. Lives in `tiny_harness/service/heartb
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | The heartbeat workflow, schedule and activities (Layer 5) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) |
+| issue-36 | One schedule per agent; the scan filtered to the agent's queue | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |

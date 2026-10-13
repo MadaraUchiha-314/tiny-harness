@@ -182,6 +182,8 @@ async def test_a_parked_sub_task_on_agent_b_pushes_to_agent_as_prefixed_route(
     tmp_path: Path,
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R6
+
     Scenario: A parked sub-task on agent b pushes to agent a's prefixed route
         Given agent a delegated a sub-task to agent b, and b parked it asking a a question
         When a's stand-in registers a push config on b's task

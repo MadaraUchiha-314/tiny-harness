@@ -1,5 +1,5 @@
 """Feature: agents in one process are isolated from each other
-Requirement: docs/specs/issue-36/requirements.md#R5 (Security considerations, abuse cases 2-6)
+Requirement: docs/specs/issue-36/requirements.md#R5 (Security considerations, abuse case 2)
 
 Two agents, a and b, share one process and one Temporal namespace. Agent a treats every
 task of agent b as unknown, refuses a push for b's workflow, refuses to start on b's task
@@ -153,6 +153,8 @@ async def test_a_push_for_agent_bs_workflow_at_agent_as_route_is_refused(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R5 (abuse case 3)
+
     Scenario: A push for agent b's stand-in at agent a's route is refused
         Given a workflow that runs on agent b's task queue
         When a push naming it arrives at agent a's push route, with a token
@@ -175,6 +177,8 @@ async def test_a_second_harness_on_the_same_namespace_and_queue_does_not_start(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R5 (abuse case 4)
+
     Scenario: A second harness on the same namespace and queue does not start
         Given a running agent on task queue q
         When a second agent with another id but the same queue starts
@@ -212,6 +216,8 @@ class Untouchable:
 
 async def test_a_request_before_start_never_reaches_temporal(tmp_path: Path) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R2 (abuse case 5)
+
     Scenario: A request before start never reaches Temporal
         Given a mounted agent whose harness has not started
         When clients send a message, a task lookup and a push
@@ -238,6 +244,8 @@ async def test_one_agents_log_masks_another_agents_key(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R5 (abuse case 6)
+
     Scenario: One agent's log masks another agent's key
         Given agents a and b running in one process with different model keys
         When agent a's redactor, and the process's log formatter, see agent b's key

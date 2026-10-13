@@ -92,6 +92,8 @@ async def test_a_router_answers_503_before_start_and_enforces_its_limits(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R3, #R4
+
     Scenario: A router answers 503 before start and enforces its limits
         Given a FastAPI app with an agent's router whose harness has not started
         When a client reads the card
@@ -119,6 +121,8 @@ async def test_a_router_included_under_another_prefix_refuses_every_request(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R3
+
     Scenario: A router included under another prefix refuses every request
         Given an agent configured for /agents/p whose router is included with prefix /extra
         When a client reads the card at /extra/agents/p

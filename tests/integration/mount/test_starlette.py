@@ -83,6 +83,8 @@ async def test_an_agent_mounted_under_a_prefix_serves_its_card_with_prefixed_url
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R2, #R4
+
     Scenario: An agent mounted under a prefix serves its card with prefixed URLs
         Given an agent whose base_url has no path and whose prefix is /agents/b
         When a client reads <origin>/agents/b/.well-known/agent-card.json
@@ -107,6 +109,8 @@ async def test_a_mounted_agent_answers_503_until_its_harness_has_started(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R2
+
     Scenario: A mounted agent answers 503 until its harness has started
         Given an agent mounted in a host app whose lifespan has not run
         When a client reads the card
@@ -132,6 +136,8 @@ async def test_an_agent_mounted_at_the_wrong_path_refuses_every_request(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R2
+
     Scenario: An agent mounted at the wrong path refuses every request
         Given an agent configured for /agents/d but mounted at /agents/x
         When a client reads the card twice
@@ -158,6 +164,8 @@ async def test_a_top_level_harness_app_starts_itself_from_the_server_lifespan(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R2, #R7
+
     Scenario: A top-level harness app starts itself from the server lifespan
         Given uvicorn serving harness.asgi_app() directly, with no host app
         When uvicorn starts and a client sends a message
@@ -180,6 +188,8 @@ async def test_with_the_push_route_off_a_remote_sub_task_is_followed(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R4
+
     Scenario: With the push route off a remote sub-task is followed
         Given an agent with RouteOptions(push=False)
         When it starts
@@ -207,6 +217,8 @@ async def test_several_harnesses_start_and_stop_in_order_from_one_lifespan(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R5
+
     Scenario: Several harnesses start and stop in order from one lifespan
         Given three agents with their own ids, queues and stores
         When one lifespan runs all three
@@ -234,6 +246,8 @@ async def test_each_log_line_names_the_agent_that_wrote_it(
     env: WorkflowEnvironment, tmp_path: Path
 ) -> None:
     """
+    Requirement: docs/specs/issue-36/requirements.md#R5 (non-functional: observability)
+
     Scenario: Each log line names the agent that wrote it
         Given two mounted agents and the harness's JSON logging
         When a client asks each agent for a task it does not have

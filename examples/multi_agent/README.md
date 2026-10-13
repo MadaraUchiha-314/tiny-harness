@@ -17,10 +17,12 @@ configuration files set the same `[temporal.embedded] database_path`.
 
 ## Run it with Starlette
 
-1. Set your model key:
+1. Set your model key. Embedded Temporal does not use a Temporal key, so remove it if
+   it is set:
 
    ```sh
    export OPENAI_API_KEY=sk-...
+   unset TEMPORAL_API_KEY
    ```
 
 2. Start the app from the repository root:

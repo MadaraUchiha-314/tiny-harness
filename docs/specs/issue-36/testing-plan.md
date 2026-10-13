@@ -132,24 +132,38 @@ checked for tokens and home paths.
 
 ## Verification activities
 
-- [ ] T1 — `uv run pytest tests/unit`
-- [ ] T2 — `uv run pytest tests/integration/mount`
-- [ ] T3 — `uv run pytest tests/integration/mount/test_multi_agent.py`
-- [ ] T4 — `uv run pytest tests/security/test_multi_agent_isolation.py tests/security/test_participant_resolver.py`
-- [ ] T5 — `uv run pytest tests/contract`
-- [ ] T6 — `uv run pytest tests/unit tests/integration tests/contract tests/security tests/ui`
-- [ ] T7 — `uv run pytest tests/integration/test_package.py`
-- [ ] T14 — manual walkthrough of `examples/multi_agent/README.md`, and the FastAPI `/docs` check
-- [ ] T15 — `cd docs && bun run docs:build`
-- [ ] T16 — `uv run pre-commit run --all-files`
+- [x] T1 — `uv run pytest tests/unit`
+- [x] T2 — `uv run pytest tests/integration/mount`
+- [x] T3 — `uv run pytest tests/integration/mount/test_multi_agent.py`
+- [x] T4 — `uv run pytest tests/security/test_multi_agent_isolation.py tests/security/test_participant_resolver.py`
+- [x] T5 — `uv run pytest tests/contract`
+- [x] T6 — `uv run pytest tests/unit tests/integration tests/contract tests/security tests/ui`
+- [x] T7 — `uv run pytest tests/integration/test_package.py`
+- [x] T14 — manual walkthrough of `examples/multi_agent/README.md`, and the FastAPI `/docs` check
+- [x] T15 — `cd docs && bun run docs:build`
+- [x] T16 — `uv run pre-commit run --all-files`
 
 ## Verification results
 
-_Not yet executed._
+Executed on 2026-10-13 against branch `loop/issue-36`. Every planned activity ran, and
+all pass.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 Unit | `uv run pytest tests/unit` | 632 passed. A mutation check confirms the ownership test fails without the queue check | [unit.md](evidence/unit.md) |
+| T2 Integration | `uv run pytest tests/integration/mount` | 14 passed (8 Starlette, 3 FastAPI, 3 five-agent) | [integration.md](evidence/integration.md) |
+| T3 Acceptance | `uv run pytest tests/integration/mount/test_multi_agent.py` | 3 passed: five agents delegating over HTTP in Starlette and FastAPI, a push to a's prefixed route, one pool connection | [acceptance.md](evidence/acceptance.md) |
+| T4 Security | `uv run pytest tests/security/test_multi_agent_isolation.py tests/security/test_participant_resolver.py` | 6 passed, one per abuse case 1–6 | [security.md](evidence/security.md) |
+| T5 Contract | `uv run pytest tests/contract` | 37 passed. Snapshots changed on purpose, agent card unchanged | [contract.md](evidence/contract.md) |
+| T6 Regression | `uv run pytest tests/unit tests/integration tests/contract tests/security tests/ui` | 902 passed (after fixing two bugs in the new tests, see evidence). One existing fixture moved its monkeypatch to the new seam | [regression.md](evidence/regression.md) |
+| T7 Packaging | `uv run pytest tests/integration/test_package.py` | 2 passed. Without the extra, the import names `tiny_harness[fastapi]` | [packaging.md](evidence/packaging.md) |
+| T11 Performance (narrow) | Asserted inside T1 (LRU: a known id is described once) and T3 (`open_connections() == 1`) | Pass | [unit.md](evidence/unit.md), [acceptance.md](evidence/acceptance.md) |
+| T13 Migration (narrow) | Inside T6 and T1 (`test_the_demo_configuration_loads_unchanged`, `test_no_agent_section_keeps_todays_id_and_queue`, default schedule id) | Pass | [regression.md](evidence/regression.md) |
+| T14 Manual | `examples/multi_agent` FastAPI variant with a real model | Pass, with two findings: the README did not say to unset `TEMPORAL_API_KEY` (fixed), and without naming the agent the model does not delegate, because remote agents are not in the system prompt (issue-34's scope) | [manual.md](evidence/manual.md), [screenshot](evidence/manual/openapi-docs.png) |
+| T15 Docs build | `cd docs && bun run docs:build` | Build complete | [static.md](evidence/static.md) |
+| T16 Static | `uv run pre-commit run --all-files` | All hooks pass | [static.md](evidence/static.md) |
+
+**Not executed:** none.
 
 ## Review comments
 

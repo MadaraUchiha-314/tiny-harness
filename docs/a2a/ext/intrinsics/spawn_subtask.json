@@ -24,7 +24,7 @@
           }
         ],
         "default": null,
-        "description": "A registered remote agent id, or null for this harness",
+        "description": "An agent id listed under `agents`, or null to run this step on this harness",
         "title": "Agent"
       },
       "goal": {

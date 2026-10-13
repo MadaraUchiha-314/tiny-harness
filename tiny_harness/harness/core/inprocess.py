@@ -140,7 +140,11 @@ class InProcessOperations:
         """Register the core intrinsics and the default ``in`` bodies; idempotent."""
         if self._bound:
             return
-        for tool in core_intrinsics(self.context):
+
+        def known_agents() -> frozenset[str]:  # read at call time (issue-34 R3)
+            return frozenset(ref.id for ref in self.registry.list(EntityKind.AGENT))
+
+        for tool in core_intrinsics(self.context, known_agents=known_agents):
             await self.registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         self.compactor.register_defaults()
         register_completion_default(self.hooks)

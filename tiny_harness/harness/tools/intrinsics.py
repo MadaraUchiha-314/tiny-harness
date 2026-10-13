@@ -66,7 +66,8 @@ class SpawnSubtaskArgs(_Args):
     goal: str
     acceptance_criteria: tuple[str, ...] = ()
     agent: str | None = Field(
-        default=None, description="A registered remote agent id, or null for this harness"
+        default=None,
+        description="An agent id listed under `agents`, or null to run this step on this harness",
     )
     step: str | None = Field(default=None, description="The step this sub-task is linked to")
 

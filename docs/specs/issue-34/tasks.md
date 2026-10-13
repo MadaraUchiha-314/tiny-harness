@@ -51,7 +51,7 @@ from the repository root.
   - _Requirements:_ R1.1, R1.4, R1.5, R1.7
   - _Test:_ T1 — `uv run pytest tests/unit/core -k agents` (red→green)
 
-- [ ] 3. `spawn_subtask` refuses an unknown agent (`core/intrinsics.py`, `core/inprocess.py`, `tools/intrinsics.py`)
+- [x] 3. `spawn_subtask` refuses an unknown agent (`core/intrinsics.py`, `core/inprocess.py`, `tools/intrinsics.py`)
   - `core_intrinsics(context, *, known_agents=…)`. In `bind()`, pass a callable that
     reads `registry.list(EntityKind.AGENT)`. Unknown or empty `agent` returns
     `ToolResult.error(…, "agent.unknown", …)` listing the valid ids, with no command.

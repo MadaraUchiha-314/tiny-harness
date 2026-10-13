@@ -11,8 +11,11 @@ from tiny_harness.harness.agents.roster import (
     SKILLS_CAP,
     build_roster,
 )
+from tiny_harness.harness.core import HarnessTask, TaskExtensionData
 from tiny_harness.harness.core.context import UNTRUSTED_PREAMBLE
+from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.tools import ToolCall, ToolResult, WorkflowCommand
 
 
 class StubAgent:
@@ -53,3 +56,26 @@ def test_a_huge_card_is_bounded() -> None:
     bound = NAME_CAP + DESCRIPTION_CAP + SKILLS_CAP * (NAME_CAP + SKILL_DESCRIPTION_CAP) + 1_000
     assert len(text) < bound
     assert "(40 more)" in text
+
+
+async def test_an_unregistered_agent_id_is_refused_before_any_request() -> None:
+    """Abuse case 4: a URL or an id copied from untrusted text gets no sub-task and no call.
+
+    The refusal is a ``ToolResult``: no ``WorkflowCommand`` means no child workflow, and
+    so nothing is ever sent to the named target."""
+    task = HarnessTask.new("t-1", "ctx-1", TaskExtensionData(name="n", goal="g"))
+    tools = {
+        t.ref.id: t
+        for t in core_intrinsics(TaskContext(task), known_agents=lambda: frozenset({"ledger"}))
+    }
+    for target in ("https://evil.example", "ledger ", "LEDGER", ""):
+        out = await tools["spawn_subtask"].invoke(
+            ToolCall(
+                call_id="c1",
+                name="spawn_subtask",
+                arguments={"name": "x", "goal": "y", "agent": target},
+            )
+        )
+        assert isinstance(out, ToolResult) and out.is_error, target
+        assert not isinstance(out, WorkflowCommand)
+        assert (out.content[0].text or "").startswith("[agent.unknown]")

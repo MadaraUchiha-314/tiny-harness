@@ -29,7 +29,7 @@ model ContextSection(name: <class 'str'>, stability: <enum 'Stability'>, never_c
 model ContextWindow(sections: tuple[tiny_harness.harness.core.context.ContextSection, ...], tools: tuple[tiny_harness.harness.tools.models.ToolDefinition, ...], input: tuple[InputItem, ...], estimated_tokens: <class 'int'>, chars: <class 'int'>, model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ...)
 class ContextWindowManager(object)
   def __init__(self, *, turn_budget_tokens: 'int' = 12000, compaction_fraction: 'float' = 0.75) -> 'None'
-  def assemble(self, *, task: 'HarnessTask', state: 'AgentState', system_prompt: 'str', skills_index: 'str', tools: 'Sequence[ToolDefinition]') -> 'ContextWindow'
+  def assemble(self, *, task: 'HarnessTask', state: 'AgentState', system_prompt: 'str', skills_index: 'str', tools: 'Sequence[ToolDefinition]', agents_roster: 'str' = '(no agents)') -> 'ContextWindow'
   def budget(self, model: 'LLMModelInfo') -> 'int'
   def over_budget(self, window: 'ContextWindow', model: 'LLMModelInfo') -> 'bool'
 class CoreLoop(object)
@@ -100,7 +100,7 @@ model ToolCallsExtractedPre(task_id: <class 'str'>, correlation_id: <class 'str'
 model ToolInvokedPost(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., call: <class 'tiny_harness.harness.tools.models.ToolCall'>, result: tiny_harness.harness.tools.models.ToolResult | tiny_harness.harness.tools.models.WorkflowCommand)
 model ToolInvokedPre(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., call: <class 'tiny_harness.harness.tools.models.ToolCall'>)
 def apply_to_task(task: 'HarnessTask', command: 'WorkflowCommand') -> 'HarnessTask'
-def core_intrinsics(context: 'TaskContext') -> 'tuple[Tool, ...]'
+def core_intrinsics(context: 'TaskContext', *, known_agents: 'Callable[[], Collection[str]]' = <class 'frozenset'>) -> 'tuple[Tool, ...]'
 def default_completion(unresolved: 'tuple[TaskRef, ...]') -> 'CompletionDecision'
 def estimate_tokens(chars: 'int', state: 'AgentState') -> 'int'
 def link_subtask(task: 'HarnessTask', ref: 'TaskRef', step_id: 'str | None') -> 'HarnessTask'

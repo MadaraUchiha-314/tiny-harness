@@ -9,7 +9,6 @@ queue, answers 503 before it starts without reaching Temporal, and masks b's sec
 from __future__ import annotations
 
 import asyncio
-import io
 import json
 import logging
 import uuid
@@ -21,20 +20,19 @@ from typing import cast
 
 import httpx
 import pytest
-from a2a.types import Task
+from a2a.types import Task, TaskState
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 
-from tests.integration.mount.conftest import agent_settings, env
+from tests.integration.mount.conftest import agent_settings, captured_json_logs, env
 from tiny_harness.errors import HarnessConflictError
 from tiny_harness.harness.models import FakeLLM, scripted
 from tiny_harness.harness.persistence import Filter, PushConfigRecord
 from tiny_harness.harness.security import MASK, PROCESS_SECRETS, Redactor
 from tiny_harness.service import Harness
 from tiny_harness.service.claims import PROCESS_CLAIMS
-from tiny_harness.service.o11y import configure_logging
 
 __all__ = ["env"]
 
@@ -91,7 +89,7 @@ async def a_task_on_b(pair: Pair) -> Task:
     task_id = response.json()["task"]["id"]
     for _ in range(200):
         current = await pair.b.client.get_workflow_handle(task_id).query("task", result_type=Task)
-        if current.status.state != 0:
+        if current.status.state == TaskState.TASK_STATE_INPUT_REQUIRED:  # b's turn is over
             return current
         await asyncio.sleep(0.05)
     raise AssertionError("b's task never started")
@@ -246,15 +244,14 @@ async def test_one_agents_log_masks_another_agents_key(
         Then both write the mask in its place
         And once b has stopped, its key is no longer registered
     """
-    stream = io.StringIO()
-    configure_logging(stream=stream, redactor=Redactor(registry=PROCESS_SECRETS))
-    async with two_agents(env, tmp_path) as pair:
-        b_key = pair.b.settings.openai.api_key
-        assert b_key is not None
-        secret = b_key.get_secret_value()
-        a_redactor = pair.a._activities.engine.runner.redactor  # pyright: ignore[reportPrivateUsage, reportOptionalMemberAccess]
-        assert a_redactor.scrub_text(f"key={secret}").count(secret) == 0
-        logging.getLogger("tiny_harness.test").info("agent a saw %s", secret)
+    with captured_json_logs(Redactor(registry=PROCESS_SECRETS)) as stream:
+        async with two_agents(env, tmp_path) as pair:
+            b_key = pair.b.settings.openai.api_key
+            assert b_key is not None
+            secret = b_key.get_secret_value()
+            a_redactor = pair.a._activities.engine.runner.redactor  # pyright: ignore[reportPrivateUsage, reportOptionalMemberAccess]
+            assert secret not in a_redactor.scrub_text(f"key={secret}")
+            logging.getLogger("tiny_harness.test").info("agent a saw %s", secret)
     assert secret not in stream.getvalue()
     assert MASK in stream.getvalue()
     assert secret not in PROCESS_SECRETS.values()[1]

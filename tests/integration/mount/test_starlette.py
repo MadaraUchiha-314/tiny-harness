@@ -7,7 +7,6 @@ served by the developer's own uvicorn, over the local Temporal dev server.
 
 from __future__ import annotations
 
-import io
 import json
 import socket
 from pathlib import Path
@@ -23,6 +22,7 @@ from temporalio.testing import WorkflowEnvironment
 from tests.integration.mount.conftest import (
     agent_settings,
     ask,
+    captured_json_logs,
     env,
     free_port,
     reply_text,
@@ -31,7 +31,6 @@ from tests.integration.mount.conftest import (
 from tiny_harness.harness.models import FakeLLM, scripted
 from tiny_harness.service import Harness, RouteOptions, harnesses_lifespan
 from tiny_harness.service.claims import PROCESS_CLAIMS
-from tiny_harness.service.o11y import configure_logging
 
 __all__ = ["env"]
 
@@ -240,8 +239,6 @@ async def test_each_log_line_names_the_agent_that_wrote_it(
         When a client asks each agent for a task it does not have
         Then each agent's log lines carry its own agent id
     """
-    stream = io.StringIO()
-    configure_logging(stream=stream)
     s = suffix()
     a = Harness(
         agent_settings(tmp_path, f"la-{s}", "http://h/agents/a"), client=env.client, llm=FakeLLM([])
@@ -252,16 +249,17 @@ async def test_each_log_line_names_the_agent_that_wrote_it(
     app = Starlette(
         routes=[Mount("/agents/a", app=a.asgi_app()), Mount("/agents/b", app=b.asgi_app())]
     )
-    async with (
-        a,
-        b,
-        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://h") as http,
-    ):
-        for name in ("a", "b"):
-            await http.get(
-                f"/agents/{name}/tasks/missing-{name}",
-                headers={"X-Participant-Id": "alice", "A2A-Version": "1.0"},
-            )
+    with captured_json_logs() as stream:
+        async with (
+            a,
+            b,
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://h") as http,
+        ):
+            for name in ("a", "b"):
+                await http.get(
+                    f"/agents/{name}/tasks/missing-{name}",
+                    headers={"X-Participant-Id": "alice", "A2A-Version": "1.0"},
+                )
     lines = [json.loads(line) for line in stream.getvalue().splitlines() if line.strip()]
     for name, agent in (("a", a.agent_id), ("b", b.agent_id)):
         mine = [line for line in lines if f"missing-{name}" in json.dumps(line)]

@@ -5,9 +5,11 @@ real socket; ``httpx.ASGITransport`` buffers server-sent events), and an A2A cli
 from __future__ import annotations
 
 import asyncio
+import io
+import logging
 import uuid
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 
 import httpx
@@ -18,6 +20,8 @@ from starlette.types import ASGIApp
 
 from tests.integration.durable.conftest import env
 from tiny_harness.config import Settings
+from tiny_harness.harness.security import Redactor
+from tiny_harness.service.o11y import JsonFormatter
 
 ENV = {"OPENAI_API_KEY": "sk-test-not-used"}
 
@@ -61,6 +65,24 @@ sqlite_path = "{tmp_path / agent_id}.sqlite3"
 """
     )
     return Settings.load(path, env={**ENV, "OPENAI_API_KEY": openai_key})
+
+
+@contextmanager
+def captured_json_logs(redactor: Redactor | None = None) -> Generator[io.StringIO]:
+    """The harness's JSON log lines, in a handler of this test's own: ``configure_logging``
+    keeps the first stream it was given, so a test cannot rely on it to capture."""
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(JsonFormatter(redactor))
+    logger = logging.getLogger("tiny_harness")
+    previous = logger.level
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    try:
+        yield stream
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(previous)
 
 
 def free_port() -> int:
@@ -124,4 +146,14 @@ def reply_text(task: Task) -> str:
     return "\n".join(p.text for p in task.status.message.parts if p.text)
 
 
-__all__ = ["ENV", "agent_settings", "ask", "env", "free_port", "reply_text", "serving", "state"]
+__all__ = [
+    "ENV",
+    "agent_settings",
+    "ask",
+    "captured_json_logs",
+    "env",
+    "free_port",
+    "reply_text",
+    "serving",
+    "state",
+]

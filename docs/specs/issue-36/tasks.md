@@ -60,7 +60,7 @@ five-agent acceptance and the docs.
   - _Test:_ T1 `tests/unit/service/test_pool.py` (shared per key, the last release
     closes, no API key in the key, over a fake connector); T6 the `tests/integration/embedded`
     suite unchanged
-- [ ] 5. `SecretRegistry` in every redactor
+- [x] 5. `SecretRegistry` in every redactor
   - Add a process-wide registry with a version counter.
   - `Redactor(registry=…)` rebuilds its values when the version changes.
   - The service's redactors (runtime, `observe`) use `PROCESS_SECRETS`.

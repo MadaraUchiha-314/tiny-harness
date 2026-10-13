@@ -27,7 +27,7 @@ from tiny_harness.config import Settings
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
 from tiny_harness.harness.models import ModelCatalog
 from tiny_harness.harness.plugins import Plugin
-from tiny_harness.harness.security import Redactor
+from tiny_harness.harness.security import PROCESS_SECRETS, Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a import (
     HarnessExecutor,
@@ -69,7 +69,9 @@ def observe(settings: Settings, *, stream: TextIO | None = None) -> None:
 
     level = logging.getLevelNamesMapping().get(settings.o11y.log_level.upper(), logging.INFO)
     configure_logging(
-        level=level, redactor=Redactor(secrets=secret_values(settings)), stream=stream
+        level=level,
+        redactor=Redactor(secrets=secret_values(settings), registry=PROCESS_SECRETS),
+        stream=stream,
     )
     configure_tracing(settings.o11y, service_name=settings.o11y.service_name)
 

@@ -28,7 +28,7 @@ from tiny_harness.harness.plugins import LoadReport, McpStdioServer, Plugin, Plu
 from tiny_harness.harness.plugins.loader import prepare_stdio
 from tiny_harness.harness.plugins.registrar import RegistryRegistrar
 from tiny_harness.harness.prompts.entity import SYSTEM_PROMPT_ID, PromptEntity, SystemPrompt
-from tiny_harness.harness.security import Redactor
+from tiny_harness.harness.security import PROCESS_SECRETS, Redactor
 from tiny_harness.harness.skills.loader import skills_index
 from tiny_harness.harness.tools.mcp import McpToolSource, ServerSpec
 from tiny_harness.harness.tools.skill_tools import SkillSession, skill_tools
@@ -147,7 +147,7 @@ async def build_runtime(
     loader = PluginLoader(
         hook_manager=hooks, registrar=registrar, data_root=root, commands=registered
     )
-    redactor = Redactor(secrets=secret_values(settings))
+    redactor = Redactor(secrets=secret_values(settings), registry=PROCESS_SECRETS)
     o11y_executor.redactor = redactor  # the plugin's one hook scrubs with the real secrets
     reports.append(await loader.load(o11y_plugin()))
     for path in settings.plugins:

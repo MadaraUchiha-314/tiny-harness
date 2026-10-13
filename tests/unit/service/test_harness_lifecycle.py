@@ -147,3 +147,31 @@ async def test_the_claim_uses_the_namespace_of_the_callers_client(
             await Harness(settings(tmp_path), client=client).__aenter__()
     finally:
         PROCESS_CLAIMS.release(held)
+
+
+async def test_a_dropped_harness_with_the_same_url_does_not_hide_a_live_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Self-review round 2, finding 2: the local card registry keeps every live harness."""
+    import gc
+
+    seen: dict[str, object] = {}
+
+    async def recording_runtime(*args: object, **kwargs: object) -> None:
+        seen.update(kwargs.get("local_cards") or {})  # type: ignore[arg-type]
+        raise Boom("stop here")
+
+    monkeypatch.setattr(harness_module, "build_runtime", recording_runtime)
+    peer = Harness(
+        settings(tmp_path, agent="b", base_url="http://h/agents/b"),
+        client=cast(Client, NamespacedClient()),
+    )
+    Harness(  # a throwaway with the same URL, dropped at once
+        settings(tmp_path, agent="b2", base_url="http://h/agents/b"),
+        client=cast(Client, NamespacedClient()),
+    )
+    gc.collect()
+    with pytest.raises(Boom):
+        await Harness(settings(tmp_path), client=cast(Client, NamespacedClient())).__aenter__()
+    assert "http://h/agents/b" in seen
+    assert peer.public_url == "http://h/agents/b"

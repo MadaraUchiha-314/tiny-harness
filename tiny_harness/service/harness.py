@@ -87,10 +87,11 @@ from tiny_harness.service.runtime import (
 
 log = logging.getLogger("tiny_harness.harness")
 
-_LOCAL_HARNESSES: weakref.WeakValueDictionary[str, Harness] = weakref.WeakValueDictionary()
-"""Every harness built in this process, by public URL: a harness whose ``[[agents]]`` names
-another one's URL gets that agent's card unfetched, since neither is listening while the
-host app starts (issue-36 R6.1)."""
+_LOCAL_HARNESSES: weakref.WeakSet[Harness] = weakref.WeakSet()
+"""Every harness built in this process. A harness whose ``[[agents]]`` names another one's
+public URL gets that agent's card unfetched, since neither is listening while the host app
+starts (issue-36 R6.1). A set, not a map by URL: a later harness with the same URL must not
+push a live one out (self-review 2, #2); ``Claims`` refuses two running with one URL."""
 
 Lifespan = Callable[[object], AbstractAsyncContextManager[None]]
 
@@ -148,7 +149,7 @@ class Harness:
         self._handler = DeferredRequestHandler()
         self._groups: RouteGroups | None = None
         self._app: HarnessApp | None = None
-        _LOCAL_HARNESSES[self._public_url] = self
+        _LOCAL_HARNESSES.add(self)
 
     # --- identity ------------------------------------------------------------------------
 
@@ -288,6 +289,7 @@ class Harness:
             ),
             task_queue=queue,
             store_path=settings.store.sqlite_path,
+            public_url=self._public_url,
         )
         PROCESS_CLAIMS.claim(claim)  # R5.3, R5.8: before anything connects
         stack.callback(PROCESS_CLAIMS.release, claim)
@@ -310,9 +312,9 @@ class Harness:
             public_url=self._public_url,
             description=self.description,
             local_cards={
-                url: peer.unstarted_card()
-                for url, peer in list(_LOCAL_HARNESSES.items())
-                if peer is not self
+                peer.public_url: peer.unstarted_card()
+                for peer in list(_LOCAL_HARNESSES)
+                if peer is not self and peer._state != "stopped"
             },
         )
         push_store = StorePushConfigStore(runtime.store)

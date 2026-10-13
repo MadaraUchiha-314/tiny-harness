@@ -92,3 +92,13 @@ def test_concurrent_claims_of_one_id_admit_one(tmp_path: Path) -> None:
     for thread in threads:
         thread.join()
     assert len(won) == 1
+
+
+def test_two_harnesses_cannot_share_a_public_url(tmp_path: Path) -> None:
+    """Self-review round 2, finding 2."""
+    claims = Claims()
+    url = "http://h/agents/a"
+    claims.claim(Claim("a", "default", "a", tmp_path / "a.sqlite3", public_url=url))
+    with pytest.raises(HarnessConflictError) as caught:
+        claims.claim(Claim("b", "default", "b", tmp_path / "b.sqlite3", public_url=url))
+    assert "public URL" in caught.value.message

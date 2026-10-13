@@ -1,8 +1,9 @@
 """``Claims`` (issue-36 R5.3, R5.8): what one process's running harnesses hold.
 
-Two harnesses with the same agent id, the same Temporal namespace and task queue, or the
-same store file would run each other's tasks or read each other's records. A harness claims
-all three before it connects to anything, so a clash stops it before a worker polls
+Two harnesses with the same agent id, the same Temporal namespace and task queue, the same
+store file, or the same public URL would run each other's tasks, read each other's records
+or hand out each other's card. A harness claims all four before it connects to anything,
+so a clash stops it before a worker polls
 (abuse case 4). The registry covers one process; the deploy guide asks operators not to give
 two processes one agent id.
 """
@@ -22,6 +23,7 @@ class Claim:
     namespace: str
     task_queue: str
     store_path: Path
+    public_url: str = ""  # where the agent is served; two harnesses cannot share it
     resolved_store: Path = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -65,6 +67,8 @@ def _clash(holder: Claim, wanted: Claim) -> str:
         return f"task queue {wanted.task_queue!r} in namespace {wanted.namespace!r}"
     if holder.resolved_store == wanted.resolved_store:
         return f"store file {wanted.resolved_store}"
+    if wanted.public_url and holder.public_url == wanted.public_url:
+        return f"public URL {wanted.public_url}"
     return ""
 
 

@@ -114,23 +114,29 @@ hostnames beyond `127.0.0.1`).
 
 ## Verification activities
 
-- [ ] T1 — `uv run pytest tests/unit`
-- [ ] T2 — `uv run pytest tests/integration/agents` and
+- [x] T1 — `uv run pytest tests/unit`
+- [x] T2 — `uv run pytest tests/integration/agents` and
   `the-loop scenarios --root "$PWD" --glob 'tests/integration/agents/*.py' --format markdown`
-- [ ] T3 — `uv run pytest tests/contract`
-- [ ] T8 — `uv run pytest tests/security`
-- [ ] T11 — the manual procedure in Verification environment, with a real model
-- [ ] CI parity — `uv run pre-commit run --all-files` and `uv run pytest tests/integration`
+- [x] T3 — `uv run pytest tests/contract`
+- [x] T8 — `uv run pytest tests/security`
+- [x] T11 — the manual procedure in Verification environment, with a real model
+- [x] CI parity — `uv run pre-commit run --all-files` and `uv run pytest tests/integration`
 
 ## Verification results
 
-_Not yet executed._
+All six activities ran and passed. Nothing was skipped.
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 Unit | `uv run pytest tests/unit` | 571 passed | [unit.md](evidence/unit.md) |
+| T2 Integration | `uv run pytest tests/integration/agents -v`; `the-loop scenarios … --format markdown` | 20 passed, including the 6 issue-34 scenarios on both engines | [integration.md](evidence/integration.md) |
+| T3 Contract | `uv run pytest tests/contract` | 36 passed. `spawn_subtask.json` and the core API snapshot changed on purpose (diffs in the evidence) | [contract.md](evidence/contract.md) |
+| T8 Security | `uv run pytest tests/security` | 83 passed. One test per abuse case 1–4, plus the end-to-end hostile-card scenario | [security.md](evidence/security.md) |
+| T11 Manual | Two local agents and `gpt-6.1-sol`, per Verification environment | Pass. The model delegated to `ledger` unprompted with a self-contained goal, and answered the user with the agent's result | [manual-delegation.md](evidence/manual-delegation.md) |
+| CI parity | `uv run pre-commit run --all-files`; `uv run pytest tests/integration` | All hooks passed; 111 passed | [ci-parity.md](evidence/ci-parity.md) |
 
-**Not executed:** none yet.
+**Not executed:** none. In T11, the first attempt failed in the stand-in agent B, not in
+tiny-harness. B was fixed and the run repeated (details in the evidence).
 
 ## Review comments
 

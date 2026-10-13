@@ -1,11 +1,11 @@
 """The context window manager (R4.3, R6.5, R10.2, R10.3).
 
 Every LLM context is assembled from templated positions in a declared order, grouped by
-stability: the ``STATIC`` sections (system prompt, participants, skills index) and the
-tool definitions form the cached prefix and go in ``instructions``; ``PER_TASK`` sections
-(task, plan) and ``PER_TURN`` sections (state summary, history, tool results) go in the
-input. Tool results and other untrusted content are rendered inside a delimited block
-with a fixed preamble that they are data, never instructions.
+stability: the ``STATIC`` sections (system prompt, participants, agents roster, skills
+index) and the tool definitions form the cached prefix and go in ``instructions``;
+``PER_TASK`` sections (task, plan) and ``PER_TURN`` sections (state summary, history,
+tool results) go in the input. Tool results and other untrusted content are rendered
+inside a delimited block with a fixed preamble that they are data, never instructions.
 """
 
 from __future__ import annotations

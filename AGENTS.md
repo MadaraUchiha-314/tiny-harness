@@ -20,6 +20,14 @@ harness.
 Explicit user instructions and the work item's frozen phase selection govern scope and
 approvals.
 
+## Writing documentation
+
+User and developer documentation (`README.md`, `docs/cli/`, `docs/sdk/`,
+`docs/configuration/`, `docs/develop/`) follows the project skill
+[`.agents/skills/docs-writing/SKILL.md`](.agents/skills/docs-writing/SKILL.md): two
+personas (CLI user, SDK user), quickstart first, and Simplified Technical English. Read
+it before you change those pages.
+
 ## Where things live
 
 | Path | What it holds |

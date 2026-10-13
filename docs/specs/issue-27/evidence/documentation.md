@@ -12,5 +12,5 @@
 
 | Doc | What changed |
 |-----|--------------|
-| [docs/guide/deployment.md](../../../guide/deployment.md) | The `agents` row names `updates` and `follow_interval`. The `[server]` row says `base_url` is where remote agents push, so it must be reachable from them. |
+| [docs/guide/deployment.md](../../../sdk/deploy.md) | The `agents` row names `updates` and `follow_interval`. The `[server]` row says `base_url` is where remote agents push, so it must be reachable from them. |
 | `README.md` | Unchanged. It names "a client for remote agents" without describing the watch, and nothing it says became wrong. |

@@ -8,7 +8,7 @@
 #
 # Publishing uses PyPI Trusted Publishing (GitHub OIDC) — no stored token. PyPI trusts
 # exactly: repository MadaraUchiha-314/tiny-harness, workflow release.yml, environment pypi.
-# See docs/guide/releasing.md.
+# See docs/develop/releasing.md.
 name: Release
 
 on:

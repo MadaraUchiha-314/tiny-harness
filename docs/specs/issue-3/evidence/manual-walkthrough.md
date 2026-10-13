@@ -6,7 +6,7 @@ until the owner's notes are recorded here.
 
 ## Procedure
 
-1. Bring-up, as in the [getting started](../../../guide/getting-started.md) guide:
+1. Bring-up, as in the [getting started](../../../sdk/example.md) guide:
    export the three variables (`TEMPORAL_API_KEY`, `OPENAI_API_KEY` from the keyring,
    `TINY_HARNESS_PUSH_KEY` generated), build the web renderer, run
    `uv run python -m examples.demo`, and open `http://127.0.0.1:8080/ui/` and

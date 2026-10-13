@@ -6,7 +6,7 @@
 
 The toolchain every change to tiny-harness passes through. The pre-commit hooks define the
 checks; CI and the release workflow run the same hooks. The how-to lives in the
-[guide](../guide/local-development); this page states the behaviour.
+[guide](../develop/); this page states the behaviour.
 
 ## Current behaviour
 

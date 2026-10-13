@@ -1772,7 +1772,13 @@ class RemoteTaskWorkflow:
                 except ActivityError:
                     # Keep the last state (fail closed); a recheck still due tries again, and
                     # the next push does after the last one.
-                    if self._recheck_delay() is None:
+                    active = self.last.state_name in ("SUBMITTED", "WORKING")
+                    if self.recheck is None and active:
+                        # A new stand-in's child may already have parked, and no push will
+                        # tell of it again: retry the fetch on the bounded rechecks
+                        # (issue-34 R7.2).
+                        self.recheck = 0
+                    elif self._recheck_delay() is None:
                         self.recheck, self.claimed = None, ""
                     continue
                 if await self._apply(out) and out.final:

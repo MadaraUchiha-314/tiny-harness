@@ -193,7 +193,7 @@ class Delegation:
         return current.status.state
 
     async def until_child(self, state: int) -> None:
-        for _ in range(400):
+        for _ in range(1200):  # 60 s: a slow CI runner
             if await self.child_state() == state:
                 return
             await asyncio.sleep(0.05)

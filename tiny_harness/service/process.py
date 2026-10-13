@@ -194,7 +194,12 @@ async def running_harness(
                 task_queue=settings.temporal.effective_task_queue,
             )
             await stack.enter_async_context(
-                build_worker(client, activities, task_queue=settings.temporal.effective_task_queue)
+                build_worker(
+                    client,
+                    activities,
+                    task_queue=settings.temporal.effective_task_queue,
+                    agent_id=settings.agent.id,
+                )
             )
         host, port = bind_address(settings)
         server = uvicorn.Server(

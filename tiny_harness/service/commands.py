@@ -56,7 +56,10 @@ async def worker(settings: Settings) -> int:
             file=sys.stderr,
         )
         async with build_worker(
-            client, activities, task_queue=settings.temporal.effective_task_queue
+            client,
+            activities,
+            task_queue=settings.temporal.effective_task_queue,
+            agent_id=settings.agent.id,
         ):
             await asyncio.Event().wait()
     return 0

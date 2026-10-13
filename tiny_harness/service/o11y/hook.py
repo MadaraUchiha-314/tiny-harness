@@ -29,6 +29,7 @@ from tiny_harness.harness.hooks import HookContext, HookPoint, Operation, Phase
 from tiny_harness.harness.security import Redactor
 from tiny_harness.harness.tools import ToolResult
 from tiny_harness.service.durable.models import ActivityFailedPre, ActivityRetriedPre
+from tiny_harness.service.o11y.logging import CURRENT_AGENT
 
 log = logging.getLogger("tiny_harness.o11y")
 AGENT_NAME = "tiny-harness"
@@ -143,6 +144,9 @@ class O11yExecutor:
             "tiny_harness.operation": point.operation.value,
             "tiny_harness.attempt": ctx.attempt,
         }
+        agent = CURRENT_AGENT.get()
+        if agent is not None:
+            attributes["tiny_harness.agent"] = agent
         kind = SpanKind.INTERNAL
         if isinstance(ctx, LLMInvokedPre):
             attributes["gen_ai.operation.name"] = "chat"

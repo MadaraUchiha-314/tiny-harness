@@ -10,7 +10,13 @@ from temporalio.api.operatorservice.v1 import AddSearchAttributesRequest
 from temporalio.client import Client
 from temporalio.common import SearchAttributeKey
 from temporalio.contrib.opentelemetry import TracingInterceptor
-from temporalio.worker import Replayer, Worker
+from temporalio.worker import (
+    ActivityInboundInterceptor,
+    ExecuteActivityInput,
+    Interceptor,
+    Replayer,
+    Worker,
+)
 from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner, SandboxRestrictions
 
 from tiny_harness.service.durable.activities import Activities
@@ -19,6 +25,7 @@ from tiny_harness.service.durable.workflows import (
     RemoteTaskWorkflow,
     TaskWorkflow,
 )
+from tiny_harness.service.o11y.logging import CURRENT_AGENT
 
 A2A_CONTEXT_ID = SearchAttributeKey.for_keyword("A2AContextId")
 A2A_TASK_STATE = SearchAttributeKey.for_keyword("A2ATaskState")
@@ -73,6 +80,30 @@ def build_replayer() -> Replayer:
     return Replayer(workflows=list(WORKFLOWS), workflow_runner=workflow_runner())
 
 
+class AgentContextInterceptor(Interceptor):
+    """Sets ``CURRENT_AGENT`` for every activity this worker runs (issue-36 NFR
+    observability): the activity's log lines and spans name their agent."""
+
+    def __init__(self, agent_id: str) -> None:
+        self.agent_id = agent_id
+
+    def intercept_activity(self, next: ActivityInboundInterceptor) -> ActivityInboundInterceptor:
+        return _AgentActivityInbound(next, self.agent_id)
+
+
+class _AgentActivityInbound(ActivityInboundInterceptor):
+    def __init__(self, next: ActivityInboundInterceptor, agent_id: str) -> None:
+        super().__init__(next)
+        self._agent_id = agent_id
+
+    async def execute_activity(self, input: ExecuteActivityInput) -> object:
+        token = CURRENT_AGENT.set(self._agent_id)
+        try:
+            return await super().execute_activity(input)
+        finally:
+            CURRENT_AGENT.reset(token)
+
+
 def build_worker(
     client: Client,
     activities: Activities,
@@ -80,6 +111,7 @@ def build_worker(
     task_queue: str,
     tracing: bool = True,
     max_cached_workflows: int = 1000,
+    agent_id: str | None = None,
 ) -> Worker:
     """The worker; ``tracing`` adds Temporal's OpenTelemetry interceptor (R17.4).
 
@@ -88,13 +120,16 @@ def build_worker(
     a second one would emit every Start/Run activity span twice.
     """
     traced = any(isinstance(i, TracingInterceptor) for i in client.config()["interceptors"])
+    interceptors: list[Interceptor] = [TracingInterceptor()] if tracing and not traced else []
+    if agent_id is not None:
+        interceptors.append(AgentContextInterceptor(agent_id))
     return Worker(
         client,
         task_queue=task_queue,
         workflows=list(WORKFLOWS),
         activities=list(activities.all()),
         workflow_runner=workflow_runner(),
-        interceptors=[TracingInterceptor()] if tracing and not traced else [],
+        interceptors=interceptors,
         # 0 turns sticky execution off, so another worker answers a query at once.
         max_cached_workflows=max_cached_workflows,
     )
@@ -107,6 +142,7 @@ __all__ = [
     "SEARCH_ATTRIBUTES",
     "TINY_HARNESS_AGENT",
     "WORKFLOWS",
+    "AgentContextInterceptor",
     "build_replayer",
     "build_worker",
     "ensure_search_attributes",

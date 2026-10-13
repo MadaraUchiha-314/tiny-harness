@@ -67,7 +67,7 @@ five-agent acceptance and the docs.
   - _Depends on:_ none
   - _Requirements:_ abuse case 6
   - _Test:_ T1 `tests/unit/test_redactor_registry.py`; T4 `tests/security/test_multi_agent_isolation.py::test_one_agents_log_masks_another_agents_key`
-- [ ] 6. The agent on every log line and span
+- [x] 6. The agent on every log line and span
   - Add the `current_agent` context variable and the `"agent"` field in
     `JsonFormatter`.
   - Add `AgentContextInterceptor` on the worker, and the `tiny_harness.agent` span

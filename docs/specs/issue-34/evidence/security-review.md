@@ -29,6 +29,10 @@ workItem: issue-34
 - **Negative tests:** abuse cases 1–4 in `tests/security/test_agent_roster.py`, and the
   end-to-end hostile-card scenario in `tests/integration/agents/test_agents_roster.py`
   ([security.md](security.md)).
+- **Code after the review:** two critic fixes landed after this review. `71c1545`
+  refuses an empty `agent` even when registered, and `433f694` keeps one truncation
+  record per skill field. Both only tighten behaviour, and neither adds an input, a
+  sink or a boundary, so the verdict stands.
 - **Risk tier:** 3. Inferred: the change touches the model's instructions but no
   sensitive path (no `*schema*`, `.the-loop/`, workflows, auth, secret or credential
   path). Tier 3 waits for a human approval of the PR.

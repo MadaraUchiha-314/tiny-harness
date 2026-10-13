@@ -788,8 +788,15 @@ class TaskWorkflow:
         if runner.done():
             return True
         runner.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
+        try:
             await runner
+        except asyncio.CancelledError:
+            pass
+        except ActivityError as exc:
+            # An activity the turn awaited directly (an event's delivery) reports the cut as
+            # its own cancellation: that is the cut, not a failure of the task.
+            if not isinstance(exc.cause, CancelledError):
+                raise
         if self.command_run is not None:  # finish the command the cut interrupted (A1)
             await self.command_run
             self.command_run = None

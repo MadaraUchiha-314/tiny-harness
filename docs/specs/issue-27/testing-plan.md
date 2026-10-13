@@ -17,8 +17,8 @@ overrides: {}
 > `tasks.md`. Authored at `test-planning`, completed at `verification`.
 >
 > **This file is executable content.** It names commands an agent will run; review it
-> like code. No credential is needed: every test runs offline over fakes and Temporal's
-> test server.
+> like code. No credential is needed: every test runs offline over fakes and a local
+> Temporal dev server.
 
 The work is proved in four layers:
 
@@ -34,7 +34,7 @@ The other rows are `n/a`, each with its reason.
 | # | Type | Applies? | Scope / what it proves | Where it runs |
 |---|------|----------|------------------------|---------------|
 | T1 | Unit | yes | `push_url` (encoding, base with and without a trailing slash); `token_digest`; `remote_out` (awaiting-next-message → COMPLETED, final flags); `RemoteAgentSpec.updates` / `follow_interval` validation; `PushReceiver` refusal ordering (413, 401 without a Temporal call, 400, 401 on update failure, 204) over a fake Temporal client | `uv run pytest tests/unit` |
-| T2 | Integration (scenario) | yes | Over Temporal's test server, Gherkin-documented: push registration, a third-party cancel or complete heard through push, the same through follow, `off` keeps today's behaviour, cleanup on end and on cancel, a reply cancels the follow, the parent's row and note | `uv run pytest tests/integration/agents` |
+| T2 | Integration (scenario) | yes | Over a local Temporal dev server, Gherkin-documented: push registration, a third-party cancel or complete heard through push, the same through follow, `off` keeps today's behaviour, cleanup on end and on cancel, a reply cancels the follow, the parent's row and note | `uv run pytest tests/integration/agents` |
 | T3 | Contract | yes | `tests/contract/snapshots/settings.schema.json` gains `updates` and `follow_interval`. The public-API snapshots (`tiny_harness.config`, `service`) are updated deliberately, and nothing else changes. | `uv run pytest tests/contract` |
 | T4 | End-to-end | n/a: the e2e demos use one harness with no remote agent, and the scenario needs two harnesses and a third party. T2 runs the full HTTP route (SDK push sender → `LimitsMiddleware` → endpoint → Temporal update) in-process, which is what e2e would add. | | |
 | T5 | UI / visual | n/a: no renderer changes. The parent's sub-task row already renders any state the TUI and web renderers receive (issue-25). | | |
@@ -70,8 +70,10 @@ The other rows are `n/a`, each with its reason.
 - **Repository:** this one, branch `loop/issue-27`. There is a single repository
   (`the-loop graph repos issue-27` declares none).
 - **Runtime:** Python 3.14 via `uv`; `uv sync` installs the locked dependencies.
-- **Temporal:** the time-skipping test server that `temporalio.testing` downloads into
-  `~/.cache/temporalio`. No network access is needed after the first download.
+- **Temporal:** the local dev server (`WorkflowEnvironment.start_local`) that
+  `temporalio.testing` downloads into `~/.cache/temporalio`. No network access is needed
+  after the first download. This was the time-skipping test server until review; see
+  Verification results.
 - **Services:** none outside the process. Both harnesses run in-process, over
   `httpx.ASGITransport`.
 - **Credentials:** none.
@@ -131,3 +133,21 @@ What verification changed in the spec. Three findings from the tests went back i
 
 The "no history" wording was also corrected: a rejected update can leave an empty
 workflow task, but never an update or an activity.
+
+**CI hang, found at review (PR comment).** The integration job ran for 20+ minutes. The
+cause predates this work item: `tests/integration/durable/test_complete.py::test_a_sub_task_note_survives_a_cut_turn_and_a_rollover`
+hung or failed about 1 run in 20. Temporal's **time-skipping test server** loses a query,
+or stops delivering the workflow's tasks, when one races a continue-as-new. The worker
+logged "Task not found when completing … workflow execution already completed".
+
+- On the time-skipping server, a non-sticky worker made it worse (11 of 40 failed).
+- On the local dev server it failed 0 of 40.
+
+What changed in the test setup:
+
+- The shared fixture now starts the dev server. No test skips time.
+- `pytest-timeout` fails any test past 120 s, by name. The slowest offline test takes
+  about 11 s. e2e tests opt out.
+- The dev server exposed a latent race in `test_sub_task_creates_a_linked_conversation_task_and_replies_with_its_id`,
+  which asserted the reply in the same snapshot as the child's link. It now waits for
+  both.

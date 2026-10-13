@@ -37,7 +37,7 @@ cause one extra `GetTask` and nothing else. **The token never enters workflow hi
 The registering activity generates it, hands it to the remote agent, and returns only its
 SHA-256 digest. The endpoint hashes the presented token, and the update's **validator**
 compares digests with `hmac.compare_digest`. Temporal records no update for a rejected
-one. At most an empty workflow task is left: Temporal's test server persists it, while
+one. At most an empty workflow task is left: Temporal's time-skipping test server persists it, while
 servers with speculative workflow tasks drop it. A refused push therefore runs no
 activity and changes no state.
 
@@ -362,7 +362,7 @@ The full matrix is in [`testing-plan.md`](testing-plan.md). In short:
 
 - **Unit:** `push_url`, `token_digest`, `remote_out`, the config validators and the
   receiver's refusal ordering, against a fake client.
-- **Integration:** two in-process harnesses on Temporal's test server. The remote
+- **Integration:** two in-process harnesses on a local Temporal dev server. The remote
   harness's push sender is pointed at the local app over `httpx.ASGITransport`, so a real
   push travels the real route.
 - **Security:** one negative test per abuse case.

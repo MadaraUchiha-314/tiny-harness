@@ -106,7 +106,7 @@ tiny_harness/         the package: interaction/, service/, harness/, builtin/, c
 renderers/web/        the web renderer (Vite, React 19, TypeScript)
 examples/demo/        the demo plugin and configuration
 tests/unit            per entity, run by the pre-commit hook
-tests/integration     per layer boundary, Temporal's time-skipping test server; run in CI
+tests/integration     per layer boundary, a local Temporal dev server; run in CI
 tests/contract        public API snapshots, the agent card, the extension schemas
 tests/security        one negative test per abuse case
 tests/ui              TUI snapshots and keys

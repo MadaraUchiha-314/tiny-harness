@@ -15,3 +15,4 @@ feedback. Each entry links a detailed record (`learning-<nnn>.md`).
 | [008](learning-008.md) | VitePress parses angle brackets in a code span that wraps lines | system-feedback | 2026-10-10 |
 | [009](learning-009.md) | An A2A push can outrun the agent's own task record | system-feedback | 2026-10-12 |
 | [010](learning-010.md) | The A2A SDK logs request bodies and span errors where no redactor reaches | system-feedback | 2026-10-12 |
+| [011](learning-011.md) | Temporal's time-skipping test server mishandles a query racing a continue-as-new | user-feedback | 2026-10-12 |

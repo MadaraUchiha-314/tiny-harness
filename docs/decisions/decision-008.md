@@ -46,7 +46,7 @@ the token is never persisted in clear text.
   it cannot change state.
 - Each push costs one round trip to the remote agent.
 - Rejected pushes can still leave empty workflow tasks on Temporal versions without
-  speculative workflow tasks. The test server is one of them.
+  speculative workflow tasks. Temporal's time-skipping test server is one of them.
 - Response timing may differ between an unknown task id and a wrong token. Task ids are
   not secret.
 

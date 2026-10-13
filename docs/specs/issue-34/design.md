@@ -316,25 +316,47 @@ rule below:
   start). The executor removes the envelope part from the first message once it has
   built the extension, so intake does not apply it a second time.
 
-**Trust rule (decision needed):** a new `[server] delegators` list names the participant
-ids trusted to create a task that names other participants, sets `lifecycle`, or sets
-`model`/`reasoning_effort`. Default: this server's own agent id, so the harness's own
-stand-ins can create every kind of child and nobody else gains anything. Any other
-sender is refused whole (abuse case 5), as today. Existing tasks keep today's rules
-(abuse case 7).
+**Trust rule (implemented as proposed, open to the reviewer's choice):** a new
+`[server] delegators` list names the participant ids trusted to set `lifecycle`, `model`
+and `reasoning_effort` on the first message of a new task. This server's own agent id is
+always one, so the harness's own stand-ins can brief every kind of child and nobody else
+gains anything; an operator may add a trusted peer. Any other sender setting one of them
+is refused whole (abuse case 5), as today. Naming participants on a new task was already
+open to any creator and is unchanged. Existing tasks keep today's rules (abuse case 7).
+
+The parent sends the **full brief** (`lifecycle: delegated`, its `model` and
+`reasoning_effort`, `parent_tasks`) to `self` only; another agent gets the open fields
+(name, goal, description, criteria), so a peer that does not trust this harness still
+creates the task. Such a peer's conversation is read as done when it parks awaiting its
+next message, as before.
 
 #### The stand-in (one workflow for every child)
 
-- First turn: `SendMessage` non-blocking returns the task; the stand-in signals the
-  parent `child_done` with `started` and the A2A task id, then watches as today (push or
-  follow). A reply in its inbox is sent the same way.
+- The parent creates the child in a `start_agent_task` activity: `SendMessage`, read until
+  the agent has the task **past `SUBMITTED`** (leaving earlier can abandon a request the
+  agent has not acted on), then hang up. It starts the stand-in already knowing the A2A
+  task id, so the row names that task from the start (R7.4); the stand-in registers its
+  watch (push or follow) and follows the task from there. A task still `WORKING` is
+  followed even when the agent's `updates` is `off`. A creation that fails, or a child
+  that ended in its first answer, is resolved at once with a note, never a stuck row.
+- Every stream the harness opens on an agent is closed on every exit (an early `break`
+  hangs up), so no agent is left streaming to nobody.
+- A follow skips the history that `SubscribeToTask` may replay after its first snapshot
+  (by the status timestamp): a replayed `WORKING` is not a change, or the stand-in would
+  flip back to a state the task has left. This was latent: the tests' ASGI transport
+  buffered a stream until it ended, so a follow only ever saw terminal states. The tests
+  now use a streaming in-process transport (`tests/integration/streaming_asgi.py`).
+- A delegated parent does not complete while a sub-task's result is still to be read:
+  `decide_completion` waits one turn so the model reads it (R7.5). Before, a child that
+  ended during the parent's last turn could be resolved without its answer being seen.
 - `delegated` requested: a peer parked in `INPUT_REQUIRED(awaiting-next-message)` counts
   as done (a peer that ignored the lifecycle). Otherwise that state is parked, not done.
 - Cancel: a new `cancel_remote_task` activity calls `CancelTask` as the delegating
   participant (R7.6).
-- `ChildDone` gains `remote_task_id` and `started`; the parent matches a child by its
-  stand-in workflow id, and its row is `TaskRef(task_id=<A2A id>, agent=<agent>)` (R7.4).
-  `/sub-task` replies with that id once the stand-in has reported it.
+- The parent matches a `child_done` by the stand-in's workflow id; `ChildRef.task_id` and
+  the row are the A2A task on the agent, `TaskRef(task_id=<A2A id>, agent=<agent>)`
+  (R7.4). A conversation or participant child parking is not news for the parent's
+  model; a delegated one asking a question is.
 - The result: `sub_task_result` caps the last answer at 4,000 characters (R7.5); the
   parent folds it into the history as an untrusted `agent` note, as today.
 

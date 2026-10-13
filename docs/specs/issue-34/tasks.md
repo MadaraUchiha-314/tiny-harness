@@ -120,6 +120,26 @@ from the repository root.
   - _Requirements:_ R6.1–R6.3
   - _Test:_ T12 (the example configs load and pair up); T13 (run with a real model)
 
+- [x] 9. `self` and `spawn_subtask` on the A2A route (R7.1–R7.7)
+  - Added after approval, from PR review. `self` registered; `start_agent_task` and
+    `cancel_remote_task`; the parent creates every `spawn_subtask` child over A2A and
+    starts the stand-in on it; the trust rule (`[server] delegators`); the follow skips
+    replayed history; streams are closed; completion waits for an unread result.
+  - Tests: `test_self_delegation.py`; the remote tests and the three durable tests that
+    spawn a child, on the streaming transport and `self_hosted`.
+  - _Depends on:_ 8
+  - _Requirements:_ R7.1–R7.7, abuse cases 5–7
+
+- [ ] 10. `/sub-task` and `create_task_for_participant` on the A2A route (R7.2)
+  - The brief for a conversation child (no text; the person as reporter) and for a
+    participant task (the person as assignee, a `participant`-mode workflow); the direct
+    `_start_local_child` path removed.
+  - _Depends on:_ 9
+  - _Requirements:_ R7.2, R7.4
+
+- [ ] 11. Docs, evidence and a real-model run for R7
+  - _Depends on:_ 10
+
 ## Dependency graph (DAG)
 
 ```mermaid
@@ -131,6 +151,9 @@ flowchart LR
     t5 --> t6["6 docs"]
     t5 --> t7["7 card config"]
     t7 --> t8["8 delegation example"]
+    t8 --> t9["9 self + spawn_subtask over A2A"]
+    t9 --> t10["10 /sub-task + participant tasks over A2A"]
+    t10 --> t11["11 R7 docs + evidence"]
 ```
 
 Tasks 1–4 touch separate files and can run in any order.

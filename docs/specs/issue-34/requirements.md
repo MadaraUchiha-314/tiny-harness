@@ -252,8 +252,8 @@ for every sub-task, and the model can use a sub-task on itself to keep its conte
   design § Addendum R7 and is a decision for the reviewer. Abuse cases:
   5. WHEN a client that is not a trusted delegator creates a task naming participants
      other than itself THEN the server SHALL refuse the request and create no task.
-  6. WHEN a creator asks for a `model` or `reasoning_effort` THEN the server SHALL accept
-     only a value the configuration allows (`[openai] models`), else refuse.
+  6. WHEN a creator that is not a trusted delegator asks for a `model` or
+     `reasoning_effort` THEN the server SHALL refuse the request whole, as today.
   7. WHEN a creator sets `lifecycle` or `participants` on an existing task THEN the server
      SHALL refuse it as today; the relaxation is for the first message only.
 - **Fail closed:** an agent whose card could not be fetched or validated is not

@@ -321,8 +321,8 @@
   "forced": [],
   "parked": {
     "node": "human-approval",
-    "reason": "`classify-feedback` did not pass:\n- feedback so far is not decisive; the gate stays open",
-    "since": "2026-10-13T16:28:04+00:00"
+    "reason": "`classify-feedback` did not pass:\n- no authorized feedback yet",
+    "since": "2026-10-13T16:41:23+00:00"
   },
   "completions": {
     "requirements-definition": {

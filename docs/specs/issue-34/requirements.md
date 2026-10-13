@@ -2,7 +2,8 @@
 type: requirements
 phase: requirements-definition
 workItem: issue-34
-status: draft
+status: approved
+approvedBy: ["MadaraUchiha-314"]
 collaborators: [product-manager, architect, engineer, reviewer, approver]
 overrides: {}
 ---
@@ -194,3 +195,9 @@ None at this time. Assumptions taken (correct them on the PR if wrong):
 > comments (issue-109). Append-only and attributed: an approval never silently
 > discards a reviewer's suggestions, and the feedback travels with the document
 > it concerns rather than living in a side-channel tracker.
+
+### 2026-10-13 — approved
+
+**@MadaraUchiha-314** wrote:
+
+approved

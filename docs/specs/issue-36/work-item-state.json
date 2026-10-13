@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-36",
-  "currentNode": "brainstorming",
+  "currentNode": "requirements-definition",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -13,8 +13,16 @@
     },
     "brainstorming": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-13T07:47:05+00:00",
+      "exitedAt": "2026-10-13T16:20:19+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "requirements-definition": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-13T16:20:19+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -202,7 +210,18 @@
   "effort": "high",
   "claudeArtifact": false,
   "repos": [],
-  "pullRequests": [],
+  "pullRequests": [
+    {
+      "ref": "github:MadaraUchiha-314/tiny-harness#37",
+      "repository": "MadaraUchiha-314/tiny-harness",
+      "number": 37,
+      "url": "https://github.com/MadaraUchiha-314/tiny-harness/issues/37",
+      "stateDir": "pr-loops/MadaraUchiha-314__tiny-harness/pr-37",
+      "state": "open",
+      "linkedAt": "2026-10-13T07:48:56+00:00",
+      "linkedBy": "session"
+    }
+  ],
   "loop": "pdlc-work-item-loop",
-  "phase": "brainstorming"
+  "phase": "requirements-definition"
 }

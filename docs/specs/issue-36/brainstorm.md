@@ -187,6 +187,12 @@ routing table static.
 4. **Several agents per app?** Two harnesses with different settings under two
    prefixes in one process. In scope, or later? (They would share or split a Temporal
    client and task queue.)
+   **Answered: in scope, and the main acceptance test.** Five configs give five
+   agents on five paths in one service, and each can call the others through its
+   `[[agents]]` config
+   ([PR #37 comment](https://github.com/MadaraUchiha-314/tiny-harness/pull/37#issuecomment-6150070351)).
+   Today that collides on the task queue, task lookup, the heartbeat schedule id, the
+   agent's participant id and embedded Temporal; `requirements.md` R5 removes them.
 5. **Prefix discovery.** Take the prefix as an argument, or read `root_path` from the
    ASGI scope per request? The card is built once, so an argument is simpler.
 6. **Back compatibility.** Keep `running_harness` and `serve` with the same signatures,

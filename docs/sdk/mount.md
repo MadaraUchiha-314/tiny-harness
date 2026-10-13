@@ -106,6 +106,9 @@ app.include_router(harness_router(support))
   `A2A: support`.
 - Do not give `include_router` a `prefix`. The router already has the agent's path.
   If you add one, the agent refuses every request with the error 500.
+- If your app has a `root_path` (for example behind a proxy), put it in `base_url` too.
+  Otherwise the agent refuses every request with the error 500, because its card would
+  have the wrong address.
 - The router does not add CORS and does not serve the web renderer at `/ui`. Add
   `CORSMiddleware` or `StaticFiles` to your app if you need them. tiny-harness writes a
   warning when `cors_origins` or `ui_dir` is set.

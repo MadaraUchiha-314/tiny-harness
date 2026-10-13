@@ -59,12 +59,12 @@ class _Gate:
                 raise HTTPException(503, f"agent {self.harness.agent_id} is not started")
             if not self.checked:
                 self.checked = True
+                # The full path, root_path included: a root_path that is not in the card's
+                # URL means the card is wrong (issue-36 self-review 2, #1).
                 path = request.url.path
-                root = str(request.scope.get("root_path", ""))
-                relative = path[len(root) :] if root and path.startswith(root) else path
-                if not any(pattern.fullmatch(relative) for pattern in self.paths):
+                if not any(pattern.fullmatch(path) for pattern in self.paths):
                     self.error = (
-                        f"agent {self.harness.agent_id} is mounted at {relative!r} "
+                        f"agent {self.harness.agent_id} is mounted at {path!r} "
                         f"but configured for {self.harness.prefix or '/'!r}"
                     )
                     log.error("%s", self.error)

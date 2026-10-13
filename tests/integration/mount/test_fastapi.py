@@ -195,3 +195,31 @@ async def test_an_unprefixed_router_included_under_a_prefix_is_refused(
         httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://h") as http,
     ):
         assert (await http.get("/x/.well-known/agent-card.json")).status_code == 500
+
+
+async def test_a_router_under_a_root_path_missing_from_the_card_is_refused(
+    env: WorkflowEnvironment, tmp_path: Path
+) -> None:
+    """
+    Requirement: docs/specs/issue-36/requirements.md#R3
+
+    Scenario: A router under a root_path missing from the card is refused
+        Given a FastAPI app with root_path /svc and an agent whose base_url has no /svc
+        When a client reads the card at /svc/agents/r
+        Then the answer is 500, because the card would not carry /svc
+    """
+    harness = Harness(
+        agent_settings(tmp_path, f"fr-{suffix()}", "http://h/agents/r"),
+        client=env.client,
+        llm=FakeLLM([]),
+    )
+    app = FastAPI(root_path="/svc")
+    app.include_router(harness_router(harness))
+    async with (
+        harness,
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, root_path="/svc"), base_url="http://h"
+        ) as http,
+    ):
+        response = await http.get("/svc/agents/r/.well-known/agent-card.json")
+        assert response.status_code == 500, response.text

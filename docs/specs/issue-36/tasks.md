@@ -88,7 +88,7 @@ five-agent acceptance and the docs.
   - _Test:_ T1 `tests/unit/service/test_task_ownership.py` (owned, foreign,
     `describe` failing ⇒ own store, LRU hit makes no second call, quote escaping); T4
     `Scenario: Agent a treats every task of agent b as unknown`
-- [ ] 8. Push ownership
+- [x] 8. Push ownership
   - `PushReceiver(client, task_queue=…)` describes the stand-in before the update. A
     foreign queue gives `401`, the same as a wrong token.
   - _Depends on:_ 1

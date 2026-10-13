@@ -29,15 +29,24 @@ class FakeHandle:
         self.client = client
         self.workflow_id = workflow_id
 
+    async def describe(self) -> Description:
+        return Description(self.client.queue)
+
     async def execute_update(self, name: str, arg: PushIn) -> None:
         self.client.updates.append((self.workflow_id, name, arg))
         if self.client.fail:
             raise RuntimeError("update rejected")
 
 
+class Description:
+    def __init__(self, task_queue: str) -> None:
+        self.task_queue = task_queue
+
+
 class FakeClient:
-    def __init__(self, *, fail: bool = False) -> None:
+    def __init__(self, *, fail: bool = False, queue: str = "a") -> None:
         self.fail = fail
+        self.queue = queue
         self.updates: list[tuple[str, str, PushIn]] = []
 
     def get_workflow_handle(self, workflow_id: str) -> FakeHandle:
@@ -109,3 +118,20 @@ def test_the_push_url_is_the_base_url_and_the_local_id(base: str) -> None:
 
 def test_the_push_url_encodes_the_local_id() -> None:
     assert push_url("http://h", "a/b?c") == "http://h/a2a/push/a%2Fb%3Fc"
+
+
+async def test_a_push_for_another_agents_stand_in_is_refused_without_an_update() -> None:
+    """issue-36 abuse case 3: a valid token at the wrong agent's route is the same 401."""
+    fake = FakeClient(queue="b")
+    assert (
+        await PushReceiver(cast(Client, fake), task_queue="a").receive("t-1.1", TOKEN, BODY) == 401
+    )
+    assert fake.updates == []
+
+
+async def test_a_push_for_this_agents_stand_in_is_accepted() -> None:
+    fake = FakeClient(queue="a")
+    assert (
+        await PushReceiver(cast(Client, fake), task_queue="a").receive("t-1.1", TOKEN, BODY) == 204
+    )
+    assert len(fake.updates) == 1

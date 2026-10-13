@@ -167,8 +167,10 @@ class PushReceiver:
     constant time. Every refusal past the parse step is the same ``401``, whether the token
     is wrong, the id names no stand-in, or the stand-in has ended (abuse cases 1, 2, 4)."""
 
-    def __init__(self, client: Client) -> None:
+    def __init__(self, client: Client, *, task_queue: str | None = None) -> None:
         self._client = client
+        # This agent's queue: a stand-in on another queue is another agent's (issue-36 R5.4).
+        self._task_queue = task_queue
 
     async def receive(self, task_id: str, token: str | None, body: bytes) -> int:
         if len(body) > MAX_PUSH_BYTES:
@@ -189,6 +191,10 @@ class PushReceiver:
             return 400
         handle = self._client.get_workflow_handle(task_id)
         try:
+            if self._task_queue is not None:
+                description = await handle.describe()
+                if description.task_queue != self._task_queue:  # abuse case 3 (issue-36)
+                    raise LookupError("the stand-in belongs to another agent")
             await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
                 "remote_push",
                 PushIn(

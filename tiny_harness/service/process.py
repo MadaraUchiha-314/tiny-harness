@@ -187,7 +187,11 @@ async def running_harness(
             return snapshot.model_dump(mode="json") if snapshot is not None else {"tasks": []}
 
         app = create_app(
-            handler, card, config=settings.server, monitor=monitor, push=PushReceiver(client)
+            handler,
+            card,
+            config=settings.server,
+            monitor=monitor,
+            push=PushReceiver(client, task_queue=settings.temporal.effective_task_queue),
         )
         if with_worker:
             await ensure_search_attributes(client)

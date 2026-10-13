@@ -40,6 +40,7 @@ from a2a.types import (
     Task,
     TaskPushNotificationConfig,
 )
+from a2a.utils.errors import InternalError
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
@@ -90,7 +91,13 @@ class HarnessContextBuilder(DefaultServerCallContextBuilder):
             participant = request.headers.get(PARTICIPANT_HEADER)
         else:
             context.state[STRICT_STATE_KEY] = True
-            participant = self._resolver(request)
+            try:
+                participant = self._resolver(request)
+            except Exception as exc:
+                # The host's auth error stays in the log: its text is not the client's to read
+                # (issue-36 self-review 1, #4). Fail closed, with no fallback to the header.
+                log.error("participant resolver failed: %s", type(exc).__name__, exc_info=exc)
+                raise InternalError(message="the participant could not be resolved") from exc
         if participant:
             context.state[PARTICIPANT_STATE_KEY] = participant
         return context

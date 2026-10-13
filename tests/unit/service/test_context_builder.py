@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 from a2a.server.context import ServerCallContext
 from a2a.types import Message, Part, Role
-from a2a.utils.errors import InvalidParamsError
+from a2a.utils.errors import InternalError, InvalidParamsError
 from starlette.requests import Request
 
 from tiny_harness.service.a2a.app import HarnessContextBuilder
@@ -52,8 +52,9 @@ def test_a_raising_resolver_fails_the_request() -> None:
     def broken(r: Request) -> str | None:
         raise RuntimeError("auth backend down")
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(InternalError) as caught:
         HarnessContextBuilder(broken).build(request("alice"))
+    assert "auth backend down" not in str(caught.value)
 
 
 def test_in_strict_mode_a_message_claim_alone_is_refused() -> None:

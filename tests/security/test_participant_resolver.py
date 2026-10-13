@@ -119,3 +119,42 @@ async def test_with_a_resolver_a_spoofed_participant_header_is_ignored(
         )
         assert anonymous.status_code == 400, anonymous.text
         assert "no participant asserted" in anonymous.text
+
+
+async def test_a_failing_resolver_fails_the_request_without_its_text(
+    env: WorkflowEnvironment, tmp_path: Path
+) -> None:
+    """
+    Requirement: docs/specs/issue-36/requirements.md#R4 (Security considerations, fail closed)
+
+    Scenario: A failing resolver fails the request and keeps its error text
+        Given an agent whose resolver raises with the host's internal error text
+        When a client sends a message over HTTP+JSON and over JSON-RPC, with a header
+        Then neither request creates a task or falls back to the header
+        And neither answer carries the resolver's error text
+    """
+
+    def broken(request: Request) -> str | None:
+        raise RuntimeError("ldap://10.0.0.5 bind failed for svc-auth")
+
+    llm = FakeLLM([scripted("never")])
+    harness = Harness(
+        agent_settings(tmp_path, f"rf-{uuid.uuid4().hex[:6]}", "http://h/agents/r"),
+        client=env.client,
+        participant=broken,
+        llm=llm,
+    )
+    async with harness, host(harness) as http:
+        rest = await http.post(
+            "/agents/r/message:send", json=send_body("hi"), headers={"X-Participant-Id": "alice"}
+        )
+        rpc = await http.post(
+            "/agents/r/",
+            json={"jsonrpc": "2.0", "id": 1, "method": "SendMessage", "params": send_body("hi")},
+            headers={"X-Participant-Id": "alice"},
+        )
+    assert rest.status_code == 500
+    assert "error" in rpc.json() and "result" not in rpc.json()
+    for response in (rest, rpc):
+        assert "ldap" not in response.text and "svc-auth" not in response.text
+    assert llm.requests == []  # no task ran

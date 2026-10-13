@@ -167,3 +167,68 @@ def test_the_remote_key_holds_no_api_key(tmp_path: Path) -> None:
         update={"temporal": settings.temporal.model_copy(update={"api_key": SecretStr("other")})}
     )
     assert pool_key(other) != key
+
+
+async def test_a_waiter_cancelled_before_the_connection_opens_gives_back_its_share(
+    tmp_path: Path,
+) -> None:
+    """Self-review round 1, finding 1: the last real release still closes the connection."""
+    opened = asyncio.Event()
+    release_connect = asyncio.Event()
+    closed: list[bool] = []
+
+    @asynccontextmanager
+    async def slow(settings: Settings, output: TextIO | None) -> AsyncGenerator[Client]:
+        opened.set()
+        await release_connect.wait()
+        try:
+            yield cast(Client, object())
+        finally:
+            closed.append(True)
+
+    pool = TemporalPool(slow)
+    a = embedded(tmp_path, "shared.sqlite3", agent="a")
+    b = embedded(tmp_path, "shared.sqlite3", agent="b")
+
+    async def use(s: Settings) -> None:
+        async with pool.client(s):
+            pass
+
+    first = asyncio.create_task(use(a))
+    await opened.wait()
+    waiter = asyncio.create_task(use(b))
+    await asyncio.sleep(0)
+    waiter.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiter
+    release_connect.set()
+    await first
+    assert closed == [True]
+    assert pool.open_connections() == 0
+
+
+async def test_a_cancelled_first_caller_is_not_the_waiters_cancellation(tmp_path: Path) -> None:
+    opened = asyncio.Event()
+
+    @asynccontextmanager
+    async def hanging(settings: Settings, output: TextIO | None) -> AsyncGenerator[Client]:
+        opened.set()
+        await asyncio.Event().wait()
+        yield cast(Client, object())  # pragma: no cover
+
+    pool = TemporalPool(hanging)
+    a = embedded(tmp_path, "shared.sqlite3", agent="a")
+    b = embedded(tmp_path, "shared.sqlite3", agent="b")
+
+    async def use(s: Settings) -> None:
+        async with pool.client(s):
+            pass
+
+    first = asyncio.create_task(use(a))
+    await opened.wait()
+    waiter = asyncio.create_task(use(b))
+    await asyncio.sleep(0)
+    first.cancel()
+    with pytest.raises(RuntimeError, match="did not open"):
+        await waiter
+    assert first.cancelled()

@@ -102,9 +102,14 @@ class TemporalPool:
             finally:
                 entry.ready.set()
         else:
-            await entry.ready.wait()
+            try:
+                await entry.ready.wait()
+            except BaseException:  # cancelled while waiting: give back our share
+                await self._release(key, entry)
+                raise
             if entry.error is not None:
-                raise entry.error
+                # Not the first caller's own exception: it may be that caller's cancellation.
+                raise RuntimeError("the shared Temporal connection did not open") from entry.error
         return entry
 
     async def _release(self, key: PoolKey, entry: _Entry) -> None:

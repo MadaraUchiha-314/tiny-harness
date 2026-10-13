@@ -29,6 +29,7 @@ def agent_settings(
     *,
     agents: str = "",
     temporal: str = "",
+    openai_key: str = ENV["OPENAI_API_KEY"],
 ) -> Settings:
     """An agent's settings: embedded mode (the tests pass the dev server's client), its own
     store, a slow heartbeat, and ``agents`` as ``[[agents]]`` tables."""
@@ -59,7 +60,7 @@ sqlite_path = "{tmp_path / agent_id}.sqlite3"
 {agents}
 """
     )
-    return Settings.load(path, env=ENV)
+    return Settings.load(path, env={**ENV, "OPENAI_API_KEY": openai_key})
 
 
 def free_port() -> int:

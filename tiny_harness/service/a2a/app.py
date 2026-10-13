@@ -187,7 +187,24 @@ class DeferredRequestHandler(RequestHandler):
         return await self._handler().on_get_extended_agent_card(params, context)
 
 
-def build_routes(
+@dataclass(frozen=True)
+class RouteGroups:
+    """The agent's routes by kind, so the FastAPI helper can tag each group (issue-36 R3.3)."""
+
+    card: list[BaseRoute]
+    own: list[BaseRoute]  # /_monitor and /a2a/push/{task_id}
+    ui: list[BaseRoute]  # the /ui mount, when configured
+    jsonrpc: list[BaseRoute]
+    rest: list[BaseRoute]
+
+    def flat(self) -> list[BaseRoute]:
+        """In today's order: the harness's own routes first (the SDK's REST routes carry path
+        parameters at the root that would otherwise capture ``/_monitor`` and ``/ui/...``
+        and answer 404), then JSON-RPC at ``/`` and HTTP+JSON."""
+        return [*self.card, *self.own, *self.ui, *self.jsonrpc, *self.rest]
+
+
+def build_route_groups(
     handler: RequestHandler,
     card: CardSource,
     *,
@@ -196,10 +213,7 @@ def build_routes(
     monitor: MonitorSource | None = None,
     push: Callable[[], PushReceiver | None] | None = None,
     participant: ParticipantResolver | None = None,
-) -> list[BaseRoute]:
-    """The agent's routes, in today's order: the harness's own routes first (the SDK's REST
-    routes carry path parameters at the root that would otherwise capture ``/_monitor`` and
-    ``/ui/...`` and answer 404), then JSON-RPC at ``/`` and HTTP+JSON."""
+) -> RouteGroups:
     drop_sdk_request_bodies()  # a request body may carry a push token (issue-27)
     builder = HarnessContextBuilder(participant)
 
@@ -224,16 +238,43 @@ def build_routes(
         )
         return Response(status_code=status)
 
-    routes: list[BaseRoute] = [*create_agent_card_routes(AgentCard(), card_modifier=card_view)]
+    own: list[BaseRoute] = []
     if options.monitor:
-        routes.append(Route("/_monitor", monitor_view, methods=["GET"]))
+        own.append(Route("/_monitor", monitor_view, methods=["GET"]))
     if options.push and push is not None:
-        routes.append(Route(PUSH_PATH, push_view, methods=["POST"]))
+        own.append(Route(PUSH_PATH, push_view, methods=["POST"]))
+    ui: list[BaseRoute] = []
     if options.ui and config.ui_dir is not None:  # the built web renderer, same origin
-        routes.append(Mount("/ui", app=StaticFiles(directory=config.ui_dir, html=True)))
-    routes.extend(create_jsonrpc_routes(handler, rpc_url="/", context_builder=builder))
-    routes.extend(create_rest_routes(handler, context_builder=builder))
-    return routes
+        ui.append(Mount("/ui", app=StaticFiles(directory=config.ui_dir, html=True)))
+    return RouteGroups(
+        card=list(create_agent_card_routes(AgentCard(), card_modifier=card_view)),
+        own=own,
+        ui=ui,
+        jsonrpc=list(create_jsonrpc_routes(handler, rpc_url="/", context_builder=builder)),
+        rest=list(create_rest_routes(handler, context_builder=builder)),
+    )
+
+
+def build_routes(
+    handler: RequestHandler,
+    card: CardSource,
+    *,
+    config: ServerConfig,
+    options: RouteOptions = ALL_ROUTES,
+    monitor: MonitorSource | None = None,
+    push: Callable[[], PushReceiver | None] | None = None,
+    participant: ParticipantResolver | None = None,
+) -> list[BaseRoute]:
+    """The agent's routes, flat and in order (``RouteGroups.flat``)."""
+    return build_route_groups(
+        handler,
+        card,
+        config=config,
+        options=options,
+        monitor=monitor,
+        push=push,
+        participant=participant,
+    ).flat()
 
 
 def wrap_middleware(app: ASGIApp, *, config: ServerConfig, options: RouteOptions) -> ASGIApp:
@@ -401,7 +442,9 @@ __all__ = [
     "HarnessContextBuilder",
     "MonitorSource",
     "ParticipantResolver",
+    "RouteGroups",
     "RouteOptions",
+    "build_route_groups",
     "build_routes",
     "create_app",
     "wrap_middleware",

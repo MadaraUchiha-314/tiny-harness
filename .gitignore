@@ -234,3 +234,5 @@ examples/delegation/.state/
 
 # the web renderer's shadcn helper lives under src/lib (the Python lib/ rule above is for build output)
 !renderers/web/src/lib/
+# the five-agent example's runtime state (stores, Temporal)
+examples/multi_agent/.state/

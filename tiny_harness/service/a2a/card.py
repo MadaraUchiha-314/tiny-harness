@@ -11,8 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
 from pydantic import BaseModel, ConfigDict
 
-from tiny_harness.config import CardConfig
-from tiny_harness.config import AgentConfig
+from tiny_harness.config import AgentConfig, CardConfig
 from tiny_harness.errors import ConfigError
 from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI

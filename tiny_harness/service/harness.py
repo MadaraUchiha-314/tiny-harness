@@ -22,6 +22,7 @@ import contextlib
 import logging
 from collections.abc import AsyncGenerator, Callable, Iterable, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
+from functools import partial
 from pathlib import Path
 from types import TracebackType
 from typing import Literal, Self, TextIO
@@ -41,7 +42,7 @@ from tiny_harness.errors import (
     HarnessStoppedError,
 )
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
-from tiny_harness.harness.models import LLM
+from tiny_harness.harness.models import LLM, ModelCatalog
 from tiny_harness.harness.plugins import Plugin
 from tiny_harness.harness.security import PROCESS_SECRETS
 from tiny_harness.jsontypes import JsonObject
@@ -60,8 +61,9 @@ from tiny_harness.service.a2a.app import (
     DeferredRequestHandler,
     HarnessApp,
     ParticipantResolver,
+    RouteGroups,
     RouteOptions,
-    build_routes,
+    build_route_groups,
     wrap_middleware,
 )
 from tiny_harness.service.a2a.card import (
@@ -139,7 +141,7 @@ class Harness:
         self._push: PushReceiver | None = None
         self._activities: Activities | None = None
         self._handler = DeferredRequestHandler()
-        self._route_list: list[BaseRoute] | None = None
+        self._groups: RouteGroups | None = None
         self._app: HarnessApp | None = None
 
     # --- identity ------------------------------------------------------------------------
@@ -180,11 +182,10 @@ class Harness:
 
     # --- routes --------------------------------------------------------------------------
 
-    def routes(self) -> list[BaseRoute]:
-        """The agent's routes, before any prefix. They need the harness started; mount
-        ``asgi_app()`` to get the 503 gate and the mount check with them."""
-        if self._route_list is None:
-            self._route_list = build_routes(
+    def route_groups(self) -> RouteGroups:
+        """The agent's routes by kind, before any prefix; built once."""
+        if self._groups is None:
+            self._groups = build_route_groups(
                 self._handler,
                 lambda: self.card,
                 config=self.settings.server,
@@ -193,7 +194,12 @@ class Harness:
                 push=lambda: self._push,
                 participant=self._participant,
             )
-        return self._route_list
+        return self._groups
+
+    def routes(self) -> list[BaseRoute]:
+        """The agent's routes, before any prefix. They need the harness started; mount
+        ``asgi_app()`` to get the 503 gate and the mount check with them."""
+        return self.route_groups().flat()
 
     def asgi_app(self) -> HarnessApp:
         """The app to mount at ``prefix``; the same object on every call (R2.1, R2.2)."""
@@ -272,9 +278,10 @@ class Harness:
             client = await stack.enter_async_context(
                 temporal_client(settings, output=self._log_stream)
             )
-        runtime = await build_runtime(
+        # ``llm`` only when given: a caller (or a test) may have bound one into the builder.
+        build = build_runtime if self._llm is None else partial(build_runtime, llm=self._llm)
+        runtime = await build(
             settings,
-            llm=self._llm,
             plugins=self._plugins,
             commands=self._commands,
             builtin_commands=self._builtin_commands,
@@ -297,6 +304,8 @@ class Harness:
             bridge=bridge,
             config=workflow_config(settings),
             redactor=runtime.redactor,
+            delegators=settings.server.delegators,
+            models=ModelCatalog.from_settings(settings).selectable,
         )
         activities = Activities(
             runtime.engine,

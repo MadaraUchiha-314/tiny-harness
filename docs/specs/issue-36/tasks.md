@@ -147,7 +147,7 @@ five-agent acceptance and the docs.
     push off ⇒ follow, log agent field, several harnesses in order); T4 `Scenario: A
     second harness on the same namespace and queue does not start`, `Scenario: A request
     before start never reaches Temporal`
-- [ ] 14. `running_harness`, `serve` and `worker` on `Harness`
+- [x] 14. `running_harness`, `serve` and `worker` on `Harness`
   - `running_harness` becomes `Harness` plus uvicorn over `asgi_app()`, with the same
     signature and the same yielded `RunningHarness`.
   - `tiny-harness worker` uses `effective_task_queue` and the per-agent schedule id.
@@ -155,7 +155,7 @@ five-agent acceptance and the docs.
   - _Requirements:_ R2.5, R7.1–R7.3
   - _Test:_ T6 the full existing suite, unmodified except for `AGENT_ID` imports (each
     listed); T2 `Scenario: A top-level harness app starts itself from the server lifespan`
-- [ ] 15. FastAPI extra and `harness_router`
+- [x] 15. FastAPI extra and `harness_router`
   - Add `[project.optional-dependencies] fastapi = ["a2a-sdk[fastapi]>=1.2.2",
     "fastapi>=0.143"]` and add FastAPI to the dev group.
   - Add `tiny_harness/fastapi.py`, with the `ImportError` naming the extra.
@@ -169,7 +169,7 @@ five-agent acceptance and the docs.
     an agent router and lists its routes in OpenAPI`, `Scenario: A router included under
     another prefix refuses every request`); T7 `tests/integration/test_package.py`; T5
     `tiny_harness.fastapi` API snapshot
-- [ ] 16. The five-agent example and acceptance tests
+- [x] 16. The five-agent example and acceptance tests
   - Add `examples/multi_agent/`: `a.toml` … `e.toml`, `app.py` (Starlette with
     `harnesses_lifespan`), `app_fastapi.py` and `README.md`.
   - Add `tests/integration/mount/test_multi_agent.py`: real uvicorn on an ephemeral

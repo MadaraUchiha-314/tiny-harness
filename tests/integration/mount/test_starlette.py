@@ -1,6 +1,5 @@
 """Feature: an agent mounted on a host Starlette app
-Requirement: docs/specs/issue-36/requirements.md#requirement-1--start-a-harness-without-a-server,
-#requirement-2--mount-an-agent-on-a-starlette-app, #requirement-4--customize-the-integration
+Requirement: docs/specs/issue-36/requirements.md#R1, #R2, #R4
 
 One harness, or several, mounted under prefixes in the developer's own Starlette app and
 served by the developer's own uvicorn, over the local Temporal dev server.

@@ -1,0 +1,2 @@
+# tiny_harness.fastapi
+def harness_router(harness: 'Harness', *, tags: 'Sequence[str] | None' = None) -> 'APIRouter'

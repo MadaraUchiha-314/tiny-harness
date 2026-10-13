@@ -86,6 +86,7 @@ async def parked(env: WorkflowEnvironment) -> AsyncIterator[tuple[Delegation, st
         # The stand-in starts while the remote works (issue-34 R7.2): hand over once it
         # has heard the remote park, so no relay of its own lands in the test's window.
         await d.until_child(TaskState.TASK_STATE_INPUT_REQUIRED)
+        await d.quiet_pushes()
         yield d, remote_id, config.token.get_secret_value()
         await d.cancel_remote(remote_id, "test over")
         await d.child()

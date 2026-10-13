@@ -127,8 +127,10 @@ class Delegation:
             await asyncio.sleep(0.05)
         raise AssertionError("the remote never parked its task")
 
-    async def quiet_pushes(self, *, quiet: float = 0.5) -> None:
-        """Until the remote has sent no push for ``quiet`` seconds."""
+    async def quiet_pushes(self, *, quiet: float = 2.0) -> None:
+        """Until the remote has sent no push for ``quiet`` seconds. A tiny-harness remote
+        can push the same status twice, the second a few seconds after the first (both
+        doorbells, harmless); a test measuring a window waits for it to pass."""
         seen = -1
         for _ in range(100):
             if len(self.remote.pushes) == seen:

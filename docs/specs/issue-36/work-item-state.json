@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-36",
-  "currentNode": "requirements-definition",
+  "currentNode": "design",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -21,8 +21,24 @@
     },
     "requirements-definition": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-13T16:20:19+00:00",
+      "exitedAt": "2026-10-13T16:22:25+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "requirements-approval": {
+      "attempts": 1,
+      "outcome": "approved",
+      "enteredAt": "2026-10-13T16:22:25+00:00",
+      "exitedAt": "2026-10-13T20:31:06+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "design": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-13T20:31:06+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -200,7 +216,16 @@
   },
   "forced": [],
   "parked": null,
-  "completions": {},
+  "completions": {
+    "requirements-definition": {
+      "at": "2026-10-13T16:22:25+00:00",
+      "by": "cli"
+    },
+    "requirements-approval": {
+      "at": "2026-10-13T20:29:05+00:00",
+      "by": "cli"
+    }
+  },
   "skips": {},
   "optIns": {},
   "surface": "pull-request",
@@ -223,5 +248,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "requirements-definition"
+  "phase": "design"
 }

@@ -58,3 +58,16 @@ def test_a_bad_agent_id_is_refused(tmp_path: Path, bad: str) -> None:
     with pytest.raises(ConfigError) as caught:
         load(tmp_path, tail=f'[agent]\nid = "{bad}"')
     assert caught.value.variable == "agent.id"
+
+
+def test_each_agent_has_its_own_plugin_data(tmp_path: Path) -> None:
+    """Critic round 1, finding 1: stores in one folder, plugin data apart; the default
+    agent keeps the folder it always had."""
+    from tiny_harness.service.runtime import default_data_root
+
+    default = load(tmp_path)
+    billing = load(tmp_path, tail='[agent]\nid = "billing"')
+    shipping = load(tmp_path, tail='[agent]\nid = "shipping"')
+    assert default_data_root(default).name == "plugin-data"
+    roots = {default_data_root(s) for s in (default, billing, shipping)}
+    assert len(roots) == 3

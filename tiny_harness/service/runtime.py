@@ -15,7 +15,7 @@ from a2a.types import AgentCard
 from pydantic import SecretStr
 
 from tiny_harness.builtin import load_builtin
-from tiny_harness.config import Settings
+from tiny_harness.config import DEFAULT_AGENT_ID, Settings
 from tiny_harness.harness.agents import SELF_AGENT_ID, Agent, RemoteAgent, build_roster
 from tiny_harness.harness.channels.help import register_default as register_help_default
 from tiny_harness.harness.commands import CommandHandler, CommandRegistry, CommandSpec
@@ -86,6 +86,16 @@ def ignored_environment_warnings(env: Mapping[str, str]) -> tuple[str, ...]:
     )
 
 
+def default_data_root(settings: Settings) -> Path:
+    """Where plugins and skills keep their data: ``plugin-data`` beside the store for the
+    default agent (as before), ``plugin-data-<id>`` for any other, so two agents whose
+    stores share a folder never share plugin data (issue-36 R5, critic round 1, #1)."""
+    folder = settings.store.sqlite_path.resolve().parent
+    if settings.agent.id == DEFAULT_AGENT_ID:
+        return folder / "plugin-data"
+    return folder / f"plugin-data-{settings.agent.id}"
+
+
 def secret_values(settings: Settings) -> list[SecretStr]:
     values: list[SecretStr] = []
     if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
@@ -141,7 +151,7 @@ async def build_runtime(
     registrar = RegistryRegistrar(registry)
     registered = CommandRegistry(hooks)  # plugins declare commands into it (issue-25 R6a.6)
     catalog = ModelCatalog.from_settings(settings)  # the selectable models and defaults (R7, R8)
-    root = (data_root or settings.store.sqlite_path.resolve().parent / "plugin-data").resolve()
+    root = (data_root or default_data_root(settings)).resolve()
     reports = [
         await load_builtin(
             hook_manager=hooks,
@@ -309,6 +319,7 @@ __all__ = [
     "Retention",
     "Runtime",
     "build_runtime",
+    "default_data_root",
     "registered_agents",
     "render_system_prompt",
     "retention_map",

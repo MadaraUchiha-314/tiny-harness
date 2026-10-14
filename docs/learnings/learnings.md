@@ -18,3 +18,4 @@ feedback. Each entry links a detailed record (`learning-<nnn>.md`).
 | [011](learning-011.md) | Temporal's time-skipping test server mishandles a query racing a continue-as-new | user-feedback | 2026-10-12 |
 | [012](learning-012.md) | FastAPI 0.143 includes routers lazily and ignores a route class's `app` | system-feedback | 2026-10-13 |
 | [013](learning-013.md) | Several agents in one process share every process-wide default | system-feedback | 2026-10-13 |
+| [014](learning-014.md) | A parent hears its sub-task late, and a rollover must not drop a pending cancel | user-feedback | 2026-10-13 |

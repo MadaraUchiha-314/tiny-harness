@@ -594,6 +594,8 @@ class HarnessApp(App[None]):
             async for event in self.client.send(
                 text, task_id=self.task_id, context_id=self.context_id
             ):
+                if not self.is_running:  # shutting down: the screen is being torn down
+                    return
                 self.apply_event(event)
         except CLIENT_ERRORS as exc:
             self._notice(f"── {exc}")
@@ -654,6 +656,8 @@ class HarnessApp(App[None]):
             async for event in self.client.send_action(
                 action, task_id=self.task_id, context_id=self.context_id
             ):
+                if not self.is_running:  # shutting down: the screen is being torn down
+                    return
                 self.apply_event(event)
         except CLIENT_ERRORS as exc:
             self._notice(f"── {exc}")
@@ -692,6 +696,8 @@ class HarnessApp(App[None]):
         assert self.client is not None
         try:
             async for event in self.client.complete(task_id):
+                if not self.is_running:  # shutting down: the screen is being torn down
+                    return
                 self.apply_event(event)
         except CLIENT_ERRORS as exc:
             self._notice(f"── {exc}", self.views.get(task_id))

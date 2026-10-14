@@ -206,6 +206,12 @@ async def test_tui_task_controls_against_the_hosted_harness(
                 await until_true(pilot, lambda: app.sub_state == "awaiting-next-message")
                 assert "INPUT_REQUIRED · awaiting-next-message" in app.topbar_text()
                 parent = app.task_id
+                assert parent is not None
+
+                def parent_rows(task_id: str) -> list[str | None]:
+                    ext = app.views[task_id].ext
+                    return [r.state for r in ext.sub_tasks] if ext else []
+
                 await pilot.press(*"/sub-task Draft the reply", "enter")
                 await until_true(
                     pilot,
@@ -238,6 +244,10 @@ async def test_tui_task_controls_against_the_hosted_harness(
                         [r.text.split(" · ")[1] for r in app.query(SubTaskRow)] == ["COMPLETED"]
                     ),
                 )
+                # The row shows the sub-task's own stream once opened, which can be ahead of
+                # its parent: the parent hears of the end from its stand-in (issue-34 R7.2),
+                # and refuses to complete until then. Wait for the parent's own row.
+                await until_true(pilot, lambda: parent_rows(parent) == ["COMPLETED"])
                 await pilot.press("ctrl+d")
                 await until_true(pilot, lambda: app.state_name == "COMPLETED")
                 assert app.check_action("complete_task", ()) is None

@@ -93,16 +93,6 @@ async def test_a_wrong_mount_refuses_every_request() -> None:
             assert "mounted at '/agents/b'" in response.json()["error"]
 
 
-async def test_the_path_check_of_the_router_form() -> None:
-    app = harness_app(Flag(True))
-    app._check_path = True  # pyright: ignore[reportPrivateUsage]
-    outer = Starlette(routes=[Mount("/p", app=app)])  # an extra prefix shows in the path
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=outer), base_url="http://h"
-    ) as http:
-        assert (await http.get("/p/.well-known/agent-card.json")).status_code == 500
-
-
 @pytest.mark.parametrize(
     ("options", "missing"),
     [

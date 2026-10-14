@@ -353,8 +353,8 @@ class HarnessApp:
     """The ASGI app a host mounts for one agent (issue-36 R2.1, R2.2, R2.5).
 
     - WHILE the harness is not started, every HTTP request is ``503`` and reaches no route.
-    - On the first request, the mount is checked: ``root_path`` must end with the prefix
-      the card was built for; otherwise every request is ``500`` and the mismatch is logged
+    - On the first request, the mount is checked: ``root_path`` must equal the prefix the
+      card was built for; otherwise every request is ``500`` and the mismatch is logged
       once, since a wrong mount means wrong URLs in the card.
     - As the top-level app it handles the ``lifespan`` scope and starts the harness itself,
       unless something else already has. Under a ``Mount`` Starlette never sends it.
@@ -368,14 +368,12 @@ class HarnessApp:
         inner: ASGIApp,
         started: Callable[[], bool],
         lifespan: Callable[[], AbstractAsyncContextManager[object]] | None = None,
-        check_path: bool = False,
     ) -> None:
         self.agent_id = agent_id
         self.prefix = prefix
         self._inner = inner
         self._started = started
         self._lifespan = lifespan
-        self._check_path = check_path  # the router form: a prefix shows in the path
         self._mount_checked = False
         self._mount_error: str | None = None
 
@@ -403,15 +401,11 @@ class HarnessApp:
     def _mount(self, scope: MutableMapping[str, object]) -> str | None:
         if not self._mount_checked:
             self._mount_checked = True
-            if self._check_path:
-                mounted = str(scope.get("path", ""))
-                ok = mounted == self.prefix or mounted.startswith(self.prefix + "/")
-            else:
-                # Exactly the prefix: a suffix match would accept /agents/b for /b, and an
-                # unprefixed app mounted under a path would serve a card without that path
-                # (issue-36 self-review 1, #6).
-                mounted = str(scope.get("root_path", ""))
-                ok = mounted == self.prefix
+            # Exactly the prefix: a suffix match would accept /agents/b for /b, and an
+            # unprefixed app mounted under a path would serve a card without that path
+            # (issue-36 self-review 1, #6).
+            mounted = str(scope.get("root_path", ""))
+            ok = mounted == self.prefix
             if not ok:
                 self._mount_error = (
                     f"agent {self.agent_id} is mounted at {mounted!r} "

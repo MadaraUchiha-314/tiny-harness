@@ -1,5 +1,14 @@
-# Pull requests — issue-36
+---
+type: evidence
+workItem: issue-36
+---
 
-| PR | Repository | What it carries | State |
-|----|------------|-----------------|-------|
-| [#37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37) | MadaraUchiha-314/tiny-harness | Spec chain (brainstorm onward); outer loop | open (draft) |
+# Pull requests: mount tiny-harness agents onto an existing FastAPI or Starlette app
+
+> Every pull request that delivers this work item. Single repository.
+
+## Pull requests
+
+| PR | Repository | Scope / tasks | Status |
+|----|------------|---------------|--------|
+| [#37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37) | MadaraUchiha-314/tiny-harness (this one) | The spec chain (brainstorm → tasks), all 17 tasks, the verification evidence, the review fixes, and the fixes for `main`'s flaky integration tests the owner asked for | open (draft) |

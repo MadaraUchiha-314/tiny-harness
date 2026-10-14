@@ -255,7 +255,19 @@ async def temporal_client(
 ) -> AsyncGenerator[Client]:
     """A connected client for the configured mode; stops what it started on exit (R6.3).
     ``output`` receives an embedded dev server's own stdout and stderr (default: this
-    process's)."""
+    process's). Shared through the process's ``TemporalPool``: settings that name the same
+    connection get the same client, and the last user's exit closes it (issue-36 R5.2)."""
+    from tiny_harness.service.durable.pool import PROCESS_POOL
+
+    async with PROCESS_POOL.client(settings, output=output) as client:
+        yield client
+
+
+@asynccontextmanager
+async def open_client(
+    settings: Settings, *, output: TextIO | None = None
+) -> AsyncGenerator[Client]:
+    """One unshared connection (the pool's connector): remote, or an embedded dev server."""
     if settings.temporal.mode == "remote":
         yield await connect(settings.temporal)
         return
@@ -263,4 +275,4 @@ async def temporal_client(
         yield client
 
 
-__all__ = ["EmbeddedTemporal", "default_download_dir", "temporal_client"]
+__all__ = ["EmbeddedTemporal", "default_download_dir", "open_client", "temporal_client"]

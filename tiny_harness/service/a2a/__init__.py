@@ -1,6 +1,12 @@
 """The A2A server (R14, R15): the SDK's routes over the harness's durable execution."""
 
-from tiny_harness.service.a2a.app import HarnessContextBuilder, create_app
+from tiny_harness.service.a2a.app import (
+    HarnessApp,
+    HarnessContextBuilder,
+    RouteOptions,
+    build_routes,
+    create_app,
+)
 from tiny_harness.service.a2a.bridge import EventBridge, PollingEventBridge, is_final
 from tiny_harness.service.a2a.card import SUPPORTED_EXTENSIONS, build_agent_card
 from tiny_harness.service.a2a.executor import HarnessExecutor
@@ -13,6 +19,7 @@ __all__ = [
     "SUPPORTED_EXTENSIONS",
     "AccessPolicy",
     "EventBridge",
+    "HarnessApp",
     "HarnessContextBuilder",
     "HarnessExecutor",
     "HarnessRequestHandler",
@@ -20,9 +27,11 @@ __all__ = [
     "PollingEventBridge",
     "PushReceiver",
     "PushSink",
+    "RouteOptions",
     "StorePushConfigStore",
     "TemporalTaskStore",
     "build_agent_card",
+    "build_routes",
     "create_app",
     "is_final",
 ]

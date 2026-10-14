@@ -1,8 +1,26 @@
 # tiny_harness.service
+class Harness(object)
+  def __init__(self, settings: 'Settings', *, client: 'Client | None' = None, with_worker: 'bool' = True, prefix: 'str | None' = None, participant: 'ParticipantResolver | None' = None, routes: 'RouteOptions' = RouteOptions(limits=True, cors=True, monitor=True, push=True, ui=True), agent: 'AgentDescription | None' = None, plugins: 'Sequence[Plugin | Path]' = (), commands: 'Iterable[tuple[CommandSpec, CommandHandler]]' = (), builtin_commands: 'bool' = True, llm: 'LLM | None' = None, log_stream: 'TextIO | None' = None) -> 'None'
+  property agent_id
+  def asgi_app(self) -> 'HarnessApp'
+  property card
+  property client
+  property description
+  def lifespan(self, app: 'object') -> 'AbstractAsyncContextManager[None]'
+  property prefix
+  property public_url
+  def route_groups(self) -> 'RouteGroups'
+  property route_options
+  def routes(self) -> 'list[BaseRoute]'
+  property started
+  def unstarted_card(self) -> 'AgentCard'
+class RouteOptions(object)
+  def __init__(self, limits: 'bool' = True, cors: 'bool' = True, monitor: 'bool' = True, push: 'bool' = True, ui: 'bool' = True) -> None
 class RunningHarness(object)
   def __init__(self, base_url: 'str', client: 'Client', settings: 'Settings', _server_task: 'asyncio.Task[None]') -> None
   def wait(self) -> 'None'
 def complete_message(task_id: 'str', *, participant_id: 'str', context_id: 'str' = '', message_id: 'str | None' = None) -> 'Message'
+def harnesses_lifespan(*harnesses: 'Harness') -> 'Lifespan'
 def running_harness(settings: 'Settings', *, with_worker: 'bool' = True, log_stream: 'TextIO | None' = None, plugins: 'Sequence[Plugin | Path]' = (), commands: 'Iterable[tuple[CommandSpec, CommandHandler]]' = (), builtin_commands: 'bool' = True) -> 'AsyncGenerator[RunningHarness]'
 def serve(settings: 'Settings', *, with_worker: 'bool' = False) -> 'int'
 def temporal_client(settings: 'Settings', *, output: 'TextIO | None' = None) -> 'AsyncGenerator[Client]'

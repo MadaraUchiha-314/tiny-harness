@@ -84,11 +84,13 @@ const SDK: DefaultTheme.SidebarItem[] = [
   { text: "Add tools, commands and skills", link: "/sdk/extend" },
   { text: "Example: support agent", link: "/sdk/example" },
   { text: "Example: two agents", link: "/sdk/example-delegation" },
+  { text: "Mount agents on your app", link: "/sdk/mount" },
   { text: "Deploy", link: "/sdk/deploy" },
 ];
 
 const CONFIGURATION: DefaultTheme.SidebarItem[] = [
   { text: "Overview", link: "/configuration/" },
+  { text: "Agent", link: "/configuration/agent" },
   { text: "Temporal", link: "/configuration/temporal" },
   { text: "Models", link: "/configuration/models" },
   { text: "Server", link: "/configuration/server" },

@@ -215,6 +215,35 @@ class RetryableProviderError(TinyHarnessError):
         self.status = status
 
 
+# --- harness lifecycle (issue-36) --------------------------------------------------------
+
+
+class HarnessConflictError(TinyHarnessError):
+    """A second harness in this process claims an agent id, a namespace and task queue, or a
+    store file that a running harness holds (issue-36 R5.3, R5.8). Raised before anything
+    connects or polls."""
+
+    code = "harness.conflict"
+
+
+class HarnessAlreadyStartedError(TinyHarnessError):
+    """``Harness`` was entered while it is running; a harness starts once."""
+
+    code = "harness.already_started"
+
+
+class HarnessStoppedError(TinyHarnessError):
+    """``Harness`` was entered after it stopped; build a new one."""
+
+    code = "harness.stopped"
+
+
+class HarnessNotStartedError(TinyHarnessError):
+    """Something that exists only while the harness runs was asked for before it started."""
+
+    code = "harness.not_started"
+
+
 __all__ = [
     "AbortReason",
     "ChannelMembershipError",
@@ -223,6 +252,10 @@ __all__ = [
     "ConfigError",
     "EmbeddedTemporalError",
     "EntityNotFoundError",
+    "HarnessAlreadyStartedError",
+    "HarnessConflictError",
+    "HarnessNotStartedError",
+    "HarnessStoppedError",
     "HookAbort",
     "HookTransportError",
     "PlanCycleError",

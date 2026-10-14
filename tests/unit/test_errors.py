@@ -59,3 +59,25 @@ def test_detail_keys_never_look_like_secrets() -> None:
             assert not any(s in name.lower() for s in ("secret", "token", "password", "key")), (
                 f"{cls.__name__} takes a credential-shaped field {name}"
             )
+
+
+def test_harness_lifecycle_errors_are_harness_errors() -> None:
+    """issue-36 design § Error handling: every new error is a ``TinyHarnessError``."""
+    from tiny_harness.errors import (
+        HarnessAlreadyStartedError,
+        HarnessConflictError,
+        HarnessNotStartedError,
+        HarnessStoppedError,
+        TinyHarnessError,
+    )
+
+    for kind, code in (
+        (HarnessConflictError, "harness.conflict"),
+        (HarnessAlreadyStartedError, "harness.already_started"),
+        (HarnessStoppedError, "harness.stopped"),
+        (HarnessNotStartedError, "harness.not_started"),
+    ):
+        error = kind("x", agent="a")
+        assert isinstance(error, TinyHarnessError)
+        assert error.code == code
+        assert str(error) == f"[{code}] x agent=a"

@@ -30,6 +30,11 @@ and the tools. Lives in `tiny_harness/service/o11y/`.
 - Export SHALL go to `otlp_endpoint` when set, to Langfuse through its OTLP ingestion
   endpoint when `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set, and to
   `trace_file` as one JSON object per finished span when set; tests inject an exporter.
+- WHEN a request reaches a mounted agent, or an activity runs on an agent's worker, THEN
+  its log lines SHALL carry `"agent": <id>` and its spans `tiny_harness.agent`.
+- The service's redactors SHALL also mask every secret in the process's
+  `SecretRegistry`. A harness registers its secrets at start and removes them at stop, so
+  one agent's logs never carry another agent's key.
 - Every log field and span attribute SHALL pass through the redactor; no secret is
   logged and credential-shaped values in tool arguments and results are masked.
 
@@ -42,3 +47,4 @@ and the tools. Lives in `tiny_harness/service/o11y/`.
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | The o11y executor, logging, tracing and plugin (Layer 6); the JSON-lines exporter and the single-interceptor fix (Layer 9) | [spec](../specs/issue-3/), [PR #12](https://github.com/MadaraUchiha-314/tiny-harness/pull/12) |
+| issue-36 | The agent id on log lines and spans; the process secret registry | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |

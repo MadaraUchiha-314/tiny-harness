@@ -54,3 +54,37 @@ def test_built_wheel_installs_and_exposes_the_version(tmp_path: Path) -> None:
         cwd=tmp_path,
     )
     assert result.stdout.strip() == wheels[0].name.split("-")[1]
+
+
+def test_the_fastapi_helper_needs_its_extra(tmp_path: Path) -> None:
+    """
+    Feature: tiny_harness is installable as a package
+    Requirement: docs/specs/issue-36/requirements.md#R3
+
+    Scenario: the FastAPI helper needs its extra
+        Given the wheel built from this checkout, installed without extras
+        When tiny_harness.fastapi is imported
+        Then the import fails naming the tiny_harness[fastapi] extra
+        And with the extra installed the same import succeeds
+    """
+    uv = _uv()
+    dist = tmp_path / "dist"
+    subprocess.run(
+        [uv, "build", "--wheel", "--out-dir", str(dist), str(REPO_ROOT)],
+        check=True,
+        capture_output=True,
+    )
+    (wheel,) = dist.glob("tiny_harness-*.whl")
+    venv = tmp_path / "venv"
+    subprocess.run(
+        [uv, "venv", "--quiet", "--python", sys.executable, str(venv)], check=True, cwd=tmp_path
+    )
+    python = venv / "bin" / "python"
+    install = [uv, "pip", "install", "--quiet", "--python", str(python)]
+    subprocess.run([*install, str(wheel)], check=True, cwd=tmp_path)
+    probe = [str(python), "-c", "import tiny_harness.fastapi"]
+    bare = subprocess.run(probe, capture_output=True, text=True, cwd=tmp_path)
+    assert bare.returncode != 0
+    assert "tiny_harness[fastapi]" in bare.stderr
+    subprocess.run([*install, f"{wheel}[fastapi]"], check=True, cwd=tmp_path)
+    subprocess.run(probe, check=True, cwd=tmp_path)

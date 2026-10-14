@@ -44,9 +44,16 @@ module-root = ""
 [project.scripts]
 tiny-harness = "tiny_harness.service.cli:main"
 
+[project.optional-dependencies]
+fastapi = [
+    "a2a-sdk[fastapi]>=1.2.2",
+    "fastapi>=0.143",
+]
+
 [dependency-groups]
 dev = [
     "commitizen>=4.19",
+    "fastapi>=0.143",
     "pre-commit>=4",
     "pyright>=1.1.414",
     "pytest>=8",

@@ -11,10 +11,11 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 
+from a2a.types import AgentCard
 from pydantic import SecretStr
 
 from tiny_harness.builtin import load_builtin
-from tiny_harness.config import Settings
+from tiny_harness.config import DEFAULT_AGENT_ID, Settings
 from tiny_harness.harness.agents import SELF_AGENT_ID, Agent, RemoteAgent, build_roster
 from tiny_harness.harness.channels.help import register_default as register_help_default
 from tiny_harness.harness.commands import CommandHandler, CommandRegistry, CommandSpec
@@ -28,18 +29,16 @@ from tiny_harness.harness.plugins import LoadReport, McpStdioServer, Plugin, Plu
 from tiny_harness.harness.plugins.loader import prepare_stdio
 from tiny_harness.harness.plugins.registrar import RegistryRegistrar
 from tiny_harness.harness.prompts.entity import SYSTEM_PROMPT_ID, PromptEntity, SystemPrompt
-from tiny_harness.harness.security import Redactor
+from tiny_harness.harness.security import PROCESS_SECRETS, Redactor
 from tiny_harness.harness.skills.loader import skills_index
 from tiny_harness.harness.tools.mcp import McpToolSource, ServerSpec
 from tiny_harness.harness.tools.skill_tools import SkillSession, skill_tools
-from tiny_harness.service.a2a.card import build_agent_card, describe
+from tiny_harness.service.a2a.card import AgentDescription, build_agent_card, describe
 from tiny_harness.service.durable.models import WorkflowConfig
 from tiny_harness.service.o11y.plugin import executor as o11y_executor
 from tiny_harness.service.o11y.plugin import o11y_plugin
 
 log = logging.getLogger("tiny_harness.runtime")
-
-AGENT_ID = "tiny-harness"
 
 
 @dataclass
@@ -87,6 +86,16 @@ def ignored_environment_warnings(env: Mapping[str, str]) -> tuple[str, ...]:
     )
 
 
+def default_data_root(settings: Settings) -> Path:
+    """Where plugins and skills keep their data: ``plugin-data`` beside the store for the
+    default agent (as before), ``plugin-data-<id>`` for any other, so two agents whose
+    stores share a folder never share plugin data (issue-36 R5, critic round 1, #1)."""
+    folder = settings.store.sqlite_path.resolve().parent
+    if settings.agent.id == DEFAULT_AGENT_ID:
+        return folder / "plugin-data"
+    return folder / f"plugin-data-{settings.agent.id}"
+
+
 def secret_values(settings: Settings) -> list[SecretStr]:
     values: list[SecretStr] = []
     if settings.temporal.api_key is not None:  # absent in embedded mode (issue-17 R1.4)
@@ -106,9 +115,9 @@ def retention_map(settings: Settings) -> dict[RecordKind, timedelta]:
     return {kind: getattr(config, kind.value) for kind in RecordKind}
 
 
-def workflow_config(settings: Settings, *, agent: str = AGENT_ID) -> WorkflowConfig:
+def workflow_config(settings: Settings, *, agent: str | None = None) -> WorkflowConfig:
     return WorkflowConfig(
-        agent=agent,
+        agent=agent or settings.agent.id,
         retries=settings.retries,
         history_event_bound=settings.context.history_event_bound,
         search_attributes=settings.temporal.search_attributes,
@@ -124,18 +133,25 @@ async def build_runtime(
     builtin_commands: bool = True,
     plugins: Sequence[Plugin | Path] = (),
     commands: Iterable[tuple[CommandSpec, CommandHandler]] = (),
+    public_url: str | None = None,
+    description: AgentDescription | None = None,
+    local_cards: Mapping[str, AgentCard] | None = None,
 ) -> Runtime:
     """Assemble the harness (issue-25 R11): ``plugins`` (a directory or a programmatic
     ``Plugin``) load after ``settings.plugins``, with the same override, and ``commands``
     register from code after every plugin; a bad or duplicate name raises
     ``CommandError`` (R6.5). ``builtin_commands=False`` builds without ``/model``,
-    ``/effort``, ``/sub-task`` and ``/status`` (R6.8)."""
+    ``/effort``, ``/sub-task`` and ``/status`` (R6.8). ``public_url`` and ``description``
+    are this harness's own (default: ``base_url`` and ``[card]``). A remote agent whose URL
+    is a key of ``local_cards`` (a harness of this process) gets that card, unfetched
+    (issue-36 R6.1)."""
+    local_cards = local_cards or {}
     registry = Registry()
     hooks = HookManager()
     registrar = RegistryRegistrar(registry)
     registered = CommandRegistry(hooks)  # plugins declare commands into it (issue-25 R6a.6)
     catalog = ModelCatalog.from_settings(settings)  # the selectable models and defaults (R7, R8)
-    root = (data_root or settings.store.sqlite_path.resolve().parent / "plugin-data").resolve()
+    root = (data_root or default_data_root(settings)).resolve()
     reports = [
         await load_builtin(
             hook_manager=hooks,
@@ -149,7 +165,7 @@ async def build_runtime(
     loader = PluginLoader(
         hook_manager=hooks, registrar=registrar, data_root=root, commands=registered
     )
-    redactor = Redactor(secrets=secret_values(settings))
+    redactor = Redactor(secrets=secret_values(settings), registry=PROCESS_SECRETS)
     o11y_executor.redactor = redactor  # the plugin's one hook scrubs with the real secrets
     reports.append(await loader.load(o11y_plugin()))
     for path in settings.plugins:
@@ -173,16 +189,30 @@ async def build_runtime(
         for tool in await source.tools():
             await registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         sources.append(source)
-    me = self_agent(settings)  # the harness delegates to itself over A2A (issue-34 R7.1)
+    # the harness delegates to itself over A2A (issue-34 R7.1), at its mounted URL (issue-36)
+    me = self_agent(settings, public_url=public_url, description=description)
     await registry.add(RegistryEntry(ref=me.ref, instance=me), override=True)
     for remote in settings.agents:
-        agent = await RemoteAgent.connect(
-            remote.id,
-            str(remote.url),
-            version=remote.version,
-            updates=remote.updates,
-            follow_interval=remote.follow_interval,
-        )
+        local = local_cards.get(str(remote.url).rstrip("/"))
+        if local is not None:
+            # A harness of this same process: it is not listening while the process starts,
+            # so its card is built from its settings, as this harness's own is (issue-36 R6.1).
+            log.info("agent %s is in this process; its card is built, not fetched", remote.id)
+            agent = RemoteAgent.from_card(
+                remote.id,
+                local,
+                version=remote.version,
+                updates=remote.updates,
+                follow_interval=remote.follow_interval,
+            )
+        else:
+            agent = await RemoteAgent.connect(
+                remote.id,
+                str(remote.url),
+                version=remote.version,
+                updates=remote.updates,
+                follow_interval=remote.follow_interval,
+            )
         await registry.add(RegistryEntry(ref=agent.ref, instance=agent), override=True)
     roster = build_roster(await registered_agents(registry))  # once: a stable prefix (R1.5)
     log.info("agents roster: %s", ", ".join(roster.ids) or "(none)")
@@ -244,12 +274,19 @@ async def build_runtime(
     )
 
 
-def self_agent(settings: Settings) -> RemoteAgent:
-    """This harness as an agent, ``self``: its own card at its own ``base_url``, reached
-    over HTTP like any remote agent (issue-34 R7.1). The card is built, not fetched, so
-    the server need not be up yet."""
-    base_url = str(settings.server.base_url)
-    return RemoteAgent.from_card(SELF_AGENT_ID, build_agent_card(describe(settings.card), base_url))
+def self_agent(
+    settings: Settings,
+    *,
+    public_url: str | None = None,
+    description: AgentDescription | None = None,
+) -> RemoteAgent:
+    """This harness as an agent, ``self``: its own card at its own URL, reached over HTTP
+    like any remote agent (issue-34 R7.1). The card is built, not fetched, so the server
+    need not be up yet. ``public_url`` is where a mounted harness is served (issue-36)."""
+    url = public_url or str(settings.server.base_url)
+    return RemoteAgent.from_card(
+        SELF_AGENT_ID, build_agent_card(description or describe(settings.card), url)
+    )
 
 
 async def registered_agents(registry: Registry) -> list[Agent]:
@@ -278,11 +315,11 @@ async def render_system_prompt(registry: Registry) -> str:
 Retention = Mapping[RecordKind, timedelta]
 
 __all__ = [
-    "AGENT_ID",
     "SELF_AGENT_ID",
     "Retention",
     "Runtime",
     "build_runtime",
+    "default_data_root",
     "registered_agents",
     "render_system_prompt",
     "retention_map",

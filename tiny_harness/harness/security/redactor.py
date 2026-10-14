@@ -11,6 +11,8 @@ values, long base64-like blobs after a ``key``/``token``/``secret`` word) and by
 from __future__ import annotations
 
 import re
+import threading
+from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
 from typing import TypeVar, cast
@@ -31,13 +33,69 @@ _SHAPES: tuple[re.Pattern[str], ...] = (
 M = TypeVar("M", bound=BaseModel)
 
 
-class Redactor:
-    """Masks credential-shaped substrings and configured secret values in text and models."""
+def _plain(secrets: Iterable[str | SecretStr]) -> list[str]:
+    return [s.get_secret_value() if isinstance(s, SecretStr) else s for s in secrets]
 
-    def __init__(self, secrets: Iterable[str | SecretStr] = ()) -> None:
-        values = [s.get_secret_value() if isinstance(s, SecretStr) else s for s in secrets]
+
+class SecretRegistry:
+    """Every secret of every harness running in this process (issue-36 abuse case 6).
+
+    A harness registers its secrets when it starts and removes them when it stops; a
+    ``Redactor`` given the registry masks all of them, so one agent's logs never carry
+    another agent's key. Values are counted, so two harnesses sharing one key keep it
+    registered until both stop. ``version`` changes on every change."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._values: Counter[str] = Counter()
+        self.version = 0
+
+    def register(self, secrets: Iterable[str | SecretStr]) -> None:
+        with self._lock:
+            self._values.update(_plain(secrets))
+            self.version += 1
+
+    def unregister(self, secrets: Iterable[str | SecretStr]) -> None:
+        with self._lock:
+            self._values.subtract(_plain(secrets))
+            self._values = +self._values  # drop counts at zero
+            self.version += 1
+
+    def values(self) -> tuple[int, tuple[str, ...]]:
+        with self._lock:
+            return self.version, tuple(self._values)
+
+
+PROCESS_SECRETS = SecretRegistry()
+"""The process's one registry; the service's redactors read it."""
+
+
+class Redactor:
+    """Masks credential-shaped substrings and configured secret values in text and models.
+
+    With a ``registry`` it also masks every secret registered there, re-reading it when
+    its version changes."""
+
+    def __init__(
+        self, secrets: Iterable[str | SecretStr] = (), *, registry: SecretRegistry | None = None
+    ) -> None:
+        self._own = _plain(secrets)
+        self._registry = registry
+        self._version = -1
+        self._sorted = self._sort(self._own)
+
+    @staticmethod
+    def _sort(values: Iterable[str]) -> list[str]:
         # Longest first, so a secret that contains another is masked whole.
-        self._values = sorted((v for v in values if len(v) >= 4), key=len, reverse=True)
+        return sorted({v for v in values if len(v) >= 4}, key=len, reverse=True)
+
+    @property
+    def _values(self) -> list[str]:
+        if self._registry is not None and self._registry.version != self._version:
+            version, shared = self._registry.values()
+            self._sorted = self._sort([*self._own, *shared])
+            self._version = version
+        return self._sorted
 
     def scrub_text(self, text: str) -> str:
         for value in self._values:
@@ -87,4 +145,4 @@ class Redactor:
         return model.model_copy(update=updates) if updates else model
 
 
-__all__ = ["MASK", "Redactor"]
+__all__ = ["MASK", "PROCESS_SECRETS", "Redactor", "SecretRegistry"]

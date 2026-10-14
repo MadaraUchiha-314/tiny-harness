@@ -35,6 +35,9 @@ card, the public description that clients read first.
   `"http://127.0.0.1:8080"` on your computer.
 - Other agents send updates to this address. If they cannot reach it, set
   [`updates = "follow"`](plugins-and-agents#updates) for those agents.
+- A path in the address, as in `"https://example.com/agents/billing"`, is where your
+  app serves the agent. See [Mount agents on your app](../sdk/mount). `tiny-harness
+  serve` also uses it, for a gateway that forwards that path.
 
 ### `bind`
 

@@ -40,7 +40,7 @@ export TEMPORAL_API_KEY=...
 | [`mode`](#mode) | `"remote"` | `"embedded"` | `"remote"` |
 | [`address`](#address) | none | not allowed | necessary |
 | [`namespace`](#namespace) | `"default"` in embedded mode | optional | necessary |
-| [`task_queue`](#task-queue) | `"tiny-harness"` | optional | optional |
+| [`task_queue`](#task-queue) | the [agent id](agent#id) | optional | optional |
 | [`tls`](#tls) | `true` | not allowed | optional |
 | [`search_attributes`](#search-attributes) | `false` | optional | optional |
 
@@ -70,9 +70,11 @@ other applications.
 The name of the queue that the server and the workers share. Servers and workers find
 each other with this name.
 
-- **Default:** `"tiny-harness"`
-- **Set it when:** two different deployments use one namespace. Give each a different
-  queue.
+- **Default:** the agent id, [`[agent] id`](agent#id). With no `[agent]` section, this
+  is `"tiny-harness"`.
+- **Set it when:** two different deployments use one namespace with the same agent id.
+  Give each a different queue. Two agents in one process cannot use one queue: the
+  second agent does not start.
 
 ### `tls`
 
@@ -117,6 +119,9 @@ The file where embedded Temporal saves its data.
 
 - **Default:** `temporal.sqlite3`, in the same folder as the
   [store](storage#sqlite-path).
+- **Set it when:** several agents run in one process and you want them to share one
+  embedded Temporal. Give each agent's file the same `database_path`. See
+  [Several agents in one app](../sdk/mount#several-agents-in-one-app).
 
 ### `binary_path` {#binary-path}
 

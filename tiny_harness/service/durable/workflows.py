@@ -970,6 +970,10 @@ class TaskWorkflow:
         if not over and not info.is_continue_as_new_suggested():
             return
         await workflow.wait_condition(workflow.all_handlers_finished)
+        if self.cancel_reason is not None:
+            # The snapshot does not carry a cancel: a run that rolled over now would drop
+            # it and wait forever. The caller's next check, or the turn's cut, ends it.
+            return
         workflow.continue_as_new(self._snapshot(task, state))
 
     def take_notes(self) -> list[str]:

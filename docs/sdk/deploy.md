@@ -61,6 +61,19 @@ sub-task, at its own [`base_url`](../configuration/server#base-url), with
   gateway must always replace the header. If it passes a client's value, any client can
   claim to be the agent and see every task.
 
+### Agents mounted on your app
+
+When you [mount agents on your app](mount), your app is in front of them. Who checks the
+user depends on how you set up the agents:
+
+| Setup | Who checks the user |
+|-------|---------------------|
+| `Harness(settings, participant=your_function)` | Your app's login. The harness ignores `X-Participant-Id` |
+| `Harness(settings)` | Nobody. The harness trusts `X-Participant-Id`, as `tiny-harness serve` does. Put a gateway in front of your app |
+
+The size and rate limits apply to a mounted agent too, unless you turn them off with
+`RouteOptions(limits=False)`. Then your app must limit them.
+
 The server does protect itself in some ways. It limits the request size
 (`max_request_bytes`), limits requests per client (`rate_limit_per_minute`), checks
 every user interface action and removes every configured secret from logs, traces and
@@ -94,7 +107,11 @@ exit_code = await serve(settings, with_worker=True)   # a server and a worker
   data.
 
 The SQLite store allows one writer. The server and all workers must run on one host
-and use the same file. To use more than one host, replace the store and the event
+and use the same file.
+
+Each agent needs its own [`[agent] id`](../configuration/agent#id) in a Temporal
+namespace. tiny-harness refuses two agents with one id in one process. It cannot see
+other processes, so do not give two different agents the same id on two hosts. To use more than one host, replace the store and the event
 bridge with your own implementations. Both are interfaces of the service layer.
 
 ### Administration commands

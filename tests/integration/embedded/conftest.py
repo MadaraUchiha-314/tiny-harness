@@ -14,7 +14,7 @@ import pytest
 from tests.integration.durable.conftest import CACHE
 from tiny_harness.config import Settings
 from tiny_harness.harness.models import FakeLLM, LLMResponse
-from tiny_harness.service import process as process_module
+from tiny_harness.service import harness as harness_module  # issue-36: Harness builds the runtime
 from tiny_harness.service.runtime import build_runtime
 
 
@@ -55,7 +55,7 @@ def script_model(monkeypatch: pytest.MonkeyPatch) -> ScriptModel:
     def use(*responses: LLMResponse) -> None:
         llm = FakeLLM(responses)
         monkeypatch.setattr(
-            process_module, "build_runtime", functools.partial(build_runtime, llm=llm)
+            harness_module, "build_runtime", functools.partial(build_runtime, llm=llm)
         )
 
     use()

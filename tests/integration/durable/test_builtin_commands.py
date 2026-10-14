@@ -8,6 +8,7 @@ hook may refuse one, and a remote body that fails changes nothing.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -45,6 +46,7 @@ from tiny_harness.harness.plugins import (
     PluginLoader,
     PluginManifest,
 )
+from tiny_harness.harness.tools import ToolCall
 from tiny_harness.service.durable.models import entry_event
 from tiny_harness.service.durable.workflows import TaskWorkflow
 
@@ -188,7 +190,16 @@ async def test_the_parent_stream_carries_each_sub_task_state_change(
         And the parent itself stays parked: a sub-task parking or resuming never
             calls the parent's model
     """
-    h = await with_builtins(Harness([scripted("Refunded."), scripted("Ledger checked.")]))
+    lookup = ToolCall(call_id="c1", name="orders.get_order", arguments={"order_id": "48213"})
+    h = await with_builtins(
+        Harness(
+            [scripted("Refunded."), scripted("", tool_calls=[lookup]), scripted("Ledger checked.")]
+        )
+    )
+    # The parent learns a sub-task's state from its stand-in, which reads the child's
+    # current state when the child's push arrives (issue-34 R7.2): a WORKING that ends
+    # before that read is never seen. The gate holds the child WORKING until it is.
+    h.get_order.gate = asyncio.Event()
     tq, tid = ids()
     async with self_hosted(env, task_queue=tq, harness=h):
         handle = await send(
@@ -214,6 +225,8 @@ async def test_the_parent_stream_carries_each_sub_task_state_change(
         await child.execute_update(  # pyright: ignore[reportUnknownMemberType]
             TaskWorkflow.inbox, message("check it", task_id=child_id, message_id="c1")
         )
+        await until(handle, row("WORKING"))
+        h.get_order.gate.set()
         await until(child, replied("Ledger checked."))
         parent = await until(handle, row("INPUT_REQUIRED"))
         page = await handle.query(TaskWorkflow.events_since, 0)
@@ -225,7 +238,7 @@ async def test_the_parent_stream_carries_each_sub_task_state_change(
         assert parent.state == TaskState.TASK_STATE_INPUT_REQUIRED
         await close(handle)  # first: a sub-task's ending would wake the parent's model
         await close(child)
-    assert len(h.llm.requests) == 2  # the parent's first turn and the sub-task's
+    assert len(h.llm.requests) == 3  # the parent's first turn and the sub-task's two
 
 
 async def test_model_and_effort_commands_change_the_next_model_request(

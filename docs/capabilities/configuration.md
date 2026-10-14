@@ -83,10 +83,19 @@ How a deployment is described and how the processes come up. Lives in
   pairs) and `builtin_commands=False`. `Settings.load` and the entry points SHALL NOT
   read or create `~/.tiny-harness/`; `tiny_harness.home.resolve_config_path` and
   `ensure_default_config` are what the CLI calls, public for an SDK caller.
+- `[agent]` SHALL name the agent: `id` (lowercase, digits and `-`, default
+  `tiny-harness`). The card's name and description stay in `[card]`. `[temporal] task_queue`
+  SHALL default to `agent.id`. A file without either keeps the id and queue
+  `tiny-harness`.
+- `tiny_harness.service` SHALL also export `Harness`, `harnesses_lifespan` and
+  `RouteOptions`. `pip install 'tiny_harness[fastapi]'` adds `tiny_harness.fastapi`,
+  whose import without FastAPI names the extra.
 - `build_runtime` SHALL assemble one process from `Settings`: the built-in plugin, the
   operator's plugins, the MCP tool sources, the skills, the system prompt, the model,
   the store and the in-process engine the activities run over, with the plugin data
-  root at `plugin-data/` beside the store.
+  root at `plugin-data/` beside the store. `self` SHALL carry the harness's
+  `public_url`. A remote agent whose URL is a harness of this process SHALL get that
+  harness's card built from its settings, not fetched.
 - The demo configuration SHALL document the keyring lookups
   `secret-tool lookup service temporal project tiny-harness` and
   `secret-tool lookup service openai project tiny-harness`.
@@ -108,3 +117,4 @@ How a deployment is described and how the processes come up. Lives in
 | issue-27 | `agents[].updates` and `agents[].follow_interval` | [spec](../specs/issue-27/), [PR #28](https://github.com/MadaraUchiha-314/tiny-harness/pull/28) |
 | issue-34 | `[card]`: this agent's own card name, description, version and skills | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-34 (R7) | `[server] delegators`; the agent id `self` reserved | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
+| issue-36 | `[agent]`; the task queue defaults to the agent id; `Harness`, `harnesses_lifespan`, `RouteOptions` exported; the `fastapi` extra | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |

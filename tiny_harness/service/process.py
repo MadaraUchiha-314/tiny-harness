@@ -9,7 +9,6 @@ server, the worker and (in embedded mode) the Temporal dev server, in that order
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 from collections.abc import AsyncGenerator, Iterable, Sequence
 from contextlib import asynccontextmanager
@@ -17,39 +16,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
 
-import httpx
 import uvicorn
-from a2a.server.tasks import BasePushNotificationSender
 from temporalio.client import Client
 from uvicorn.config import LOGGING_CONFIG
 
 from tiny_harness.config import Settings
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
-from tiny_harness.harness.models import ModelCatalog
 from tiny_harness.harness.plugins import Plugin
-from tiny_harness.harness.security import Redactor
-from tiny_harness.jsontypes import JsonObject
-from tiny_harness.service.a2a import (
-    HarnessExecutor,
-    HarnessRequestHandler,
-    PollingEventBridge,
-    PushReceiver,
-    PushSink,
-    StorePushConfigStore,
-    TemporalTaskStore,
-    build_agent_card,
-    create_app,
-)
-from tiny_harness.service.a2a.card import describe
-from tiny_harness.service.durable.activities import Activities
-from tiny_harness.service.durable.temporal import temporal_client
-from tiny_harness.service.durable.worker import build_worker, ensure_search_attributes
-from tiny_harness.service.heartbeat import ensure_heartbeat_schedule
+from tiny_harness.harness.security import PROCESS_SECRETS, Redactor
+from tiny_harness.service.harness import Harness
 from tiny_harness.service.runtime import (
-    build_runtime,
-    retention_map,
     secret_values,
-    workflow_config,
 )
 from tiny_harness.service.signals import cancel_on_sigterm
 
@@ -69,7 +46,9 @@ def observe(settings: Settings, *, stream: TextIO | None = None) -> None:
 
     level = logging.getLevelNamesMapping().get(settings.o11y.log_level.upper(), logging.INFO)
     configure_logging(
-        level=level, redactor=Redactor(secrets=secret_values(settings)), stream=stream
+        level=level,
+        redactor=Redactor(secrets=secret_values(settings), registry=PROCESS_SECRETS),
+        stream=stream,
     )
     configure_tracing(settings.o11y, service_name=settings.o11y.service_name)
 
@@ -121,7 +100,8 @@ async def running_harness(
     builtin_commands: bool = True,
 ) -> AsyncGenerator[RunningHarness]:
     """Start Temporal (per ``temporal.mode``), the runtime, the worker and the A2A server;
-    yield once the server is listening; stop all of them on exit (issue-17 R6.1, R6.2).
+    yield once the server is listening; stop all of them on exit (issue-17 R6.1, R6.2). It
+    is a ``Harness`` served by its own uvicorn (issue-36 R7.1).
 
     In embedded mode the worker always runs here: no other process can reach the embedded
     server (R5.1). ``log_stream``, when given, receives uvicorn's logs and an embedded dev
@@ -132,74 +112,24 @@ async def running_harness(
     caller adds plugins and slash commands in code, or builds without the built-in
     commands (issue-25 R6.8, R11). Nothing here reads or creates ``~/.tiny-harness``
     (R11.2); that is the CLI's choice, through ``tiny_harness.home``."""
-    if settings.temporal.mode == "embedded" and not with_worker:
-        log.info("embedded mode: the worker runs in this process")
-        with_worker = True
-    async with (
-        temporal_client(settings, output=log_stream) as client,
-        contextlib.AsyncExitStack() as stack,
-    ):
-        runtime = await build_runtime(
-            settings, plugins=plugins, commands=commands, builtin_commands=builtin_commands
-        )
-        push_store = StorePushConfigStore(runtime.store)
-        push_http = httpx.AsyncClient(timeout=10)
-        stack.push_async_callback(push_http.aclose)
-        bridge = PollingEventBridge(client, interval=settings.server.bridge_interval)
-        runtime.commands.freeze()  # no command is registered once the card is built
-        await runtime.commands.publish(runtime.registry)
-        card = build_agent_card(
-            describe(settings.card), str(settings.server.base_url), commands=runtime.commands.specs
-        )
-        executor = HarnessExecutor(
-            client,
-            task_queue=settings.temporal.task_queue,
-            bridge=bridge,
-            config=workflow_config(settings),
-            redactor=runtime.redactor,
-            delegators=settings.server.delegators,
-            models=ModelCatalog.from_settings(settings).selectable,
-        )
-        activities = Activities(
-            runtime.engine,
-            commands=runtime.commands,
-            sink=PushSink(push_store, push_http),
-            client=client,
-            retention=retention_map(settings),
-            push_base_url=str(settings.server.base_url),
-        )
-        handler = HarnessRequestHandler(
-            bridge=bridge,
-            agent_executor=executor,
-            task_store=TemporalTaskStore(client, runtime.store),
-            agent_card=card,
-            push_config_store=push_store,
-            push_sender=BasePushNotificationSender(push_http, push_store),
-        )
-
-        async def monitor() -> JsonObject:
-            snapshot = activities.last_snapshot
-            return snapshot.model_dump(mode="json") if snapshot is not None else {"tasks": []}
-
-        app = create_app(
-            handler, card, config=settings.server, monitor=monitor, push=PushReceiver(client)
-        )
-        if with_worker:
-            await ensure_search_attributes(client)
-            await ensure_heartbeat_schedule(
-                client,
-                interval=settings.heartbeat.interval,
-                task_queue=settings.temporal.task_queue,
-            )
-            await stack.enter_async_context(
-                build_worker(client, activities, task_queue=settings.temporal.task_queue)
-            )
+    harness = Harness(
+        settings,
+        with_worker=with_worker,
+        log_stream=log_stream,
+        plugins=plugins,
+        commands=commands,
+        builtin_commands=builtin_commands,
+    )
+    async with harness:
         host, port = bind_address(settings)
         server = uvicorn.Server(
             uvicorn.Config(
-                app,
+                harness.asgi_app(),
                 host=host,
                 port=port,
+                # A base_url with a path: a proxy forwards the requests with that path
+                # stripped, and the app is mounted there (issue-36 R2.5).
+                root_path=harness.prefix,
                 log_level="info",
                 log_config=uvicorn_log_config(log_stream) if log_stream else LOGGING_CONFIG,
             )
@@ -207,7 +137,7 @@ async def running_harness(
         task = asyncio.create_task(server.serve())
         try:
             await _until_started(server, task)
-            yield RunningHarness(str(settings.server.base_url), client, settings, task)
+            yield RunningHarness(str(settings.server.base_url), harness.client, settings, task)
         finally:
             server.should_exit = True
             await asyncio.wait([task])

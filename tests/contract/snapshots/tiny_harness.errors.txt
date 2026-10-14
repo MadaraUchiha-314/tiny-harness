@@ -7,6 +7,10 @@ class ConfigError(TinyHarnessError)
   def __init__(self, message: 'str', *, variable: 'str', **detail: 'str') -> 'None'
 class EmbeddedTemporalError(TinyHarnessError)
 class EntityNotFoundError(TinyHarnessError)
+class HarnessAlreadyStartedError(TinyHarnessError)
+class HarnessConflictError(TinyHarnessError)
+class HarnessNotStartedError(TinyHarnessError)
+class HarnessStoppedError(TinyHarnessError)
 class HookAbort(TinyHarnessError)
   def __init__(self, message: 'str', *, reason: 'AbortReason', **detail: 'str') -> 'None'
 class HookTransportError(TinyHarnessError)

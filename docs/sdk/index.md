@@ -149,6 +149,7 @@ async for event in client.send_message(SendMessageRequest(message=done)):
 |------|-----------|
 | `tiny_harness.config.Settings` | Read and check a configuration file: `Settings.load(path)` |
 | `tiny_harness.service.running_harness` | Start the harness inside an `async with` block. Everything stops at the end of the block |
+| `tiny_harness.service.Harness` | Add an agent to your own Starlette or FastAPI app. See [Mount agents on your app](mount) |
 | `tiny_harness.service.serve` | Run the harness until the process gets a stop signal. Returns the exit status |
 | `tiny_harness.service.complete_message` | Build the message that completes a task |
 | `tiny_harness.service.temporal_client` | Connect to Temporal only, for administration |
@@ -160,6 +161,8 @@ async for event in client.send_message(SendMessageRequest(message=done)):
 
 - [Add tools, commands and skills](extend): give the agent what it needs for your
   product.
+- [Mount agents on your app](mount): serve one or more agents from your own Starlette
+  or FastAPI app.
 - [Configuration](../configuration/): every setting, in plain words.
 - [Deploy](deploy): run the agent for real users.
 - [Example: support agent](example): a complete agent with tools, a skill and a web

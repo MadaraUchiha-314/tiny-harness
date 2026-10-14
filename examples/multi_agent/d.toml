@@ -1,0 +1,24 @@
+# Agent d of the five-agent example (issue-36). See README.md.
+
+[agent]
+id = "d"
+
+[card]
+name = "Ledger"
+description = "Looks up account balances."
+
+[temporal]
+mode = "embedded"
+
+[temporal.embedded]
+# One dev server for all five agents: the same database path shares it.
+database_path = "examples/multi_agent/.state/temporal.sqlite3"
+
+[openai]
+model = "gpt-6.1-sol"
+
+[server]
+base_url = "http://127.0.0.1:8090/agents/d"
+
+[store]
+sqlite_path = "examples/multi_agent/.state/d.sqlite3"

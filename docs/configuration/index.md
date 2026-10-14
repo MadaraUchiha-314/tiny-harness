@@ -79,6 +79,7 @@ otlp_endpoint = "https://otel.example.com"
 
 | Section | What it controls | Page |
 |---------|------------------|------|
+| `[agent]` | The agent's id, name and description | [Agent](agent) |
 | `[temporal]`, `[temporal.embedded]` | Where tiny-harness keeps the steps of each task | [Temporal](temporal) |
 | `[openai]`, `[anthropic]` | Which AI model the agent uses | [Models](models) |
 | `[server]` | The address, limits and web access of the server | [Server](server) |

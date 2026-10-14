@@ -1,5 +1,20 @@
 {
   "$defs": {
+    "AgentConfig": {
+      "additionalProperties": false,
+      "description": "Who this agent is (issue-36 R4.6): its participant id on tasks, its default task\nqueue and its heartbeat schedule. Several agents in one process each need their own id\n(R5.3). Its card's name and description are ``[card]``'s (issue-34).",
+      "properties": {
+        "id": {
+          "default": "tiny-harness",
+          "description": "lowercase letters, digits and dashes; unique per process",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "title": "AgentConfig",
+      "type": "object"
+    },
     "AnthropicConfig": {
       "additionalProperties": false,
       "description": "Anthropic through the Messages API; configurable, not exercised end to end (R21.4).",
@@ -787,9 +802,17 @@
           "type": "boolean"
         },
         "task_queue": {
-          "default": "tiny-harness",
-          "title": "Task Queue",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the agent's Temporal task queue; default: the agent id ([agent] id), so two agents in one namespace never share one",
+          "title": "Task Queue"
         },
         "tls": {
           "default": true,
@@ -804,6 +827,12 @@
   "additionalProperties": false,
   "description": "Everything a harness process needs. Built by ``load_settings``.",
   "properties": {
+    "agent": {
+      "$ref": "#/$defs/AgentConfig",
+      "default": {
+        "id": "tiny-harness"
+      }
+    },
     "agents": {
       "default": [],
       "items": {

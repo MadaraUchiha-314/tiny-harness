@@ -72,7 +72,7 @@ flowchart LR
 | Column | Modules | Capabilities |
 |--------|---------|--------------|
 | Interaction | `interaction/surface.py`, `renderer.py`, `a2ui/`, `tui/`; `renderers/web` | [surfaces-and-renderers](../capabilities/surfaces-and-renderers.md) |
-| Service | `service/a2a/`, `inbox.py`, `heartbeat.py`, `channels.py`, `o11y/`, `durable/`, `cli.py`, `commands.py`, `process.py`, `runtime.py` | [a2a-server](../capabilities/a2a-server.md), [heartbeat](../capabilities/heartbeat.md), [observability](../capabilities/observability.md), [durable-execution](../capabilities/durable-execution.md), [configuration](../capabilities/configuration.md) |
+| Service | `service/a2a/`, `inbox.py`, `heartbeat.py`, `channels.py`, `o11y/`, `durable/`, `cli.py`, `commands.py`, `harness.py`, `claims.py`, `process.py`, `runtime.py`; `tiny_harness/fastapi.py` | [a2a-server](../capabilities/a2a-server.md), [heartbeat](../capabilities/heartbeat.md), [observability](../capabilities/observability.md), [durable-execution](../capabilities/durable-execution.md), [configuration](../capabilities/configuration.md) |
 | Harness | `harness/entities/`, `hooks/`, `plugins/`, `prompts/`, `skills/`, `tools/`, `models/`, `core/`, `persistence/`, `channels/`, `agents/`, `security/` | [entities-and-registry](../capabilities/entities-and-registry.md), [hooks](../capabilities/hooks.md), [plugins](../capabilities/plugins.md), [prompts-and-skills](../capabilities/prompts-and-skills.md), [tools](../capabilities/tools.md), [models](../capabilities/models.md), [tasks-and-plans](../capabilities/tasks-and-plans.md), [context-window](../capabilities/context-window.md), [persistence](../capabilities/persistence.md), [participants-and-channels](../capabilities/participants-and-channels.md), [remote-agents](../capabilities/remote-agents.md) |
 | Cross-cutting | `builtin/`, `config.py`, `errors.py`, `jsontypes.py` | [plugins](../capabilities/plugins.md), [configuration](../capabilities/configuration.md) |
 | Not built | Memory, Sandbox, Self-improvement | out of scope for issue-3; `tools/` leaves a `ToolKind` slot |
@@ -98,6 +98,27 @@ sequenceDiagram
 
 Every activity body is the hook-wrapped operation runner, so the hooks of every plugin
 (observability included) run on the worker, never in workflow code.
+
+## Agents in a host app
+
+A `Harness` (`service/harness.py`) is one agent: its runtime, its worker and its routes.
+It serves nothing itself. A host Starlette or FastAPI app mounts `asgi_app()` (or
+includes `tiny_harness.fastapi.harness_router`) and runs its lifespan. `running_harness`
+and `serve` are a `Harness` behind their own uvicorn. Several harnesses share one process
+(issue-36, [decision-009](../decisions/decision-009.md)):
+
+```mermaid
+flowchart LR
+    App[host app] --> HA[Harness a] & HB[Harness b]
+    HA & HB --> CL[Claims: id, queue, store]
+    HA & HB --> SR[SecretRegistry]
+    HA & HB --> P[TemporalPool] --> T[(Temporal namespace)]
+    HA --> QA[queue a: worker a] --> T
+    HB --> QB[queue b: worker b] --> T
+```
+
+A task belongs to the agent whose queue runs its workflow. Agents call each other over
+HTTP through each other's routes.
 
 ## Repository layout and tooling
 

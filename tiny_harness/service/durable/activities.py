@@ -131,6 +131,7 @@ from tiny_harness.service.inbox import (
 )
 from tiny_harness.service.o11y.tracing import no_export
 from tiny_harness.service.push_token import push_url, token_digest
+from tiny_harness.service.visibility import visibility_literal
 
 log = logging.getLogger("tiny_harness.durable.activities")
 HEARTBEAT_EVERY = 10.0
@@ -185,8 +186,11 @@ class Activities:
         retention: Mapping[RecordKind, timedelta] | None = None,
         commands: CommandRegistry | None = None,
         push_base_url: str | None = None,
+        task_queue: str | None = None,
     ) -> None:
         self.engine = engine
+        # This agent's queue: the heartbeat scans only its own tasks (issue-36 R5.6).
+        self.task_queue = task_queue
         # Where a parked remote task is asked to push (issue-27 R1.2); None: follow only.
         self.push_base_url = push_base_url
         self.follow_window = FOLLOW_WINDOW
@@ -760,7 +764,7 @@ class Activities:
         """The inner layer's view for the API layer and the ``heartbeat.tick`` hooks (R16.3)."""
         tasks: list[TaskMonitor] = []
         if self.client is not None:
-            for execution_id in await running_task_workflows(self.client):
+            for execution_id in await running_task_workflows(self.client, self.task_queue):
                 handle = self.client.get_workflow_handle(execution_id)
                 try:
                     tasks.append(await handle.query("monitor", result_type=TaskMonitor))
@@ -948,12 +952,19 @@ async def _first_change(
     return None
 
 
-async def running_task_workflows(client: Client) -> list[str]:
-    """Ids of the running ``TaskWorkflow`` executions: a visibility query, or an
-    unfiltered list filtered here where the server supports no query (the test server)."""
+async def running_task_workflows(client: Client, task_queue: str | None = None) -> list[str]:
+    """Ids of the running ``TaskWorkflow`` executions, on ``task_queue`` when it is given
+    (issue-36 R5.6): a visibility query, or an unfiltered list filtered here where the
+    server supports no query (the test server)."""
     query = "WorkflowType = 'TaskWorkflow' AND ExecutionStatus = 'Running'"
+    if task_queue is not None:
+        query += " AND TaskQueue = " + visibility_literal(task_queue)
     try:
-        return [e.id async for e in client.list_workflows(query)]
+        return [
+            e.id
+            async for e in client.list_workflows(query)
+            if task_queue is None or e.task_queue == task_queue
+        ]
     except RPCError:
         pass
     found: list[str] = []
@@ -962,6 +973,7 @@ async def running_task_workflows(client: Client) -> list[str]:
             if (
                 execution.workflow_type == "TaskWorkflow"
                 and execution.status is WorkflowExecutionStatus.RUNNING
+                and (task_queue is None or execution.task_queue == task_queue)
             ):
                 found.append(execution.id)
     except RPCError:

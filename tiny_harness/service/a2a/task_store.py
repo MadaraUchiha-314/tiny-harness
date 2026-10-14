@@ -6,20 +6,31 @@ the asserted participant is not on. ``save`` is a no-op: the workflow owns the t
 from __future__ import annotations
 
 import logging
+import re
+from collections import OrderedDict
 from collections.abc import Sequence
 
 from a2a.server.context import ServerCallContext
 from a2a.server.tasks import TaskStore
 from a2a.types import ListTasksRequest, ListTasksResponse, Task, TaskState
+from a2a.utils.errors import InvalidParamsError
 from temporalio.client import Client
 from temporalio.service import RPCError
 
 from tiny_harness.harness.core import HarnessTask
 from tiny_harness.harness.persistence import Store, TaskRecord
+from tiny_harness.service.visibility import visibility_literal
 
 log = logging.getLogger("tiny_harness.a2a.access")
 PARTICIPANT_STATE_KEY = "participant_id"
 PARTICIPANT_HEADER = "x-participant-id"
+STRICT_STATE_KEY = "participant_strict"
+"""Set when the host app's resolver, not the header, names the participant (issue-36 R4.2):
+then a message's self-claimed ``participant_id`` is never enough on its own."""
+
+
+def strict_participant(context: ServerCallContext | None) -> bool:
+    return context is not None and bool(context.state.get(STRICT_STATE_KEY))
 
 
 def asserted_participant(context: ServerCallContext | None) -> str | None:
@@ -52,25 +63,70 @@ class AccessPolicy:
         return allowed
 
 
+OWNERSHIP_CACHE_SIZE = 4096
+
+
+SAFE_CONTEXT_ID = re.compile(r"[A-Za-z0-9._:-]{1,256}")
+
+
 class TemporalTaskStore(TaskStore):
-    def __init__(self, client: Client, store: Store, *, policy: AccessPolicy | None = None) -> None:
+    """With ``task_queue`` set, a task belongs to this agent only when its workflow runs on
+    that queue (issue-36 R5.4, abuse case 2): every other task id is as unknown as one that
+    names nothing. The answer never changes for an id, so it is cached. Without it (one
+    agent per namespace, the pre-issue-36 setup) every task in the namespace is a candidate."""
+
+    def __init__(
+        self,
+        client: Client,
+        store: Store,
+        *,
+        policy: AccessPolicy | None = None,
+        task_queue: str | None = None,
+    ) -> None:
         self._client = client
         self._store = store
         self._policy = policy or AccessPolicy()
+        self._task_queue = task_queue
+        self._owned: OrderedDict[str, bool] = OrderedDict()
 
     async def save(self, task: Task, context: ServerCallContext) -> None:
         return None
 
+    async def owns(self, task_id: str) -> bool | None:
+        """Whether ``task_id``'s workflow runs on this agent's queue; ``None`` when no
+        workflow answers (purged, or never existed): only this agent's own store decides."""
+        if self._task_queue is None:
+            return True
+        known = self._owned.get(task_id)
+        if known is not None:
+            self._owned.move_to_end(task_id)
+            return known
+        try:
+            description = await self._client.get_workflow_handle(task_id).describe()
+        except RPCError:
+            return None
+        owned = description.task_queue == self._task_queue
+        self._owned[task_id] = owned
+        if len(self._owned) > OWNERSHIP_CACHE_SIZE:
+            self._owned.popitem(last=False)
+        if not owned:
+            log.info("task %s belongs to another agent", task_id)
+        return owned
+
     async def lookup(self, task_id: str) -> Task | None:
         """The task as the workflow sees it, else the store's record, else nothing."""
-        handle = self._client.get_workflow_handle(task_id)
-        try:
-            return await handle.query("task", result_type=Task)
-        except RPCError as exc:
-            log.info(
-                "task query failed; reading the store",
-                extra={"task_id": task_id, "error": str(exc)},
-            )
+        owned = await self.owns(task_id)
+        if owned is False:
+            return None
+        if owned:
+            handle = self._client.get_workflow_handle(task_id)
+            try:
+                return await handle.query("task", result_type=Task)
+            except RPCError as exc:
+                log.info(
+                    "task query failed; reading the store",
+                    extra={"task_id": task_id, "error": str(exc)},
+                )
         record = await self._store.get(TaskRecord, task_id)
         if record is None:
             log.info("task %s not in the store", task_id)
@@ -85,12 +141,22 @@ class TemporalTaskStore(TaskStore):
 
     async def list(self, params: ListTasksRequest, context: ServerCallContext) -> ListTasksResponse:
         query = "WorkflowType = 'TaskWorkflow'"
+        if self._task_queue is not None:
+            query += f" AND TaskQueue = {visibility_literal(self._task_queue)}"
         if params.context_id:
-            query += f" AND A2AContextId = '{params.context_id}'"
+            if not SAFE_CONTEXT_ID.fullmatch(params.context_id):
+                # Fail closed and say so: the id never reaches the query (issue-36
+                # self-review 1, #3; round 2, #4).
+                raise InvalidParamsError(
+                    message="contextId may use only letters, digits, '.', '_', ':' and '-'"
+                )
+            query += f" AND A2AContextId = {visibility_literal(params.context_id)}"
         tasks: list[Task] = []
         page_size = params.page_size or 50
         try:
             async for execution in self._client.list_workflows(query):
+                if self._task_queue is not None and execution.task_queue != self._task_queue:
+                    continue
                 task = await self.lookup(execution.id)
                 if task is None or not self._policy.allows(task, context):
                     continue
@@ -129,8 +195,12 @@ class TemporalTaskStore(TaskStore):
 __all__ = [
     "PARTICIPANT_HEADER",
     "PARTICIPANT_STATE_KEY",
+    "SAFE_CONTEXT_ID",
+    "STRICT_STATE_KEY",
     "AccessPolicy",
     "TaskState",
     "TemporalTaskStore",
     "asserted_participant",
+    "strict_participant",
+    "visibility_literal",
 ]

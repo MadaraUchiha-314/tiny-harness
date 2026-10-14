@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import json
 import logging
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import TextIO
 
 from tiny_harness.harness.security import Redactor
 
 RECORD_FIELDS = ("task_id", "correlation_id", "operation", "phase", "attempt")
+
+CURRENT_AGENT: ContextVar[str | None] = ContextVar("tiny_harness_agent", default=None)
+"""The agent whose request or activity this is (issue-36 NFR observability): set per request
+by the harness's app and per activity by the worker's ``AgentContextInterceptor``, so five
+agents in one process write tellable-apart log lines and spans."""
 
 
 class JsonFormatter(logging.Formatter):
@@ -26,6 +32,9 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": self.redactor.scrub_text(record.getMessage()),
         }
+        agent = CURRENT_AGENT.get()
+        if agent is not None:
+            payload["agent"] = agent
         fields = getattr(record, "fields", None)
         if isinstance(fields, dict):
             for key, value in fields.items():  # type: ignore[misc]
@@ -79,6 +88,7 @@ def drop_sdk_request_bodies() -> None:
 
 
 __all__ = [
+    "CURRENT_AGENT",
     "RECORD_FIELDS",
     "SDK_BODY_LOGGER",
     "DropRequestBodies",

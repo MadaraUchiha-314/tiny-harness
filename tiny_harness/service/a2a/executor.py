@@ -33,7 +33,11 @@ from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.bridge import EventBridge
 from tiny_harness.service.a2a.card import SUPPORTED_EXTENSIONS
-from tiny_harness.service.a2a.task_store import AccessPolicy, asserted_participant
+from tiny_harness.service.a2a.task_store import (
+    AccessPolicy,
+    asserted_participant,
+    strict_participant,
+)
 from tiny_harness.service.durable.models import InboxReceipt, TaskStart, WorkflowConfig
 from tiny_harness.service.durable.workflows import (
     A2A_CONTEXT_ID,
@@ -158,6 +162,10 @@ def sender_of(message: Message, call_context: ServerCallContext | None) -> str:
     run a command as the reporter (issue-25 abuse case 4). Without a request assertion the
     message's own (decision-003); with neither, fail closed."""
     asserted = asserted_participant(call_context)
+    if asserted is None and strict_participant(call_context):
+        # The host's resolver named nobody; the message's own claim would bypass the
+        # host's authentication (issue-36 abuse case 1). Fail closed.
+        raise InvalidParamsError(message="no participant asserted")
     claimed = participant_of(message)
     if asserted is not None and claimed is not None and claimed != asserted:
         raise InvalidParamsError(message="the message names a different participant")

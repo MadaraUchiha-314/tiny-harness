@@ -23,7 +23,7 @@ from tiny_harness.service.durable.worker import build_worker, ensure_search_attr
 from tiny_harness.service.heartbeat import delete_heartbeat_schedule, ensure_heartbeat_schedule
 from tiny_harness.service.process import observe, running_harness
 from tiny_harness.service.process import serve as serve_harness
-from tiny_harness.service.runtime import AGENT_ID, build_runtime, retention_map
+from tiny_harness.service.runtime import build_runtime, retention_map
 
 TUI_LOG_NAME = "tiny-harness.log"
 
@@ -44,13 +44,25 @@ async def worker(settings: Settings) -> int:
             sink=PushSink(push_store, httpx.AsyncClient(timeout=10)),
             client=client,
             retention=retention_map(settings),
+            task_queue=settings.temporal.effective_task_queue,
         )
         await ensure_search_attributes(client)
         await ensure_heartbeat_schedule(
-            client, interval=settings.heartbeat.interval, task_queue=settings.temporal.task_queue
+            client,
+            interval=settings.heartbeat.interval,
+            task_queue=settings.temporal.effective_task_queue,
+            agent_id=settings.agent.id,
         )
-        print(f"worker {AGENT_ID} on {settings.temporal.task_queue}", file=sys.stderr)
-        async with build_worker(client, activities, task_queue=settings.temporal.task_queue):
+        print(
+            f"worker {settings.agent.id} on {settings.temporal.effective_task_queue}",
+            file=sys.stderr,
+        )
+        async with build_worker(
+            client,
+            activities,
+            task_queue=settings.temporal.effective_task_queue,
+            agent_id=settings.agent.id,
+        ):
             await asyncio.Event().wait()
     return 0
 
@@ -80,7 +92,7 @@ async def tui(settings: Settings, *, url: str | None, participant: str) -> int:
 async def schedules_delete(settings: Settings) -> int:
     async with temporal_client(settings) as client:
         try:
-            await delete_heartbeat_schedule(client)
+            await delete_heartbeat_schedule(client, settings.agent.id)
         except RPCError as exc:
             print(f"no heartbeat schedule to delete: {exc.message}", file=sys.stderr)
             return 1

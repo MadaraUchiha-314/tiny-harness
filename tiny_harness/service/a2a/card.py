@@ -6,11 +6,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Final
+from urllib.parse import urlsplit, urlunsplit
 
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
 from pydantic import BaseModel, ConfigDict
 
 from tiny_harness.config import CardConfig
+from tiny_harness.errors import ConfigError
 from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
 from tiny_harness.harness.commands import COMMANDS_EXT_URI, CommandsExtensionParams, CommandSpec
@@ -60,6 +62,33 @@ def describe(card: CardConfig) -> AgentDescription:
     fields = card.model_dump(exclude_none=True, exclude={"skills"})
     skills = tuple(AgentSkillSpec.model_validate(s.model_dump()) for s in card.skills)
     return AgentDescription(**fields, skills=skills)
+
+
+def normalize_prefix(prefix: str | None) -> str:
+    """A mount prefix as ``/a/b``: a leading slash, no trailing slash; ``""`` for the root."""
+    if prefix is None:
+        return ""
+    stripped = prefix.strip().strip("/")
+    return f"/{stripped}" if stripped else ""
+
+
+def public_url(base_url: str, prefix: str | None = None) -> str:
+    """Where clients reach this agent, with no trailing slash (issue-36 R2.3, R2.4).
+
+    ``base_url``'s own path is the prefix when it has one; a ``prefix`` argument is added to
+    a ``base_url`` without a path, and must equal the path of one that has a path. A
+    mismatch is a ``ConfigError`` naming both, so a card never carries a URL the agent
+    is not served at."""
+    split = urlsplit(base_url)
+    base_path = normalize_prefix(split.path)
+    wanted = normalize_prefix(prefix)
+    if base_path and wanted and base_path != wanted:
+        raise ConfigError(
+            f"the mount prefix {wanted!r} disagrees with server.base_url's path {base_path!r}",
+            variable="server.base_url",
+        )
+    path = base_path or wanted
+    return urlunsplit((split.scheme, split.netloc, path, "", ""))
 
 
 def build_agent_card(
@@ -131,4 +160,6 @@ __all__ = [
     "AgentSkillSpec",
     "build_agent_card",
     "describe",
+    "normalize_prefix",
+    "public_url",
 ]

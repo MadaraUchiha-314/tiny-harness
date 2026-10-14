@@ -1,5 +1,6 @@
-"""The programmatic entry points (issue-17 R6): ``running_harness``, ``serve``,
-``temporal_client`` and ``RunningHarness`` are the public API of ``tiny_harness.service``."""
+"""The programmatic entry points (issue-17 R6, issue-36): ``Harness``, ``harnesses_lifespan``,
+``RouteOptions``, ``running_harness``, ``serve``, ``temporal_client`` and ``RunningHarness``
+are the public API of ``tiny_harness.service``."""
 
 import tiny_harness.service
 from tests.contract._api import assert_snapshot

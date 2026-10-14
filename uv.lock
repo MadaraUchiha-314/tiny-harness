@@ -1602,7 +1602,7 @@ wheels = [
 
 [[package]]
 name = "tiny-harness"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },

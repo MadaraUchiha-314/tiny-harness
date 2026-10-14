@@ -57,6 +57,8 @@ class _Entry:
     client: Client | None = None
     error: BaseException | None = None
     stack: AsyncExitStack = field(default_factory=AsyncExitStack)
+    closing: bool = False
+    closed: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 class TemporalPool:
@@ -84,15 +86,22 @@ class TemporalPool:
             await self._release(key, entry)
 
     async def _acquire(self, key: PoolKey, settings: Settings, output: TextIO | None) -> _Entry:
-        with self._lock:
-            entry = self._entries.get(key)
-            if entry is not None:
-                entry.users += 1
-                first = False
-            else:
-                _refuse_second_namespace(key, self._entries)
-                entry = self._entries[key] = _Entry()
-                first = True
+        while True:
+            with self._lock:
+                entry = self._entries.get(key)
+                if entry is None:
+                    _refuse_second_namespace(key, self._entries)
+                    entry = self._entries[key] = _Entry()
+                    first = True
+                    break
+                if not entry.closing:
+                    entry.users += 1
+                    first = False
+                    break
+                shutting_down = entry
+            # The last user is still shutting this connection (and an embedded dev server)
+            # down: wait, then open a fresh one (issue-36 critic round 1, #2).
+            await shutting_down.closed.wait()
         if first:
             try:
                 entry.client = await entry.stack.enter_async_context(
@@ -120,10 +129,17 @@ class TemporalPool:
         with self._lock:
             entry.users -= 1
             last = entry.users == 0
-            if last and self._entries.get(key) is entry:
-                del self._entries[key]
-        if last:
+            if last:
+                entry.closing = True  # stays in the map until it is closed
+        if not last:
+            return
+        try:
             await entry.stack.aclose()
+        finally:
+            with self._lock:
+                if self._entries.get(key) is entry:
+                    del self._entries[key]
+            entry.closed.set()
 
 
 def _refuse_second_namespace(key: PoolKey, entries: dict[PoolKey, _Entry]) -> None:

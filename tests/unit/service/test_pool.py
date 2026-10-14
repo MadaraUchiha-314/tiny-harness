@@ -254,3 +254,40 @@ async def test_a_second_namespace_on_one_embedded_database_is_refused(tmp_path: 
                 pass
     assert "'other'" in caught.value.message and "'default'" in caught.value.message
     assert pool.open_connections() == 0
+
+
+async def test_an_acquire_during_the_last_shutdown_waits_for_it(tmp_path: Path) -> None:
+    """Critic round 1, finding 2: never two connections (two dev servers) on one key."""
+    shutting = asyncio.Event()
+    finish = asyncio.Event()
+    live = 0
+    peak = 0
+
+    @asynccontextmanager
+    async def tracked(settings: Settings, output: TextIO | None) -> AsyncGenerator[Client]:
+        nonlocal live, peak
+        live += 1
+        peak = max(peak, live)
+        try:
+            yield cast(Client, object())
+        finally:
+            shutting.set()
+            await finish.wait()
+            live -= 1
+
+    pool = TemporalPool(tracked)
+    a = embedded(tmp_path, "shared.sqlite3", agent="a")
+    b = embedded(tmp_path, "shared.sqlite3", agent="b")
+
+    async def use(s: Settings) -> None:
+        async with pool.client(s):
+            pass
+
+    first = asyncio.create_task(use(a))
+    await shutting.wait()  # a's release is shutting the connection down
+    second = asyncio.create_task(use(b))
+    await asyncio.sleep(0.01)
+    assert live == 1  # b has not opened a second connection meanwhile
+    finish.set()
+    await asyncio.gather(first, second)
+    assert peak == 1

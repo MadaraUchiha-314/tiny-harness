@@ -89,6 +89,15 @@ class Service:
         store = self.harnesses[agent]._activities.engine.store  # pyright: ignore[reportPrivateUsage, reportOptionalMemberAccess]
         return list(await store.query(TaskRecord, Filter()))
 
+    def messages(self, agent: str) -> list[str]:
+        """Every message text the agent's model was given, for a failure's message."""
+        return [
+            item.text
+            for request in self.llms[agent].requests
+            for item in request.input
+            if item.kind == "message"
+        ]
+
     def told(self, agent: str, text: str) -> bool:
         return any(
             text in item.text
@@ -162,14 +171,21 @@ async def test_five_agents_in_one_app_delegate_to_each_other(
         parent = await service.until("a", first.id, sub_task_state("COMPLETED"))
         child = parent.ext.sub_tasks[0]
         assert child.agent is not None and child.agent.id == "b"
-        # b's sub-task completes when b parks with its first reply (issue-25 R3.4); b
-        # itself hears d's answer, through its own stand-in, a turn later.
-        for _ in range(200):
-            if service.told("a", "Asking the ledger.") and service.told("b", "Ledger: 42."):
+        # b's sub-task completes when b parks (issue-25 R3.4). a's stand-in reads b's state
+        # when b's push arrives (issue-34), so a is told whichever reply b has parked with
+        # by then: its first, or, when d answered first, its second (learning-014). b itself
+        # hears d's answer through its own stand-in.
+        b_replies = ("Asking the ledger.", "The ledger says 42.")
+
+        def a_heard_b() -> bool:
+            return any(service.told("a", reply) for reply in b_replies)
+
+        for _ in range(600):
+            if a_heard_b() and service.told("b", "Ledger: 42."):
                 break
             await asyncio.sleep(0.05)
-        assert service.told("a", "Asking the ledger.")
-        assert service.told("b", "Ledger: 42.")
+        assert a_heard_b(), service.messages("a")
+        assert service.told("b", "Ledger: 42."), service.messages("b")
         assert {r.task_id for r in await service.records("c")} == set()
         assert {r.task_id for r in await service.records("e")} == set()
         d_tasks = await service.records("d")

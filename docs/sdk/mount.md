@@ -180,6 +180,9 @@ With this function:
 - A request for which the function returns `None` has no user. The harness refuses to
   start a task for it and shows it no task.
 - If the function raises an error, the request fails with the error 500.
+- Do not let the function return the id of one of your agents for a person. The
+  harness trusts its agents more than people: an agent can set fields of a new task
+  that a person cannot.
 
 Calls from one agent to another carry only `X-Participant-Id`. An agent also calls
 itself this way when it gives a step to a sub-task. If your login refuses these calls,

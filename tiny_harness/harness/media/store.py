@@ -37,6 +37,7 @@ from tiny_harness.harness.media.models import ACCEPTED, PCM_MEDIA_TYPE, MediaKin
 
 _SAFE_ID: Final = re.compile(r"[A-Za-z0-9_-]{1,128}")
 _GENERATION_FILE: Final = re.compile(r"\.g[0-9]+")
+_TEMP_MAX_AGE_SECONDS: Final = 3_600
 _READ_CHUNK: Final = 64 * 1024
 _OPEN: Final = "open"
 
@@ -370,6 +371,8 @@ class FileMediaStore(MediaStore):
 
     async def sweep(self, older_than: datetime) -> int:
         cut = older_than.timestamp()
+        # A temp file older than this was left by a writer that died before its rename.
+        temp_cut = max(cut, time.time() - _TEMP_MAX_AGE_SECONDS)
 
         def sweep() -> int:
             if not self.root.is_dir():
@@ -379,9 +382,19 @@ class FileMediaStore(MediaStore):
                 if not folder.is_dir() or not _SAFE_ID.fullmatch(folder.name):
                     continue
                 for meta in list(folder.glob("*.json")):
-                    if meta.stat().st_mtime < cut:
+                    # Per object: one deleted under the sweep (a purge, another sweep) is
+                    # skipped, never a failed sweep (self-review 2.6).
+                    try:
+                        if meta.stat().st_mtime >= cut:
+                            continue
                         _delete_object(folder, meta.name.removesuffix(".json"))
-                        count += 1
+                    except FileNotFoundError:
+                        continue
+                    count += 1
+                for temp in list(folder.glob(".tmp-*")):
+                    with contextlib.suppress(FileNotFoundError):
+                        if temp.stat().st_mtime < temp_cut:
+                            temp.unlink()
                 with contextlib.suppress(OSError):
                     folder.rmdir()  # only when it is empty
             return count

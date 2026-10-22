@@ -124,6 +124,36 @@ async def test_sweep_deletes_objects_older_than_the_cut(
     assert not (tmp_path / "media" / "lonely").exists()
 
 
+async def test_sweep_survives_an_object_deleted_under_it(
+    store: FileMediaStore, tmp_path: Path
+) -> None:
+    """A ref that goes between the listing and its stat (a purge, a second sweep) is
+    skipped, not a failed sweep (self-review 2.6); a dangling link stands for it."""
+    old = await store.put("t", b"old", media_type="audio/wav")
+    long_ago = time.time() - 40 * 86_400
+    for path in (tmp_path / "media" / "t").glob(f"{old.id}*"):
+        os.utime(path, (long_ago, long_ago))
+    (tmp_path / "media" / "t" / "ghost.json").symlink_to(tmp_path / "missing")
+    assert await store.sweep(datetime.now(UTC) - timedelta(days=30)) == 1
+    assert await store.lookup("t", old.id) is None
+
+
+async def test_sweep_deletes_abandoned_temp_files(store: FileMediaStore, tmp_path: Path) -> None:
+    """A writer that died between its temp file and the rename leaves ``.tmp-*``: the
+    sweep deletes one older than an hour and keeps a fresh one (self-review 2.6)."""
+    kept = await store.put("t", b"kept", media_type="audio/wav")
+    folder = tmp_path / "media" / "t"
+    stale, fresh = folder / ".tmp-0123456789abcdef", folder / ".tmp-fedcba9876543210"
+    stale.write_bytes(b"partial")
+    fresh.write_bytes(b"partial")
+    two_hours_ago = time.time() - 7_200
+    os.utime(stale, (two_hours_ago, two_hours_ago))
+    assert await store.sweep(datetime.now(UTC) - timedelta(days=30)) == 0
+    assert not stale.exists()
+    assert fresh.exists()
+    assert await store.get(kept) == b"kept"
+
+
 # --- growing objects --------------------------------------------------------------------------
 
 

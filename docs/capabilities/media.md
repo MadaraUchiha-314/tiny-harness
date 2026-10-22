@@ -86,8 +86,9 @@ flowchart LR
   part counted as 1 KiB, is larger than `max_request_bytes`, so the workflow inbox
   payload stays bounded.
 - The retention sweep SHALL delete the media of every task whose record it deletes and
-  every object older than `[retention] media`; `tiny-harness tasks purge` deletes the
-  task's media too.
+  every object older than `[retention] media`, skip an object deleted under it, and
+  delete a `.tmp-*` file older than an hour (a writer that died before its rename);
+  `tiny-harness tasks purge` deletes the task's media too.
 - Spans and logs SHALL carry media ids and sizes, never bytes, base64 or a transcript
   outside the message-text rule; the executor's `media.intake` span carries the count,
   the bytes and the refusal code.

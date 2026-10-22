@@ -163,7 +163,7 @@ red→green run.
   - _Depends on:_ 15, 16
   - _Requirements:_ R6.2, design critic 7
   - _Test:_ T2 — `Scenario: compaction names every media item`; T1 — `tests/unit/core/test_compaction_media.py`
-- [ ] 20. Durability, retention and compatibility
+- [x] 20. Durability, retention and compatibility
   - Retention sweep for media. Worker restart with media and mid-speech. Replay of 0.8.0
     histories and states. Abuse case 5 (a transcript grants nothing). No media bytes in
     trace or log.

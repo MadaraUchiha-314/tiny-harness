@@ -70,6 +70,7 @@ from tiny_harness.harness.media.render import speakable_text, unseen_images
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
+    Filter,
     InboxAuditRecord,
     PlanRecord,
     RecordKind,
@@ -200,8 +201,11 @@ class Activities:
         commands: CommandRegistry | None = None,
         push_base_url: str | None = None,
         task_queue: str | None = None,
+        media_retention: timedelta | None = None,
     ) -> None:
         self.engine = engine
+        # ``[retention] media`` (issue-38): media older than this is swept; None: kept.
+        self.media_retention = media_retention
         # This agent's queue: the heartbeat scans only its own tasks (issue-36 R5.6).
         self.task_queue = task_queue
         # Where a parked remote task is asked to push (issue-27 R1.2); None: follow only.
@@ -933,8 +937,26 @@ class Activities:
 
     @activity.defn(name=ActivityName.RETENTION_SWEEP.value)
     async def retention_sweep(self, arg: SweepIn) -> SweepOut:
-        deleted = await self.engine.store.sweep(self.retention, datetime.now(UTC))
-        return SweepOut(deleted={k.value: v for k, v in deleted.items()})
+        """Delete expired records, then media (issue-38): every object of a task whose
+        record this sweep deletes, and every object older than ``[retention] media``."""
+        now = datetime.now(UTC)
+        media = self.engine.media_store
+        expired: list[str] = []
+        ttl = self.retention.get(RecordKind.TASKS)
+        if media is not None and ttl is not None:
+            # Oldest first: the tasks this sweep deletes lead the page.
+            records = await self.engine.store.query(TaskRecord, Filter(limit=1000))
+            expired = [r.task_id for r in records if r.created_at < now - ttl]
+        deleted = await self.engine.store.sweep(self.retention, now)
+        out = {k.value: v for k, v in deleted.items()}
+        if media is not None:
+            count = 0
+            for task_id in expired:
+                count += await media.delete_task(task_id)
+            if self.media_retention is not None:
+                count += await media.sweep(now - self.media_retention)
+            out["media"] = count
+        return SweepOut(deleted=out)
 
 
 async def _close_failed(writer: SpeechWriter) -> None:

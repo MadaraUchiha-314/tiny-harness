@@ -391,6 +391,7 @@ class Harness:
             sink=PushSink(push_store, push_http),
             client=client,
             retention=retention_map(settings),
+            media_retention=settings.retention.media,
             # R4.5: without the push route, remote sub-tasks are followed instead
             push_base_url=self._public_url if self._routes.push else None,
             task_queue=queue,

@@ -15,6 +15,8 @@ import httpx
 from temporalio.service import RPCError
 
 from tiny_harness.config import Settings
+from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.media import FileMediaStore
 from tiny_harness.harness.persistence import SqliteStore
 from tiny_harness.service.a2a import PushSink, StorePushConfigStore
 from tiny_harness.service.durable.activities import Activities
@@ -23,7 +25,7 @@ from tiny_harness.service.durable.worker import build_worker, ensure_search_attr
 from tiny_harness.service.heartbeat import delete_heartbeat_schedule, ensure_heartbeat_schedule
 from tiny_harness.service.process import observe, running_harness
 from tiny_harness.service.process import serve as serve_harness
-from tiny_harness.service.runtime import build_runtime, retention_map
+from tiny_harness.service.runtime import build_runtime, default_media_root, retention_map
 
 TUI_LOG_NAME = "tiny-harness.log"
 
@@ -44,6 +46,7 @@ async def worker(settings: Settings) -> int:
             sink=PushSink(push_store, httpx.AsyncClient(timeout=10)),
             client=client,
             retention=retention_map(settings),
+            media_retention=settings.retention.media,
             task_queue=settings.temporal.effective_task_queue,
         )
         await ensure_search_attributes(client)
@@ -99,15 +102,27 @@ async def schedules_delete(settings: Settings) -> int:
     return 0
 
 
+async def purge_media(settings: Settings, *, task_id: str) -> int:
+    """Delete every media object of the task (issue-38); 0 when media is off."""
+    if settings.media is None:
+        return 0
+    store = FileMediaStore(
+        EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), default_media_root(settings).resolve()
+    )
+    return await store.delete_task(task_id)
+
+
 async def tasks_purge(settings: Settings, *, task_id: str) -> int:
-    """Delete the task's rows and terminate its workflow (the deletion request path)."""
+    """Delete the task's rows and media and terminate its workflow (the deletion request
+    path)."""
     async with temporal_client(settings) as client:
         store = SqliteStore(settings.store.sqlite_path)
-        deleted = await store.purge_task(task_id)
+        deleted = {k.value: v for k, v in (await store.purge_task(task_id)).items()}
+        deleted["media"] = await purge_media(settings, task_id=task_id)
         with contextlib.suppress(RPCError):
             await client.get_workflow_handle(task_id).terminate(reason="purged by operator")
-    print("purged " + ", ".join(f"{k.value}={v}" for k, v in deleted.items() if v), file=sys.stderr)
+    print("purged " + ", ".join(f"{k}={v}" for k, v in deleted.items() if v), file=sys.stderr)
     return 0
 
 
-__all__ = ["schedules_delete", "serve", "tasks_purge", "tui", "worker"]
+__all__ = ["purge_media", "schedules_delete", "serve", "tasks_purge", "tui", "worker"]

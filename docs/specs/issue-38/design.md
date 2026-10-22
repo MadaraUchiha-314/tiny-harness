@@ -341,6 +341,7 @@ Modality = Literal["text", "image", "audio"]
 class LLMModelInfo(BaseModel, frozen=True):
     ...                                               # existing fields
     input_modalities: frozenset[Modality] = frozenset({"text"})   # NEW
+    output_modalities: frozenset[Modality] = frozenset({"text"})  # NEW (R5.2; every adapter today: text)
     audio_input_formats: frozenset[str] = frozenset()             # NEW, e.g. {"audio/wav","audio/mpeg"}
 ```
 
@@ -486,13 +487,23 @@ media = "P30D"                         # NEW
      `Content-Security-Policy: default-src 'none'`;
   4. a growing object streams `read_stream` with chunked transfer; a closed one is a
      `FileResponse`.
-- **Card.** WHEN `[media]` is set THEN `default_input_modes` adds the `ACCEPTED` types,
-  `default_output_modes` adds `image/png` (image generation on) and `PCM_MEDIA_TYPE` (TTS
-  on), and the card declares the media extension:
+- **Card** (design critic 9). The instance's **effective** media capabilities are
+  computed once at start by `media.capabilities(model_info, stt, tts, image_generator,
+  config)`, and the card, the intake allow-list and the surfaces all read that one value:
+  - input images: the `ACCEPTED` image types WHEN `image ∈ input_modalities`, else none;
+  - input audio: the `ACCEPTED` audio types WHEN `[speech_to_text]` is set, else only
+    `audio_input_formats` WHEN `audio ∈ input_modalities`, else none;
+  - output: `image/png` WHEN an image generator exists, `PCM_MEDIA_TYPE` WHEN TTS exists,
+    plus the model's own `output_modalities` (text today).
+
+  `MediaIntake` refuses an input type outside the effective set (`type_not_accepted`), so
+  nothing is accepted and then dropped. `default_input_modes` / `default_output_modes`
+  list exactly these types, and the card declares the media extension:
 
 ```json
 { "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/media/v1",
-  "params": { "input": ["image/png", "…"], "maxFileBytes": 20971520,
+  "params": { "input": ["image/png", "…"], "output": ["image/png", "audio/L16;rate=24000;channels=1"],
+              "maxFileBytes": 20971520,
               "maxMessageBytes": 26214400, "maxAudioSeconds": 120,
               "speechToText": true, "textToSpeech": true, "imageGeneration": true,
               "mediaPath": "/media" } }

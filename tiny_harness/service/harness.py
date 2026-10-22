@@ -222,7 +222,10 @@ class Harness:
         """The app to mount at ``prefix``; the same object on every call (R2.1, R2.2)."""
         if self._app is None:
             inner = wrap_middleware(
-                Starlette(routes=self.routes()), config=self.settings.server, options=self._routes
+                Starlette(routes=self.routes()),
+                config=self.settings.server,
+                options=self._routes,
+                media=self.settings.media,
             )
             self._app = HarnessApp(
                 agent_id=self.agent_id,

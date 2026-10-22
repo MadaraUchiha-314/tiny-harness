@@ -56,7 +56,7 @@ red→green run.
   - _Depends on:_ 1
   - _Requirements:_ R1.5, R4.2, R6.2, R6.4, abuse case 4, design critic 3
   - _Test:_ T1 — `tests/unit/media/test_store.py` (traversal ids refused, a stale writer gets `MediaFenced`, a reader is interrupted on a new generation, an appended chunk reaches the reader within 2 × `poll`)
-- [ ] 5. Configuration
+- [x] 5. Configuration
   - `MediaConfig`, `SpeechToTextConfig`, `TextToSpeechConfig`, `ImageGenerationConfig`.
     `[openai] input_modalities` and `audio_tokens_per_second`, `[retention] media`,
     `[media] speech_drain`. Validation: the other three sections need `[media]`; the

@@ -49,7 +49,7 @@ from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from tiny_harness.config import ServerConfig
+from tiny_harness.config import MediaConfig, ServerConfig
 from tiny_harness.errors import HarnessNotStartedError
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.middleware import LimitsMiddleware
@@ -284,8 +284,15 @@ def build_routes(
     ).flat()
 
 
-def wrap_middleware(app: ASGIApp, *, config: ServerConfig, options: RouteOptions) -> ASGIApp:
-    """CORS inside the limits, as ``create_app`` always stacked them."""
+def wrap_middleware(
+    app: ASGIApp,
+    *,
+    config: ServerConfig,
+    options: RouteOptions,
+    media: MediaConfig | None = None,
+) -> ASGIApp:
+    """CORS inside the limits, as ``create_app`` always stacked them. With ``media`` the
+    size limit admits a full message of media (issue-38)."""
     if options.cors and config.cors_origins:  # a web renderer served elsewhere
         app = CORSMiddleware(
             app,
@@ -294,9 +301,10 @@ def wrap_middleware(app: ASGIApp, *, config: ServerConfig, options: RouteOptions
             allow_headers=["A2A-Version", "A2A-Extensions", "Content-Type", "X-Participant-Id"],
         )
     if options.limits:
+        cap = config.max_request_bytes
         app = LimitsMiddleware(
             app,
-            max_request_bytes=config.max_request_bytes,
+            max_request_bytes=media.request_cap(cap) if media is not None else cap,
             rate_limit_per_minute=config.rate_limit_per_minute,
         )
     return app

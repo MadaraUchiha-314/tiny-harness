@@ -83,7 +83,9 @@ class _Limits:
 
     def __init__(self, harness: Harness) -> None:
         server = harness.settings.server
-        self.max_bytes = server.max_request_bytes
+        media = harness.settings.media
+        cap = server.max_request_bytes
+        self.max_bytes = media.request_cap(cap) if media is not None else cap  # issue-38
         self.bucket = TokenBucket(server.rate_limit_per_minute)
 
     async def __call__(self, request: Request) -> None:

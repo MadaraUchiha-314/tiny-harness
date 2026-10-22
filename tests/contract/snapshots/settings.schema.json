@@ -284,6 +284,91 @@
       "title": "HeartbeatConfig",
       "type": "object"
     },
+    "ImageGenerationConfig": {
+      "additionalProperties": false,
+      "description": "Images from the agent (issue-38 R2, R5.4). Absent, there is no generate_image tool.",
+      "properties": {
+        "model": {
+          "default": "gpt-image-2",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "const": "openai",
+          "default": "openai",
+          "title": "Provider",
+          "type": "string"
+        },
+        "size": {
+          "default": "1024x1024",
+          "enum": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536"
+          ],
+          "title": "Size",
+          "type": "string"
+        }
+      },
+      "title": "ImageGenerationConfig",
+      "type": "object"
+    },
+    "MediaConfig": {
+      "additionalProperties": false,
+      "description": "Images and audio in messages (issue-38). Absent, the instance is text-only, as\nbefore; present, it bounds every attachment (abuse case 1) and the request size.",
+      "properties": {
+        "dir": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where media is stored; default <sqlite dir>/media[-<agent>]",
+          "title": "Dir"
+        },
+        "max_audio_seconds": {
+          "default": 120,
+          "exclusiveMinimum": 0,
+          "title": "Max Audio Seconds",
+          "type": "integer"
+        },
+        "max_file_bytes": {
+          "default": 20971520,
+          "description": "20 MiB",
+          "exclusiveMinimum": 0,
+          "title": "Max File Bytes",
+          "type": "integer"
+        },
+        "max_image_pixels": {
+          "default": 40000000,
+          "description": "width x height, read from the header",
+          "exclusiveMinimum": 0,
+          "title": "Max Image Pixels",
+          "type": "integer"
+        },
+        "max_message_bytes": {
+          "default": 26214400,
+          "description": "25 MiB",
+          "exclusiveMinimum": 0,
+          "title": "Max Message Bytes",
+          "type": "integer"
+        },
+        "speech_drain": {
+          "default": "PT2M",
+          "description": "how long rollover or completion waits for spoken replies to finish",
+          "format": "duration",
+          "title": "Speech Drain",
+          "type": "string"
+        }
+      },
+      "title": "MediaConfig",
+      "type": "object"
+    },
     "O11yConfig": {
       "additionalProperties": false,
       "description": "Trace export (R17.5). The Langfuse keys come from ``LANGFUSE_PUBLIC_KEY`` and\n``LANGFUSE_SECRET_KEY`` when set.",
@@ -395,6 +480,13 @@
           "description": "from OPENAI_API_KEY; never logged",
           "title": "Api Key"
         },
+        "audio_tokens_per_second": {
+          "default": 10,
+          "description": "tokens one second of native audio input costs",
+          "exclusiveMinimum": 0,
+          "title": "Audio Tokens Per Second",
+          "type": "integer"
+        },
         "base_url": {
           "anyOf": [
             {
@@ -424,6 +516,27 @@
           "default": null,
           "description": "the model's window; default: the adapter's table",
           "title": "Context Window Tokens"
+        },
+        "input_modalities": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "text",
+                  "image",
+                  "audio"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "what the model takes as input; default [\"text\", \"image\"] with api = \"responses\", [\"text\"] with chat_completions; add \"audio\" only for a Chat Completions audio model (issue-38)",
+          "title": "Input Modalities"
         },
         "max_output_tokens": {
           "default": 2000,
@@ -552,6 +665,12 @@
           "default": "P30D",
           "format": "duration",
           "title": "Inbox Audit",
+          "type": "string"
+        },
+        "media": {
+          "default": "P30D",
+          "format": "duration",
+          "title": "Media",
           "type": "string"
         },
         "plans": {
@@ -716,6 +835,25 @@
       "title": "ServerConfig",
       "type": "object"
     },
+    "SpeechToTextConfig": {
+      "additionalProperties": false,
+      "description": "Speech-to-text (issue-38 R5.3). Absent, audio goes to the model natively or is\nrefused. ``openai`` uses ``[openai]``'s key and ``base_url``.",
+      "properties": {
+        "model": {
+          "default": "gpt-4o-mini-transcribe",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "const": "openai",
+          "default": "openai",
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "title": "SpeechToTextConfig",
+      "type": "object"
+    },
     "StoreConfig": {
       "additionalProperties": false,
       "description": "The default SQLite store (R11.2).",
@@ -822,6 +960,36 @@
       },
       "title": "TemporalConfig",
       "type": "object"
+    },
+    "TextToSpeechConfig": {
+      "additionalProperties": false,
+      "description": "Spoken replies (issue-38 R4, R5.3). Absent, replies are text only.",
+      "properties": {
+        "instructions": {
+          "default": "",
+          "description": "an optional speaking style",
+          "title": "Instructions",
+          "type": "string"
+        },
+        "model": {
+          "default": "gpt-4o-mini-tts",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "const": "openai",
+          "default": "openai",
+          "title": "Provider",
+          "type": "string"
+        },
+        "voice": {
+          "default": "coral",
+          "title": "Voice",
+          "type": "string"
+        }
+      },
+      "title": "TextToSpeechConfig",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -875,6 +1043,28 @@
         "interval": "PT30S"
       }
     },
+    "image_generation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ImageGenerationConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "media": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MediaConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "o11y": {
       "$ref": "#/$defs/O11yConfig",
       "default": {
@@ -905,6 +1095,7 @@
         "channel_messages": "P30D",
         "compactions": "P30D",
         "inbox_audit": "P30D",
+        "media": "P30D",
         "plans": "P30D",
         "push_configs": "P30D",
         "state": "P30D",
@@ -927,6 +1118,17 @@
     "server": {
       "$ref": "#/$defs/ServerConfig"
     },
+    "speech_to_text": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SpeechToTextConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "store": {
       "$ref": "#/$defs/StoreConfig",
       "default": {
@@ -935,6 +1137,17 @@
     },
     "temporal": {
       "$ref": "#/$defs/TemporalConfig"
+    },
+    "text_to_speech": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TextToSpeechConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

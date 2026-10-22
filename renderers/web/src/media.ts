@@ -164,74 +164,225 @@ export function fetchMedia(url: string, participant: string, fetchImpl: typeof f
   return fetchImpl(url, { headers: { [PARTICIPANT_HEADER]: participant } });
 }
 
-export type MediaLoader = (url: string) => Promise<Response>;
+export type MediaLoader = (url: string, signal?: AbortSignal) => Promise<Response>;
+
+/** The blob cache's byte budget (critic 6): past it the least recently used blob goes. */
+export const MEDIA_CACHE_BUDGET = 200 * 1024 * 1024;
+/** Downloads that run at once; the rest wait their turn. */
+export const MAX_DOWNLOADS = 4;
+
+export interface MediaCacheOptions {
+  /** The card's per-file limit; a download that streams past it is stopped. 0: no limit. */
+  maxFileBytes?: number;
+  /** The blob cache's byte budget (default `MEDIA_CACHE_BUDGET`). */
+  budgetBytes?: number;
+  /** Downloads that run at once (default `MAX_DOWNLOADS`). */
+  concurrency?: number;
+}
+
+interface Entry {
+  url: Promise<string>;
+  /** The blob URL once made (null until then, and after it is revoked). */
+  made: string | null;
+  size: number;
+  /** A file the user is sending: the page has no other copy, so it is never evicted. */
+  local: boolean;
+}
+
+const closed = () => new Error("the task view closed");
 
 /**
- * Media URL → blob URL, fetched once per URL and kept until the task view goes
- * (`revokeAll`). The blob's type is the response's, and only when it is the accepted type
- * family the item declared: an SVG or HTML body never becomes a blob URL.
+ * Media URL → blob URL, fetched once per URL. Memory stays bounded (critic 6): each
+ * download is streamed against the card's per-file limit and stopped beyond it, at most
+ * four run at once, and the blobs are kept least-recently-used under a 200 MiB budget —
+ * an evicted blob URL is revoked, and the URL is fetched again when it is asked for again.
+ * When the task view goes (`revokeAll`) the outstanding downloads are aborted and every
+ * blob URL is revoked. The blob's type is the response's, and only when it is the accepted
+ * type family the item declared: an SVG or HTML body never becomes a blob URL.
  */
 export class MediaCache {
-  private readonly urls = new Map<string, Promise<string>>();
-  private readonly made = new Set<string>();
+  private readonly entries = new Map<string, Entry>();
+  private readonly controllers = new Set<AbortController>();
+  private readonly queue: Array<{ go: () => void; fail: (error: Error) => void }> = [];
+  private readonly budget: number;
+  private readonly concurrency: number;
+  private running = 0;
+  private total = 0;
   private seq = 0;
+  /** The card's per-file limit (set once the card is read); 0: no limit. */
+  maxFileBytes: number;
 
-  constructor(private readonly loader: MediaLoader) {}
+  constructor(
+    private readonly loader: MediaLoader,
+    options: MediaCacheOptions = {},
+  ) {
+    this.maxFileBytes = options.maxFileBytes ?? 0;
+    this.budget = options.budgetBytes ?? MEDIA_CACHE_BUDGET;
+    this.concurrency = options.concurrency ?? MAX_DOWNLOADS;
+  }
 
   url(src: string, mediaType: string): Promise<string> {
-    const known = this.urls.get(src);
-    if (known) return known;
+    const known = this.entries.get(src);
+    if (known) {
+      this.touch(src, known);
+      return known.url;
+    }
     if (src.startsWith("local:")) return Promise.reject(new Error(`unknown local medium ${src}`));
-    const pending = this.load(src, mediaType);
-    this.urls.set(src, pending);
-    pending.catch(() => this.urls.delete(src));
-    return pending;
+    const entry: Entry = { url: Promise.resolve(""), made: null, size: 0, local: false };
+    entry.url = this.load(src, mediaType).then((made) => {
+      if (this.entries.get(src) !== entry) {
+        URL.revokeObjectURL(made.url); // the view went while it loaded
+        throw closed();
+      }
+      entry.made = made.url;
+      entry.size = made.size;
+      this.total += made.size;
+      this.evict(entry);
+      return made.url;
+    });
+    this.entries.set(src, entry);
+    entry.url.catch(() => {
+      if (this.entries.get(src) === entry) this.entries.delete(src);
+    });
+    return entry.url;
   }
 
   /** A file the user is sending, shown at once under a `local:` key. */
   adopt(blob: Blob): string {
     this.seq += 1;
     const key = `local:${this.seq}`;
-    this.urls.set(key, Promise.resolve(this.make(blob)));
+    const made = URL.createObjectURL(blob);
+    this.entries.set(key, { url: Promise.resolve(made), made, size: blob.size, local: true });
+    this.total += blob.size;
     return key;
   }
 
   /** The stored URL of a file already shown from `key`: no second download. */
   alias(src: string, key: string): void {
-    const known = this.urls.get(key);
-    if (known && !this.urls.has(src)) this.urls.set(src, known);
+    const known = this.entries.get(key);
+    if (known && !this.entries.has(src)) this.entries.set(src, known);
   }
 
   /** Revoke the blob URL of a local file the server refused (self-review 2.5). */
   async release(key: string): Promise<void> {
-    const known = this.urls.get(key);
+    const known = this.entries.get(key);
     if (!known || !key.startsWith("local:")) return;
-    this.urls.delete(key);
-    const url = await known;
-    URL.revokeObjectURL(url);
-    this.made.delete(url);
+    this.drop(known);
+    await known.url;
   }
 
+  /** The task view went: abort what loads or waits, and revoke every blob URL. */
   revokeAll(): void {
-    for (const url of this.made) URL.revokeObjectURL(url);
-    this.made.clear();
-    this.urls.clear();
+    for (const controller of this.controllers) controller.abort();
+    this.controllers.clear();
+    for (const waiting of this.queue.splice(0)) waiting.fail(closed());
+    const all = new Set<Entry>(this.entries.values());
+    this.entries.clear();
+    for (const entry of all) {
+      if (entry.made !== null) URL.revokeObjectURL(entry.made);
+      entry.made = null;
+    }
+    this.total = 0;
   }
 
-  private async load(src: string, mediaType: string): Promise<string> {
+  /** Mark `entry` the most recently used. */
+  private touch(key: string, entry: Entry): void {
+    this.entries.delete(key);
+    this.entries.set(key, entry);
+  }
+
+  /** Every key of `entry` goes, and its blob URL is revoked. */
+  private drop(entry: Entry): void {
+    for (const [key, value] of [...this.entries]) if (value === entry) this.entries.delete(key);
+    if (entry.made !== null) {
+      URL.revokeObjectURL(entry.made);
+      this.total -= entry.size;
+      entry.made = null;
+    }
+  }
+
+  /** Revoke the least recently used blobs until the cache fits its budget again. */
+  private evict(keep: Entry): void {
+    for (const entry of new Set(this.entries.values())) {
+      if (this.total <= this.budget) return;
+      if (entry === keep || entry.local || entry.made === null) continue;
+      this.drop(entry);
+    }
+  }
+
+  /** Wait for one of the download slots. */
+  private async acquire(): Promise<void> {
+    if (this.running < this.concurrency) {
+      this.running += 1;
+      return;
+    }
+    await new Promise<void>((go, fail) => this.queue.push({ go, fail }));
+    this.running += 1;
+  }
+
+  private free(): void {
+    this.running -= 1;
+    this.queue.shift()?.go();
+  }
+
+  private async load(src: string, mediaType: string): Promise<{ url: string; size: number }> {
     const expected = mediaKind(mediaType);
     if (expected === null) throw new Error(`${mediaType} is not an accepted type`);
-    const response = await this.loader(src);
-    if (!response.ok) throw new Error(`the media route answered ${response.status}`);
-    const served = response.headers.get("content-type") ?? "";
-    if (mediaKind(served) !== expected) throw new Error(`${served || "no type"} is not an accepted ${expected} type`);
-    const blob = new Blob([await response.arrayBuffer()], { type: served });
-    return this.make(blob);
+    await this.acquire();
+    const controller = new AbortController();
+    this.controllers.add(controller);
+    try {
+      // An abort ends the wait even for a loader that does not watch the signal.
+      const aborted = new Promise<never>((_, fail) => controller.signal.addEventListener("abort", () => fail(closed()), { once: true }));
+      const response = await Promise.race([this.loader(src, controller.signal), aborted]);
+      if (!response.ok) throw new Error(`the media route answered ${response.status}`);
+      const served = response.headers.get("content-type") ?? "";
+      if (mediaKind(served) !== expected) throw new Error(`${served || "no type"} is not an accepted ${expected} type`);
+      const bytes = await this.read(response, controller);
+      const blob = new Blob([bytes], { type: served });
+      return { url: URL.createObjectURL(blob), size: blob.size };
+    } finally {
+      this.controllers.delete(controller);
+      this.free();
+    }
   }
 
-  private make(blob: Blob): string {
-    const url = URL.createObjectURL(blob);
-    this.made.add(url);
-    return url;
+  /** The body, streamed and stopped once it passes the per-file limit. */
+  private async read(response: Response, controller: AbortController): Promise<Uint8Array<ArrayBuffer>> {
+    const limit = this.maxFileBytes;
+    const over = () => {
+      controller.abort();
+      return new Error(`the file is larger than the limit of ${limitText(limit)}`);
+    };
+    const declared = Number(response.headers.get("content-length") ?? "");
+    if (limit > 0 && Number.isFinite(declared) && declared > limit) {
+      void response.body?.cancel().catch(() => undefined);
+      throw over();
+    }
+    if (response.body === null) {
+      const whole = new Uint8Array(await response.arrayBuffer());
+      if (limit > 0 && whole.length > limit) throw over();
+      return whole;
+    }
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (limit > 0 && size > limit) {
+        await reader.cancel().catch(() => undefined);
+        throw over();
+      }
+      chunks.push(value);
+    }
+    const out = new Uint8Array(size);
+    let at = 0;
+    for (const chunk of chunks) {
+      out.set(chunk, at);
+      at += chunk.length;
+    }
+    return out;
   }
 }

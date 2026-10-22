@@ -33,6 +33,15 @@ function caption(item: MediaItemData): string {
   return item.size ? `${label} · ${humanSize(item.size)}` : label;
 }
 
+/** The nearest ancestor that scrolls, or null (the viewport). */
+function scroller(node: HTMLElement): HTMLElement | null {
+  for (let at = node.parentElement; at !== null; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if (overflowY === "auto" || overflowY === "scroll") return at;
+  }
+  return null;
+}
+
 export function MediaItem(props: { item: MediaItemData; load: MediaLoad }): JSX.Element {
   const { item, load } = props;
   const ok = allowed(item);
@@ -40,9 +49,33 @@ export function MediaItem(props: { item: MediaItemData; load: MediaLoad }): JSX.
   const [error, setError] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const [zoomed, setZoomed] = useState(false);
+  // An image is fetched once it comes near the viewport (critic 6); without an
+  // IntersectionObserver (jsdom, old browsers) at once. Audio loads at once.
+  const figure = useRef<HTMLElement>(null);
+  const lazy = item.media === "image" && typeof IntersectionObserver !== "undefined";
+  const [visible, setVisible] = useState(!lazy);
 
   useEffect(() => {
-    if (!ok) return;
+    if (visible || !ok) return;
+    const node = figure.current;
+    if (node === null) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          setVisible(true);
+        }
+      },
+      // The conversation scrolls inside its own box: that box is the root, so the margin
+      // (three screenfuls above and below) applies to it.
+      { root: scroller(node), rootMargin: "300% 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visible, ok]);
+
+  useEffect(() => {
+    if (!ok || !visible) return;
     let live = true;
     setError(null);
     load(item.url, item.mediaType).then(
@@ -56,7 +89,7 @@ export function MediaItem(props: { item: MediaItemData; load: MediaLoad }): JSX.
     return () => {
       live = false;
     };
-  }, [ok, load, item.url, item.mediaType]);
+  }, [ok, visible, load, item.url, item.mediaType]);
 
   if (!ok) {
     return (
@@ -92,7 +125,7 @@ export function MediaItem(props: { item: MediaItemData; load: MediaLoad }): JSX.
       setZoomed(false);
     };
     return (
-      <figure className="m-0 flex w-[min(320px,100%)] flex-col gap-1" data-testid="media-image">
+      <figure ref={figure} className="m-0 flex w-[min(320px,100%)] flex-col gap-1" data-testid="media-image">
         <button
           type="button"
           onClick={open}

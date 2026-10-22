@@ -133,7 +133,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const [attached, setAttached] = useState(config.taskId);
   const [commands, setCommands] = useState<CommandSpec[]>([]);
   const [media, setMedia] = useState<MediaParams | null>(null);
-  const cache = useRef<MediaCache>(new MediaCache((url) => client.current.getMedia(url)));
+  const cache = useRef<MediaCache>(new MediaCache((url, signal) => client.current.getMedia(url, signal)));
   const load = useCallback((url: string, mediaType: string) => cache.current.url(url, mediaType), []);
   // Voice (issue-38 R3, R4): the speaker setting, the player, and each spoken reply's state.
   const [speak, setSpeak] = useState(true);
@@ -346,7 +346,9 @@ export function App(props: { config: AppConfig }): JSX.Element {
     );
     client.current.media().then(
       (found) => {
-        if (live) setMedia(found);
+        if (!live) return;
+        cache.current.maxFileBytes = found?.maxFileBytes ?? 0; // a download past it is stopped
+        setMedia(found);
       },
       () => undefined, // no card: no media controls
     );

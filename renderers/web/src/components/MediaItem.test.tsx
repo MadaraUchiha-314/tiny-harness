@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MediaItemData } from "../model";
 import { MediaItem } from "./MediaItem";
@@ -72,5 +72,37 @@ describe("MediaItem", () => {
     expect(screen.getByTestId("transcript")).toHaveTextContent("Transcribing…");
     rerender(<MediaItem item={{ ...voice, transcript: "Would a rug work better?" }} load={async () => "blob:x/3"} />);
     expect(screen.getByTestId("transcript")).toHaveTextContent("“Would a rug work better?”");
+  });
+
+  it("loads an image only once it scrolls into view (critic 6)", async () => {
+    const observers: Array<{ callback: IntersectionObserverCallback; disconnected: boolean }> = [];
+    class FakeObserver {
+      private readonly entry: { callback: IntersectionObserverCallback; disconnected: boolean };
+      constructor(callback: IntersectionObserverCallback) {
+        this.entry = { callback, disconnected: false };
+        observers.push(this.entry);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {
+        this.entry.disconnected = true;
+      }
+    }
+    vi.stubGlobal("IntersectionObserver", FakeObserver);
+    try {
+      const load = vi.fn(async () => "blob:x/9");
+      render(<MediaItem item={item({ key: "lazy" })} load={load} />);
+      await Promise.resolve();
+      expect(load).not.toHaveBeenCalled();
+      expect(observers).toHaveLength(1);
+      act(() => {
+        observers[0]?.callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+      });
+      expect(await screen.findByRole("img", { name: "Image room.png" })).toHaveAttribute("src", "blob:x/9");
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(observers[0]?.disconnected).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

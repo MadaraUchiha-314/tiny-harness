@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MEDIA_EXT_URI, PARTICIPANT_HEADER, commandsOf, mediaOf, userMessage } from "./a2a";
 import {
   ACCEPTED,
+  MAX_DOWNLOADS,
+  MEDIA_CACHE_BUDGET,
   MediaCache,
   PCM_MEDIA_TYPE,
   baseType,
@@ -224,5 +226,126 @@ describe("MediaCache", () => {
     expect(await cache.url(kept, "image/png")).toBe("blob:test/1");
     cache.revokeAll();
     expect(revoked).toEqual(["blob:test/2", "blob:test/1"]);
+  });
+});
+
+describe("MediaCache memory budget (issue-38 critic 6)", () => {
+  let made: Blob[];
+  let revoked: string[];
+  beforeEach(() => {
+    made = [];
+    revoked = [];
+    vi.stubGlobal("URL", Object.assign(URL, {
+      createObjectURL: (blob: Blob) => {
+        made.push(blob);
+        return `blob:test/${made.length}`;
+      },
+      revokeObjectURL: (url: string) => {
+        revoked.push(url);
+      },
+    }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const bytes = (n: number, type = "image/png") => new Response(new Uint8Array(n), { headers: { "content-type": type } });
+
+  /** A body of 2 MiB in 1 KiB chunks, with no Content-Length. */
+  const endless = () => {
+    let cancelled = false;
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 2048) controller.close();
+        else controller.enqueue(new Uint8Array(1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    return { response: new Response(body, { headers: { "content-type": "image/png" } }), cancelled: () => cancelled, pulled: () => pulled };
+  };
+
+  const deferred = () => {
+    let resolve!: (r: Response) => void;
+    const promise = new Promise<Response>((r) => (resolve = r));
+    return { promise, resolve };
+  };
+
+  it("stops a download that streams past the card's per-file limit", async () => {
+    const stream = endless();
+    const cache = new MediaCache(async () => stream.response, { maxFileBytes: 10 * 1024 });
+    await expect(cache.url("http://h/media/t/big", "image/png")).rejects.toThrow(/limit/);
+    expect(stream.cancelled()).toBe(true);
+    expect(stream.pulled()).toBeLessThan(20);
+    expect(made).toHaveLength(0);
+  });
+
+  it("refuses at once a response whose Content-Length is over the limit", async () => {
+    const loader = vi.fn(async () => new Response(new Uint8Array(64), { headers: { "content-type": "image/png", "content-length": "64" } }));
+    const cache = new MediaCache(loader, { maxFileBytes: 32 });
+    await expect(cache.url("http://h/media/t/cl", "image/png")).rejects.toThrow(/limit/);
+    expect(made).toHaveLength(0);
+  });
+
+  it("runs at most four downloads at once and queues the rest", async () => {
+    const waiting: Array<ReturnType<typeof deferred>> = [];
+    const loader = vi.fn(() => {
+      const d = deferred();
+      waiting.push(d);
+      return d.promise;
+    });
+    const cache = new MediaCache(loader);
+    const all = [1, 2, 3, 4, 5, 6].map((n) => cache.url(`http://h/media/t/m${n}`, "image/png"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(loader).toHaveBeenCalledTimes(4);
+    waiting[0]?.resolve(bytes(4));
+    await all[0];
+    await new Promise((r) => setTimeout(r, 0));
+    expect(loader).toHaveBeenCalledTimes(5);
+    waiting.slice(1).forEach((d) => d.resolve(bytes(4)));
+    await new Promise((r) => setTimeout(r, 0));
+    waiting.slice(4).forEach((d) => d.resolve(bytes(4)));
+    await Promise.all(all);
+    expect(loader).toHaveBeenCalledTimes(6);
+  });
+
+  it("evicts the least recently used blob past the byte budget and revokes its URL", async () => {
+    const loader = vi.fn(async () => bytes(6));
+    const cache = new MediaCache(loader, { budgetBytes: 13 });
+    expect(await cache.url("http://h/media/t/a", "image/png")).toBe("blob:test/1");
+    expect(await cache.url("http://h/media/t/b", "image/png")).toBe("blob:test/2");
+    await cache.url("http://h/media/t/a", "image/png"); // a is now the most recent
+    expect(await cache.url("http://h/media/t/c", "image/png")).toBe("blob:test/3");
+    expect(revoked).toEqual(["blob:test/2"]);
+    expect(loader).toHaveBeenCalledTimes(3);
+    expect(await cache.url("http://h/media/t/b", "image/png")).toBe("blob:test/4"); // fetched again
+    expect(loader).toHaveBeenCalledTimes(4);
+    expect(revoked).toEqual(["blob:test/2", "blob:test/1"]);
+  });
+
+  it("caps the cache at 200 MiB by default", () => {
+    expect(MEDIA_CACHE_BUDGET).toBe(200 * 1024 * 1024);
+    expect(MAX_DOWNLOADS).toBe(4);
+  });
+
+  it("aborts the outstanding downloads, queued ones too, when the task view goes", async () => {
+    const signals: AbortSignal[] = [];
+    const loader = vi.fn((_url: string, signal?: AbortSignal) => {
+      if (signal) signals.push(signal);
+      return new Promise<Response>(() => undefined);
+    });
+    const cache = new MediaCache(loader);
+    const all = [1, 2, 3, 4, 5].map((n) => cache.url(`http://h/media/t/q${n}`, "image/png"));
+    all.forEach((p) => p.catch(() => undefined));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(signals).toHaveLength(4);
+    cache.revokeAll();
+    expect(signals.every((s) => s.aborted)).toBe(true);
+    await Promise.allSettled(all);
+    expect(loader).toHaveBeenCalledTimes(4);
+    for (const p of all) await expect(p).rejects.toThrow();
   });
 });

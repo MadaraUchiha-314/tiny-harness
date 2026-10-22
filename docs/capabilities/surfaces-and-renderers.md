@@ -110,7 +110,13 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   by pasting an image, show them as removable chips, and send them as `raw` file parts.
   `MediaItem` SHALL fetch media with `X-Participant-Id` into a blob URL and render only
   accepted raster images and audio through `<img>` / `<audio>` (never SVG, never
-  `innerHTML`); images fit the column and open full size in a dialog.
+  `innerHTML`); images fit the column and open full size in a dialog. An image SHALL be
+  fetched only once it comes within three screenfuls of the conversation's visible part
+  (an `IntersectionObserver`; at once where there is none). The `MediaCache` SHALL bound
+  its memory: it streams each download against the card's `maxFileBytes` and stops it
+  beyond, runs at most four downloads at once and queues the rest, keeps its blobs
+  least-recently-used under 200 MiB (an evicted blob URL is revoked and fetched again
+  when needed), and aborts every outstanding download when the task view closes.
 - The web `MicButton` SHALL record while held (pointer) and toggle with `Space` or
   `Enter`, with `aria-pressed`, the name "Hold to talk" and a live region announcing
   "Recording", "Sent" and "Nothing recorded"; a generation counter stops every track of a

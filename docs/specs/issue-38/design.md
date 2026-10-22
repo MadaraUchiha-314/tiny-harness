@@ -144,7 +144,7 @@ tiny_harness/
     media/                          ── NEW package: provider-neutral media handling
       __init__.py                   public exports
       models.py                     MediaRef, MediaKind, MediaAttachment, AudioFormat, ACCEPTED
-      sniff.py                      signature, image dimension and WAV duration checks (stdlib)
+      sniff.py                      signature, image size, audio duration and track checks (stdlib)
       store.py                      MediaStore (ABC), FileMediaStore
       intake.py                     MediaIntake: validate + store + rewrite A2A file parts
       render.py                     media → model content, media → text for compaction/summary
@@ -301,13 +301,30 @@ Checks, in order, per part: (1) a `url` file part → `url_not_accepted`; (2) me
 (4) `len(raw) ≤ max_file_bytes` and the running sum `≤ max_message_bytes`;
 (5) `sniff.detect(raw)` equals the declared type (`type_mismatch` otherwise); (6) images:
 `sniff.image_size(raw)` read from the header, `w*h ≤ max_image_pixels`, without decoding;
-(7) WAV: duration from the header `≤ max_audio_seconds`. For compressed audio the server
-caps by size only (it carries no decoder); the surfaces cap recording length.
+(7) audio (design critic 6): `sniff.audio_info(raw, media_type)` returns the container's
+tracks and duration, `≤ max_audio_seconds`; a file with any non-audio track, an
+unsupported codec, or a duration that cannot be determined is rejected
+(`not_audio_only`, `audio_too_long`, `audio_duration_unknown`). Surfaces also cap
+recordings, but the server does not rely on it.
 
-`sniff.py` is stdlib only: PNG `\x89PNG\r\n\x1a\n` + IHDR, JPEG `FF D8 FF` + first SOFn,
-GIF `GIF87a|GIF89a` + logical screen, WebP `RIFF....WEBP` + VP8/VP8L/VP8X, WAV
-`RIFF....WAVE` + fmt/data, MP3 `ID3` or frame sync `FF Ex`, MP4/M4A `....ftyp`, Ogg `OggS`,
-WebM `1A 45 DF A3`.
+`sniff.py` is stdlib only, and every parser is **bounded**: it hops from header to header
+(frame, page, box or element) without decoding, never recurses past depth 8, and stops
+— rejecting — as soon as the running duration passes `max_audio_seconds` or the hop count
+passes the most a capped file could need. Audio duration is **counted from what is
+there**, not taken from a header that could understate it; bytes the walk cannot account
+for (beyond a 256 KiB trailing tag area) reject the file. Images read only the header.
+
+| Type | Signature | Dimensions / duration | Audio-only check |
+|------|-----------|-----------------------|------------------|
+| PNG | `\x89PNG\r\n\x1a\n` | IHDR width × height | — |
+| JPEG | `FF D8 FF` | first SOF0–SOF15 marker | — |
+| GIF | `GIF87a` / `GIF89a` | logical screen size | — |
+| WebP | `RIFF....WEBP` | VP8 / VP8L / VP8X header | — |
+| WAV | `RIFF....WAVE` | `data` size ÷ (`fmt` byte rate) | format tag PCM / IEEE float |
+| MP3 | `ID3` (skipped by its size) then frame sync `FF Ex` | sum of every frame's samples ÷ rate, walking frame headers | MPEG audio frames only; trailing ID3v1/APE ≤ 256 KiB |
+| MP4 / M4A | `....ftyp` | the larger of `mvhd`, the audio `mdhd`, and the `stts` sample-delta sum, ÷ timescale | every `trak/mdia/hdlr` is `soun` |
+| Ogg | `OggS` | walk every page; granule positions must not decrease; last granule ÷ sample rate (48 kHz for Opus, from the `vorbis` id header otherwise) | first packet is `OpusHead` or `\\x01vorbis`; one logical stream |
+| WebM | `1A 45 DF A3`, DocType `webm` | walk every `Cluster`: the larger of `Info/Duration` and the last cluster `Timecode` + its last block offset, × `TimecodeScale` (Chrome's `MediaRecorder` omits `Duration`) | every `Tracks/TrackEntry/TrackType` is 2 (audio) |
 
 ### LLM types — `harness/models/llm.py` (R1.6, R1.7, R5.1, R5.2)
 
@@ -749,7 +766,8 @@ Each trust boundary of the requirements' Security considerations, and what enfor
     under *A2A surface*) before anything else touches the message: only `execute`
     accepts media, through `MediaIntake`; it enforces the allow-list, the declared-vs-sniffed
     type match, per-file and per-message size, image pixel count from the header (no
-    decode) and WAV duration. `LimitsMiddleware` caps the body before parsing.
+    decode), audio duration counted from the container and audio-only tracks.
+    `LimitsMiddleware` caps the body before parsing.
   - *Injection surfaces:* **path** — ids are validated against `[A-Za-z0-9_-]{1,128}` and
     the file name is never used in a path (stored only, sanitised to a basename for
     `Content-Disposition`); **SSRF** — `url` file parts from clients are refused, and the

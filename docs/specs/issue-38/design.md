@@ -73,7 +73,7 @@ flowchart TB
         WF["TaskWorkflow<br/>(history holds MediaRef only)"]
         ACT["Activities:<br/>invoke_llm (resolves bytes) · transcribe · speak · tool → generate_image"]
     end
-    MS[("MediaStore<br/>FileMediaStore: &lt;data root&gt;/media/&lt;task&gt;/&lt;id&gt;")]
+    MS[("MediaStore<br/>FileMediaStore: data-root/media/task-id/media-id")]
     P["Provider entities<br/>LLM · SpeechToText · TextToSpeech · ImageGenerator"]
     TUI & WEB -- "SendMessage: text + raw file parts" --> EX
     EX -- "put bytes" --> MS
@@ -103,7 +103,7 @@ sequenceDiagram
     participant A as Activities
     participant M as MediaStore
     U->>S: hold Space / mic button, speak, release
-    S->>X: SendMessage(file part raw=wav|webm, metadata voice=true; message metadata speak=true)
+    S->>X: SendMessage: file part raw wav or webm, part voice=true, message speak=true
     X->>X: check type, signature, size, duration
     X->>M: put → MediaRef m1
     X->>W: message with file part url=/media/t/m1
@@ -115,7 +115,7 @@ sequenceDiagram
     A-->>W: reply text
     W->>A: open_speech(s1)
     A->>M: create s1 (open)
-    W-->>S: artifact speech:s1 (url=/media/t/s1, audio/L16;rate=24000)
+    W-->>S: artifact speech:s1 (url=/media/t/s1, audio/L16 at 24 kHz)
     W-->>S: status INPUT_REQUIRED + reply message  [final status last: the stream may end here]
     W->>A: speak(s1, reply text)  [tracked speech job, does not block the mailbox]
     S->>X: GET /media/t/s1 (streamed)

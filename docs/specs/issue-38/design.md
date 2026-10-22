@@ -403,6 +403,7 @@ max_message_bytes = 26_214_400         # 25 MiB
 max_image_pixels = 40_000_000
 max_audio_seconds = 120
 dir = ""                               # default <sqlite dir>/media[-<agent>]
+speech_drain = "PT120S"                # wait for spoken replies before rollover or completion
 
 [speech_to_text]                       # NEW; absent = no STT (audio goes native or is refused)
 provider = "openai"                    # uses [openai] api_key and base_url
@@ -521,6 +522,19 @@ media = "P30D"                         # NEW
   a listener on the old generation gets an interrupted stream and can replay. The reply text is spoken without markdown
   (stripped by a small `speakable_text` function) and capped at 4 096 characters (the
   provider's input limit), the rest left to the text.
+- **Speech jobs and the workflow lifecycle** (design critic 4). A workflow coroutine is
+  not an update handler, so `all_handlers_finished` does not wait for it. The workflow
+  therefore keeps `self.speech_jobs: dict[str, SpeechJob]` (media id → reply text, voice,
+  state) and:
+  - `maybe_continue_as_new` waits `wait_condition(lambda: not self.speech_jobs,
+    timeout=speech_drain)` (default 120 s, `[media] speech_drain`) before rolling over;
+    a job still running then is cancelled, its object closed `failed`, and the status
+    note emitted — a rollover never silently abandons one;
+  - `complete` (any terminal state) waits the same bounded drain, so a final spoken reply
+    plays out; `cancel` cancels the jobs at once (activity cancellation → the writer
+    closes `failed`);
+  - the snapshot carries no speech job: only finished or failed ones may remain, and the
+    stream of a failed one has already aborted.
 - **`generate_image` intrinsic** (`tools/intrinsics.py`, registered only when an
   `ImageGenerator` exists): input `{prompt: string ≤ 4000, size?: "1024x1024" |
   "1536x1024" | "1024x1536", alt: string ≤ 200}`. The tool activity calls `generate`,

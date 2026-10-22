@@ -182,3 +182,36 @@ test("a sent image shows at once, then from the media route; it opens full size"
   await dialog.getByRole("button", { name: "Close" }).click();
   await expect(dialog).toBeHidden();
 });
+
+/** Voice (issue-38 task 26): recording, speaking, interrupted — T5. */
+for (const state of states) {
+  test(`hold to talk: recording, then the voice turn and its spoken reply (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    const mic = page.getByRole("button", { name: "Hold to talk" });
+    await expect(page.getByRole("button", { name: "Spoken replies" })).toHaveAttribute("aria-pressed", "true");
+    await mic.hover();
+    await page.mouse.down();
+    await expect(mic).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("recording")).toContainText("Recording");
+    await capture(page, `media-recording-${state.name}`, false);
+    await page.waitForTimeout(1500);
+    await page.mouse.up();
+    await expect(mic).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("mic-live")).toHaveText("Sent");
+    await expect(page.getByText("“Could the lamp be warmer too?”")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Stop speaking" })).toBeVisible();
+    await expect(page.getByText("Speaking…")).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-speaking-${state.name}`, false);
+  });
+
+  test(`a spoken reply that breaks off is interrupted, with Replay (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width, "&speech=broken");
+    await page.getByRole("combobox", { name: "Message or /command" }).fill("And the curtains?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Speech interrupted")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Replay spoken reply" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-interrupted-${state.name}`, false);
+  });
+}

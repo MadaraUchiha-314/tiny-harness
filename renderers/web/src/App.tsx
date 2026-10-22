@@ -11,12 +11,15 @@
  * Issue-38: files are sent as `raw` parts and shown at once from the page's own copy until
  * the server's echo names their stored URLs; media is fetched through the harness's media
  * route into blob URLs that go with the task view; a refused file is named and its chips
- * come back. `?fixture=media` runs the multimodal prototype against a scripted harness.
+ * come back. Voice: the mic records a voice turn and sends it on release; the speaker
+ * toggle asks for spoken replies (`speak`), which play as they stream, with Stop and
+ * Replay. `?fixture=media` runs the multimodal prototype against a scripted harness
+ * (`&speech=broken` breaks every spoken reply off).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import type React from "react";
-import { CheckIcon, PlugZapIcon, XIcon } from "lucide-react";
+import { CheckIcon, PlugZapIcon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
 import {
   A2UI_MEDIA_TYPE,
   HarnessClient,
@@ -31,12 +34,15 @@ import {
   type Part,
   type StreamResponse,
 } from "./a2a";
-import { apply, attach, emptyView, withoutMessage, type View } from "./model";
-import { MediaCache, blobBytes, filePart, rejectionText } from "./media";
+import { apply, attach, emptyView, withoutMessage, type SpeechItemData, type View } from "./model";
+import { MediaCache, PCM_FORMAT, baseType, blobBytes, filePart, rejectionText } from "./media";
+import { PcmStreamPlayer, type Recording, type RecorderLike } from "./voice";
+import { MicButton, RecordingBar } from "./components/MicButton";
+import { SpeechLine, type SpeechUi } from "./components/SpeechLine";
 import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
-import { Composer, type Attachment } from "./components/Composer";
+import { Composer, attachmentOf, type Attachment } from "./components/Composer";
 import { Stream } from "./components/Stream";
 import { TaskLink, taskHref } from "./components/TaskLink";
 import { TaskPane } from "./components/TaskPane";
@@ -129,6 +135,14 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const [media, setMedia] = useState<MediaParams | null>(null);
   const cache = useRef<MediaCache>(new MediaCache((url) => client.current.getMedia(url)));
   const load = useCallback((url: string, mediaType: string) => cache.current.url(url, mediaType), []);
+  // Voice (issue-38 R3, R4): the speaker setting, the player, and each spoken reply's state.
+  const [speak, setSpeak] = useState(true);
+  const player = useRef(new PcmStreamPlayer());
+  const [speechUi, setSpeechUi] = useState<{ [mediaId: string]: SpeechUi }>({});
+  const [recorder, setRecorder] = useState<RecorderLike | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const wantSpeech = useRef(false); // this page asked for the next spoken reply
+  const seenSpeech = useRef(new Set<string>());
 
   const fold = useCallback((event: StreamResponse) => {
     const index = seq.current++;
@@ -145,11 +159,55 @@ export function App(props: { config: AppConfig }): JSX.Element {
     }));
   }, []);
 
-  // The task view's blob URLs go with it (issue-38).
+  // The task view's blob URLs and its playback go with it (issue-38).
   useEffect(() => {
     const media = cache.current;
-    return () => media.revokeAll();
+    const speaker = player.current;
+    return () => {
+      media.revokeAll();
+      speaker.stop();
+    };
   }, [attached]);
+
+  /** Start audio from the user's gesture (a send, the mic, Replay): browsers allow it there. */
+  const unlockAudio = useCallback(() => {
+    try {
+      player.current.unlock();
+    } catch {
+      // no Web Audio here: spoken replies show their line, and Replay stays available
+    }
+  }, []);
+
+  const playSpeech = useCallback(
+    async (item: SpeechItemData) => {
+      unlockAudio();
+      setSpeechUi((current) => ({ ...current, [item.mediaId]: { state: "speaking", playedMs: 0 } }));
+      let outcome: "done" | "stopped" | "interrupted" = "interrupted";
+      try {
+        const response = await client.current.getMedia(item.url);
+        outcome = await player.current.play(response, PCM_FORMAT);
+      } catch {
+        outcome = "interrupted";
+      }
+      const playedMs = player.current.playedMs;
+      setSpeechUi((current) => ({ ...current, [item.mediaId]: { state: outcome, playedMs } }));
+    },
+    [unlockAudio],
+  );
+  const stopSpeech = useCallback(() => player.current.stop(), []);
+
+  // A spoken reply this page asked for plays as it arrives (R4.1); one in a replayed log
+  // or asked for by another surface waits for Play.
+  useEffect(() => {
+    for (const item of view.items) {
+      if (item.kind !== "speech" || seenSpeech.current.has(item.mediaId)) continue;
+      seenSpeech.current.add(item.mediaId);
+      if (wantSpeech.current && item.state !== "failed") {
+        wantSpeech.current = false;
+        void playSpeech(item);
+      }
+    }
+  }, [view.items, playSpeech]);
 
   const stopSubscription = useCallback(() => {
     subscription.current?.abort();
@@ -332,7 +390,10 @@ export function App(props: { config: AppConfig }): JSX.Element {
         participant: config.participant,
         ...(view.taskId ? { taskId: view.taskId } : {}),
       };
-      const message = userMessage({ ...base, parts: fileParts, ...(text ? { text } : {}) });
+      const spoken = media?.textToSpeech ? { speak } : {};
+      const message = userMessage({ ...base, ...spoken, parts: fileParts, ...(text ? { text } : {}) });
+      wantSpeech.current = Boolean(media?.textToSpeech && speak);
+      if (wantSpeech.current) unlockAudio();
       const display = { ...message, parts: [...shown, ...(text ? [textPart(text)] : [])] };
       fold({ payload: { $case: "message", value: display } });
       if (offline) return true;
@@ -355,8 +416,23 @@ export function App(props: { config: AppConfig }): JSX.Element {
       await consume(client.current.sendMessage(message), refused);
       return !wasRefused;
     },
-    [offline, config.participant, consume, fold, view.contextId, view.taskId],
+    [offline, config.participant, consume, fold, view.contextId, view.taskId, media, speak, unlockAudio],
   );
+
+  /** A voice turn (R3.1): the recording is sent at once, as a `voice` file part. */
+  const sendRecording = useCallback(
+    (recording: Recording) => {
+      const attachment = attachmentOf(recording.blob, recording.filename, { durationMs: recording.durationMs, voice: true });
+      if (attachment !== null) void send("", [attachment]);
+    },
+    [send],
+  );
+  const nothingRecorded = useCallback(() => setHint("Nothing recorded — hold the button while you speak."), []);
+  useEffect(() => {
+    if (hint === null) return;
+    const timer = setTimeout(() => setHint(null), 4000);
+    return () => clearTimeout(timer);
+  }, [hint]);
 
   const attachError = useCallback((text: string) => {
     setView((current) => ({ ...current, items: [...current.items, { kind: "error", text, key: `err${seq.current++}` }] }));
@@ -486,8 +562,65 @@ export function App(props: { config: AppConfig }): JSX.Element {
       </header>
       <main className="grid min-h-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
         <section className="flex min-h-0 min-w-0 flex-col" aria-label="Conversation">
-          <Stream items={view.items} onAction={onAction} onOpen={open} load={load} />
-          <Composer onSend={send} disabled={busy} commands={commands} media={media} onError={attachError} />
+          <Stream
+            items={view.items}
+            onAction={onAction}
+            onOpen={open}
+            load={load}
+            speech={(item) => (
+              <SpeechLine
+                item={item}
+                ui={speechUi[item.mediaId] ?? { state: "idle", playedMs: 0 }}
+                onStop={stopSpeech}
+                onReplay={(target) => void playSpeech(target)}
+              />
+            )}
+          />
+          <Composer
+            onSend={send}
+            disabled={busy}
+            commands={commands}
+            media={media}
+            onError={attachError}
+            status={
+              recorder !== null ? (
+                <RecordingBar recorder={recorder} />
+              ) : hint !== null ? (
+                <p role="status" className="m-0 text-sm text-muted-foreground">
+                  {hint}
+                </p>
+              ) : null
+            }
+            voice={
+              <>
+                {media?.textToSpeech ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Spoken replies"
+                    aria-pressed={speak}
+                    title={`Spoken replies: ${speak ? "on" : "off"}`}
+                    onClick={() => setSpeak((on) => !on)}
+                    className={cn(speak && "border-primary text-primary")}
+                  >
+                    {speak ? <Volume2Icon /> : <VolumeXIcon />}
+                  </Button>
+                ) : null}
+                {media?.input.some((t) => baseType(t).startsWith("audio/")) ? (
+                  <MicButton
+                    onRecorded={sendRecording}
+                    onRecording={setRecorder}
+                    onStart={() => {
+                      stopSpeech();
+                      setHint(null);
+                    }}
+                    onNothing={nothingRecorded}
+                  />
+                ) : null}
+              </>
+            }
+          />
         </section>
         <TaskPane ext={view.ext} trace={view.trace} onOpen={open} />
       </main>

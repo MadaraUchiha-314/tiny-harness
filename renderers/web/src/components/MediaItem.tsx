@@ -106,7 +106,7 @@ export function MediaItem(props: { item: MediaItemData; load: MediaLoad }): JSX.
             <span className="block aspect-[4/3] w-full" aria-hidden="true" />
           )}
         </button>
-        <figcaption className="text-xs text-muted-foreground">{caption(item)}</figcaption>
+        <figcaption className="text-xs text-foreground/75">{caption(item)}</figcaption>
         <dialog
           ref={dialog}
           aria-label={item.name}
@@ -131,7 +131,7 @@ export function MediaItem(props: { item: MediaItemData; load: MediaLoad }): JSX.
       ) : (
         <span className="block h-10 w-[min(300px,100%)] rounded-full bg-muted" aria-hidden="true" />
       )}
-      <figcaption className="text-xs text-muted-foreground">{caption(item)}</figcaption>
+      <figcaption className="text-xs text-foreground/75">{caption(item)}</figcaption>
       {item.voice ? (
         <p data-testid="transcript" className="m-0 mt-1 border-l-2 pl-2.5 italic">
           {item.transcript !== undefined ? `“${item.transcript}”` : "Transcribing…"}

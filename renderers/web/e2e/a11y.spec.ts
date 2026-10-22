@@ -102,11 +102,19 @@ test("the media states have no axe violations", async ({ page }) => {
 });
 
 test("attach by keyboard: the paperclip, /attach, and removing a chip", async ({ page }) => {
+  // Listen before the page loads, so file-chooser interception is on before any key press.
+  const choosers: import("@playwright/test").FileChooser[] = [];
+  page.on("filechooser", (chooser) => choosers.push(chooser));
+  const nextChooser = async () => {
+    await expect.poll(() => choosers.length).toBeGreaterThan(0);
+    return choosers.shift()!;
+  };
   await page.goto("/?fixture=media");
   await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
   const clip = page.getByRole("button", { name: "Attach image or audio" });
   await clip.focus();
-  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Enter")]);
+  await page.keyboard.press("Enter");
+  const chooser = await nextChooser();
   await chooser.setFiles([{ name: "first.png", mimeType: "image/png", buffer: Buffer.from("x") }]);
   await expect(page.getByRole("button", { name: "Remove first.png" })).toBeVisible();
 
@@ -117,7 +125,8 @@ test("attach by keyboard: the paperclip, /attach, and removing a chip", async ({
   await page.keyboard.press("Enter");
   await expect(box).toHaveValue("/attach ");
   await expect(box).toHaveAttribute("aria-expanded", "false");
-  const [second] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Enter")]);
+  await page.keyboard.press("Enter");
+  const second = await nextChooser();
   await second.setFiles([{ name: "second.png", mimeType: "image/png", buffer: Buffer.from("x") }]);
   await expect(page.getByRole("button", { name: "Remove second.png" })).toBeVisible();
   await expect(box).toHaveValue("");
@@ -126,4 +135,51 @@ test("attach by keyboard: the paperclip, /attach, and removing a chip", async ({
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Remove first.png" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Remove second.png" })).toBeVisible();
+});
+
+test("the voice states have no axe violations, and the mic, Stop and Replay work by keyboard", async ({ page }) => {
+  await page.goto("/?fixture=media");
+  await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
+  const mic = page.getByRole("button", { name: "Hold to talk" });
+  const live = page.getByTestId("mic-live");
+
+  // Space starts, Enter stops and sends.
+  await mic.focus();
+  await page.keyboard.press(" ");
+  await expect(mic).toHaveAttribute("aria-pressed", "true");
+  await expect(live).toHaveText("Recording");
+  expect(await axe(page)).toEqual([]);
+  await page.waitForTimeout(1500);
+  await page.keyboard.press("Enter");
+  await expect(mic).toHaveAttribute("aria-pressed", "false");
+  await expect(live).toHaveText("Sent");
+
+  // The reply speaks: Stop by keyboard, then Replay by keyboard.
+  const stop = page.getByRole("button", { name: "Stop speaking" });
+  await expect(stop).toBeVisible();
+  expect(await axe(page)).toEqual([]);
+  await stop.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/^Stopped at \d:\d\d$/)).toBeVisible();
+  const replay = page.getByRole("button", { name: "Replay spoken reply" });
+  await replay.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Stop speaking" })).toBeVisible();
+
+  // Enter starts, Space stops.
+  await mic.focus();
+  await page.keyboard.press("Enter");
+  await expect(mic).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(1500);
+  await page.keyboard.press(" ");
+  await expect(live).toHaveText("Sent");
+});
+
+test("an interrupted spoken reply has no axe violations", async ({ page }) => {
+  await page.goto("/?fixture=media&speech=broken");
+  await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Message or /command" }).fill("And the curtains?");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Speech interrupted")).toBeVisible();
+  expect(await axe(page)).toEqual([]);
 });

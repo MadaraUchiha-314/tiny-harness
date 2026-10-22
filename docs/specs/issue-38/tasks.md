@@ -209,7 +209,7 @@ red→green run.
   - _Depends on:_ 12, 22
   - _Requirements:_ R1.1, R1.3, R2.3, R6.3, R8, abuse case 6
   - _Test:_ T8 — `MediaItem.test.tsx::refuses_svg`; web unit `model.test.ts`, `Composer.test.tsx`; T5 — visual states (chips, image, audio, agent image, rejection); T9 — axe
-- [ ] 26. Web voice: mic and streamed speech
+- [x] 26. Web voice: mic and streamed speech
   - `voice.ts` (`Recorder`, `PcmStreamPlayer`). `MicButton` with hold and toggle, the
     activation generation, and the live region. Speaker toggle → `speak`. Speaking
     marker with Stop, interrupted with Replay.

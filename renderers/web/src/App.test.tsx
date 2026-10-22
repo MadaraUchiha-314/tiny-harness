@@ -199,3 +199,45 @@ describe("media against the harness (issue-38 fixture client)", () => {
     expect(screen.getByRole("button", { name: "Remove photo.png" })).toBeInTheDocument();
   });
 });
+
+describe("voice controls against the harness (issue-38 fixture client)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    let n = 0;
+    Object.assign(URL, { createObjectURL: () => `blob:test/${(n += 1)}`, revokeObjectURL: () => undefined });
+  });
+
+  it("asks for a spoken reply while the speaker is on, and not once it is off", async () => {
+    const client = new MediaFixtureClient();
+    const sent: Array<unknown> = [];
+    const original = client.sendMessage.bind(client);
+    client.sendMessage = (message) => {
+      sent.push(message.metadata?.["speak"]);
+      return original(message);
+    };
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    const speaker = await screen.findByRole("button", { name: "Spoken replies" });
+    expect(speaker).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
+    const box = screen.getByRole("combobox", { name: "Message or /command" });
+    fireEvent.change(box, { target: { value: "first" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    await waitFor(() => expect(screen.getAllByTestId("speech").length).toBeGreaterThan(1));
+    fireEvent.click(speaker);
+    expect(speaker).toHaveAttribute("aria-pressed", "false");
+    fireEvent.change(box, { target: { value: "second" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    expect(sent).toEqual([true, false]);
+  });
+
+  it("shows no mic or speaker for a harness without the media extension", async () => {
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: CONTROLS_ROOT, client: new FixtureClient() }} />);
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("INPUT_REQUIRED"));
+    expect(screen.queryByRole("button", { name: "Hold to talk" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Spoken replies" })).toBeNull();
+  });
+});

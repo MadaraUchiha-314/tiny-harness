@@ -123,6 +123,8 @@ from tiny_harness.service.durable.models import (
     TaskMonitor,
     ToolIn,
     ToolOut,
+    TranscribeIn,
+    TranscribeOut,
     TriggerIn,
     TriggerOut,
 )
@@ -231,6 +233,7 @@ class Activities:
             self.monitor_snapshot,
             self.retention_sweep,
             self.run_command,
+            self.transcribe,
         )
 
     # --- intake (R15, abuse cases 4 and 6) ------------------------------------------
@@ -489,6 +492,39 @@ class Activities:
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
         return LLMTurn(response=response, calls=calls, unseen=unseen)
+
+    @activity.defn(name=ActivityName.TRANSCRIBE.value)
+    async def transcribe(self, arg: TranscribeIn) -> TranscribeOut:
+        """How one audio attachment reaches the model (issue-38 R1.6, R3.4): natively
+        WHERE the task's model takes audio of its type, else as its transcript from
+        speech-to-text. A provider's refusal is ``failed`` (the turn goes on); a retryable
+        failure is raised for the workflow to retry. Bytes stay inside this activity."""
+        engine = self.engine
+        model, _ = engine.catalog.settings_for(HarnessTask(arg.task).ext)
+        info = engine.model_info(model)
+        ref = arg.ref
+        if "audio" in info.input_modalities and ref.media_type in info.audio_input_formats:
+            return TranscribeOut(mode="native")
+        stt, store = engine.speech_to_text, engine.media_store
+        if stt is None or store is None:
+            return TranscribeOut(mode="no_stt")
+        try:
+            audio = await store.get(ref)
+            transcript = await _heartbeating(
+                stt.transcribe(audio, media_type=ref.media_type, name=ref.name or "audio"),
+                every=self.heartbeat_every,
+            )
+        except FileNotFoundError:
+            return TranscribeOut(mode="failed")
+        except ProviderError as exc:
+            log.warning(
+                "transcription refused",
+                extra={"task_id": arg.task_id, "media_id": ref.id, "code": exc.code},
+            )
+            return TranscribeOut(mode="failed")
+        except TinyHarnessError as exc:
+            raise _translate(exc) from exc
+        return TranscribeOut(mode="transcribed", text=transcript.text)
 
     @activity.defn(name=ActivityName.INVOKE_TOOL.value)
     async def invoke_tool(self, arg: ToolIn) -> ToolOut:

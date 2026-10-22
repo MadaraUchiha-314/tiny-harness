@@ -73,7 +73,7 @@ with workflow.unsafe.imports_passed_through():
     )
     from tiny_harness.harness.core.intrinsics import link_subtask
     from tiny_harness.harness.entities import EntityKind, EntityRef
-    from tiny_harness.harness.media import MediaAttachment, MediaRef
+    from tiny_harness.harness.media import MediaAttachment, MediaKind, MediaRef
     from tiny_harness.harness.models import LLMRequest, LLMResponse, MessageItem, extract_tool_calls
     from tiny_harness.harness.models import Role as MessageRole
     from tiny_harness.harness.security import Redactor
@@ -141,6 +141,8 @@ with workflow.unsafe.imports_passed_through():
         TaskStart,
         ToolIn,
         ToolOut,
+        TranscribeIn,
+        TranscribeOut,
         TriggerIn,
         TriggerOut,
         event_entry,
@@ -159,6 +161,8 @@ FOLLOW_RETRY: Final = timedelta(seconds=5)
 """The pause after a follow activity itself failed, before the next (issue-27 R3)."""
 PUSH_RECHECKS: Final = (timedelta(seconds=1), timedelta(seconds=2), timedelta(seconds=4))
 """Delays of the fetches after a push whose claimed state the remote has not yet shown."""
+TRANSCRIPTION_FAILED: Final = "(transcription failed)"
+"""The transcript of audio speech-to-text refused (issue-38 error handling)."""
 TERMINAL_NAMES: Final = frozenset({"COMPLETED", "FAILED", "CANCELED", "REJECTED"})
 TERMINAL: Final = frozenset(
     {
@@ -756,7 +760,65 @@ class TaskWorkflow:
             self.state = state
             if out.media and self.intake_message is not None:
                 await self._echo(self.intake_message, out)
+            if any(ref.kind is MediaKind.AUDIO for ref in out.media):
+                state = await self._transcribe(state)
         return state, accepted
+
+    async def _transcribe(self, state: AgentState) -> AgentState:
+        """The audio of the message just appended (issue-38 R1.6, R3.4): each attachment
+        the model cannot take natively gets its transcript, kept on the attachment in the
+        history and shown as the ``transcript:<mediaId>`` artifact. Without speech-to-text,
+        or when it fails, the user is told and the turn goes on."""
+        entry = state.history[-1]
+        item = entry.item
+        if not isinstance(item, MessageItem):
+            return state
+        media = list(item.media)
+        for index, attachment in enumerate(media):
+            ref = attachment.ref
+            if ref.kind is not MediaKind.AUDIO or attachment.transcript is not None:
+                continue
+            name = ref.name or ref.id
+            try:
+                out = await self.call(
+                    ActivityName.TRANSCRIBE,
+                    TranscribeIn(
+                        task_id=self.task.id,
+                        correlation_id=self.correlation_id,
+                        task=self.task.proto,
+                        ref=ref,
+                    ),
+                    TranscribeOut,
+                )
+            except ApplicationError:  # retries spent: the turn goes on without it
+                out = TranscribeOut(mode="failed")
+            if out.mode == "native":
+                continue
+            if out.mode == "no_stt":
+                await self.status_note(
+                    f"audio {name} was not given to the model: no speech-to-text is configured"
+                )
+                continue
+            if out.mode == "failed" or out.text is None:
+                media[index] = MediaAttachment(ref=ref, transcript=TRANSCRIPTION_FAILED)
+                await self.status_note(f"transcription of {name} failed")
+                continue
+            media[index] = MediaAttachment(ref=ref, transcript=out.text)
+            artifact = Artifact(
+                artifact_id=f"transcript:{ref.id}", name="transcript", parts=[Part(text=out.text)]
+            )
+            artifact.metadata.update({"mediaId": ref.id})
+            event = TaskArtifactUpdateEvent(
+                task_id=self.task.id,
+                context_id=self.task.context_id,
+                artifact=artifact,
+                last_chunk=True,
+            )
+            await self._deliver(self._emit(event))
+        updated = entry.model_copy(update={"item": item.model_copy(update={"media": tuple(media)})})
+        state = state.model_copy(update={"history": (*state.history[:-1], updated)})
+        self.state = state
+        return state
 
     async def _echo(self, message: Message, out: IntakeOut) -> None:
         """Log the user's message as stored, its text and its media URLs (issue-38 R6.3),
@@ -1568,7 +1630,7 @@ class TaskWorkflow:
     def _timeouts(self, name: ActivityName) -> tuple[timedelta, timedelta | None]:
         """LLM, tool and compaction activities heartbeat; the rest are short (R19.6)."""
         config = self.start.config
-        if name is ActivityName.INVOKE_LLM or name is ActivityName.COMPACT:
+        if name in (ActivityName.INVOKE_LLM, ActivityName.COMPACT, ActivityName.TRANSCRIBE):
             return config.llm_timeout, config.heartbeat_timeout
         if name is ActivityName.INVOKE_TOOL:
             return config.tool_timeout, config.heartbeat_timeout

@@ -138,7 +138,7 @@ red→green run.
   - _Depends on:_ 14
   - _Requirements:_ R1.6, R1.7, R6.1, design critic 7
   - _Test:_ T2 — `Scenario: an image and a question reach the model`, `Scenario: a model without image input gets a note and the task continues`; T1 — `tests/unit/core/test_context_media.py`
-- [ ] 16. `transcribe` activity and transcript artifact
+- [x] 16. `transcribe` activity and transcript artifact
   - Native-or-STT decision. Transcript stored on the attachment and emitted as
     `transcript:<id>`. The note when there is no STT. STT failure handling.
   - _Depends on:_ 9, 14

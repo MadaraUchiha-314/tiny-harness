@@ -69,6 +69,7 @@ class ActivityName(StrEnum):
     MONITOR_SNAPSHOT = "monitor_snapshot"
     RETENTION_SWEEP = "retention_sweep"
     RUN_COMMAND = "run_command"
+    TRANSCRIBE = "transcribe"
 
 
 # --- the durable event log ------------------------------------------------------------
@@ -271,6 +272,22 @@ class LLMTurn(_Frozen):
     calls: tuple[ToolCall, ...]
     unseen: tuple[MediaRef, ...] = ()
     """Images the model was not shown because it takes no image input (issue-38 R1.7)."""
+
+
+class TranscribeIn(ActivityIn):
+    """One audio attachment of a new message (issue-38 R1.6, R3.4): a reference only."""
+
+    task: TaskProto
+    ref: MediaRef
+
+
+class TranscribeOut(_Frozen):
+    """How the audio reaches the model: ``native`` (the model takes it as audio),
+    ``transcribed`` (``text`` is the transcript), ``no_stt`` (no speech-to-text is
+    configured) or ``failed`` (speech-to-text refused it)."""
+
+    mode: Literal["native", "transcribed", "no_stt", "failed"]
+    text: str | None = None
 
 
 class ToolIn(ActivityIn):
@@ -590,6 +607,8 @@ __all__ = [
     "TaskStart",
     "ToolIn",
     "ToolOut",
+    "TranscribeIn",
+    "TranscribeOut",
     "TriggerIn",
     "TriggerOut",
     "WorkflowConfig",

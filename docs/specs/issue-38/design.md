@@ -239,12 +239,16 @@ class MediaStore(Entity):
                   **meta: Any) -> MediaRef: ...
     async def get(self, ref: MediaRef) -> bytes: ...
     async def lookup(self, task_id: str, media_id: str) -> MediaRef | None: ...
-    # growing objects (speech): created open, appended, then closed or failed
+    # growing objects (speech): created open, then one fenced writer per generation
     async def create(self, task_id: str, media_id: str, *, media_type: str) -> MediaRef: ...
-    async def append(self, ref: MediaRef, chunk: bytes) -> None: ...
-    async def close(self, ref: MediaRef, *, failed: bool = False) -> None: ...
+    async def begin(self, ref: MediaRef) -> SpeechWriter: ...   # new generation; fences older ones
     def read_stream(self, ref: MediaRef, *, poll: float = 0.05,
                     idle_timeout: float = 30.0) -> AsyncIterator[bytes]: ...
+
+class SpeechWriter:
+    generation: int
+    async def append(self, chunk: bytes) -> None: ...      # raises MediaFenced when superseded
+    async def close(self, *, failed: bool = False) -> None: ...
     async def delete_task(self, task_id: str) -> int: ...
     async def sweep(self, older_than: datetime) -> int: ...
 
@@ -253,15 +257,25 @@ class FileMediaStore(MediaStore):
 ```
 
 - Layout: `<root>/<task_id>/<media_id>` holds the bytes; `<media_id>.json` holds the
-  `MediaRef`; a growing object also has `<media_id>.open` until `close`, and
-  `<media_id>.failed` when it failed. Writes go to a temp file and `os.replace`, so a
-  reader never sees half a `put`.
+  `MediaRef`. Writes go to a temp file and `os.replace`, so a reader never sees half a
+  `put`.
+- Growing objects are **generation-fenced** (design critic 3). `begin` increments
+  `<media_id>.gen` (atomic replace) and writes only to its own immutable
+  `<media_id>.g<n>`; `<media_id>.state` (`open` / `done:<n>` / `failed:<n>`) is replaced
+  atomically. Every `append` and `close` first re-reads `.gen` and raises `MediaFenced`
+  when a newer generation exists, so two overlapping activity attempts never write the
+  same file and a stale attempt stops at its next chunk. The completed object is
+  `.g<n>` of the `done:<n>` state, served as `<media_id>` from then on.
 - `root` is `[media] dir`, else `<sqlite dir>/media[-<agent>]`, beside the existing
   `plugin-data` default (`runtime.default_data_root`).
 - `task_id` and `media_id` are validated against `[A-Za-z0-9_-]{1,128}` before they touch
   a path (path traversal, abuse case 4).
-- `read_stream` yields the file's bytes as they grow, until the `.open` marker goes, and
-  raises `MediaFailed` on `.failed` or after `idle_timeout` with no growth.
+- `read_stream` follows **one** generation: it yields `.g<n>` as it grows, ends cleanly
+  on `done:<n>`, and raises `MediaInterrupted` when `.gen` moves past `n` (a retry
+  started), `MediaFailed` on `failed:<n>`, or `MediaInterrupted` after `idle_timeout` with
+  no growth. The route turns either exception into an aborted chunked response; the
+  surface marks the speech *interrupted* and offers **Replay**, which re-requests the URL
+  and reads the newest generation from its start.
 - Retention: the existing retention sweep calls `sweep(older_than=now - [retention] media)`
   (new key, default 30 days, like the other kinds) and `delete_task` when a task's record is
   deleted.
@@ -503,8 +517,8 @@ media = "P30D"                         # NEW
   user can speak again at once). The activity `append`s each
   chunk of `tts.stream(text)`, then `close`s it; on error it `close(failed=True)` and the
   workflow emits a status note "speech unavailable" (R4.5). A retry after a worker crash
-  truncates and rewrites the object; a listener mid-stream sees the stream end and the
-  surface may replay it from the start. The reply text is spoken without markdown
+  calls `begin` again: a new generation, written from the start, fencing the old attempt;
+  a listener on the old generation gets an interrupted stream and can replay. The reply text is spoken without markdown
   (stripped by a small `speakable_text` function) and capped at 4 096 characters (the
   provider's input limit), the rest left to the text.
 - **`generate_image` intrinsic** (`tools/intrinsics.py`, registered only when an
@@ -687,7 +701,7 @@ the `design-approval` gate.
 | TTS fails | object closed `failed`, status note "speech unavailable", text already shown (R4.5) | speaking marker → "speech unavailable" |
 | `generate_image` fails | `ToolResult(is_error=True)` to the model, as any tool error | agent explains |
 | Media route: no access / unknown id | `404` | broken-media placeholder naming the file |
-| Growing object idle 30 s | stream ends | marker → "speech interrupted" |
+| Growing object idle 30 s, or a retry starts a new generation | stream aborted | marker → "speech interrupted" with Replay |
 | No microphone / permission denied / no PortAudio | control disabled with the reason | text input unaffected (R3.5) |
 | Recording < 0.3 s or silent | discarded locally | brief "nothing recorded" hint (R3.6) |
 

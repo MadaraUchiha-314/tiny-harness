@@ -23,6 +23,7 @@ from tests.integration.streaming_asgi import StreamingASGITransport
 from tiny_harness.config import ServerConfig
 from tiny_harness.harness.agents import SELF_AGENT_ID, RemoteAgent
 from tiny_harness.harness.entities import RegistryEntry
+from tiny_harness.harness.media import MediaIntake
 from tiny_harness.harness.models import LLMResponse
 from tiny_harness.service.a2a import (
     HarnessExecutor,
@@ -118,6 +119,7 @@ async def make_server(
     sticky: bool = True,
     push_to: Callable[[httpx.Request], Awaitable[httpx.Response]] | None = None,
     push_base_url: str | None = None,
+    media_intake: MediaIntake | None = None,
 ) -> Server:
     """``push_to`` delivers this server's outbound pushes (default: captured, ``200``);
     ``push_base_url`` is where this server's stand-ins ask remote agents to push."""
@@ -139,6 +141,7 @@ async def make_server(
         task_queue=task_queue,
         bridge=bridge,
         config=WorkflowConfig(search_attributes=False),
+        media_intake=media_intake,
     )
     handler = HarnessRequestHandler(
         bridge=bridge,

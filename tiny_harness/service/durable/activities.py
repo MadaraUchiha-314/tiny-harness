@@ -62,6 +62,7 @@ from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.core.loop import RequestReceivedPost, RequestReceivedPre
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.hooks import HookPoint, Operation, Phase
+from tiny_harness.harness.media import guard
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
@@ -684,7 +685,7 @@ class Activities:
         if not isinstance(agent, RemoteAgent):
             raise ApplicationError("not a remote agent", non_retryable=True)
         task = await agent.get_task(arg.remote_task_id, participant=arg.participant)
-        text = _status_text(task) or arg.known_text
+        text = await _status_text(task) or arg.known_text
         out = remote_out(
             arg.remote_task_id,
             task.status.state,
@@ -750,9 +751,11 @@ class Activities:
                 if self.client is None:
                     continue
                 handle = self.client.get_workflow_handle(channel.task_id)
+                # A channel's delivery carries no media (issue-38 design critic 5).
+                delivery = await guard(channel_to_a2a(channel, message), allow="drop")
                 try:
                     await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
-                        "inbox", channel_to_a2a(channel, message), result_type=InboxReceipt
+                        "inbox", delivery, result_type=InboxReceipt
                     )
                 except RPCError, WorkflowUpdateFailedError:
                     continue  # the task is gone or closed; the message stays recorded
@@ -819,10 +822,17 @@ def sub_state_of(metadata: struct_pb2.Struct) -> str | None:
     return fields["sub_state"].string_value if "sub_state" in fields else None
 
 
-def _status_text(event: Task | TaskStatusUpdateEvent) -> str | None:
+async def remote_text(message: Message) -> str:
+    """A remote agent's message as the text the stand-in records: its file parts dropped,
+    each with a note, so no remote media reaches history (issue-38 design critic 5)."""
+    kept = await guard(message, allow="drop")
+    return "\n".join(p.text for p in kept.parts if p.HasField("text"))
+
+
+async def _status_text(event: Task | TaskStatusUpdateEvent) -> str | None:
     if not event.status.HasField("message"):
         return None
-    return "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
+    return await remote_text(event.status.message)
 
 
 def remote_out(
@@ -873,14 +883,14 @@ async def _remote_turn(
                 remote_task_id = event.id
                 state = event.status.state
                 sub_state = sub_state_of(event.metadata)
-                text = _status_text(event) or text
+                text = await _status_text(event) or text
             elif isinstance(event, TaskStatusUpdateEvent):
                 remote_task_id = event.task_id or remote_task_id
                 state = event.status.state
                 sub_state = sub_state_of(event.metadata)
-                text = _status_text(event) or text
+                text = await _status_text(event) or text
             elif isinstance(event, Message):
-                text = "\n".join(p.text for p in event.parts if p.HasField("text"))
+                text = await remote_text(event)
             activity.heartbeat()
             if first and remote_task_id and state != TaskState.TASK_STATE_SUBMITTED:
                 # Past SUBMITTED the agent has the task under way: leaving the stream earlier
@@ -934,7 +944,7 @@ async def _first_change(
                 elif stamp and stamp <= baseline:
                     activity.heartbeat()
                     continue  # history replayed after the snapshot
-                text = _status_text(event) or text
+                text = await _status_text(event) or text
                 out = scrub(
                     remote_out(
                         arg.remote_task_id,
@@ -1008,5 +1018,6 @@ __all__ = [
     "Activities",
     "EventSink",
     "channel_to_a2a",
+    "remote_text",
     "running_task_workflows",
 ]

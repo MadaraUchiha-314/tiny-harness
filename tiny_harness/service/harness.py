@@ -366,6 +366,7 @@ class Harness:
             redactor=runtime.redactor,
             delegators=settings.server.delegators,
             models=ModelCatalog.from_settings(settings).selectable,
+            media_intake=runtime.media_intake,
         )
         activities = Activities(
             runtime.engine,

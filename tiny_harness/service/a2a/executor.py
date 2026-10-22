@@ -1,6 +1,11 @@
 """The A2A executor (R14.5, R14.6, R15.1, R15.2, decision-002): ``execute`` redacts the
 message, rejects unadvertised extensions, update-with-starts the task's workflow and
-streams the workflow's event log into the SDK's queue. The core loop never runs here."""
+streams the workflow's event log into the SDK's queue. The core loop never runs here.
+
+Media (issue-38 design critic 5): before redaction, ``execute`` runs the media guard in
+``extract`` mode (file parts are stored and rewritten to media URLs) and ``control`` in
+``refuse`` mode. A refused file answers ``InvalidParams`` with the reason and the limit,
+and nothing reaches the workflow."""
 
 from __future__ import annotations
 
@@ -29,6 +34,8 @@ from tiny_harness.harness.core import (
     TaskExtensionData,
     participant_of,
 )
+from tiny_harness.harness.media import MediaIntake, MediaRejected, guard
+from tiny_harness.harness.media.intake import is_file_part
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.bridge import EventBridge
@@ -64,6 +71,12 @@ def redact_message(redactor: Redactor, message: Message) -> Message:
     clean = Message()
     json_format.ParseDict(cast(JsonObject, scrubbed), clean)
     return clean
+
+
+def media_refused(exc: MediaRejected) -> InvalidParamsError:
+    """A refused file as the A2A error the client gets: the message, and the reason, the
+    limit and the part index as the error's data (issue-38 R1.3)."""
+    return InvalidParamsError(message=exc.message, data=dict(exc.detail))
 
 
 def message_text(message: Message) -> str:
@@ -188,8 +201,10 @@ class HarnessExecutor(AgentExecutor):
         policy: AccessPolicy | None = None,
         delegators: Iterable[str] = (),
         models: Collection[str] | None = None,
+        media_intake: MediaIntake | None = None,
     ) -> None:
         self._client = client
+        self._media = media_intake  # None: media off, every file part is refused
         # Who may brief a new task fully (issue-34 R7): this agent itself, always.
         self._delegators = frozenset({config.agent, *delegators})
         self._models = models  # the selectable models; None: not checked (tests)
@@ -216,6 +231,18 @@ class HarnessExecutor(AgentExecutor):
             raise TaskNotFoundError
         if existing is not None:
             refuse_terminal(existing)
+        if any(is_file_part(p) for p in message.parts):
+            # Media is stored only for an asserted participant (fail closed), checked on a
+            # copy: the message's own participant is written after redaction, as always.
+            probe = Message()
+            probe.CopyFrom(message)
+            sender_of(probe, context.call_context)
+        try:  # before redaction: the redactor never scans file bytes (abuse case 8)
+            message = await guard(
+                message, allow="extract", intake=self._media, task_id=context.task_id
+            )
+        except MediaRejected as exc:
+            raise media_refused(exc) from exc
         message = redact_message(self._redactor, message)
         message.task_id = context.task_id
         message.context_id = context.context_id
@@ -279,7 +306,12 @@ class HarnessExecutor(AgentExecutor):
         SDK's per-task request queue: that queue runs one ``execute`` at a time, so a
         completion would otherwise wait for the very turn it must interrupt. The caller
         has applied the access policy and the terminal check; the inbox update's
-        validator authorizes the sender's role before anything is interrupted."""
+        validator authorizes the sender's role before anything is interrupted. A control
+        carries no files (issue-38 design critic 5)."""
+        try:
+            message = await guard(message, allow="refuse")
+        except MediaRejected as exc:
+            raise media_refused(exc) from exc
         message = redact_message(self._redactor, message)
         message.task_id = task.id
         message.context_id = task.context_id
@@ -366,6 +398,7 @@ __all__ = [
     "envelope_json",
     "envelope_of",
     "extension_from_envelope",
+    "media_refused",
     "message_text",
     "redact_message",
     "refuse_terminal",

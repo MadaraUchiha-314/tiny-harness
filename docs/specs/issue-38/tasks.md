@@ -101,7 +101,7 @@ red→green run.
 
 ### Track C — A2A surface
 
-- [ ] 11. Executor intake at every ingress
+- [x] 11. Executor intake at every ingress
   - `execute` extracts media before `redact_message`; `control` refuses file parts; push
     and remote-agent results and channel deliveries drop them with the note. A test
     enumerates the ingress paths.

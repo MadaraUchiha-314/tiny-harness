@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-38",
-  "currentNode": "design-critic-review",
+  "currentNode": "design-approval",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -45,8 +45,24 @@
     },
     "design-critic-review": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "pass",
       "enteredAt": "2026-10-22T15:38:34+00:00",
+      "exitedAt": "2026-10-22T15:44:34+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "test-planning": {
+      "attempts": 1,
+      "outcome": "pass",
+      "enteredAt": "2026-10-22T15:44:34+00:00",
+      "exitedAt": "2026-10-22T15:46:12+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "design-approval": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-22T15:46:12+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -259,7 +275,11 @@
     }
   },
   "forced": [],
-  "parked": null,
+  "parked": {
+    "node": "design-approval",
+    "reason": "awaiting a human",
+    "since": "2026-10-22T15:46:12+00:00"
+  },
   "completions": {
     "requirements-definition": {
       "at": "2026-10-22T15:22:02+00:00",
@@ -267,6 +287,14 @@
     },
     "design": {
       "at": "2026-10-22T15:38:34+00:00",
+      "by": "cli"
+    },
+    "design-critic-review": {
+      "at": "2026-10-22T15:44:34+00:00",
+      "by": "cli"
+    },
+    "test-planning": {
+      "at": "2026-10-22T15:46:12+00:00",
       "by": "cli"
     }
   },
@@ -342,5 +370,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "design"
+  "phase": "test-planning"
 }

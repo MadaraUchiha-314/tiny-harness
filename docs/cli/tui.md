@@ -185,6 +185,12 @@ then speaks each reply. The reply starts to play before the agent has spoken all
 Press `Escape` to stop it. The reply also stops when you start a recording or send a
 message. Select the reply line and press `Enter` to play it again.
 
+### Media from other tasks
+
+The TUI downloads an image, an audio file or a spoken reply only from the server that it
+connects to, and only for the task on the screen. For all other links, the TUI shows
+`unavailable (not a medium of this task)` and does not download the file.
+
 ### When voice is not available
 
 | You see | The reason | Do this |

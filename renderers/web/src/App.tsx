@@ -133,8 +133,10 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const [attached, setAttached] = useState(config.taskId);
   const [commands, setCommands] = useState<CommandSpec[]>([]);
   const [media, setMedia] = useState<MediaParams | null>(null);
-  const cache = useRef<MediaCache>(new MediaCache((url, signal) => client.current.getMedia(url, signal)));
-  const load = useCallback((url: string, mediaType: string) => cache.current.url(url, mediaType), []);
+  const cache = useRef<MediaCache>(new MediaCache((url, taskId, signal) => client.current.getMedia(url, taskId, signal)));
+  // A medium is fetched only for the task on screen (critic 8).
+  const shownTask = view.taskId ?? "";
+  const load = useCallback((url: string, mediaType: string) => cache.current.url(url, mediaType, shownTask), [shownTask]);
   // Voice (issue-38 R3, R4): the speaker setting, the player, and each spoken reply's state.
   const [speak, setSpeak] = useState(true);
   const player = useRef(new PcmStreamPlayer());
@@ -220,7 +222,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
       setSpeechUi((ui) => ({ ...ui, [item.mediaId]: { state: "speaking", playedMs: 0 } }));
       let outcome: "done" | "stopped" | "interrupted" = "interrupted";
       try {
-        const response = await client.current.getMedia(item.url, controller.signal);
+        const response = await client.current.getMedia(item.url, shownTask, controller.signal);
         if (!current()) {
           void response.body?.cancel().catch(() => undefined);
           return;
@@ -234,7 +236,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
       const playedMs = player.current.playedMs;
       setSpeechUi((ui) => ({ ...ui, [item.mediaId]: { state: outcome, playedMs } }));
     },
-    [stopSpeech, unlockAudio],
+    [shownTask, stopSpeech, unlockAudio],
   );
 
   // A spoken reply this page asked for plays as it arrives (R4.1); one in a replayed log

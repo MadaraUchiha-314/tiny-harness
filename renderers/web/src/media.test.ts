@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MEDIA_EXT_URI, PARTICIPANT_HEADER, commandsOf, mediaOf, userMessage } from "./a2a";
+import { HarnessClient, MEDIA_EXT_URI, PARTICIPANT_HEADER, commandsOf, mediaOf, mediaRoute, userMessage } from "./a2a";
 import {
   ACCEPTED,
   MAX_DOWNLOADS,
@@ -332,7 +332,7 @@ describe("MediaCache memory budget (issue-38 critic 6)", () => {
 
   it("aborts the outstanding downloads, queued ones too, when the task view goes", async () => {
     const signals: AbortSignal[] = [];
-    const loader = vi.fn((_url: string, signal?: AbortSignal) => {
+    const loader = vi.fn((_url: string, _taskId: string, signal?: AbortSignal) => {
       if (signal) signals.push(signal);
       return new Promise<Response>(() => undefined);
     });
@@ -347,5 +347,68 @@ describe("MediaCache memory budget (issue-38 critic 6)", () => {
     await Promise.allSettled(all);
     expect(loader).toHaveBeenCalledTimes(4);
     for (const p of all) await expect(p).rejects.toThrow();
+  });
+});
+
+describe("a media URL is pinned to the task on screen (issue-38 critic 8)", () => {
+  const BASE = "http://h:8080";
+  const TASK = "9c41aa00-0000-0000-0000-00000000e07b";
+
+  it("reads only this agent's exact media route, with valid ids", () => {
+    expect(mediaRoute(`${BASE}/media/${TASK}/Qm3x_k-2`, BASE, "/media")).toEqual({ taskId: TASK, mediaId: "Qm3x_k-2" });
+    expect(mediaRoute(`/media/${TASK}/Qm3x`, BASE, "/media")).toEqual({ taskId: TASK, mediaId: "Qm3x" });
+    for (const url of [
+      `http://evil.example/media/${TASK}/Qm3x`, // another origin
+      `https://h:8080/media/${TASK}/Qm3x`, // another scheme
+      `${BASE}/x/media/${TASK}/Qm3x`, // another path
+      `${BASE}/media/${TASK}/Qm3x/more`,
+      `${BASE}/media/${TASK}`,
+      `${BASE}/media/${TASK}/bad.id`,
+      `${BASE}/media/${TASK}/Qm3x?download=1`,
+      `${BASE}/media/${TASK}/Qm3x#frag`,
+      `${BASE}/media/${TASK}/Qm%2Fx`,
+      `${BASE}/mediaX/${TASK}/Qm3x`,
+    ]) {
+      expect(mediaRoute(url, BASE, "/media"), url).toBeNull();
+    }
+  });
+
+  class CardClient extends HarnessClient {
+    override async media(): Promise<MediaParams | null> {
+      return LIMITS;
+    }
+  }
+
+  it("refuses another task's medium, and fetches the task's own with the participant header", async () => {
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("x", { headers: { "content-type": "image/png" } }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    try {
+      const client = new CardClient(BASE, "you");
+      const other = `${BASE}/media/0ther-task/Qm3x`;
+      await expect(client.getMedia(other, TASK)).rejects.toThrow(/not a media URL of task/);
+      await expect(client.getMedia(`http://evil.example/media/${TASK}/Qm3x`, TASK)).rejects.toThrow();
+      await expect(client.getMedia(`${BASE}/x/media/${TASK}/Qm3x`, TASK)).rejects.toThrow();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      await client.getMedia(`${BASE}/media/${TASK}/Qm3x`, TASK);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(`${BASE}/media/${TASK}/Qm3x`);
+      expect(new Headers(fetchSpy.mock.calls[0]?.[1]?.headers).get(PARTICIPANT_HEADER)).toBe("you");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("asks the loader for the medium of the task the view shows", async () => {
+    const loader = vi.fn(async (_url: string, _taskId: string) => new Response(new Uint8Array(4), { headers: { "content-type": "image/png" } }));
+    const cache = new MediaCache(loader);
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:test/1", revokeObjectURL: () => undefined }));
+    try {
+      await cache.url(`${BASE}/media/${TASK}/Qm3x`, "image/png", TASK);
+      expect(loader.mock.calls[0]?.[1]).toBe(TASK);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

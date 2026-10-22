@@ -1152,3 +1152,73 @@ async def test_voice_a_reply_stopped_mid_stream_closes_the_media_stream(tmp_path
         assert line.text == "🔊 stopped at 0:00 · ⏎ replays"
         assert speakers.played == block
         assert client.closed == [media_url("Sp1")]
+
+
+# --- issue-38 critic 8: a media URL is pinned to the task on screen ------------------------
+
+OTHER_TASK = "9c410000-0000-0000-0000-00000000e07b"
+
+
+def _other(url: str, media_id: str, media_type: str, name: str = "") -> Part:
+    part = Part(url=url, media_type=media_type, filename=name)
+    part.metadata.update({"mediaId": media_id})
+    return part
+
+
+async def test_a_spoken_reply_of_another_task_is_never_fetched(tmp_path: Path) -> None:
+    """Critic 8: a speech artifact whose URL names another task's medium shows a
+    placeholder line; it is neither played nor fetched, and Enter does not replay it."""
+    stray = media_url("Sp9", task_id=OTHER_TASK)
+    client = media_client(files={stray: [fx_tone(0.25, rate=24_000)]})
+    app, _, _, speakers = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        await pilot.press("f6")
+        event = speech("Sp9")
+        event.artifact.parts[0].url = stray
+        app.feed([event])
+        await settle(app)
+        await pilot.pause()
+        [line] = app.query(SpeechEntry)
+        assert line.text == "🔊 spoken reply · not a medium of this task"
+        line.focus()
+        await pilot.press("enter")
+        await settle(app)
+        assert client.media_fetched == []
+        assert speakers.played == b""
+
+
+async def test_audio_and_images_of_another_task_or_origin_are_never_fetched(
+    tmp_path: Path,
+) -> None:
+    """Critic 8: an audio file of another task, an image on another origin and an image
+    under another path each show a placeholder line, and nothing is fetched."""
+    files = {
+        media_url("Au9", task_id=OTHER_TASK): [b"RIFF"],
+        f"http://evil.example{'/media'}/{TASK_ID}/Im8": [fx.png(8, 8)],
+        f"{AGENT_URL}/x/media/{TASK_ID}/Im7": [fx.png(8, 8)],
+    }
+    client = media_client(files=files)
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        stray = _other(media_url("Au9", task_id=OTHER_TASK), "Au9", "audio/wav", "note.wav")
+        app.feed([echo(stray, participant="bob", message_id="m-b9")])
+        for url, media_id in (
+            (f"http://evil.example/media/{TASK_ID}/Im8", "Im8"),
+            (f"{AGENT_URL}/x/media/{TASK_ID}/Im7", "Im7"),
+        ):
+            event = agent_image(media_id, "elsewhere")
+            event.artifact.parts[0].url = url
+            app.feed([event])
+        await settle(app)
+        await pilot.pause()
+        [audio] = app.query(AudioEntry)
+        assert audio.text.endswith("unavailable (not a medium of this task)")
+        audio.focus()
+        await pilot.press("enter")
+        await settle(app)
+        images = [e.text for e in app.query(MediaEntry)]
+        assert len(images) == 2
+        assert all("unavailable (not a medium of this task)" in t for t in images)
+        assert client.media_fetched == []

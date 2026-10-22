@@ -222,6 +222,28 @@ def media_ids(url: str, media_path: str = MEDIA_ROUTE) -> tuple[str, str] | None
     return pieces[0], pieces[1]
 
 
+def pinned_media_ids(
+    url: str, *, agent_url: str, task_id: str, media_path: str = MEDIA_ROUTE
+) -> tuple[str, str] | None:
+    """``(task_id, media_id)`` only for exactly ``<agent_url><media_path>/<task_id>/<id>``
+    (critic 8): the agent's origin, the route under the agent's path with no query or
+    fragment, valid ids, and the task on screen. Any other URL is ``None``, never fetched."""
+    found, base = urlsplit(url), urlsplit(agent_url)
+    if not base.netloc or (found.scheme, found.netloc) != (base.scheme, base.netloc):
+        return None
+    if found.query or found.fragment:
+        return None
+    root = f"{base.path.rstrip('/')}/{media_path.strip('/')}/"
+    if not found.path.startswith(root):
+        return None
+    pieces = found.path[len(root) :].split("/")
+    if len(pieces) != 2 or any(MEDIA_ID.fullmatch(p) is None for p in pieces):
+        return None
+    if not task_id or pieces[0] != task_id:
+        return None
+    return pieces[0], pieces[1]
+
+
 class MediaCache:
     """``<root>/<task_id>/<media_id><ext>``: directories ``0700``, files ``0600``, written
     to a fresh temporary name with ``O_NOFOLLOW | O_EXCL`` under a directory opened with
@@ -582,5 +604,6 @@ __all__ = [
     "limit_text",
     "load_attachment",
     "media_ids",
+    "pinned_media_ids",
     "rejection_text",
 ]

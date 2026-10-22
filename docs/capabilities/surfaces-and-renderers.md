@@ -95,6 +95,12 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   transcript; a WAV entry (`⏎ to play`) plays on `Enter`, and any other audio type
   (`⏎ saves`) is saved to that cache on `Enter` and its entry then reads
   `saved to <path>`.
+- Each surface SHALL fetch an image, an audio file or a spoken reply only when its URL is
+  exactly `<agent><mediaPath>/<task_id>/<media_id>` on the agent's origin (no query or
+  fragment, ids matching `[A-Za-z0-9_-]{1,128}`) and `task_id` is the task on screen
+  (critic 8): the TUI's `pinned_media_ids` and the web's `mediaRoute` with
+  `HarnessClient.getMedia(url, taskId)`. Any other URL shows "not a medium of this task"
+  and is never fetched, played or replayed.
 - The TUI SHALL record a voice turn while Space is held on an empty composer (a
   `HoldDetector` over auto-repeat: a second Space within `--hold-ms`, default 600 ms,
   starts the hold, a 0.25 s gap ends it; a lone Space types a space), and with `F5` as a

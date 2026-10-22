@@ -102,7 +102,7 @@ from tiny_harness.interaction.tui.media import (
     graphics_image_view,
     human_size,
     load_attachment,
-    media_ids,
+    pinned_media_ids,
     rejection_text,
 )
 from tiny_harness.interaction.tui.voice import (
@@ -276,6 +276,9 @@ class TaskView:
     @property
     def terminal(self) -> bool:
         return self.state in TERMINAL_STATES
+
+
+NOT_THIS_TASK = "not a medium of this task"
 
 
 class HarnessApp(App[None]):
@@ -1009,23 +1012,33 @@ class HarnessApp(App[None]):
     def _bind(self, widget: Widget, part: Part, view: TaskView, task_id: str) -> None:
         """Give an entry its stored medium: the URL, the ids parsed from it, and what the
         server measured. An image is then saved and shown."""
-        media_path = self.media_params.media_path if self.media_params else MEDIA_ROUTE
-        ids = media_ids(part.url, media_path)
+        ids = self._pinned(part.url, task_id)
         meta = self._part_meta(part)
         if isinstance(widget, AudioEntry):
-            if ids is not None:
-                widget.bind(part.url, ids, duration_ms=meta.duration_ms)
-                view.audio[ids[1]] = widget
-                if ids[1] in view.transcripts:
-                    widget.set_transcript(view.transcripts[ids[1]])
+            if ids is None:
+                # Never fetched (critic 8): Enter finds no stored medium to play.
+                widget.show(
+                    f"{widget.prefix}[audio] {widget.name_text} · unavailable ({NOT_THIS_TASK})"
+                )
+                return
+            widget.bind(part.url, ids, duration_ms=meta.duration_ms)
+            view.audio[ids[1]] = widget
+            if ids[1] in view.transcripts:
+                widget.set_transcript(view.transcripts[ids[1]])
             return
         if not isinstance(widget, MediaEntry):
             return
-        if ids is None or (task_id and ids[0] != task_id):
-            widget.unavailable("not a medium of this task")
+        if ids is None:
+            widget.unavailable(NOT_THIS_TASK)
             return
         widget.bind(part.url, ids, width=meta.width, height=meta.height)
         self.run_worker(self._save_and_show(widget), exclusive=False)
+
+    def _pinned(self, url: str, task_id: str) -> tuple[str, str] | None:
+        """The ids of ``url`` when it is exactly this agent's media route for ``task_id``,
+        the task on screen (critic 8); else ``None`` and the URL is never fetched."""
+        media_path = self.media_params.media_path if self.media_params else MEDIA_ROUTE
+        return pinned_media_ids(url, agent_url=self.url, task_id=task_id, media_path=media_path)
 
     def _draw_media(self, item: RenderItem, view: TaskView) -> None:
         """An agent's image (or audio) in a message or artifact."""
@@ -1038,7 +1051,7 @@ class HarnessApp(App[None]):
             if candidate is view:
                 task_id = key
         if item.media_type == PCM_MEDIA_TYPE:
-            self._speech(item, view, indent)
+            self._speech(item, view, indent, task_id)
             return
         widget: Widget
         if item.media_type in ACCEPTED and ACCEPTED[item.media_type].value == "image":
@@ -1077,6 +1090,8 @@ class HarnessApp(App[None]):
 
     async def _download(self, url: str) -> bytes:
         assert self.client is not None
+        if not url:
+            raise ValueError(NOT_THIS_TASK)  # an entry never bound to a medium of the task
         limit = MAX_FETCH_BYTES
         if self.media_params is not None and self.media_params.max_file_bytes:
             limit = max(self.media_params.max_file_bytes, 1)
@@ -1276,18 +1291,23 @@ class HarnessApp(App[None]):
         if self.player.playing:
             self.player.stop()
 
-    def _speech(self, item: RenderItem, view: TaskView, indent: int) -> None:
-        """A spoken reply: its line, played at once when spoken replies are on."""
+    def _speech(self, item: RenderItem, view: TaskView, indent: int, task_id: str) -> None:
+        """A spoken reply: its line, played at once when spoken replies are on. A URL that
+        is not this task's medium keeps an empty URL: never played nor replayed."""
         media_id = str((item.data or {}).get("mediaId", ""))
-        entry = SpeechEntry(item.url, media_id=media_id, indent=indent)
+        pinned = self._pinned(item.url, task_id) is not None
+        entry = SpeechEntry(item.url if pinned else "", media_id=media_id, indent=indent)
         self._mount(view, entry)
         view.unplaced = entry
         self.trace.append("speech")
+        if not pinned:
+            entry.unavailable(NOT_THIS_TASK)
+            return
         if self.speak_replies and self.client is not None:
             self.run_worker(self._play_speech(entry), exclusive=False)
 
     def on_speech_entry_replay(self, event: SpeechEntry.Replay) -> None:
-        if self.client is not None:
+        if self.client is not None and event.entry.url:
             self.run_worker(self._play_speech(event.entry), exclusive=False)
 
     async def _play_speech(self, entry: SpeechEntry) -> None:

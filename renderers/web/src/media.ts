@@ -164,7 +164,8 @@ export function fetchMedia(url: string, participant: string, fetchImpl: typeof f
   return fetchImpl(url, { headers: { [PARTICIPANT_HEADER]: participant } });
 }
 
-export type MediaLoader = (url: string, signal?: AbortSignal) => Promise<Response>;
+/** GET a media URL for the task on screen (the loader refuses another task's medium). */
+export type MediaLoader = (url: string, taskId: string, signal?: AbortSignal) => Promise<Response>;
 
 /** The blob cache's byte budget (critic 6): past it the least recently used blob goes. */
 export const MEDIA_CACHE_BUDGET = 200 * 1024 * 1024;
@@ -221,7 +222,8 @@ export class MediaCache {
     this.concurrency = options.concurrency ?? MAX_DOWNLOADS;
   }
 
-  url(src: string, mediaType: string): Promise<string> {
+  /** The blob URL of `src`, a medium of `taskId` (the task on screen). */
+  url(src: string, mediaType: string, taskId = ""): Promise<string> {
     const known = this.entries.get(src);
     if (known) {
       this.touch(src, known);
@@ -229,7 +231,7 @@ export class MediaCache {
     }
     if (src.startsWith("local:")) return Promise.reject(new Error(`unknown local medium ${src}`));
     const entry: Entry = { url: Promise.resolve(""), made: null, size: 0, local: false };
-    entry.url = this.load(src, mediaType).then((made) => {
+    entry.url = this.load(src, mediaType, taskId).then((made) => {
       if (this.entries.get(src) !== entry) {
         URL.revokeObjectURL(made.url); // the view went while it loaded
         throw closed();
@@ -325,7 +327,7 @@ export class MediaCache {
     this.queue.shift()?.go();
   }
 
-  private async load(src: string, mediaType: string): Promise<{ url: string; size: number }> {
+  private async load(src: string, mediaType: string, taskId: string): Promise<{ url: string; size: number }> {
     const expected = mediaKind(mediaType);
     if (expected === null) throw new Error(`${mediaType} is not an accepted type`);
     await this.acquire();
@@ -334,7 +336,7 @@ export class MediaCache {
     try {
       // An abort ends the wait even for a loader that does not watch the signal.
       const aborted = new Promise<never>((_, fail) => controller.signal.addEventListener("abort", () => fail(closed()), { once: true }));
-      const response = await Promise.race([this.loader(src, controller.signal), aborted]);
+      const response = await Promise.race([this.loader(src, taskId, controller.signal), aborted]);
       if (!response.ok) throw new Error(`the media route answered ${response.status}`);
       const served = response.headers.get("content-type") ?? "";
       if (mediaKind(served) !== expected) throw new Error(`${served || "no type"} is not an accepted ${expected} type`);

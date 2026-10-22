@@ -13,6 +13,7 @@ import {
   STATUS_EXT_KEY,
   TASK_EXT_KEY,
   TaskState,
+  mediaRoute,
   textPart,
   type CommandSpec,
   type HarnessPort,
@@ -415,9 +416,12 @@ export class MediaFixtureClient implements HarnessPort {
 
   /** The media route from memory. A spoken reply streams 100 ms of PCM every 100 ms for
    * 30 s (or breaks off after 0.4 s with `speech: "broken"`), like a growing object. */
-  async getMedia(url: string, signal?: AbortSignal): Promise<Response> {
+  async getMedia(url: string, taskId: string, signal?: AbortSignal): Promise<Response> {
     await Promise.resolve();
-    const id = url.split("/").pop() ?? "";
+    // As the real client: only a medium of the task on screen (critic 8).
+    const route = mediaRoute(url, BASE);
+    if (route === null || route.taskId !== taskId) throw new Error(`not a media URL of task ${taskId}: ${url}`);
+    const id = route.mediaId;
     if (this.speech.has(id)) return new Response(this.pcm(signal), { headers: { "content-type": PCM_MEDIA_TYPE } });
     const found = this.store.get(id);
     if (found === undefined) return new Response("not found", { status: 404 });

@@ -338,8 +338,8 @@ describe("a pending spoken-reply download (issue-38 critic 5)", () => {
     const client = new MediaFixtureClient();
     const pending: Array<{ signal: AbortSignal | undefined; release: () => void; cancelled: () => boolean }> = [];
     const original = client.getMedia.bind(client);
-    client.getMedia = (url, signal) => {
-      if (!/\/s\d+\w*$/.test(url)) return original(url, signal);
+    client.getMedia = (url, taskId, signal) => {
+      if (!/\/s\d+\w*$/.test(url)) return original(url, taskId, signal);
       let cancelled = false;
       return new Promise<Response>((resolve) => {
         pending.push({

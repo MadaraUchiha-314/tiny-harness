@@ -162,6 +162,32 @@ export function mediaOf(card: CardWithExtensions): MediaParams | null {
   };
 }
 
+/** A task or media id as the server makes them (`_SAFE_ID` in harness/media/store.py). */
+const MEDIA_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
+ * `{ taskId, mediaId }` of exactly `<baseUrl><mediaPath>/<taskId>/<mediaId>` on the
+ * harness's origin, with no query or fragment and valid ids; null for any other URL.
+ */
+export function mediaRoute(url: string, baseUrl: string, mediaPath = "/media"): { taskId: string; mediaId: string } | null {
+  let found: URL;
+  let base: URL;
+  try {
+    base = new URL(`${baseUrl.replace(/\/$/, "")}/`);
+    found = new URL(url, base);
+  } catch {
+    return null;
+  }
+  if (found.origin !== base.origin || found.search !== "" || found.hash !== "" || url.includes("#")) return null;
+  const root = `${base.pathname.replace(/\/$/, "")}/${mediaPath.replace(/^\/+|\/+$/g, "")}/`;
+  if (!found.pathname.startsWith(root)) return null;
+  const pieces = found.pathname.slice(root.length).split("/");
+  const [taskId, mediaId] = pieces;
+  if (pieces.length !== 2 || taskId === undefined || mediaId === undefined) return null;
+  if (!MEDIA_ID.test(taskId) || !MEDIA_ID.test(mediaId)) return null;
+  return { taskId, mediaId };
+}
+
 /** What the renderer needs from a harness; `HarnessClient` is the real one, and the
  * fixtures provide a scripted one for tests and the visual states. */
 export interface HarnessPort {
@@ -172,8 +198,9 @@ export interface HarnessPort {
   commands(): Promise<CommandSpec[]>;
   /** The card's media extension (issue-38), null without one. */
   media(): Promise<MediaParams | null>;
-  /** GET a media URL of this harness with the participant's identity (the media route). */
-  getMedia(url: string, signal?: AbortSignal): Promise<Response>;
+  /** GET a media URL of this harness with the participant's identity (the media route),
+   * only when it is a medium of `taskId`, the task on screen. */
+  getMedia(url: string, taskId: string, signal?: AbortSignal): Promise<Response>;
 }
 
 /** `fetch` that adds the participant header the perimeter would otherwise set. */
@@ -242,15 +269,15 @@ export class HarnessClient implements HarnessPort {
     return mediaOf(await client.getAgentCard());
   }
 
-  /** Only URLs under this harness's media route get the participant's identity: a URL
-   * anywhere else is refused, not fetched (the server never sends one). */
-  async getMedia(url: string, signal?: AbortSignal): Promise<Response> {
+  /** Only this harness's exact media route, for the task on screen, gets the
+   * participant's identity (critic 8): any other URL is refused, not fetched (the server
+   * never sends one). */
+  async getMedia(url: string, taskId: string, signal?: AbortSignal): Promise<Response> {
     const media = (await this.media())?.mediaPath ?? "/media";
-    const resolved = new URL(url, `${this.baseUrl}/`);
-    const root = new URL(`${this.baseUrl}${media.replace(/\/$/, "")}/`);
-    if (resolved.origin !== root.origin || !resolved.pathname.startsWith(root.pathname)) {
-      throw new Error(`not a media URL of this harness: ${url}`);
+    const route = mediaRoute(url, this.baseUrl, media);
+    if (route === null || !taskId || route.taskId !== taskId) {
+      throw new Error(`not a media URL of task ${taskId || "(none)"}: ${url}`);
     }
-    return this.fetchImpl(resolved.href, signal ? { signal } : {});
+    return this.fetchImpl(new URL(url, `${this.baseUrl}/`).href, signal ? { signal } : {});
   }
 }

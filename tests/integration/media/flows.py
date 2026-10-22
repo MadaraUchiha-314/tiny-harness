@@ -22,7 +22,13 @@ from tiny_harness.harness.core import (
 )
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.media import FileMediaStore, MediaIntake
-from tiny_harness.harness.models import LLMResponse, Modality, SpeechToText, TextToSpeech
+from tiny_harness.harness.models import (
+    ImageGenerator,
+    LLMResponse,
+    Modality,
+    SpeechToText,
+    TextToSpeech,
+)
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.durable.models import EventEntry
 
@@ -59,9 +65,16 @@ async def media_harness(
     audio_formats: frozenset[str] = frozenset(),
     stt: SpeechToText | None = None,
     tts: TextToSpeech | None = None,
+    images: ImageGenerator | None = None,
 ) -> tuple[Harness, FileMediaStore]:
     store = FileMediaStore(EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), root)
-    h = Harness(responses, media_store=store, speech_to_text=stt, text_to_speech=tts)
+    h = Harness(
+        responses,
+        media_store=store,
+        speech_to_text=stt,
+        text_to_speech=tts,
+        image_generator=images,
+    )
     h.llm.info = h.llm.info.model_copy(
         update={"input_modalities": modalities, "audio_input_formats": audio_formats}
     )

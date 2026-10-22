@@ -340,6 +340,8 @@ class ToolIn(ActivityIn):
 
 class ToolOut(_Frozen):
     result: ToolResult | WorkflowCommand
+    urls: dict[str, str] = {}
+    """The media route URL of each media part's id (issue-38): the workflow shows them."""
 
 
 class CompletionIn(ActivityIn):

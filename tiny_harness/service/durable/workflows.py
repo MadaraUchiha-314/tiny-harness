@@ -377,6 +377,8 @@ class WorkflowOperations:
             if not idempotent and code != "hook.abort":
                 code = "tool.not_retried"
             return ToolResult.error(call.call_id, code, exc.message)
+        if isinstance(out.result, ToolResult):
+            await self._wf.show_media(task, out.result, out.urls)
         return out.result
 
     async def decide_completion(self, task: HarnessTask) -> TaskCompleteIn:
@@ -1412,6 +1414,26 @@ class TaskWorkflow:
             sub_state=SubState.AWAITING_ANSWER,
             persist=True,
         )
+
+    async def show_media(self, task: HarnessTask, result: ToolResult, urls: dict[str, str]) -> None:
+        """Each media part of a tool result (``generate_image``, issue-38 R2.2) as the
+        ``image:<mediaId>`` artifact: one url file part, named by the alt text."""
+        for content in result.content:
+            ref = content.media
+            if content.kind != "media" or ref is None or ref.id not in urls:
+                continue
+            part = Part(url=urls[ref.id], media_type=ref.media_type, filename=ref.name)
+            part.metadata.update({"mediaId": ref.id})
+            artifact = Artifact(
+                artifact_id=f"{ref.kind.value}:{ref.id}",
+                name=content.text or ref.name,
+                parts=[part],
+            )
+            artifact.metadata.update({"mediaId": ref.id})
+            event = TaskArtifactUpdateEvent(
+                task_id=task.id, context_id=task.context_id, artifact=artifact, last_chunk=True
+            )
+            await self._deliver(self._emit(event))
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
         """``emit_ui`` (R20.5): the validated A2UI messages become one A2A message event

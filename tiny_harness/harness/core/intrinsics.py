@@ -5,7 +5,8 @@
 are tools bound to a ``TaskContext`` (the current task and the asserted actor). Each
 validates its arguments, checks what it must (an admin for a role change), and returns a
 ``WorkflowCommand`` the loop applies deterministically. The command's ``result`` is what
-the LLM reads next turn.
+the LLM reads next turn. ``generate_image`` (issue-38) is the exception: it does I/O, so
+its body runs in the tool activity and returns a ``ToolResult`` carrying a media part.
 """
 
 from __future__ import annotations
@@ -17,9 +18,12 @@ from typing import cast
 
 from pydantic import ValidationError
 
-from tiny_harness.errors import PlanCycleError
+from tiny_harness.errors import PlanCycleError, ProviderError
 from tiny_harness.harness.core.task import HarnessTask, Plan, Role, Step, StepState, TaskRef
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.media.models import MediaRef
+from tiny_harness.harness.media.store import MediaStore
+from tiny_harness.harness.models.images import ImageGenerator
 from tiny_harness.harness.tools.intrinsics import (
     ARGUMENTS,
     AskParticipantArgs,
@@ -27,12 +31,19 @@ from tiny_harness.harness.tools.intrinsics import (
     CreatePlanArgs,
     CreateTaskForParticipantArgs,
     EmitUiArgs,
+    GenerateImageArgs,
     IntrinsicName,
     SetParticipantRoleArgs,
     SpawnSubtaskArgs,
     definition,
 )
-from tiny_harness.harness.tools.models import Tool, ToolCall, ToolResult, WorkflowCommand
+from tiny_harness.harness.tools.models import (
+    ContentPart,
+    Tool,
+    ToolCall,
+    ToolResult,
+    WorkflowCommand,
+)
 from tiny_harness.interaction.a2ui import A2UIValidationError, parse_server_message
 from tiny_harness.jsontypes import JsonObject, JsonValue
 
@@ -245,6 +256,69 @@ def core_intrinsics(
     return tuple(_CoreIntrinsic(name, context, known_agents) for name in CORE_INTRINSICS)
 
 
+_EXTENSIONS = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+
+
+def image_shown(ref: MediaRef) -> str:
+    """What the model reads as ``generate_image``'s result."""
+    return f"image {ref.id} shown to the user"
+
+
+class GenerateImageTool(Tool):
+    """``generate_image`` (issue-38 R2.1, R2.2): generate an image from the prompt, store
+    it under the bound task and return its reference with the alt text. Registered only
+    where an image generator and a media store exist. A provider's refusal is an error
+    result for the model; a retryable failure is raised for the activity's policy."""
+
+    def __init__(self, context: TaskContext, generator: ImageGenerator, store: MediaStore) -> None:
+        super().__init__(
+            EntityRef(kind=EntityKind.TOOL, id=IntrinsicName.GENERATE_IMAGE.value, version=None),
+            definition(IntrinsicName.GENERATE_IMAGE),
+        )
+        self._context = context
+        self._generator = generator
+        self._store = store
+
+    async def invoke(self, call: ToolCall) -> ToolResult | WorkflowCommand:
+        cid = call.call_id
+        try:
+            args = GenerateImageArgs.model_validate(call.arguments)
+        except ValidationError as exc:
+            return ToolResult.error(cid, "tool.invalid_arguments", str(exc))
+        task = self._context.task
+        if task is None:
+            return ToolResult.error(cid, "tool.unbound", "no task is bound to this intrinsic")
+        try:
+            image = await self._generator.generate(args.prompt, size=args.size)
+        except ProviderError as exc:
+            return ToolResult.error(cid, exc.code, exc.message)
+        name = slug(args.alt)[:100] + _EXTENSIONS.get(image.media_type, "")
+        ref = await self._store.put(
+            task.id,
+            image.data,
+            media_type=image.media_type,
+            name=name,
+            width=image.width,
+            height=image.height,
+        )
+        return ToolResult(
+            call_id=cid,
+            content=(
+                ContentPart(kind="text", text=image_shown(ref)),
+                ContentPart(kind="media", media=ref, media_type=ref.media_type, text=args.alt),
+            ),
+        )
+
+
+def image_intrinsic(
+    context: TaskContext, generator: ImageGenerator | None, store: MediaStore | None
+) -> tuple[Tool, ...]:
+    """``generate_image`` WHERE an image generator and a media store exist, else nothing."""
+    if generator is None or store is None:
+        return ()
+    return (GenerateImageTool(context, generator, store),)
+
+
 # --- applying commands to the task (pure; the workflow runs this) -------------------------
 
 
@@ -283,9 +357,12 @@ def link_subtask(task: HarnessTask, ref: TaskRef, step_id: str | None) -> Harnes
 
 __all__ = [
     "CORE_INTRINSICS",
+    "GenerateImageTool",
     "TaskContext",
     "apply_to_task",
     "core_intrinsics",
+    "image_intrinsic",
+    "image_shown",
     "link_subtask",
     "plan_from_args",
     "slug",

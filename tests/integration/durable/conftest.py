@@ -32,7 +32,13 @@ from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
 from tiny_harness.harness.hooks import HookManager
 from tiny_harness.harness.media import MediaStore
-from tiny_harness.harness.models import FakeLLM, LLMResponse, SpeechToText, TextToSpeech
+from tiny_harness.harness.models import (
+    FakeLLM,
+    ImageGenerator,
+    LLMResponse,
+    SpeechToText,
+    TextToSpeech,
+)
 from tiny_harness.harness.persistence import SqliteStore
 from tiny_harness.harness.tools import (
     Idempotency,
@@ -97,6 +103,7 @@ class Harness:
         media_store: MediaStore | None = None,
         speech_to_text: SpeechToText | None = None,
         text_to_speech: TextToSpeech | None = None,
+        image_generator: ImageGenerator | None = None,
     ) -> None:
         self.registry = Registry()
         self.hooks = HookManager()
@@ -117,6 +124,7 @@ class Harness:
             media_store=media_store,
             speech_to_text=speech_to_text,
             text_to_speech=text_to_speech,
+            image_generator=image_generator,
             media_base_url="http://harness",
         )
 

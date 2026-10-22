@@ -15,7 +15,7 @@ from a2a.types import TaskState
 
 from tiny_harness.harness.core.compaction import CompactionRecord, Compactor
 from tiny_harness.harness.core.context import NO_AGENTS, ContextWindow, ContextWindowManager
-from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics
+from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics, image_intrinsic
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
     LLMInvokedPre,
@@ -47,6 +47,7 @@ from tiny_harness.harness.media import MediaStore
 from tiny_harness.harness.media.render import resolve_media
 from tiny_harness.harness.models import (
     LLM,
+    ImageGenerator,
     LLMModelInfo,
     LLMRequest,
     LLMResponse,
@@ -116,6 +117,7 @@ class InProcessOperations:
         media_store: MediaStore | None = None,
         speech_to_text: SpeechToText | None = None,
         text_to_speech: TextToSpeech | None = None,
+        image_generator: ImageGenerator | None = None,
         media_base_url: str = "",
     ) -> None:
         self.registry = registry
@@ -147,18 +149,24 @@ class InProcessOperations:
         self.media_store = media_store
         self.speech_to_text = speech_to_text
         self.text_to_speech = text_to_speech
+        self.image_generator = image_generator
         self.media_base_url = media_base_url.rstrip("/")
         self._bound = False
 
     async def bind(self) -> None:
-        """Register the core intrinsics and the default ``in`` bodies; idempotent."""
+        """Register the core intrinsics (with ``generate_image`` WHERE an image generator
+        and a media store exist) and the default ``in`` bodies; idempotent."""
         if self._bound:
             return
 
         def known_agents() -> frozenset[str]:  # read at call time (issue-34 R3)
             return frozenset(ref.id for ref in self.registry.list(EntityKind.AGENT))
 
-        for tool in core_intrinsics(self.context, known_agents=known_agents):
+        tools = (
+            *core_intrinsics(self.context, known_agents=known_agents),
+            *image_intrinsic(self.context, self.image_generator, self.media_store),
+        )
+        for tool in tools:
             await self.registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         self.compactor.register_defaults()
         register_completion_default(self.hooks)

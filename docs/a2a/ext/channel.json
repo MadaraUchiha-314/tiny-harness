@@ -1,7 +1,7 @@
 {
   "$defs": {
     "ContentPart": {
-      "description": "A piece of a tool result: text, or JSON data with a media type.",
+      "description": "A piece of a tool result: text, JSON data with a media type, or stored media\n(issue-38): ``media`` is its reference, never its bytes, and ``text`` its alt text.\nA model reads a media part only through the agent note the loop adds for it.",
       "properties": {
         "data": {
           "anyOf": [
@@ -17,10 +17,22 @@
         "kind": {
           "enum": [
             "text",
-            "data"
+            "data",
+            "media"
           ],
           "title": "Kind",
           "type": "string"
+        },
+        "media": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "media_type": {
           "anyOf": [
@@ -89,6 +101,104 @@
           "type": "null"
         }
       ]
+    },
+    "MediaKind": {
+      "description": "What a medium is, as the model sees it.",
+      "enum": [
+        "image",
+        "audio"
+      ],
+      "title": "MediaKind",
+      "type": "string"
+    },
+    "MediaRef": {
+      "description": "A stored medium of one task. ``id`` is ``secrets.token_urlsafe(18)`` for stored\nmedia (144 random bits, not guessable); both ids are restricted to ``[A-Za-z0-9_-]``\nso they are safe in a path (abuse case 4).",
+      "properties": {
+        "duration_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Ms"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/MediaKind"
+        },
+        "media_type": {
+          "description": "a key of ACCEPTED, or PCM_MEDIA_TYPE",
+          "title": "Media Type",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "original file name, sanitised",
+          "title": "Name",
+          "type": "string"
+        },
+        "size": {
+          "description": "bytes; 0 while a growing object is open",
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "task_id": {
+          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "voice": {
+          "default": false,
+          "description": "recorded by a voice control",
+          "title": "Voice",
+          "type": "boolean"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "kind",
+        "media_type",
+        "size"
+      ],
+      "title": "MediaRef",
+      "type": "object"
     }
   },
   "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/channel/v1/schema.json",

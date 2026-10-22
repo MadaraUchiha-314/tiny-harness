@@ -25,6 +25,7 @@ from tiny_harness.errors import (
     VersionNotFoundError,
 )
 from tiny_harness.harness.entities import Entity, EntityKind, EntityRef, Registry
+from tiny_harness.harness.media.models import MediaRef
 from tiny_harness.jsontypes import JsonObject, JsonSchema
 
 
@@ -64,12 +65,15 @@ class ToolCall(BaseModel, frozen=True):
 
 
 class ContentPart(BaseModel, frozen=True):
-    """A piece of a tool result: text, or JSON data with a media type."""
+    """A piece of a tool result: text, JSON data with a media type, or stored media
+    (issue-38): ``media`` is its reference, never its bytes, and ``text`` its alt text.
+    A model reads a media part only through the agent note the loop adds for it."""
 
-    kind: Literal["text", "data"]
+    kind: Literal["text", "data", "media"]
     text: str | None = None
     data: JsonObject | None = None
     media_type: str | None = None
+    media: MediaRef | None = None
 
 
 class ToolResult(BaseModel, frozen=True):

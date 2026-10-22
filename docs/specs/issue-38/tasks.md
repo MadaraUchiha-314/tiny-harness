@@ -151,7 +151,7 @@ red→green run.
   - _Depends on:_ 4, 9, 15
   - _Requirements:_ R4.1, R4.2, R4.5, design critic 1–4
   - _Test:_ T2 — `Scenario: a voice turn is transcribed, answered and spoken`, `Scenario: the speech artifact arrives before the final status`, `Scenario: a retry during speech starts a new generation and the reader is told`, `Scenario: speech that fails leaves the text and a note`, `Scenario: rollover and completion wait for speech; cancel stops it`
-- [ ] 18. `generate_image` intrinsic
+- [x] 18. `generate_image` intrinsic
   - The tool, `ContentPart(kind="media")`, the `image:<id>` artifact, and the agent note
     with media for later turns.
   - _Depends on:_ 9, 14

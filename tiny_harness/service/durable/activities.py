@@ -76,6 +76,7 @@ from tiny_harness.harness.persistence import (
     StateRecord,
     TaskRecord,
 )
+from tiny_harness.harness.tools import ToolResult
 from tiny_harness.interaction.a2ui import (
     A2UI_MEDIA_TYPE,
     A2UIValidationError,
@@ -599,7 +600,15 @@ class Activities:
             )
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
-        return ToolOut(result=result)
+        urls: dict[str, str] = {}
+        if isinstance(result, ToolResult):
+            for part in result.content:
+                if part.kind == "media" and part.media is not None:
+                    ref = part.media
+                    urls[ref.id] = (
+                        f"{self.engine.media_base_url}{MEDIA_ROUTE}/{ref.task_id}/{ref.id}"
+                    )
+        return ToolOut(result=result, urls=urls)
 
     @activity.defn(name=ActivityName.DECIDE_COMPLETION.value)
     async def decide_completion(self, arg: CompletionIn) -> CompletionOut:

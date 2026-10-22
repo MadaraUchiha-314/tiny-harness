@@ -350,6 +350,7 @@ async def build_runtime(
         media_store=media_store,
         speech_to_text=stt,
         text_to_speech=tts,
+        image_generator=images,
         media_base_url=public_url or str(settings.server.base_url),
     )
     engine.sources = sources

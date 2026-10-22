@@ -49,7 +49,7 @@ red→green run.
   - _Depends on:_ 2
   - _Requirements:_ R1.4, NFR size limits, design critic 6
   - _Test:_ T1/T8 — `tests/unit/media/test_sniff_audio.py` (a valid file per type; MP4 and WebM with video; a low-bitrate MP3 over the cap; an Ogg with a lying granule; WebM without `Duration`; truncated files; budget exhaustion)
-- [ ] 4. `FileMediaStore`
+- [x] 4. `FileMediaStore`
   - `put`, `get`, `lookup`, `delete_task`, `sweep`, id validation, atomic writes. Growing
     objects: `create`, `begin` → `SpeechWriter` (generation fencing), and `read_stream`
     (done, failed, interrupted, idle).

@@ -4,6 +4,31 @@ PCM_MEDIA_TYPE = str
 class AudioFormat(object)
   def __init__(self, encoding: "Literal['pcm_s16le']", sample_rate: 'int', channels: 'int') -> None
   property media_type
+class FileMediaStore(MediaStore)
+  def __init__(self, ref: 'EntityRef', root: 'Path') -> 'None'
+  def begin(self, ref: 'MediaRef') -> 'SpeechWriter'
+  def create(self, task_id: 'str', media_id: 'str', *, media_type: 'str') -> 'MediaRef'
+  def delete_task(self, task_id: 'str') -> 'int'
+  def get(self, ref: 'MediaRef') -> 'bytes'
+  def lookup(self, task_id: 'str', media_id: 'str') -> 'MediaRef | None'
+  def put(self, task_id: 'str', data: 'bytes', *, media_type: 'str', name: 'str' = '', **meta: 'int | bool | None') -> 'MediaRef'
+  def read_stream(self, ref: 'MediaRef', *, poll: 'float' = 0.05, idle_timeout: 'float' = 30.0) -> 'AsyncIterator[bytes]'
+  def sweep(self, older_than: 'datetime') -> 'int'
 model MediaAttachment(ref: <class 'tiny_harness.harness.media.models.MediaRef'>, transcript: str | None = ..., data: bytes | None = ...)
+class MediaFailed(TinyHarnessError)
+class MediaFenced(TinyHarnessError)
+class MediaInterrupted(TinyHarnessError)
 enum MediaKind: IMAGE='image', AUDIO='audio'
 model MediaRef(id: <class 'str'>, task_id: <class 'str'>, kind: <enum 'MediaKind'>, media_type: <class 'str'>, size: <class 'int'>, name: <class 'str'> = ..., duration_ms: int | None = ..., width: int | None = ..., height: int | None = ..., voice: <class 'bool'> = ...)
+class MediaStore(Entity)
+  def begin(self, ref: 'MediaRef') -> 'SpeechWriter'
+  def create(self, task_id: 'str', media_id: 'str', *, media_type: 'str') -> 'MediaRef'
+  def delete_task(self, task_id: 'str') -> 'int'
+  def get(self, ref: 'MediaRef') -> 'bytes'
+  def lookup(self, task_id: 'str', media_id: 'str') -> 'MediaRef | None'
+  def put(self, task_id: 'str', data: 'bytes', *, media_type: 'str', name: 'str' = '', **meta: 'int | bool | None') -> 'MediaRef'
+  def read_stream(self, ref: 'MediaRef', *, poll: 'float' = 0.05, idle_timeout: 'float' = 30.0) -> 'AsyncIterator[bytes]'
+  def sweep(self, older_than: 'datetime') -> 'int'
+class SpeechWriter(ABC)
+  def append(self, chunk: 'bytes') -> 'None'
+  def close(self, *, failed: 'bool' = False) -> 'None'

@@ -9,6 +9,7 @@ and nothing reaches the workflow."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from collections.abc import AsyncGenerator, Collection, Iterable
@@ -36,6 +37,7 @@ from tiny_harness.harness.core import (
 )
 from tiny_harness.harness.media import MediaIntake, MediaRejected, guard
 from tiny_harness.harness.media.intake import is_file_part
+from tiny_harness.harness.media.spans import intake_span
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.bridge import EventBridge
@@ -242,12 +244,21 @@ class HarnessExecutor(AgentExecutor):
             probe = Message()
             probe.CopyFrom(message)
             sender_of(probe, context.call_context)
-        try:  # before redaction: the redactor never scans file bytes (abuse case 8)
-            message = await guard(
-                message, allow="extract", intake=self._media, task_id=context.task_id
-            )
-        except MediaRejected as exc:
-            raise media_refused(exc) from exc
+        files = [p for p in message.parts if is_file_part(p)]
+        observed = (
+            intake_span(context.task_id, count=len(files), size=sum(len(p.raw) for p in files))
+            if files
+            else contextlib.nullcontext()
+        )
+        with observed as span:
+            try:  # before redaction: the redactor never scans file bytes (abuse case 8)
+                message = await guard(
+                    message, allow="extract", intake=self._media, task_id=context.task_id
+                )
+            except MediaRejected as exc:
+                if span is not None:
+                    span.set(rejection=exc.reason)
+                raise media_refused(exc) from exc
         message = redact_message(self._redactor, message)
         message.task_id = context.task_id
         message.context_id = context.context_id

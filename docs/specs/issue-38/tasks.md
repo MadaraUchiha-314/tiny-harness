@@ -170,7 +170,7 @@ red→green run.
   - _Depends on:_ 17, 18, 19
   - _Requirements:_ R6.4, NFR durability, NFR observability, abuse cases 5, 8
   - _Test:_ T2 — `Scenario: media survives a worker restart`; T10 — `tests/integration/media/test_compat.py`; T8 — `::test_media_grants_nothing`, `::test_no_media_bytes_in_trace_or_log`
-- [ ] 21. Spans for intake, STT, TTS and images
+- [x] 21. Spans for intake, STT, TTS and images
   - `media.intake`, `transcribe {model}`, `speech {model}` and `image {model}` spans with
     ids and sizes only.
   - _Depends on:_ 16, 17, 18

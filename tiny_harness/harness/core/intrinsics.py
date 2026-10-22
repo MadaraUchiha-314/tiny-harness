@@ -22,6 +22,7 @@ from tiny_harness.errors import PlanCycleError, ProviderError
 from tiny_harness.harness.core.task import HarnessTask, Plan, Role, Step, StepState, TaskRef
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.media.models import MediaRef
+from tiny_harness.harness.media.spans import media_span
 from tiny_harness.harness.media.store import MediaStore
 from tiny_harness.harness.models.images import ImageGenerator
 from tiny_harness.harness.tools.intrinsics import (
@@ -288,19 +289,29 @@ class GenerateImageTool(Tool):
         task = self._context.task
         if task is None:
             return ToolResult.error(cid, "tool.unbound", "no task is bound to this intrinsic")
+        info = self._generator.info
         try:
-            image = await self._generator.generate(args.prompt, size=args.size)
+            with media_span(
+                "image_generation",
+                provider=info.provider,
+                model=info.model,
+                endpoint=info.endpoint,
+                task_id=task.id,
+            ) as span:
+                span.set(input_chars=len(args.prompt))
+                image = await self._generator.generate(args.prompt, size=args.size)
+                name = slug(args.alt)[:100] + _EXTENSIONS.get(image.media_type, "")
+                ref = await self._store.put(
+                    task.id,
+                    image.data,
+                    media_type=image.media_type,
+                    name=name,
+                    width=image.width,
+                    height=image.height,
+                )
+                span.set(id=ref.id, output_bytes=ref.size, width=image.width, height=image.height)
         except ProviderError as exc:
             return ToolResult.error(cid, exc.code, exc.message)
-        name = slug(args.alt)[:100] + _EXTENSIONS.get(image.media_type, "")
-        ref = await self._store.put(
-            task.id,
-            image.data,
-            media_type=image.media_type,
-            name=name,
-            width=image.width,
-            height=image.height,
-        )
         return ToolResult(
             call_id=cid,
             content=(

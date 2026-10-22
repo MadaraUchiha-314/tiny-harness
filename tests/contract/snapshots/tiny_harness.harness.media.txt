@@ -40,3 +40,4 @@ class SpeechWriter(ABC)
   def close(self, *, failed: 'bool' = False) -> 'None'
 def capabilities(model_info: 'LLMModelInfo', stt: 'SpeechToText | None', tts: 'TextToSpeech | None', image_generator: 'ImageGenerator | None', config: 'MediaConfig | None') -> 'MediaCapabilities'
 def guard(message: 'Message', *, allow: 'GuardMode', intake: 'MediaIntake | None' = None, task_id: 'str' = '') -> 'Message'
+spans = module

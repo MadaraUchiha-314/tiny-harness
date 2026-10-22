@@ -55,7 +55,7 @@ from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.core import HarnessTask, Participant, TaskExtensionData
 from tiny_harness.harness.core import Role as TaskRole
 from tiny_harness.harness.entities import EntityKind, EntityRef, RegistryEntry
-from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore
+from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore, spans
 from tiny_harness.harness.models import (
     FakeImageGenerator,
     FakeSpeechToText,
@@ -495,32 +495,35 @@ async def test_no_media_bytes_in_trace_or_log(
     # lines dump activity payloads, message text included, which is that SDK's policy.
     caplog.set_level(logging.INFO)
     caplog.set_level(logging.DEBUG, logger="tiny_harness")
-    async with h.worker(env.client, tq):
-        handle = await send(env.client, tq, start(media_task(tid)), msg)
-        await until(handle, replied("Here is a cake."))
-        page = await handle.query(TaskWorkflow.events_since, 0)
-        [speech] = [a for a in artifacts(page.events, "speech:")]
-        ref = await store.lookup(tid, str(speech["artifactId"]).removeprefix("speech:"))
-        assert ref is not None
-        for _ in range(250):
-            current = await store.lookup(tid, ref.id)
-            if current is not None and current.size > 0:
-                break
-            await asyncio.sleep(0.02)
-        await close(handle)
+    with spans.tracing(provider):
+        async with h.worker(env.client, tq):
+            handle = await send(env.client, tq, start(media_task(tid)), msg)
+            await until(handle, replied("Here is a cake."))
+            page = await handle.query(TaskWorkflow.events_since, 0)
+            [speech] = [a for a in artifacts(page.events, "speech:")]
+            ref = await store.lookup(tid, str(speech["artifactId"]).removeprefix("speech:"))
+            assert ref is not None
+            for _ in range(250):
+                current = await store.lookup(tid, ref.id)
+                if current is not None and current.size > 0:
+                    break
+                await asyncio.sleep(0.02)
+            await close(handle)
     [generated] = [a for a in artifacts(page.events, "image:")]
     made = await store.lookup(tid, str(generated["artifactId"]).removeprefix("image:"))
     assert made is not None
-    spans = [
+    finished = exporter.get_finished_spans()
+    names = {s.name for s in finished}
+    assert {"transcribe fake-stt", "speech fake-tts", "image fake-image"} <= names
+    rendered = [
         json.dumps({"name": s.name, "attributes": dict(s.attributes or {})}, default=str)
-        for s in exporter.get_finished_spans()
+        for s in finished
     ]
-    assert spans, "the trace recorded nothing"
     formatter = JsonFormatter(Redactor())
     logs = [formatter.format(r) + json.dumps(r.__dict__, default=str) for r in caplog.records]
     assert logs, "nothing was logged"
     blobs = (image, audio, chunk, await store.get(made))
-    for text in (*spans, *logs):
+    for text in (*rendered, *logs):
         for blob in blobs:
             encoded = base64.b64encode(blob).decode()
             assert encoded[:32] not in text

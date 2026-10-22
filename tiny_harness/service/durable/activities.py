@@ -67,6 +67,7 @@ from tiny_harness.harness.hooks import HookPoint, Operation, Phase
 from tiny_harness.harness.media import MediaFenced, MediaRef, SpeechWriter, guard
 from tiny_harness.harness.media.extension import MEDIA_ROUTE
 from tiny_harness.harness.media.render import speakable_text, unseen_images
+from tiny_harness.harness.media.spans import media_span
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
@@ -526,10 +527,20 @@ class Activities:
             return TranscribeOut(mode="no_stt")
         try:
             audio = await store.get(ref)
-            transcript = await _heartbeating(
-                stt.transcribe(audio, media_type=ref.media_type, name=ref.name or "audio"),
-                every=self.heartbeat_every,
-            )
+            with media_span(
+                "transcription",
+                provider=stt.info.provider,
+                model=stt.info.model,
+                endpoint=stt.info.endpoint,
+                task_id=arg.task_id,
+                media_id=ref.id,
+            ) as span:
+                span.set(input_bytes=len(audio), duration_ms=ref.duration_ms)
+                transcript = await _heartbeating(
+                    stt.transcribe(audio, media_type=ref.media_type, name=ref.name or "audio"),
+                    every=self.heartbeat_every,
+                )
+                span.set(output_chars=len(transcript.text), duration_ms=transcript.duration_ms)
         except FileNotFoundError:
             return TranscribeOut(mode="failed")
         except ProviderError as exc:
@@ -571,15 +582,36 @@ class Activities:
             raise ApplicationError("no speech object to write", non_retryable=True)
         writer = await store.begin(ref)
         last = arg.attempt >= arg.max_attempts
+        text = speakable_text(arg.text)
+        written = 0
+        fmt = tts.format
+        bytes_per_second = fmt.sample_rate * fmt.channels * 2  # pcm_s16le
 
         async def stream() -> None:
-            async for chunk in tts.stream(speakable_text(arg.text), voice=arg.voice):
+            nonlocal written
+            async for chunk in tts.stream(text, voice=arg.voice):
                 await writer.append(chunk)
+                written += len(chunk)
                 activity.heartbeat()
             await writer.close()
 
         try:
-            await _heartbeating(stream(), every=self.heartbeat_every)
+            with media_span(
+                "speech",
+                provider=tts.info.provider,
+                model=tts.info.model,
+                endpoint=tts.info.endpoint,
+                task_id=arg.task_id,
+                media_id=arg.media_id,
+            ) as span:
+                span.set(input_chars=len(text), generation=writer.generation)
+                try:
+                    await _heartbeating(stream(), every=self.heartbeat_every)
+                finally:
+                    span.set(
+                        output_bytes=written,
+                        duration_ms=round(written / bytes_per_second * 1000),
+                    )
         except MediaFenced as exc:  # a newer attempt owns the object
             raise ApplicationError(exc.message, type=exc.code, non_retryable=True) from exc
         except asyncio.CancelledError:

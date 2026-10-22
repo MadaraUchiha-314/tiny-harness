@@ -532,13 +532,25 @@ media = "P30D"                         # NEW
   input]` and the workflow emits that once as a status note (R1.7); native audio → `data`;
   transcribed audio → text. The `LLMRequest` that crosses into the activity carries refs;
   the resolved one never leaves it.
-- **Images in the turn.** `context.py` sends the media of every history entry still in
-  the window (R6.1). `_chars` counts an image as `IMAGE_TOKEN_ESTIMATE * 4` characters
-  (`IMAGE_TOKEN_ESTIMATE = 1_100`, a 1024×1024 image at `detail=auto`) and audio as its
-  transcript, so `over_budget` and compaction see media.
-- **Compaction.** `render_entries` writes media as `[image: <name>, <w>×<h>, media <id>]`
-  and `[audio: <name>, <s> s, transcript: "<…>"]`, so the summary names them (R6.2). The
-  bytes stay in the store until retention.
+- **Media in the turn.** `context.py` sends the media of every history entry still in
+  the window (R6.1). `_chars` counts media so `over_budget` and compaction see it
+  (design critic 7): an image as `IMAGE_TOKEN_ESTIMATE * 4` characters
+  (`IMAGE_TOKEN_ESTIMATE = 1_100`, a 1024×1024 image at `detail=auto`); transcribed
+  audio as its transcript; **native** audio by duration, `ceil(duration_ms / 1000 *
+  AUDIO_TOKENS_PER_SECOND) * 4` (`AUDIO_TOKENS_PER_SECOND = 10`, OpenAI's audio input
+  rate), overridable per model with `[openai] audio_tokens_per_second`. The estimate is
+  corrected by `last_usage.input_tokens` after each turn, as text already is.
+- **Compaction** (R6.2, design critic 7). The summarise request **carries the media** of
+  the entries it folds (resolved inside the activity, like a turn) WHERE the model accepts
+  that modality, and its prompt requires one line per media item — `[image <id>
+  "<name>": <one-sentence description>]`, `[audio <id> "<name>": <transcript, or a
+  one-sentence description>]` — which `compaction.py` checks is present for every folded
+  id (a missing line is appended as `[image <id> "<name>": not described]` so the summary
+  still names it). Media the model cannot take is rendered as text first:
+  `[image: <name>, <w>×<h>, media <id>]`, `[audio: <name>, <s> s, transcript: "<…>"]`;
+  native audio with no transcript is transcribed before compaction WHEN `[speech_to_text]`
+  is set. The bytes stay in the store until retention, and a later turn may re-attach a
+  folded item by id (`[image <id>]` in the summary is resolvable).
 - **`speak` activity** `SpeakIn{task, media_id, text, voice} → MediaRef`. WHEN a reply's
   triggering message has `speak: true` AND `[text_to_speech]` is set THEN the workflow
   (1) creates the id with `workflow.uuid4()`-derived token, (2) **awaits the short

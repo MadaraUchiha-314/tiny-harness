@@ -490,14 +490,15 @@ media = "P30D"                         # NEW
 - **Card** (design critic 9). The instance's **effective** media capabilities are
   computed once at start by `media.capabilities(model_info, stt, tts, image_generator,
   config)`, and the card, the intake allow-list and the surfaces all read that one value:
-  - input images: the `ACCEPTED` image types WHEN `image ∈ input_modalities`, else none;
+  - input images: the `ACCEPTED` image types, always — R1.7 wants an image the model
+    cannot see accepted and noted, and `/model` may switch to one that can see it;
   - input audio: the `ACCEPTED` audio types WHEN `[speech_to_text]` is set, else only
     `audio_input_formats` WHEN `audio ∈ input_modalities`, else none;
   - output: `image/png` WHEN an image generator exists, `PCM_MEDIA_TYPE` WHEN TTS exists,
     plus the model's own `output_modalities` (text today).
 
   `MediaIntake` refuses an input type outside the effective set (`type_not_accepted`), so
-  nothing is accepted and then dropped. `default_input_modes` / `default_output_modes`
+  no audio is accepted that nothing can process. `default_input_modes` / `default_output_modes`
   list exactly these types, and the card declares the media extension:
 
 ```json
@@ -703,7 +704,15 @@ class PcmPlayer:    # sounddevice.RawOutputStream fed from an async byte stream
 - `MicButton`: `pointerdown` starts, `pointerup`/`pointercancel`/`pointerleave` stops
   and sends (hold); `Space`/`Enter` toggle (keyboard); `aria-pressed`, accessible name
   "Hold to talk", an `aria-live` region announcing "Recording" / "Sent". Hidden when the
-  card says `speechToText` is false and the model lacks audio.
+  card's effective input lists no audio type.
+  **Acquisition race** (design critic 10): `Recorder.start()` is asynchronous
+  (`getUserMedia` may wait on a permission prompt). The button keeps `want: boolean` and
+  a monotonically increasing `generation`; `start` captures the generation, and when
+  `getUserMedia` resolves it checks `want && generation === captured && mounted` — if not,
+  it stops every track of the stream at once and discards it, so the microphone is never
+  live after a release, a `pointercancel`, a toggle-off or an unmount. Recording (and the
+  indicator) begins only after that check passes; a release before it passes sends
+  nothing. Unmount bumps the generation and stops any live tracks.
 - `model.ts` items gain `media{role, kind: "image"|"audio", url, name, mediaType,
   transcript?}` and `speech{url, state: "streaming"|"done"|"failed"}`; `messageItems`
   turns `url` file parts with an `ACCEPTED` or PCM type into them instead of

@@ -1323,7 +1323,8 @@ class HarnessApp(App[None]):
         self.run_worker(self._play_audio(event.entry), exclusive=False)
 
     async def _play_audio(self, entry: AudioEntry) -> None:
-        """Enter on an audio entry: a WAV plays here; another type is saved and named."""
+        """Enter on an audio entry: a WAV plays here; another type is saved to the cache
+        and the entry names the copy (critic 9)."""
         try:
             data = entry.data
             if data is None:
@@ -1341,7 +1342,7 @@ class HarnessApp(App[None]):
         except (*CLIENT_ERRORS, MediaCacheError, OSError, ValueError) as exc:
             self._notice(f"── cannot play {entry.name_text}: {exc}")
             return
-        self._notice(f"── {entry.name_text} plays outside the TUI; saved to {path}")
+        entry.saved(self.media_cache.display(path))
 
     def action_cycle_pane(self) -> None:
         side = self.query_one("#side", TabbedContent)

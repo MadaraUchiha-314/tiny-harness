@@ -92,7 +92,9 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   line with the name, the size and the path of a copy under
   `~/.cache/tiny-harness/media/<task_id>/<media_id><ext>` (directory `0700`, written with
   `O_NOFOLLOW | O_EXCL` and `os.replace`, ids validated). Audio entries show their
-  transcript and play on `Enter`.
+  transcript; a WAV entry (`⏎ to play`) plays on `Enter`, and any other audio type
+  (`⏎ saves`) is saved to that cache on `Enter` and its entry then reads
+  `saved to <path>`.
 - The TUI SHALL record a voice turn while Space is held on an empty composer (a
   `HoldDetector` over auto-repeat: a second Space within `--hold-ms`, default 600 ms,
   starts the hold, a 0.25 s gap ends it; a lone Space types a space), and with `F5` as a

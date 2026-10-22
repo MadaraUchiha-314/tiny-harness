@@ -147,6 +147,19 @@ image · room.jpg · 1024×1024 · saved to ~/.cache/tiny-harness/media/…/….
 Open the copy in an image viewer. The TUI keeps the copies in
 `~/.cache/tiny-harness/media/`.
 
+### Audio files
+
+Each audio file and voice message shows as one line. Select the line and press `Enter`:
+
+- A WAV file plays in the TUI. Its line ends with `⏎ to play`.
+- The TUI does not play other types (MP3, M4A, Ogg and WebM, for example a voice
+  message from the web UI). Their line ends with `⏎ saves`. Press `Enter` to save a
+  copy. The line then shows `saved to <path>`. Open the copy in an audio player.
+
+```text
+[audio] note.m4a · 0:12 · saved to ~/.cache/tiny-harness/media/…/….m4a
+```
+
 ### Talk to the agent
 
 1. Make sure the message box is empty.

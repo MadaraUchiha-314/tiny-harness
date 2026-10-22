@@ -53,6 +53,9 @@ EXTENSIONS: Final[Mapping[str, str]] = MappingProxyType(
 DEFAULT_CACHE_ROOT: Final = Path("~/.cache/tiny-harness/media")
 NO_GRAPHICS: Final = "(this terminal has no graphics protocol; open the file to view it)"
 PLAY_HINT: Final = "⏎ to play"
+SAVE_HINT: Final = "⏎ saves"
+PLAYABLE_AUDIO: Final = "audio/wav"
+"""The one audio type the TUI decodes and plays; Enter saves any other to the cache."""
 TIMES: Final = "\u00d7"  # the multiplication sign of "1024 x 768"
 
 type ImageView = Callable[[Path], Widget]
@@ -429,8 +432,10 @@ class MediaEntry(Vertical):
 
 
 class AudioEntry(MediaLine):
-    """An audio file or a recording: ``[audio] note.m4a · 0:12 · ⏎ to play``; a voice
-    turn shows its transcript when it arrives. Focus it and press Enter to play it."""
+    """An audio file or a recording: ``[audio] note.wav · 0:12 · ⏎ to play``; a voice
+    turn shows its transcript when it arrives. Focus it and press Enter to play it. The
+    TUI plays only WAV: another type says ``⏎ saves`` and, once saved, ``saved to
+    <path>`` (critic 9)."""
 
     can_focus = True
     BINDINGS: ClassVar[list[BindingType]] = [Binding("enter", "play", "play", show=False)]
@@ -466,7 +471,14 @@ class AudioEntry(MediaLine):
         self.data = data  # the user's own bytes, so their file is never fetched back
         self.url = ""
         self.ids: tuple[str, str] | None = None
+        self.saved_to: str | None = None
         super().__init__(self._line(), classes=role)
+
+    @property
+    def hint(self) -> str:
+        if self.saved_to is not None:
+            return f"saved to {self.saved_to}"
+        return PLAY_HINT if self.media_type == PLAYABLE_AUDIO else SAVE_HINT
 
     def _line(self) -> str:
         duration = f" · {clock(self.duration_ms)}" if self.duration_ms is not None else ""
@@ -475,8 +487,13 @@ class AudioEntry(MediaLine):
             head = f"{self.prefix}[voice]{seconds}"
             if self.transcript is not None:
                 return f"{head} · “{self.transcript}”"
-            return f"{head} · transcribing…" if self.transcribing else f"{head} · {PLAY_HINT}"
-        return f"{self.prefix}[audio] {self.name_text}{duration} · {PLAY_HINT}"
+            return f"{head} · transcribing…" if self.transcribing else f"{head} · {self.hint}"
+        return f"{self.prefix}[audio] {self.name_text}{duration} · {self.hint}"
+
+    def saved(self, where: str) -> None:
+        """Name the cache copy Enter saved (a type the TUI does not play)."""
+        self.saved_to = where
+        self.show(self._line())
 
     def bind(self, url: str, ids: tuple[str, str], *, duration_ms: int | None) -> None:
         self.url, self.ids = url, ids

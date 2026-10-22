@@ -709,11 +709,31 @@ async def test_attach_audio_and_another_participants_echo(tmp_path: Path) -> Non
         await pilot.pause()
         audio = [e.text for e in app.query(AudioEntry)]
         assert audio == [
-            f"bob {CHEVRON} [audio] note.m4a · 0:12 · ⏎ to play",
+            f"bob {CHEVRON} [audio] note.m4a · 0:12 · ⏎ saves",
             f"bob {CHEVRON} [voice] 0:04 · “Would a rug work better?”",
         ]
         assert "      hear this" in entries(app)
         assert not any("agent" in t and "hear this" in t for t in entries(app))
+
+
+async def test_a_non_wav_entry_saves_rather_than_plays(tmp_path: Path) -> None:
+    """Critic 9: the TUI plays only WAV, so a WebM recording from the web says Enter saves
+    it, and after Enter it names the saved copy instead."""
+    clip = url_part("Cl1", "audio/webm", "clip.webm", durationMs=4_000)
+    client = media_client(files={media_url("Cl1"): [fx.webm()]})
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        app.feed([echo(clip, participant="bob", message_id="m-b2")])
+        await pilot.pause()
+        [entry] = app.query(AudioEntry)
+        assert entry.text == f"bob {CHEVRON} [audio] clip.webm · 0:04 · ⏎ saves"
+        entry.focus()
+        await pilot.press("enter")
+        await settle(app)
+        await pilot.pause()
+        assert entry.text.startswith(f"bob {CHEVRON} [audio] clip.webm · 0:04 · saved to ")
+        assert entry.text.endswith(".webm") and "⏎" not in entry.text
 
 
 # --- issue-38: voice (T5): hold Space, F5, F6, Escape, with a fake clock and devices -----

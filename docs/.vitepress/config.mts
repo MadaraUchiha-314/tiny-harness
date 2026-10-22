@@ -106,6 +106,7 @@ const A2A: DefaultTheme.SidebarItem[] = [
   { text: "Channel extension v1", link: "/a2a/ext/channel/v1" },
   { text: "Status extension v1", link: "/a2a/ext/status/v1" },
   { text: "Commands extension v1", link: "/a2a/ext/commands/v1" },
+  { text: "Media extension v1", link: "/a2a/ext/media/v1" },
 ];
 
 // The contributor sidebar: everything that is not a user guide.

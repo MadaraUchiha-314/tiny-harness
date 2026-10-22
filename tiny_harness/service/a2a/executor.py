@@ -190,6 +190,9 @@ def sender_of(message: Message, call_context: ServerCallContext | None) -> str:
 
 
 class HarnessExecutor(AgentExecutor):
+    # The extensions a request may activate: the card's (the media one too, with [media]).
+    _extensions: frozenset[str] = frozenset(SUPPORTED_EXTENSIONS)
+
     def __init__(
         self,
         client: Client,
@@ -202,8 +205,10 @@ class HarnessExecutor(AgentExecutor):
         delegators: Iterable[str] = (),
         models: Collection[str] | None = None,
         media_intake: MediaIntake | None = None,
+        extensions: Collection[str] = SUPPORTED_EXTENSIONS,
     ) -> None:
         self._client = client
+        self._extensions = frozenset(extensions)
         self._media = media_intake  # None: media off, every file part is refused
         # Who may brief a new task fully (issue-34 R7): this agent itself, always.
         self._delegators = frozenset({config.agent, *delegators})
@@ -215,7 +220,7 @@ class HarnessExecutor(AgentExecutor):
         self._policy = policy or AccessPolicy()
 
     def check_extensions(self, requested: set[str]) -> None:
-        unknown = sorted(requested - set(SUPPORTED_EXTENSIONS))
+        unknown = sorted(requested - self._extensions)
         if unknown:
             raise UnsupportedOperationError(
                 message=f"unsupported A2A extension(s): {', '.join(unknown)}"

@@ -1,9 +1,9 @@
 # A2A extensions
 
 tiny-harness is an [A2A 1.0](https://a2a-protocol.org/) agent. Its agent card advertises
-five extensions; a client activates them with the `A2A-Extensions` header, and a request
-naming an extension the card does not list is refused with the unsupported-operation
-error.
+five extensions, and a sixth (media) when the configuration file has a `[media]` section.
+A client activates them with the `A2A-Extensions` header, and a request naming an
+extension the card does not list is refused with the unsupported-operation error.
 
 | URI | What it adds |
 |-----|--------------|
@@ -11,6 +11,7 @@ error.
 | [`…/a2a/ext/channel/v1`](ext/channel/v1) | channels between participants: messages, help requests and help replies as data parts |
 | [`…/a2a/ext/status/v1`](ext/status/v1) | why a task is in `INPUT_REQUIRED`: the sub-state `awaiting-next-message` (the turn ended, the conversation is open) or `awaiting-answer` (`ask_participant`), in `Task.metadata` and the status update's metadata |
 | [`…/a2a/ext/commands/v1`](ext/commands/v1) | the registered slash commands (name, description, argument hint) in the extension's `params` on the card, for clients to offer as completions |
+| [`…/a2a/ext/media/v1`](ext/media/v1) | images and audio: the accepted and produced media types, limits and services in the card's `params`, file parts stored and rewritten to URLs, the media route and streamed spoken replies (only with `[media]`) |
 | `https://a2ui.org/a2a-extension/a2ui/v0.9.1` | [A2UI 0.9.1](https://a2ui.org/) surfaces streamed as `application/a2ui+json` artifact parts, and user actions sent back as the same media type; only the basic catalog, no inline catalogs |
 
 The full URIs are rooted at `https://madarauchiha-314.github.io/tiny-harness`. The JSON

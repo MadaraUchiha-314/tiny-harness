@@ -115,7 +115,7 @@ red→green run.
   - _Depends on:_ 4, 10
   - _Requirements:_ R2.2, R4.2, R6.3, abuse cases 4, 6
   - _Test:_ T8 — `tests/security/test_media.py::test_other_participant_404`, `::test_cross_task_id_404`, `::test_traversal_id_404`, `::test_route_headers`; T2 — streaming over `streaming_asgi.py`
-- [ ] 13. Card, media extension and commands extension
+- [x] 13. Card, media extension and commands extension
   - Effective input and output modes, and the media extension params. JSON schemas
     `docs/a2a/ext/media.json` and `intrinsics/generate_image.json`. Pages
     `docs/a2a/ext/media/v1.md` and the `runsOn` addition to commands v1.

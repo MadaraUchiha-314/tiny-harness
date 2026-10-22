@@ -6,6 +6,7 @@ Set ``UPDATE_API_SNAPSHOTS=1`` to regenerate the files on purpose.
 import json
 import os
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -29,3 +30,16 @@ def test_every_intrinsic_is_an_intrinsic_with_a_strict_schema() -> None:
         assert d.execution.value == "intrinsic"
         assert d.input_schema.get("additionalProperties") is False
         assert d.description
+
+
+def test_generate_image_schema_is_the_designs() -> None:
+    """issue-38 R2.1: ``{prompt <= 4000, size?, alt <= 200}``, nothing else."""
+    schema = definition(IntrinsicName.GENERATE_IMAGE).input_schema
+    properties = cast(dict[str, dict[str, object]], schema["properties"])
+    assert set(properties) == {"prompt", "size", "alt"}
+    assert sorted(cast(list[str], schema["required"])) == ["alt", "prompt"]
+    assert properties["prompt"]["maxLength"] == 4000
+    assert properties["alt"]["maxLength"] == 200
+    assert "1024x1024" in json.dumps(properties["size"])
+    assert "1536x1024" in json.dumps(properties["size"])
+    assert "1024x1536" in json.dumps(properties["size"])

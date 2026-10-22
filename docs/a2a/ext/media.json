@@ -1,0 +1,186 @@
+{
+  "$defs": {
+    "MediaMessageMetadata": {
+      "additionalProperties": true,
+      "description": "A message's metadata: ``speak`` is the surface's speaker setting when it sent the\nmessage; ``true`` asks for the reply to be spoken. Other keys may be present.",
+      "properties": {
+        "speak": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "speak the reply to this message",
+          "title": "Speak"
+        }
+      },
+      "title": "MediaMessageMetadata",
+      "type": "object"
+    },
+    "MediaPartMetadata": {
+      "additionalProperties": true,
+      "description": "A file part's metadata. A surface may set ``voice`` and ``durationMs`` on a recording;\nthe server adds ``mediaId`` and ``size`` (and ``durationMs``, ``width``, ``height``\nwhere known) when it stores the file and rewrites the part to a media URL. Other keys\nmay be present.",
+      "properties": {
+        "durationMs": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "audio duration",
+          "title": "Durationms"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "image height, in pixels",
+          "title": "Height"
+        },
+        "mediaId": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,128}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the stored medium's id",
+          "title": "Mediaid"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "bytes",
+          "title": "Size"
+        },
+        "voice": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "recorded by a voice control: its transcript is shown",
+          "title": "Voice"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "image width, in pixels",
+          "title": "Width"
+        }
+      },
+      "title": "MediaPartMetadata",
+      "type": "object"
+    }
+  },
+  "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/media/v1/schema.json",
+  "additionalProperties": false,
+  "description": "The media extension's card ``params``: the media types this agent accepts and\nproduces, its limits, which media services it has, and where its media route is\n(``<agent URL><mediaPath>/<taskId>/<mediaId>``).",
+  "properties": {
+    "imageGeneration": {
+      "default": false,
+      "description": "the agent can generate images",
+      "title": "Imagegeneration",
+      "type": "boolean"
+    },
+    "input": {
+      "default": [],
+      "description": "media types accepted in a file part of a new message",
+      "items": {
+        "type": "string"
+      },
+      "title": "Input",
+      "type": "array"
+    },
+    "maxAudioSeconds": {
+      "default": 0,
+      "description": "longest audio file, in seconds",
+      "minimum": 0,
+      "title": "Maxaudioseconds",
+      "type": "integer"
+    },
+    "maxFileBytes": {
+      "default": 0,
+      "description": "largest file part, in bytes",
+      "minimum": 0,
+      "title": "Maxfilebytes",
+      "type": "integer"
+    },
+    "maxMessageBytes": {
+      "default": 0,
+      "description": "largest total of a message's file parts, in bytes",
+      "minimum": 0,
+      "title": "Maxmessagebytes",
+      "type": "integer"
+    },
+    "mediaPath": {
+      "default": "/media",
+      "description": "the media route's path, relative to the agent's URL",
+      "title": "Mediapath",
+      "type": "string"
+    },
+    "output": {
+      "default": [],
+      "description": "media types the agent produces (image/png: generated images; audio/L16;rate=24000;channels=1: spoken replies)",
+      "items": {
+        "type": "string"
+      },
+      "title": "Output",
+      "type": "array"
+    },
+    "speechToText": {
+      "default": false,
+      "description": "audio is transcribed",
+      "title": "Speechtotext",
+      "type": "boolean"
+    },
+    "textToSpeech": {
+      "default": false,
+      "description": "replies to a message with speak=true are spoken",
+      "title": "Texttospeech",
+      "type": "boolean"
+    }
+  },
+  "title": "MediaExtensionParams",
+  "type": "object"
+}

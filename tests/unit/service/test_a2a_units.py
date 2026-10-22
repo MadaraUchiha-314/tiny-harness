@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 from a2a.types import Message, Part
 from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
@@ -115,3 +117,25 @@ def test_token_bucket_refills_at_the_configured_rate() -> None:
     assert not bucket.take("peer", now=0.0)
     assert bucket.take("peer", now=1.0)
     assert bucket.take("other", now=0.0)
+
+
+def test_the_media_extension_is_accepted_only_where_media_is_on() -> None:
+    """issue-38: a client may activate the media extension when the card declares it."""
+    from temporalio.client import Client
+
+    from tiny_harness.harness.media.extension import MEDIA_EXT_URI
+    from tiny_harness.service.a2a import PollingEventBridge
+    from tiny_harness.service.durable.models import WorkflowConfig
+
+    client = cast(Client, object())
+    on = HarnessExecutor(
+        client,
+        task_queue="tq",
+        bridge=PollingEventBridge(client),
+        config=WorkflowConfig(search_attributes=False),
+        extensions=(*SUPPORTED_EXTENSIONS, MEDIA_EXT_URI),
+    )
+    on.check_extensions({TASK_EXT_URI, MEDIA_EXT_URI})
+    off = HarnessExecutor.__new__(HarnessExecutor)
+    with pytest.raises(UnsupportedOperationError):
+        off.check_extensions({MEDIA_EXT_URI})

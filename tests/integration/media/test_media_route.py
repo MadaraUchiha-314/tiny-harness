@@ -34,6 +34,7 @@ from tiny_harness.fastapi import harness_router
 from tiny_harness.harness.core import HarnessTask, Participant, Role, TaskExtensionData
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore, MediaRef
+from tiny_harness.harness.media.extension import MEDIA_EXT_URI
 from tiny_harness.harness.models import FakeLLM, scripted
 from tiny_harness.service import Harness
 from tiny_harness.service.a2a import create_app
@@ -147,6 +148,7 @@ async def test_a_mounted_harness_serves_its_media_to_participants_only(
         And a task of alice's holding an image
         When alice requests the image under the agent's prefix
         Then she gets its bytes, and bob gets 404
+        And the agent's card declares the media extension with the image types
     """
     port, agent_id = free_port(), f"m-{uuid.uuid4().hex[:6]}"
     media_dir = tmp_path / "media"
@@ -176,9 +178,13 @@ async def test_a_mounted_harness_serves_its_media_to_participants_only(
         async with httpx.AsyncClient() as http:
             mine = await http.get(url, headers=ALICE)
             theirs = await http.get(url, headers={"X-Participant-Id": "bob"})
+            card = (await http.get(f"{origin}/agents/m/.well-known/agent-card.json")).json()
     assert (mine.status_code, mine.content) == (200, raw)
     assert mine.headers["x-content-type-options"] == "nosniff"
     assert theirs.status_code == 404
+    media = next(e for e in card["capabilities"]["extensions"] if e["uri"] == MEDIA_EXT_URI)
+    assert media["params"]["input"] == ["image/png", "image/jpeg", "image/webp", "image/gif"]
+    assert "image/png" in card["defaultInputModes"]
 
 
 def test_route_options_turn_the_media_route_off() -> None:

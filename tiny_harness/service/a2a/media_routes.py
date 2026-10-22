@@ -42,11 +42,12 @@ from tiny_harness.harness.media import (
     MediaRef,
     MediaStore,
 )
+from tiny_harness.harness.media.extension import MEDIA_ROUTE
 from tiny_harness.service.a2a.task_store import AccessPolicy
 
 log = logging.getLogger("tiny_harness.a2a.media")
 
-MEDIA_PATH: Final = "/media/{task_id}/{media_id}"
+MEDIA_PATH: Final = MEDIA_ROUTE + "/{task_id}/{media_id}"
 _SAFE_ID: Final = re.compile(r"[A-Za-z0-9_-]{1,128}")
 _CLOSED_CACHE: Final = "private, max-age=3600"
 _GROWING_CACHE: Final = "no-store"

@@ -2,8 +2,9 @@
 
 Everything the harness can do beyond calling the LLM is a tool the LLM calls:
 ``create_plan``, ``complete_step``, ``spawn_subtask``, ``ask_participant``,
-``create_task_for_participant``, ``set_participant_role``, the five skill tools and
-``emit_ui``. This module holds their names, argument models and ``ToolDefinition``s
+``create_task_for_participant``, ``set_participant_role``, the five skill tools,
+``emit_ui`` and ``generate_image`` (issue-38: registered only where an image generator
+exists). This module holds their names, argument models and ``ToolDefinition``s
 (``execution=INTRINSIC``); their JSON schemas are generated from the argument models and
 committed under ``docs/a2a/ext/intrinsics/`` for the contract test. The bodies register
 from the built-in plugin as the layers that own them land (skills in Layer 3, the core
@@ -34,6 +35,7 @@ class IntrinsicName(StrEnum):
     LIST_SKILL_RESOURCES = "list_skill_resources"
     LOAD_SKILL_RESOURCE = "load_skill_resource"
     EMIT_UI = "emit_ui"
+    GENERATE_IMAGE = "generate_image"
 
 
 class _Args(BaseModel):
@@ -144,6 +146,15 @@ class EmitUiArgs(_Args):
     messages: tuple[dict[str, JsonValue], ...] = Field(min_length=1)
 
 
+class GenerateImageArgs(_Args):
+    """Generate an image from a text prompt and show it to the user. Use it when the user
+    asks for a picture, a mock-up or a visual change; describe the image in ``alt``."""
+
+    prompt: str = Field(min_length=1, max_length=4000)
+    size: Literal["1024x1024", "1536x1024", "1024x1536"] | None = None
+    alt: str = Field(min_length=1, max_length=200)
+
+
 ARGUMENTS: dict[IntrinsicName, type[_Args]] = {
     IntrinsicName.CREATE_PLAN: CreatePlanArgs,
     IntrinsicName.COMPLETE_STEP: CompleteStepArgs,
@@ -157,6 +168,7 @@ ARGUMENTS: dict[IntrinsicName, type[_Args]] = {
     IntrinsicName.LIST_SKILL_RESOURCES: ListSkillResourcesArgs,
     IntrinsicName.LOAD_SKILL_RESOURCE: LoadSkillResourceArgs,
     IntrinsicName.EMIT_UI: EmitUiArgs,
+    IntrinsicName.GENERATE_IMAGE: GenerateImageArgs,
 }
 
 # Every intrinsic is idempotent to re-issue except the ones that create something.
@@ -165,6 +177,7 @@ _NOT_IDEMPOTENT = {
     IntrinsicName.CREATE_TASK_FOR_PARTICIPANT,
     IntrinsicName.ASK_PARTICIPANT,
     IntrinsicName.EMIT_UI,
+    IntrinsicName.GENERATE_IMAGE,
 }
 
 
@@ -197,6 +210,7 @@ __all__ = [
     "CreatePlanArgs",
     "CreateTaskForParticipantArgs",
     "EmitUiArgs",
+    "GenerateImageArgs",
     "IntrinsicName",
     "ListSkillResourcesArgs",
     "ListSkillsArgs",

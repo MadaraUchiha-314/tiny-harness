@@ -42,8 +42,10 @@ from tiny_harness.errors import (
     HarnessNotStartedError,
     HarnessStoppedError,
 )
+from tiny_harness.harness.agents import SUPPORTED_EXTENSIONS
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
 from tiny_harness.harness.media import MediaStore
+from tiny_harness.harness.media.extension import MEDIA_EXT_URI
 from tiny_harness.harness.models import (
     LLM,
     ImageGenerator,
@@ -365,6 +367,7 @@ class Harness:
             self.description,
             self._public_url,
             commands=runtime.commands.specs,
+            media=runtime.media,
         )
         executor = HarnessExecutor(
             client,
@@ -375,6 +378,12 @@ class Harness:
             delegators=settings.server.delegators,
             models=ModelCatalog.from_settings(settings).selectable,
             media_intake=runtime.media_intake,
+            # a request may activate the media extension where the card declares it
+            extensions=(
+                (*SUPPORTED_EXTENSIONS, MEDIA_EXT_URI)
+                if runtime.media.enabled
+                else SUPPORTED_EXTENSIONS
+            ),
         )
         activities = Activities(
             runtime.engine,

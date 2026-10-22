@@ -1,0 +1,119 @@
+{
+  "capabilities": {
+    "extensions": [
+      {
+        "description": "tiny-harness task extension: name, goal, acceptance criteria, participants, plan and sub-tasks in Task.metadata; event envelopes as data parts",
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/task/v1"
+      },
+      {
+        "description": "tiny-harness channels: messages, help requests and replies as data parts",
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/channel/v1"
+      },
+      {
+        "description": "A2UI 0.9.1 surfaces and actions as application/a2ui+json parts",
+        "params": {
+          "acceptsInlineCatalogs": false,
+          "supportedCatalogIds": [
+            "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+          ]
+        },
+        "uri": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+      },
+      {
+        "description": "tiny-harness status: why a task is INPUT_REQUIRED (sub_state) in Task.metadata and TaskStatusUpdateEvent.metadata",
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/status/v1"
+      },
+      {
+        "description": "tiny-harness slash commands: params.commands lists each /<name> with its description and argument hint",
+        "params": {
+          "commands": [
+            {
+              "argument_hint": "[<model>]",
+              "description": "Show or choose this task's model",
+              "name": "model"
+            },
+            {
+              "argument_hint": "[low|medium|high]",
+              "description": "Show or set this task's reasoning effort",
+              "name": "effort"
+            },
+            {
+              "argument_hint": "<description>",
+              "description": "Start a linked sub-task",
+              "name": "sub-task"
+            },
+            {
+              "argument_hint": "",
+              "description": "Show this task's status",
+              "name": "status"
+            }
+          ]
+        },
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1"
+      },
+      {
+        "description": "tiny-harness media: accepted and produced media types, limits and services in params; file parts are stored and served by the media route",
+        "params": {
+          "imageGeneration": true,
+          "input": [
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/gif",
+            "audio/wav",
+            "audio/webm"
+          ],
+          "maxAudioSeconds": 120.0,
+          "maxFileBytes": 20971520.0,
+          "maxMessageBytes": 26214400.0,
+          "mediaPath": "/media",
+          "output": [
+            "image/png",
+            "audio/L16;rate=24000;channels=1"
+          ],
+          "speechToText": true,
+          "textToSpeech": true
+        },
+        "uri": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/media/v1"
+      }
+    ],
+    "pushNotifications": true,
+    "streaming": true
+  },
+  "defaultInputModes": [
+    "text/plain",
+    "application/vnd.tiny-harness.task+json",
+    "application/vnd.tiny-harness.channel+json",
+    "application/vnd.tiny-harness.event+json",
+    "application/a2ui+json",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+    "audio/wav",
+    "audio/webm"
+  ],
+  "defaultOutputModes": [
+    "text/plain",
+    "application/vnd.tiny-harness.task+json",
+    "application/vnd.tiny-harness.channel+json",
+    "application/a2ui+json",
+    "image/png",
+    "audio/L16;rate=24000;channels=1"
+  ],
+  "description": "A tiny agent harness: tasks, plans, participants, tools and skills over A2A",
+  "name": "tiny-harness",
+  "supportedInterfaces": [
+    {
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "1.0",
+      "url": "http://127.0.0.1:8080/"
+    },
+    {
+      "protocolBinding": "HTTP+JSON",
+      "protocolVersion": "1.0",
+      "url": "http://127.0.0.1:8080/"
+    }
+  ],
+  "version": "0.1.0"
+}

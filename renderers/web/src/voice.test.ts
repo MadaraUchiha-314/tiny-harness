@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CHUNK_SECONDS,
   LOOKAHEAD,
+  MAX_AHEAD,
   MAX_RECORDING_MS,
   PcmStreamPlayer,
   Recorder,
@@ -15,6 +17,7 @@ interface FakeSource {
   buffer: { samples: Float32Array; duration: number } | null;
   startedAt: number | null;
   stopped: boolean;
+  disconnected: boolean;
   onended: (() => void) | null;
 }
 
@@ -44,8 +47,12 @@ function fakeContext() {
         buffer: null as FakeSource["buffer"],
         startedAt: null as number | null,
         stopped: false,
+        disconnected: false,
         onended: null as (() => void) | null,
         connect: () => undefined,
+        disconnect() {
+          source.disconnected = true;
+        },
         start(at: number) {
           source.startedAt = at;
         },
@@ -183,6 +190,63 @@ describe("PcmStreamPlayer", () => {
     expect(sources[2]?.stopped).toBe(false);
     sources[2]?.onended?.();
     await expect(replay).resolves.toBe("done");
+  });
+
+  it("splits a big chunk into buffers of at most 0.5 s (critic 7)", async () => {
+    const { ctx, sources } = fakeContext();
+    const player = new PcmStreamPlayer(() => ctx);
+    const done = player.play(streamed([samples(24_000 + 4_800)]), FMT);
+    await flush();
+    await flush();
+    expect(sources.map((s) => s.buffer?.samples.length)).toEqual([12_000, 12_000, 4_800]);
+    expect(sources.map((s) => s.startedAt)).toEqual([LOOKAHEAD, LOOKAHEAD + 0.5, LOOKAHEAD + 1]);
+    sources.forEach((s) => s.onended?.());
+    await expect(done).resolves.toBe("done");
+    expect(CHUNK_SECONDS).toBe(0.5);
+  });
+
+  it("reads no further while more than 2 s is scheduled ahead of the playhead (critic 7)", async () => {
+    const { ctx, sources } = fakeContext();
+    const player = new PcmStreamPlayer(() => ctx);
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          pulled += 1;
+          if (pulled > 40) controller.close();
+          else controller.enqueue(samples(12_000)); // 0.5 s each
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const done = player.play(new Response(body), FMT);
+    for (let i = 0; i < 10; i += 1) await flush();
+    // 0.1 s look-ahead + 0.5 s per buffer: after the fourth, 2.1 s is scheduled ahead.
+    expect(sources).toHaveLength(4);
+    expect(pulled).toBeLessThanOrEqual(5);
+    // The playhead moves past the first buffer; it ends, and reading goes on to 2.5 s ahead.
+    ctx.currentTime = 0.6;
+    sources[0]?.onended?.();
+    for (let i = 0; i < 10; i += 1) await flush();
+    expect(sources).toHaveLength(6);
+    player.stop();
+    await expect(done).resolves.toBe("stopped");
+    expect(MAX_AHEAD).toBe(2);
+  });
+
+  it("disconnects each source when it ends and does not stop it again (critic 7)", async () => {
+    const { ctx, sources } = fakeContext();
+    const player = new PcmStreamPlayer(() => ctx);
+    const done = player.play(streamed([samples(2400), samples(2400)], "hang"), FMT);
+    await flush();
+    await flush();
+    sources[0]?.onended?.();
+    expect(sources[0]?.disconnected).toBe(true);
+    expect(sources[1]?.disconnected).toBe(false);
+    player.stop();
+    await expect(done).resolves.toBe("stopped");
+    expect(sources[0]?.stopped).toBe(false);
+    expect(sources[1]?.stopped).toBe(true);
   });
 
   it("creates and resumes one context on unlock, from the user's gesture", () => {

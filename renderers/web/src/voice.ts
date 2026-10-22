@@ -3,13 +3,20 @@
  * microphone with `MediaRecorder` (WebM/Opus, or MP4 on Safari) and meters it with an
  * `AnalyserNode`; `PcmStreamPlayer` plays a spoken reply while it streams — 16-bit
  * little-endian PCM from the media route, converted to floats and scheduled back to back
- * on one `AudioContext` with about 100 ms of look-ahead. The microphone is opened by the
+ * on one `AudioContext` with about 100 ms of look-ahead, in buffers of at most 0.5 s; it
+ * reads no further while more than 2 s is scheduled, and lets go of each buffer once it
+ * has played. The microphone is opened by the
  * caller (`MicButton`, which guards the permission race) and closed after each recording.
  */
 import { baseType } from "./media";
 
 /** Seconds of audio scheduled ahead of the playhead. */
 export const LOOKAHEAD = 0.1;
+/** The player reads no more of the stream while more than this many seconds of audio are
+ * scheduled ahead of the playhead (critic 7): a fast server cannot fill the memory. */
+export const MAX_AHEAD = 2;
+/** The longest buffer scheduled at once, in seconds; a bigger chunk is split. */
+export const CHUNK_SECONDS = 0.5;
 export const MAX_RECORDING_MS = 120_000;
 /** Shorter recordings are discarded (R3.6). */
 export const MIN_RECORDING_MS = 300;
@@ -27,6 +34,7 @@ export interface AudioContextLike {
   createBufferSource(): {
     buffer: unknown;
     connect(node: never): unknown;
+    disconnect?(): void;
     start(when: number): void;
     stop(): void;
     onended: (() => void) | null;
@@ -52,6 +60,8 @@ export class PcmStreamPlayer {
   private startTime = 0;
   private endTime = 0;
   private active = false;
+  /** Wakes a play that waits for room in the schedule. */
+  private wake: (() => void) | null = null;
 
   constructor(private readonly createContext: () => AudioContextLike = () => new AudioContext() as unknown as AudioContextLike) {}
 
@@ -91,8 +101,12 @@ export class PcmStreamPlayer {
     let next = 0;
     let carry: Uint8Array = new Uint8Array(0);
     let last: Promise<void> = Promise.resolve();
+    const frameBytes = 2 * fmt.channels;
+    const maxFrames = Math.max(1, Math.floor(CHUNK_SECONDS * fmt.sampleRate));
     try {
       for (;;) {
+        await this.room(ctx, () => next, stopped);
+        if (stopped()) return "stopped";
         const { done, value } = await reader.read();
         if (stopped()) return "stopped";
         if (done) break;
@@ -102,29 +116,46 @@ export class PcmStreamPlayer {
           bytes.set(carry);
           bytes.set(value, carry.length);
         }
-        const whole = bytes.length - (bytes.length % (2 * fmt.channels));
+        const whole = bytes.length - (bytes.length % frameBytes);
         carry = bytes.slice(whole);
-        if (whole === 0) continue;
-        const samples = pcm16ToFloat32(bytes.subarray(0, whole));
-        const frames = samples.length / fmt.channels;
-        const buffer = ctx.createBuffer(fmt.channels, frames, fmt.sampleRate);
-        for (let channel = 0; channel < fmt.channels; channel += 1) {
-          const data = fmt.channels === 1 ? samples : samples.filter((_, i) => i % fmt.channels === channel);
-          buffer.copyToChannel(data, channel);
+        for (let at = 0; at < whole; at += maxFrames * frameBytes) {
+          if (at > 0) {
+            await this.room(ctx, () => next, stopped);
+            if (stopped()) return "stopped";
+          }
+          const samples = pcm16ToFloat32(bytes.subarray(at, Math.min(whole, at + maxFrames * frameBytes)));
+          const frames = samples.length / fmt.channels;
+          const buffer = ctx.createBuffer(fmt.channels, frames, fmt.sampleRate);
+          for (let channel = 0; channel < fmt.channels; channel += 1) {
+            const data = fmt.channels === 1 ? samples : samples.filter((_, i) => i % fmt.channels === channel);
+            buffer.copyToChannel(data, channel);
+          }
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination as never);
+          // Back to back; after an underrun, one look-ahead from now.
+          const start = Math.max(next, ctx.currentTime + LOOKAHEAD);
+          if (this.startTime === 0) this.startTime = start;
+          source.start(start);
+          next = start + buffer.duration;
+          this.endTime = next;
+          this.sources.push(source);
+          last = new Promise<void>((resolve) => {
+            source.onended = () => {
+              // A played buffer is let go: disconnected and forgotten (critic 7).
+              source.onended = null;
+              try {
+                source.disconnect?.();
+              } catch {
+                // already disconnected
+              }
+              const index = this.sources.indexOf(source);
+              if (index >= 0) this.sources.splice(index, 1);
+              this.wakeUp();
+              resolve();
+            };
+          });
         }
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination as never);
-        // Back to back; after an underrun, one look-ahead from now.
-        const at = Math.max(next, ctx.currentTime + LOOKAHEAD);
-        if (this.startTime === 0) this.startTime = at;
-        source.start(at);
-        next = at + buffer.duration;
-        this.endTime = next;
-        this.sources.push(source);
-        last = new Promise<void>((resolve) => {
-          source.onended = () => resolve();
-        });
       }
     } catch {
       if (stopped()) return "stopped";
@@ -141,9 +172,31 @@ export class PcmStreamPlayer {
     return "done";
   }
 
+  /** Wait while more than `MAX_AHEAD` seconds are scheduled ahead of the playhead: a
+   * buffer that ends, `stop()`, or the time the excess takes to play wakes it. */
+  private async room(ctx: AudioContextLike, next: () => number, stopped: () => boolean): Promise<void> {
+    while (!stopped() && next() - ctx.currentTime > MAX_AHEAD) {
+      const excess = next() - ctx.currentTime - MAX_AHEAD;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => this.wakeUp(), Math.ceil(excess * 1000) + 20);
+        this.wake = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+      });
+    }
+  }
+
+  private wakeUp(): void {
+    const wake = this.wake;
+    this.wake = null;
+    wake?.();
+  }
+
   /** Stop every queued source and the download. */
   stop(): void {
     this.generation += 1;
+    this.wakeUp();
     this.silence();
     void this.reader?.cancel().catch(() => undefined);
     this.reader = null;
@@ -152,7 +205,7 @@ export class PcmStreamPlayer {
 
   /** Stop every scheduled source. */
   private silence(): void {
-    for (const source of this.sources) {
+    for (const source of [...this.sources]) {
       try {
         source.stop();
       } catch {

@@ -122,7 +122,8 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   "Recording", "Sent" and "Nothing recorded"; a generation counter stops every track of a
   microphone stream granted after the user let go. The speaker toggle (on by default)
   sets `speak`; `PcmStreamPlayer` schedules the PCM stream on Web Audio as it arrives,
-  and the speech line offers Stop while it plays and Replay after it ends, stops or is
+  in buffers of at most 0.5 s, reads no further while more than 2 s is scheduled ahead
+  of the playhead, and disconnects each buffer once it has played; the speech line offers Stop while it plays and Replay after it ends, stops or is
   interrupted. Starting a recording stops the reply being spoken.
 
 ## Design

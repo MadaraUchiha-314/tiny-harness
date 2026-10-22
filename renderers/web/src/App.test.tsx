@@ -5,6 +5,7 @@ import { App } from "./App";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
 import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
+import { MediaCache } from "./media";
 import { replay } from "./model";
 import { PcmStreamPlayer } from "./voice";
 
@@ -198,6 +199,65 @@ describe("media against the harness (issue-38 fixture client)", () => {
       expect(screen.getByTestId("error")).toHaveTextContent("Not sent: photo.png is not a file this agent accepts. Remove it and send again."),
     );
     expect(screen.getByRole("button", { name: "Remove photo.png" })).toBeInTheDocument();
+  });
+});
+
+describe("the page's own copy of a sent file (self-review 2.5)", () => {
+  let created: Array<{ url: string; blob: Blob }>;
+  let revoked: string[];
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    created = [];
+    revoked = [];
+    Object.assign(URL, {
+      createObjectURL: (blob: Blob) => {
+        const url = `blob:test/${created.length + 1}`;
+        created.push({ url, blob });
+        return url;
+      },
+      revokeObjectURL: (url: string) => revoked.push(url),
+    });
+  });
+
+  const sendPhoto = async (container: HTMLElement, bytes: number[]) => {
+    const input = container.querySelector<HTMLInputElement>("input[type=file]")!;
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array(bytes)], "photo.png", { type: "image/png" })] } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+  };
+
+  it("binds the echoed URL to the file already shown, with no second download", async () => {
+    const client = new MediaFixtureClient();
+    const getMedia = vi.spyOn(client, "getMedia");
+    const { container } = render(
+      <App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />,
+    );
+    await screen.findByRole("img", { name: "Image living-room.png" });
+    const before = getMedia.mock.calls.length;
+    await sendPhoto(container, [137, 80, 78, 71, 13, 10, 26, 10]);
+    await screen.findByText("Noted. A rust rug and a warm lamp would do the most.");
+    expect(await screen.findByRole("img", { name: "Image photo.png" })).toHaveAttribute("src", expect.stringMatching(/^blob:/));
+    // The fixture's stored files are m<n>…; the spoken reply (s<n>…) streams as usual.
+    const files = getMedia.mock.calls.slice(before).filter(([url]) => /\/m\d+\w*$/.test(url));
+    expect(files).toEqual([]);
+  });
+
+  it("revokes the page's copy of a file the harness refused", async () => {
+    const adopt = vi.spyOn(MediaCache.prototype, "adopt");
+    const release = vi.spyOn(MediaCache.prototype, "release");
+    const { container } = render(
+      <App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client: new MediaFixtureClient() }} />,
+    );
+    await screen.findByRole("img", { name: "Image living-room.png" });
+    await sendPhoto(container, [1, 2, 3]);
+    await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("Not sent: photo.png"));
+    const key = adopt.mock.results[0]?.value as string;
+    expect(release.mock.calls).toEqual([[key]]);
+    const blob = created.find(({ blob }) => blob === adopt.mock.calls[0]?.[0]);
+    expect(blob && revoked.includes(blob.url)).toBe(true);
+    adopt.mockRestore();
+    release.mockRestore();
   });
 });
 

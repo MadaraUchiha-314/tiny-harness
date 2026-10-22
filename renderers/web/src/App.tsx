@@ -34,7 +34,7 @@ import {
   type Part,
   type StreamResponse,
 } from "./a2a";
-import { apply, attach, emptyView, withoutMessage, type SpeechItemData, type View } from "./model";
+import { apply, attach, emptyView, rebound, withoutMessage, type SpeechItemData, type View } from "./model";
 import { MediaCache, PCM_FORMAT, baseType, blobBytes, filePart, rejectionText } from "./media";
 import { PcmStreamPlayer, type Recording, type RecorderLike } from "./voice";
 import { MicButton, RecordingBar } from "./components/MicButton";
@@ -146,7 +146,12 @@ export function App(props: { config: AppConfig }): JSX.Element {
 
   const fold = useCallback((event: StreamResponse) => {
     const index = seq.current++;
-    setView((current) => apply(current, event, index));
+    setView((current) => {
+      const next = apply(current, event, index);
+      // The echo binds a file shown from the page's copy: no second download (2.5).
+      for (const { src, key } of rebound(current, next)) cache.current.alias(src, key);
+      return next;
+    });
   }, []);
 
   const fail = useCallback((error: unknown) => {
@@ -408,6 +413,8 @@ export function App(props: { config: AppConfig }): JSX.Element {
         const fallback = error instanceof Error ? error.message : String(error);
         const detail = file ? rejectionText(file.name, file.size, refusal.reason, refusal.limit, fallback) : fallback;
         const key = `err${seq.current++}`;
+        // The page's copies of the refused files go (self-review 2.5).
+        for (const part of shown) if (part.content?.$case === "url") void cache.current.release(part.content.value);
         setView((current) => {
           const without = withoutMessage(current, message.messageId);
           return { ...without, items: [...without.items, { kind: "error", text: `Not sent: ${detail}. Remove it and send again.`, key }] };

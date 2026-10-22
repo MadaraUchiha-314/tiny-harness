@@ -210,4 +210,16 @@ describe("MediaCache", () => {
     cache.revokeAll();
     expect(revoked).toEqual(["blob:test/1"]);
   });
+
+  it("releases a local file's blob URL, once and only that one", async () => {
+    const cache = new MediaCache(async () => png());
+    const kept = cache.adopt(new Blob([new Uint8Array([1])], { type: "image/png" }));
+    const gone = cache.adopt(new Blob([new Uint8Array([2])], { type: "image/png" }));
+    await cache.release(gone);
+    expect(revoked).toEqual(["blob:test/2"]);
+    await expect(cache.url(gone, "image/png")).rejects.toThrow();
+    expect(await cache.url(kept, "image/png")).toBe("blob:test/1");
+    cache.revokeAll();
+    expect(revoked).toEqual(["blob:test/2", "blob:test/1"]);
+  });
 });

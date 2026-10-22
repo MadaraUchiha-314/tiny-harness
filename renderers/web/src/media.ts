@@ -201,6 +201,16 @@ export class MediaCache {
     if (known && !this.urls.has(src)) this.urls.set(src, known);
   }
 
+  /** Revoke the blob URL of a local file the server refused (self-review 2.5). */
+  async release(key: string): Promise<void> {
+    const known = this.urls.get(key);
+    if (!known || !key.startsWith("local:")) return;
+    this.urls.delete(key);
+    const url = await known;
+    URL.revokeObjectURL(url);
+    this.made.delete(url);
+  }
+
   revokeAll(): void {
     for (const url of this.made) URL.revokeObjectURL(url);
     this.made.clear();

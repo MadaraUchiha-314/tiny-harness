@@ -262,6 +262,18 @@ function placeSpeech(next: View, added: Item[]): void {
   if (speech !== undefined) next.items.splice(to + 1, 0, speech);
 }
 
+/** The files the page showed from its own copy (a `local:` key) that `after` binds to
+ * their stored URLs: the page aliases each so it never downloads them again. */
+export function rebound(before: View, after: View): Array<{ src: string; key: string }> {
+  const local = new Map<string, string>();
+  for (const item of before.items) if (item.kind === "media" && item.url.startsWith("local:")) local.set(item.key, item.url);
+  if (local.size === 0) return [];
+  return after.items.flatMap((item) => {
+    const key = item.kind === "media" ? local.get(item.key) : undefined;
+    return item.kind === "media" && key !== undefined && item.url !== key ? [{ src: item.url, key }] : [];
+  });
+}
+
 /** The view without the user's items of `messageId`: the server refused that message. */
 export function withoutMessage(view: View, messageId: string): View {
   return {

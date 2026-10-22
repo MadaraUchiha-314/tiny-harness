@@ -1183,7 +1183,17 @@ class HarnessApp(App[None]):
         elif result == "end" and self.recording == "hold":
             self._stop_recording()
 
+    def on_unmount(self) -> None:
+        """Quitting discards an open recording, closing the microphone, and stops the
+        reply being spoken."""
+        if self.recording:
+            self.recording = None
+            self.recorder.discard()
+        self._stop_speaking()
+
     def _voice_tick(self) -> None:
+        if not self.is_running:  # shutting down: the widgets the tick draws are gone
+            return
         if self.hold.active:
             self._hold_result(self.hold.tick(self.hold.clock()))
         if self.recording:

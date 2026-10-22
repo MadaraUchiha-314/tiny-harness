@@ -820,6 +820,20 @@ async def test_voice_escape_discards_a_recording(tmp_path: Path) -> None:
         assert "── recording discarded" in entries(app)
 
 
+async def test_voice_quitting_while_recording_closes_the_microphone(tmp_path: Path) -> None:
+    """Quitting with a recording open discards it and closes the microphone; a voice tick
+    that lands while the app shuts down (its widgets already gone) does nothing."""
+    client = media_client()
+    app, _, mic, _ = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("f5")
+        mic.stream.feed(fx_tone(1.0))
+        assert app.recording == "toggle"
+    assert app.recording is None and mic.stream.closed and client.sent == []
+    app.recording = "toggle"  # as if the tick ran before the recording was discarded
+    app._voice_tick()  # pyright: ignore[reportPrivateUsage]
+
+
 async def test_voice_without_portaudio_names_the_extra_and_typing_works(tmp_path: Path) -> None:
     """R3.5."""
 

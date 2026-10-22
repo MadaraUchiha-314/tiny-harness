@@ -80,6 +80,7 @@ from tiny_harness.service.a2a.card import (
     normalize_prefix,
     public_url,
 )
+from tiny_harness.service.a2a.media_routes import MediaSource
 from tiny_harness.service.claims import PROCESS_CLAIMS, Claim
 from tiny_harness.service.durable.activities import Activities
 from tiny_harness.service.durable.temporal import temporal_client
@@ -168,6 +169,7 @@ class Harness:
         self._client: Client | None = None
         self._card: AgentCard | None = None
         self._push: PushReceiver | None = None
+        self._media: MediaSource | None = None  # the media route's source, once started
         self._activities: Activities | None = None
         self._handler = DeferredRequestHandler()
         self._groups: RouteGroups | None = None
@@ -233,8 +235,14 @@ class Harness:
                 monitor=self._monitor,
                 push=lambda: self._push,
                 participant=self._participant,
+                media=(lambda: self._media) if self._serves_media else None,
             )
         return self._groups
+
+    @property
+    def _serves_media(self) -> bool:
+        """Whether the agent has media to serve: ``[media]``, or a media store given."""
+        return self.settings.media is not None or "media_store" in self._media_seams
 
     def routes(self) -> list[BaseRoute]:
         """The agent's routes, before any prefix. They need the harness started; mount
@@ -378,10 +386,11 @@ class Harness:
             push_base_url=self._public_url if self._routes.push else None,
             task_queue=queue,
         )
+        task_store = TemporalTaskStore(client, runtime.store, task_queue=queue)
         handler = HarnessRequestHandler(
             bridge=bridge,
             agent_executor=executor,
-            task_store=TemporalTaskStore(client, runtime.store, task_queue=queue),
+            task_store=task_store,
             agent_card=card,
             push_config_store=push_store,
             push_sender=BasePushNotificationSender(push_http, push_store),
@@ -401,12 +410,15 @@ class Harness:
         self._card = card
         self._activities = activities
         self._push = PushReceiver(client, task_queue=queue)
+        if runtime.media_store is not None:
+            self._media = MediaSource(store=runtime.media_store, lookup=task_store.lookup)
         self._handler.target = handler
         stack.callback(self._forget)
 
     def _forget(self) -> None:
         self._handler.target = None
         self._push = None
+        self._media = None
         self._client = None
 
 

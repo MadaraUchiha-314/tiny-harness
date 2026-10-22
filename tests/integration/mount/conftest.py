@@ -34,9 +34,10 @@ def agent_settings(
     agents: str = "",
     temporal: str = "",
     openai_key: str = ENV["OPENAI_API_KEY"],
+    extra: str = "",
 ) -> Settings:
     """An agent's settings: embedded mode (the tests pass the dev server's client), its own
-    store, a slow heartbeat, and ``agents`` as ``[[agents]]`` tables."""
+    store, a slow heartbeat, ``agents`` as ``[[agents]]`` tables and ``extra`` sections."""
     path = tmp_path / f"{agent_id}.toml"
     path.write_text(
         f"""
@@ -64,6 +65,8 @@ interval = "PT1H"
 sqlite_path = "{tmp_path / agent_id}.sqlite3"
 
 {agents}
+
+{extra}
 """
     )
     return Settings.load(path, env={**ENV, "OPENAI_API_KEY": openai_key})

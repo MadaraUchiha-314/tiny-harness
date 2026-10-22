@@ -3,7 +3,9 @@
 ``httpx.ASGITransport`` collects a whole response body before returning it, so a
 server-sent-event stream that stays open (``SubscribeToTask`` on a parked task) never
 reaches the client. Over a real socket each event arrives as it is sent; this transport
-does the same in-process, so a test sees what production sees."""
+does the same in-process, so a test sees what production sees: a response the app leaves
+incomplete (it returns or fails before its last body message) breaks the client's read with
+``httpx.RemoteProtocolError``, as a connection closed mid-body does."""
 
 from __future__ import annotations
 
@@ -15,14 +17,20 @@ from typing import Any
 import httpx
 from starlette.types import ASGIApp, Message
 
+_INCOMPLETE = "peer closed connection without sending complete message body"
+
 
 class _Body(httpx.AsyncByteStream):
-    def __init__(self, chunks: asyncio.Queue[bytes | None], app: asyncio.Task[None]) -> None:
+    def __init__(
+        self, chunks: asyncio.Queue[bytes | Exception | None], app: asyncio.Task[None]
+    ) -> None:
         self._chunks = chunks
         self._app = app
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
         while (chunk := await self._chunks.get()) is not None:
+            if isinstance(chunk, Exception):
+                raise chunk
             yield chunk
 
     async def aclose(self) -> None:
@@ -57,7 +65,8 @@ class StreamingASGITransport(httpx.AsyncBaseTransport):
         started: asyncio.Future[tuple[int, list[tuple[bytes, bytes]]]] = (
             asyncio.get_running_loop().create_future()
         )
-        chunks: asyncio.Queue[bytes | None] = asyncio.Queue()
+        chunks: asyncio.Queue[bytes | Exception | None] = asyncio.Queue()
+        complete = False
 
         async def receive() -> Message:
             nonlocal sent
@@ -68,12 +77,14 @@ class StreamingASGITransport(httpx.AsyncBaseTransport):
             return {"type": "http.disconnect"}  # pragma: no cover
 
         async def send(message: Message) -> None:
+            nonlocal complete
             if message["type"] == "http.response.start":
                 started.set_result((message["status"], list(message.get("headers", []))))
             elif message["type"] == "http.response.body":
                 if chunk := message.get("body", b""):
                     await chunks.put(chunk)
                 if not message.get("more_body", False):
+                    complete = True
                     await chunks.put(None)
 
         async def run() -> None:
@@ -85,6 +96,8 @@ class StreamingASGITransport(httpx.AsyncBaseTransport):
             finally:
                 if not started.done():
                     started.set_result((500, []))
+                if not complete:
+                    await chunks.put(httpx.RemoteProtocolError(_INCOMPLETE))
                 await chunks.put(None)
 
         app = asyncio.create_task(run())

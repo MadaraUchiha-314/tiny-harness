@@ -108,7 +108,7 @@ red→green run.
   - _Depends on:_ 6, 10
   - _Requirements:_ R1.3, abuse cases 1–3, 8, design critic 5
   - _Test:_ T8 — `tests/security/test_media.py::test_control_with_file_refused`, `::test_push_file_parts_dropped`, `::test_every_ingress_guarded`; T2 — rejection reaches the client as `InvalidParams`
-- [ ] 12. Media route
+- [x] 12. Media route
   - `GET /media/{task_id}/{media_id}`: participant resolution and `AccessPolicy`, 404 on
     no access, response headers, `FileResponse` for closed objects and a streamed body for
     growing ones (aborted on failure or interruption). `RouteOptions.media`.

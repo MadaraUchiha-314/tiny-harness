@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import ast
 from collections.abc import AsyncIterator, Sequence
+from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import cast
 
+import httpx
 import pytest
 from a2a.client.client import Client as A2AClient
 from a2a.server.context import ServerCallContext
@@ -28,17 +30,22 @@ from a2a.types import (
     TaskStatus,
 )
 from a2a.utils.errors import InvalidParamsError
+from pydantic import HttpUrl
 from temporalio.client import Client
 from temporalio.testing import ActivityEnvironment
 
 from tests.fixtures import media as fx
 from tests.integration.durable.conftest import Harness
 from tests.integration.durable.test_complete import control
+from tiny_harness.config import ServerConfig
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.core import HarnessTask, Participant, TaskExtensionData
 from tiny_harness.harness.core import Role as TaskRole
 from tiny_harness.harness.entities import EntityKind, EntityRef, RegistryEntry
-from tiny_harness.service.a2a import HarnessExecutor, PollingEventBridge
+from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore
+from tiny_harness.service.a2a import HarnessExecutor, PollingEventBridge, create_app
+from tiny_harness.service.a2a.app import DeferredRequestHandler
+from tiny_harness.service.a2a.media_routes import MediaSource
 from tiny_harness.service.a2a.task_store import PARTICIPANT_STATE_KEY
 from tiny_harness.service.durable.activities import Activities
 from tiny_harness.service.durable.models import PushIn, RemoteTaskIn, WorkflowConfig
@@ -282,3 +289,115 @@ def test_every_ingress_guarded() -> None:
     assert set(INGRESS) <= set(seen), sorted(set(INGRESS) - set(seen))
     wrong = {name: (seen[name], mode) for name, mode in INGRESS.items() if seen[name] != mode}
     assert not wrong, f"(guarded with, expected): {wrong}"
+
+
+# --- the media route: participants only, safe headers ---------------------------------------
+
+
+@dataclass
+class Tasks:
+    """Tasks by id, as ``TemporalTaskStore.lookup`` finds them."""
+
+    by_id: dict[str, Task]
+
+    async def lookup(self, task_id: str) -> Task | None:
+        return self.by_id.get(task_id)
+
+
+def task_of(task_id: str, *participants: str) -> Task:
+    ext = TaskExtensionData(
+        name="n",
+        goal="g",
+        participants=tuple(
+            Participant(id=p, kind="human", role=TaskRole.REPORTER) for p in participants
+        ),
+    )
+    return HarnessTask.new(task_id, "ctx", ext).proto
+
+
+@pytest.fixture
+def media_store(tmp_path: Path) -> FileMediaStore:
+    return FileMediaStore(EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), tmp_path / "media")
+
+
+def media_app(store: FileMediaStore, *tasks: Task) -> httpx.AsyncClient:
+    app = create_app(
+        DeferredRequestHandler(),
+        AgentCard(),
+        config=ServerConfig(base_url=HttpUrl("http://harness")),
+        media=MediaSource(store=store, lookup=Tasks({t.id: t for t in tasks}).lookup),
+    )
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://harness")
+
+
+async def test_other_participant_404(media_store: FileMediaStore) -> None:
+    ref = await media_store.put("t-1", fx.png(4, 4), media_type="image/png", name="a.png")
+    async with media_app(media_store, task_of("t-1", "alice")) as http:
+        url = f"/media/t-1/{ref.id}"
+        assert (await http.get(url, headers={"X-Participant-Id": "alice"})).status_code == 200
+        assert (await http.get(url, headers={"X-Participant-Id": "bob"})).status_code == 404
+        assert (await http.get(url)).status_code == 404  # no participant: fail closed
+
+
+async def test_cross_task_id_404(media_store: FileMediaStore) -> None:
+    """Bob is on t-2; a media id of t-1 under t-2's path names nothing."""
+    ref = await media_store.put("t-1", fx.png(4, 4), media_type="image/png")
+    tasks = (task_of("t-1", "alice"), task_of("t-2", "bob"))
+    async with media_app(media_store, *tasks) as http:
+        bob = {"X-Participant-Id": "bob"}
+        assert (await http.get(f"/media/t-2/{ref.id}", headers=bob)).status_code == 404
+        assert (await http.get(f"/media/t-1/{ref.id}", headers=bob)).status_code == 404
+        assert (await http.get("/media/t-2/unknown", headers=bob)).status_code == 404
+        assert (await http.get("/media/t-9/unknown", headers=bob)).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/media/t-1/..%2F..%2Fsecret",
+        "/media/t-1/%2E%2E",
+        "/media/..%2Ft-1/x",
+        "/media/t-1/a.json",
+        "/media/t-1/" + "a" * 129,
+    ],
+)
+async def test_traversal_id_404(media_store: FileMediaStore, tmp_path: Path, path: str) -> None:
+    (tmp_path / "secret").write_text("do not serve")
+    await media_store.put("t-1", fx.png(4, 4), media_type="image/png")
+    async with media_app(media_store, task_of("t-1", "alice")) as http:
+        response = await http.get(path, headers={"X-Participant-Id": "alice"})
+    assert response.status_code == 404
+    assert b"do not serve" not in response.content
+
+
+async def test_route_headers(media_store: FileMediaStore) -> None:
+    raw = fx.png(4, 4)
+    ref = await media_store.put(
+        "t-1", raw, media_type="image/png", name='../evil"\r\nX-Injected: 1.png'
+    )
+    async with media_app(media_store, task_of("t-1", "alice")) as http:
+        response = await http.get(f"/media/t-1/{ref.id}", headers={"X-Participant-Id": "alice"})
+    assert response.status_code == 200
+    assert response.content == raw
+    headers = response.headers
+    assert headers["content-type"] == "image/png"
+    assert headers["x-content-type-options"] == "nosniff"
+    assert headers["content-security-policy"] == "default-src 'none'"
+    assert headers["cache-control"] == "private, max-age=3600"
+    disposition = headers["content-disposition"]
+    assert disposition.startswith('inline; filename="')
+    assert "\r" not in disposition and "\n" not in disposition and ".." not in disposition
+    assert disposition.count('"') == 2
+    assert "x-injected" not in headers
+
+
+async def test_growing_speech_is_not_cached(media_store: FileMediaStore) -> None:
+    ref = await media_store.create("t-1", "s1", media_type=PCM_MEDIA_TYPE)
+    writer = await media_store.begin(ref)
+    await writer.append(b"\x00\x01" * 8)
+    await writer.close()
+    async with media_app(media_store, task_of("t-1", "alice")) as http:
+        response = await http.get("/media/t-1/s1", headers={"X-Participant-Id": "alice"})
+    assert response.status_code == 200
+    assert response.headers["content-type"] == PCM_MEDIA_TYPE
+    assert response.content == b"\x00\x01" * 8

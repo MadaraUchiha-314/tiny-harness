@@ -119,6 +119,7 @@ class InProcessOperations:
         text_to_speech: TextToSpeech | None = None,
         image_generator: ImageGenerator | None = None,
         media_base_url: str = "",
+        max_request_media_bytes: int | None = None,
     ) -> None:
         self.registry = registry
         self.hooks = hooks
@@ -139,7 +140,9 @@ class InProcessOperations:
             manager=self.manager,
             llm=llm,
             media=(
-                CompactionMedia(media_store, self.model_info, speech_to_text)
+                CompactionMedia(
+                    media_store, self.model_info, speech_to_text, max_request_media_bytes
+                )
                 if media_store is not None
                 else None
             ),
@@ -160,6 +163,7 @@ class InProcessOperations:
         self.text_to_speech = text_to_speech
         self.image_generator = image_generator
         self.media_base_url = media_base_url.rstrip("/")
+        self.max_request_media_bytes = max_request_media_bytes
         self._bound = False
 
     async def bind(self) -> None:
@@ -261,7 +265,9 @@ class InProcessOperations:
             # Media references become bytes here, inside the call, and nowhere else: the
             # resolved request never reaches a hook, a record or a payload (issue-38).
             info = ctx.model or self.model_info(ctx.request.model)
-            request = await resolve_media(ctx.request, self.media_store, info)
+            request = await resolve_media(
+                ctx.request, self.media_store, info, max_bytes=self.max_request_media_bytes
+            )
             return await self.llm.invoke(request)
 
         return await self.runner.run(

@@ -102,6 +102,7 @@ def test_media_defaults_match_the_design(tmp_path: Path) -> None:
     assert media.max_audio_seconds == 120
     assert media.dir is None
     assert media.speech_drain == timedelta(seconds=120)
+    assert media.max_request_media_bytes == 20 * 1024 * 1024
 
 
 def test_every_media_section_is_read(tmp_path: Path) -> None:
@@ -145,6 +146,7 @@ def test_an_unknown_media_key_is_refused(tmp_path: Path) -> None:
         "max_image_pixels = 0",
         "max_file_bytes = 30_000_000",  # more than max_message_bytes
         'speech_drain = "PT0S"',
+        "max_request_media_bytes = 0",
     ],
 )
 def test_media_limits_must_be_sane(tmp_path: Path, bad: str) -> None:

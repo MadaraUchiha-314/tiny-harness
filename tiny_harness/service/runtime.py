@@ -353,6 +353,9 @@ async def build_runtime(
         text_to_speech=tts,
         image_generator=images,
         media_base_url=public_url or str(settings.server.base_url),
+        max_request_media_bytes=(
+            settings.media.max_request_media_bytes if settings.media is not None else None
+        ),
     )
     engine.sources = sources
     await engine.bind()

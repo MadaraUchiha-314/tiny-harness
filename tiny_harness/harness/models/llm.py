@@ -116,6 +116,9 @@ class LLMModelInfo(BaseModel, frozen=True):
     input_modalities: frozenset[Modality] = frozenset({"text"})
     output_modalities: frozenset[Modality] = frozenset({"text"})
     audio_input_formats: frozenset[str] = frozenset()
+    # The largest image the adapter's API takes, as base64 text (issue-38 self-review 2.1);
+    # None when the API states no limit the harness enforces.
+    max_image_bytes: int | None = None
 
 
 class LLM(Entity):

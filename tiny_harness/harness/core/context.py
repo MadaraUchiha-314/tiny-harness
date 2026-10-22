@@ -53,6 +53,8 @@ NEVER_COMPACT: frozenset[str] = frozenset(
 NO_AGENTS = "(no agents)"
 IMAGE_TOKEN_ESTIMATE: Final = 1_100
 """What one image costs in input tokens: a 1024x1024 image at ``detail=auto``."""
+IMAGE_BYTES_PER_TOKEN: Final = 750
+"""A larger image's cost: one token per this many bytes of the file."""
 AUDIO_TOKENS_PER_SECOND: Final = 10
 """What one second of native audio input costs (OpenAI's audio input rate); a model may
 override it with ``[openai] audio_tokens_per_second``."""
@@ -297,7 +299,9 @@ def _media_chars(attachment: MediaAttachment, *, audio_tokens_per_second: int) -
     compaction see media (issue-38 design critic 7): an image by its token estimate,
     transcribed audio as its transcript, native audio by its duration."""
     if attachment.ref.kind is MediaKind.IMAGE:
-        return IMAGE_TOKEN_ESTIMATE * 4
+        # At least the flat estimate; a large image by its size, at one token per 750
+        # bytes (self-review 2.1), so many large images push the window to compaction.
+        return max(IMAGE_TOKEN_ESTIMATE, math.ceil(attachment.ref.size / IMAGE_BYTES_PER_TOKEN)) * 4
     if attachment.transcript is not None:
         return len(attachment.transcript)
     seconds = (attachment.ref.duration_ms or 0) / 1000

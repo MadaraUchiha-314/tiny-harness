@@ -41,6 +41,8 @@ from tiny_harness.jsontypes import JsonObject, JsonValue
 
 PROVIDER = "anthropic"
 CONTEXT_WINDOWS: dict[str, int] = {"claude-opus-5-5": 1_000_000, "claude-fable-5-1": 1_000_000}
+MAX_IMAGE_BYTES = 5_242_880
+"""The Messages API's per-image limit (5 MiB of base64 data)."""
 
 
 def _result_text(parts: Sequence[ContentPart]) -> str:
@@ -224,6 +226,7 @@ class AnthropicLLM(LLM):
                 context_window_tokens=CONTEXT_WINDOWS.get(model, 200_000),
                 min_cacheable_tokens=1_024,
                 input_modalities=frozenset({"text", "image"}),
+                max_image_bytes=MAX_IMAGE_BYTES,
             ),
         )
         self._model = model

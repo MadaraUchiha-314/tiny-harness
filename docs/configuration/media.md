@@ -66,6 +66,7 @@ the image, and the task continues.
 | [`max_message_bytes`](#max-message-bytes) | `26214400` (25 MiB) |
 | [`max_image_pixels`](#max-image-pixels) | `40000000` |
 | [`max_audio_seconds`](#max-audio-seconds) | `120` |
+| [`max_request_media_bytes`](#max-request-media-bytes) | `20971520` (20 MiB) |
 | [`dir`](#dir) | `media/` beside the store file |
 | [`speech_drain`](#speech-drain) | `"PT120S"` (120 seconds) |
 
@@ -97,6 +98,19 @@ file header. It does not decode the image.
 The longest audio file or voice message, in seconds.
 
 - **Default:** `120`
+
+### `max_request_media_bytes` {#max-request-media-bytes}
+
+The largest total size of the files in one request to the model, in bytes.
+
+- **Default:** `20971520` (20 MiB)
+- Each turn sends the images of the conversation again. The newest files go first.
+  When the total is too large, the model gets the text
+  `[image <name> shown earlier, not re-sent]` in place of an older image.
+- A number greater than zero.
+- Some models also have a limit for each image. Anthropic models take an image of up
+  to 5 MiB as base64. For a larger image, the model gets the text
+  `[image <name> too large for this model]`.
 
 ### `dir`
 

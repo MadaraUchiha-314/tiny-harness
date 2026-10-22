@@ -8,6 +8,7 @@ than dropped. Audio with a transcript is sent as text, labelled with its file na
 from __future__ import annotations
 
 import base64
+import math
 import re
 from typing import TYPE_CHECKING, Final
 
@@ -118,27 +119,59 @@ def unseen_images(request: LLMRequest, info: LLMModelInfo) -> tuple[MediaRef, ..
     )
 
 
+def not_resent(attachment: MediaAttachment) -> str:
+    """What a model reads in place of older media that the request's budget leaves out."""
+    return f"[{attachment.ref.kind.value} {label(attachment)} shown earlier, not re-sent]"
+
+
+def over_request_limit(attachment: MediaAttachment) -> str:
+    """What a model reads in place of new media that does not fit the request's budget."""
+    kind = attachment.ref.kind.value
+    return f"[{kind} {label(attachment)} not sent: over the request's media limit]"
+
+
+def too_large(attachment: MediaAttachment) -> str:
+    """What a model reads in place of an image larger than its adapter's API takes."""
+    return f"[image {label(attachment)} too large for this model]"
+
+
+def _base64_size(size: int) -> int:
+    return 4 * math.ceil(size / 3)
+
+
 async def resolve_media(
-    request: LLMRequest, store: MediaStore | None, info: LLMModelInfo
+    request: LLMRequest,
+    store: MediaStore | None,
+    info: LLMModelInfo,
+    *,
+    max_bytes: int | None = None,
 ) -> LLMRequest:
     """``request`` with each attachment ready for the adapter (issue-38 R1.6, R1.7): an
     image's bytes WHERE the model takes images; native audio's bytes WHERE the model takes
     that audio type; transcribed audio as it is (the adapter sends the transcript). Media
     the model cannot take becomes a line of text in its message. Runs only inside an
     activity: the result holds bytes and cannot be serialised (abuse case 8). Without a
-    store the request is returned as it is, and an adapter refuses unresolved media."""
+    store the request is returned as it is, and an adapter refuses unresolved media.
+
+    The bytes of one request stay within ``max_bytes`` (``[media]
+    max_request_media_bytes``; self-review 2.1): the newest media is resolved first, and
+    older media that does not fit becomes a line of text. An image larger than the
+    adapter's ``max_image_bytes`` (as base64) is never sent."""
     if store is None or not any(item.kind == "message" and item.media for item in request.input):
         return request
     images = "image" in info.input_modalities
     audio = "audio" in info.input_modalities
-    items: list[InputItem] = []
-    for item in request.input:
+    last = max(i for i, item in enumerate(request.input) if item.kind == "message")
+    remaining = max_bytes
+    # Decide newest first, so the budget goes to the newest media; build in order after.
+    decided: dict[tuple[int, int], MediaAttachment | str] = {}
+    for i in range(len(request.input) - 1, -1, -1):
+        item = request.input[i]
         if item.kind != "message" or not item.media:
-            items.append(item)
             continue
-        kept: list[MediaAttachment] = []
-        notes: list[str] = []
-        for attachment in item.media:
+        left_out = over_request_limit if i == last else not_resent
+        for j in range(len(item.media) - 1, -1, -1):
+            attachment = item.media[j]
             ref = attachment.ref
             needs_bytes = (images and ref.kind is MediaKind.IMAGE) or (
                 ref.kind is MediaKind.AUDIO
@@ -147,18 +180,48 @@ async def resolve_media(
                 and ref.media_type in info.audio_input_formats
             )
             if ref.kind is MediaKind.IMAGE and not images:
-                notes.append(image_not_shown(attachment))
+                decided[i, j] = image_not_shown(attachment)
             elif ref.kind is MediaKind.AUDIO and attachment.transcript is not None:
-                kept.append(attachment)
+                decided[i, j] = attachment
             elif not needs_bytes:
-                notes.append(audio_not_given(attachment))
+                decided[i, j] = audio_not_given(attachment)
+            elif (
+                ref.kind is MediaKind.IMAGE
+                and info.max_image_bytes is not None
+                and _base64_size(ref.size) > info.max_image_bytes
+            ):
+                decided[i, j] = too_large(attachment)
+            elif remaining is not None and ref.size > remaining:
+                decided[i, j] = (
+                    over_request_limit(attachment) if i == last else not_resent(attachment)
+                )
             else:
                 try:
                     data = await store.get(ref)
                 except FileNotFoundError:
-                    notes.append(unavailable(attachment))
+                    decided[i, j] = unavailable(attachment)
                     continue
-                kept.append(MediaAttachment(ref=ref, transcript=attachment.transcript, data=data))
+                if remaining is not None:
+                    if len(data) > remaining:
+                        decided[i, j] = left_out(attachment)
+                        continue
+                    remaining -= len(data)
+                decided[i, j] = MediaAttachment(
+                    ref=ref, transcript=attachment.transcript, data=data
+                )
+    items: list[InputItem] = []
+    for i, item in enumerate(request.input):
+        if item.kind != "message" or not item.media:
+            items.append(item)
+            continue
+        kept: list[MediaAttachment] = []
+        notes: list[str] = []
+        for j in range(len(item.media)):
+            outcome = decided[i, j]
+            if isinstance(outcome, str):
+                notes.append(outcome)
+            else:
+                kept.append(outcome)
         text = "\n".join([item.text, *notes]) if item.text else "\n".join(notes)
         items.append(item.model_copy(update={"media": tuple(kept), "text": text}))
     return request.model_copy(update={"input": tuple(items)})
@@ -171,9 +234,12 @@ __all__ = [
     "data_url",
     "image_not_shown",
     "label",
+    "not_resent",
+    "over_request_limit",
     "resolve_media",
     "resolved",
     "speakable_text",
+    "too_large",
     "transcript_text",
     "unavailable",
     "unseen_images",

@@ -41,7 +41,8 @@ three `in` hook points. Lives in `tiny_harness/harness/core/context.py`,
 - The budget and fraction SHALL be configuration (`[context]`: `turn_budget_tokens`,
   `compaction_fraction`).
 - The turn SHALL carry the media of every history entry still in the window. The budget
-  SHALL count an image as 1 100 tokens, a transcribed audio file as its transcript and
+  SHALL count an image as `max(1100, ceil(size / 750))` tokens, a transcribed audio file
+  as its transcript and
   native audio as `audio_tokens_per_second` tokens per second, corrected by the model's
   reported usage after each turn.
 - Compaction SHALL carry the folded entries' media where the model accepts it and SHALL

@@ -74,6 +74,11 @@ flowchart LR
   name and `Content-Security-Policy: default-src 'none'`, serve a closed object from its
   file and stream a growing one as it grows, breaking the response WHEN it fails or is
   superseded.
+- `resolve_media` SHALL resolve one model request's media newest first within `[media]
+  max_request_media_bytes` (default 20 MiB); older media that does not fit SHALL become
+  the text `[image <name> shown earlier, not re-sent]` (`not sent: over the request's
+  media limit` in the newest message), and an image whose base64 is larger than the
+  adapter's `max_image_bytes` SHALL become `[image <name> too large for this model]`.
 - WHEN `[media]` is set the request cap SHALL be
   `max(max_request_bytes, ceil(max_message_bytes * 4 / 3) + 65536)`.
 - The retention sweep SHALL delete the media of every task whose record it deletes and

@@ -34,9 +34,14 @@ def _task() -> HarnessTask:
     )
 
 
-def _image() -> MediaAttachment:
+def _image(size: int = 10) -> MediaAttachment:
     ref = MediaRef(
-        id="m1", task_id="t-1", kind=MediaKind.IMAGE, media_type="image/png", size=10, name="a.png"
+        id="m1",
+        task_id="t-1",
+        kind=MediaKind.IMAGE,
+        media_type="image/png",
+        size=size,
+        name="a.png",
     )
     return MediaAttachment(ref=ref)
 
@@ -73,6 +78,13 @@ def test_constants_are_the_designed_estimates() -> None:
 
 def test_an_image_counts_as_its_token_estimate() -> None:
     assert _chars(_image()) - _chars() == IMAGE_TOKEN_ESTIMATE * 4
+
+
+def test_a_large_image_counts_by_its_size() -> None:
+    """A large image costs more than the flat estimate (self-review 2.1): one token per
+    750 bytes, so many large images push the window toward compaction."""
+    size = 3_000_000
+    assert _chars(_image(size)) - _chars() == math.ceil(size / 750) * 4
 
 
 def test_transcribed_audio_counts_as_its_transcript() -> None:

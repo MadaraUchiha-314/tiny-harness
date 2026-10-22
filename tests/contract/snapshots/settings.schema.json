@@ -358,6 +358,13 @@
           "title": "Max Message Bytes",
           "type": "integer"
         },
+        "max_request_media_bytes": {
+          "default": 20971520,
+          "description": "20 MiB; the media bytes one model request carries, newest first",
+          "exclusiveMinimum": 0,
+          "title": "Max Request Media Bytes",
+          "type": "integer"
+        },
         "speech_drain": {
           "default": "PT2M",
           "description": "how long rollover or completion waits for spoken replies to finish",

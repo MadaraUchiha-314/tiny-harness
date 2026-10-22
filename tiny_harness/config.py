@@ -394,6 +394,11 @@ class MediaConfig(_Strict):
         default=40_000_000, gt=0, description="width x height, read from the header"
     )
     max_audio_seconds: StrictInt = Field(default=120, gt=0)
+    max_request_media_bytes: StrictInt = Field(
+        default=20_971_520,
+        gt=0,
+        description="20 MiB; the media bytes one model request carries, newest first",
+    )
     dir: Path | None = Field(
         default=None, description="where media is stored; default <sqlite dir>/media[-<agent>]"
     )

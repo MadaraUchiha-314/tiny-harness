@@ -78,6 +78,7 @@ class CompactionMedia:
     store: MediaStore
     model_info: Callable[[str | None], LLMModelInfo]
     speech_to_text: SpeechToText | None = None
+    max_bytes: int | None = None  # [media] max_request_media_bytes
 
 
 class CompactionRecord(BaseModel, frozen=True):
@@ -257,7 +258,9 @@ class Compactor:
             media = self._media
             if media is not None and ctx.media:
                 # Bytes only here, inside the call: never in the hook context (issue-38).
-                request = await resolve_media(request, media.store, media.model_info(ctx.model))
+                request = await resolve_media(
+                    request, media.store, media.model_info(ctx.model), max_bytes=media.max_bytes
+                )
             response = await llm.invoke(request)
             return ctx.model_copy(update={"result": response.output_text.strip()})
 

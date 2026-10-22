@@ -75,8 +75,9 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
   `audio`) and `audio_input_formats`. `input_modalities` comes from `[openai]
   input_modalities` (default `["text", "image"]` with Responses, `["text"]` with Chat
   Completions); `audio_input_formats` is the adapter's own (`audio/wav`, `audio/mpeg` for
-  Chat Completions, none otherwise). The harness decides image delivery, native audio
-  and transcription from these fields, never from the provider's name.
+  Chat Completions, none otherwise). `max_image_bytes` is the adapter's per-image limit
+  as base64 (Anthropic 5 242 880, OpenAI none). The harness decides image delivery,
+  native audio and transcription from these fields, never from the provider's name.
 - The SDK SHALL define `SpeechToText` (`transcribe(audio, *, media_type, name, language)
   -> Transcript`), `TextToSpeech` (`stream(text, *, voice, instructions)` yielding chunks
   in its `AudioFormat`) and `ImageGenerator` (`generate(prompt, *, size) ->

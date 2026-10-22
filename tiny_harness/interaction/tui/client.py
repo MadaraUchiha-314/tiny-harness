@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlsplit
@@ -46,7 +46,7 @@ from tiny_harness.service.inbox import complete_message
 type EventSource = AsyncIterator[A2AEvent]
 
 
-type MediaSource = AsyncIterator[bytes]
+type MediaSource = AsyncGenerator[bytes]  # closable: a reader that stops early closes it
 
 
 @dataclass(frozen=True)

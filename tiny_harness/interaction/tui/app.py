@@ -27,6 +27,7 @@ terminal's auto-repeat stops (``--hold-ms`` adjusts the repeat window).
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -1081,11 +1082,12 @@ class HarnessApp(App[None]):
             limit = max(self.media_params.max_file_bytes, 1)
         chunks: list[bytes] = []
         total = 0
-        async for chunk in self.client.get_media(url):
-            total += len(chunk)
-            if total > limit:
-                raise ValueError(f"larger than {limit} bytes")
-            chunks.append(chunk)
+        async with contextlib.aclosing(self.client.get_media(url)) as source:
+            async for chunk in source:
+                total += len(chunk)
+                if total > limit:
+                    raise ValueError(f"larger than {limit} bytes")
+                chunks.append(chunk)
         return b"".join(chunks)
 
     def _subscribe_once(self, task_id: str) -> None:
@@ -1297,8 +1299,10 @@ class HarnessApp(App[None]):
         self.query_one("#hint", Static).update(Text("speaking… Esc stops"))
         self.refresh_bindings()
         try:
-            # ``play`` stops a reply already playing (one at a time, R4.3).
-            played = await self.player.play(self.client.get_media(entry.url), SPEECH_FORMAT)
+            # ``play`` stops a reply already playing (one at a time, R4.3); a stopped
+            # play closes the stream it read from.
+            async with contextlib.aclosing(self.client.get_media(entry.url)) as source:
+                played = await self.player.play(source, SPEECH_FORMAT)
         except VoiceUnavailable as exc:
             entry.unavailable(str(exc))
         except (*CLIENT_ERRORS, OSError):

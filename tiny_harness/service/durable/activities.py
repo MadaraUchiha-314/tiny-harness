@@ -589,10 +589,14 @@ class Activities:
 
         async def stream() -> None:
             nonlocal written
-            async for chunk in tts.stream(text, voice=arg.voice):
-                await writer.append(chunk)
-                written += len(chunk)
-                activity.heartbeat()
+            chunks = tts.stream(text, voice=arg.voice)
+            try:
+                async for chunk in chunks:
+                    await writer.append(chunk)  # MediaFenced: a newer attempt owns it
+                    written += len(chunk)
+                    activity.heartbeat()
+            finally:
+                await close_stream(chunks)  # an early exit hangs up on the provider
             await writer.close()
 
         try:

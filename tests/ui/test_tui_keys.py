@@ -1044,3 +1044,79 @@ async def test_voice_replay_during_playback_then_escape_stops(tmp_path: Path) ->
         await settle(app)
         await pilot.pause()
         assert speakers.played == pcm + pcm
+
+
+class ClosingClient(ScriptedClient):
+    """Counts the media streams closed before their end. It keeps every stream it made,
+    so only an explicit ``aclose`` (not the garbage collector) closes one."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.closed: list[str] = []
+        self.streams: list[object] = []
+
+    def get_media(self, url: str) -> Any:
+        stream = self._closing(url)
+        self.streams.append(stream)
+        return stream
+
+    async def _closing(self, url: str) -> Any:
+        try:
+            async for chunk in ScriptedClient.get_media(self, url):
+                yield chunk
+        except GeneratorExit:
+            self.closed.append(url)
+            raise
+
+
+async def test_a_download_over_the_limit_closes_the_media_stream(tmp_path: Path) -> None:
+    client = ClosingClient(
+        commands=MEDIA_COMMANDS,
+        media=MEDIA_PARAMS.model_copy(update={"max_file_bytes": 1500}),
+        files={media_url("Big1"): [b"\x00" * 1024] * 3},
+    )
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)):
+        with pytest.raises(ValueError, match="larger than 1500 bytes"):
+            await app._download(media_url("Big1"))  # pyright: ignore[reportPrivateUsage]
+        assert client.closed == [media_url("Big1")]
+
+
+async def test_voice_a_reply_stopped_mid_stream_closes_the_media_stream(tmp_path: Path) -> None:
+    """Escape between two chunks: the player stops reading, and the stream it read from
+    is closed at once."""
+    block = fx_tone(0.1, rate=24_000)
+    client = ClosingClient(
+        commands=MEDIA_COMMANDS,
+        media=MEDIA_PARAMS,
+        files={media_url("Sp1"): [block, block, block]},
+    )
+    speakers = FakeSpeakers()
+    player = PcmPlayer(open_output=speakers)
+    app = media_app(tmp_path, client, player=player)
+
+    async with app.run_test(size=(110, 36)) as pilot:
+        loop = asyncio.get_running_loop()
+        real = speakers.__call__
+
+        def opening(fmt: Any) -> Any:
+            stream = real(fmt)
+            original = stream.write
+
+            def write(data: bytes) -> None:
+                original(data)
+                loop.call_soon_threadsafe(player.stop)  # Escape after the first block
+
+            stream.write = write  # type: ignore[method-assign]
+            return stream
+
+        player.open_output = opening
+        app.feed(conversation_events())
+        await pilot.press("f6")
+        app.feed([speech("Sp1")])
+        await settle(app)
+        await pilot.pause()
+        [line] = app.query(SpeechEntry)
+        assert line.text == "🔊 stopped at 0:00 · ⏎ replays"
+        assert speakers.played == block
+        assert client.closed == [media_url("Sp1")]

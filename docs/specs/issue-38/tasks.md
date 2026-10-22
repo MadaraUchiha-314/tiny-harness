@@ -125,7 +125,7 @@ red→green run.
 
 ### Track D — workflow
 
-- [ ] 14. Intake activity and media in history
+- [x] 14. Intake activity and media in history
   - `IntakeOut.media` from the message's own media URLs, checked against the store.
     `MessageItem(..., media=...)`. The user's message echo carries the url parts.
   - _Depends on:_ 7, 11

@@ -28,6 +28,7 @@ from tiny_harness.harness.core import (
     proto_json,
 )
 from tiny_harness.harness.hooks import HookContext
+from tiny_harness.harness.media import MediaRef
 from tiny_harness.harness.models import LLMRequest, LLMResponse
 from tiny_harness.harness.tools import ToolCall, ToolResult, WorkflowCommand
 from tiny_harness.interaction.a2ui import SurfaceRegistry
@@ -225,6 +226,9 @@ class IntakeOut(_Frozen):
     ui_action: JsonObject | None = None
     command: CommandCall | None = None
     control: Literal["complete"] | None = None
+    media: tuple[MediaRef, ...] = ()
+    """The message's own media (issue-38 R1.5): its url parts that point at this task's
+    media route and resolve in the store; any other file part is ignored."""
 
 
 class AssembleIn(ActivityIn):

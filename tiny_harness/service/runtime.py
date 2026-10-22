@@ -318,6 +318,15 @@ async def build_runtime(
     for ignored in ignored_environment_warnings(os.environ):
         log.warning("%s", ignored)
     records = store or SqliteStore(settings.store.sqlite_path)
+    configured = build_media_entities(settings)
+    stt = speech_to_text or configured[0]
+    tts = text_to_speech or configured[1]
+    images = image_generator or configured[2]
+    if media_store is None and settings.media is not None:
+        media_store = FileMediaStore(
+            EntityRef(kind=EntityKind.MEDIA_STORE, id="file"),
+            default_media_root(settings).resolve(),
+        )
     engine = InProcessOperations(
         registry=registry,
         hooks=hooks,
@@ -332,19 +341,14 @@ async def build_runtime(
         ),
         redactor=redactor,
         catalog=catalog,
+        media_store=media_store,
+        speech_to_text=stt,
+        text_to_speech=tts,
+        media_base_url=public_url or str(settings.server.base_url),
     )
     engine.sources = sources
     await engine.bind()
     register_help_default(hooks, model, catalog)
-    configured = build_media_entities(settings)
-    stt = speech_to_text or configured[0]
-    tts = text_to_speech or configured[1]
-    images = image_generator or configured[2]
-    if media_store is None and settings.media is not None:
-        media_store = FileMediaStore(
-            EntityRef(kind=EntityKind.MEDIA_STORE, id="file"),
-            default_media_root(settings).resolve(),
-        )
     media = capabilities(model.info, stt, tts, images, settings.media)
     intake = None
     if settings.media is not None and media_store is not None:

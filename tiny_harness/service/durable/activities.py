@@ -12,7 +12,8 @@ import secrets
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Literal, Protocol, cast
+from typing import Final, Literal, Protocol, cast
+from urllib.parse import urlsplit
 
 from a2a.types import Message, Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.types import Role as A2ARole
@@ -62,7 +63,8 @@ from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.core.loop import RequestReceivedPost, RequestReceivedPre
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.hooks import HookPoint, Operation, Phase
-from tiny_harness.harness.media import guard
+from tiny_harness.harness.media import MediaRef, guard
+from tiny_harness.harness.media.extension import MEDIA_ROUTE
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
@@ -144,6 +146,8 @@ TERMINAL = frozenset(
         TaskState.TASK_STATE_REJECTED,
     }
 )
+MEDIA_SEGMENT: Final = MEDIA_ROUTE.strip("/")
+"""The media route's path segment: ``<base>/media/<task_id>/<media_id>``."""
 NON_RETRYABLE_CODES = frozenset({ProviderError.code, HookAbort.code, ToolNotFoundError.code})
 
 
@@ -343,6 +347,9 @@ class Activities:
         sender = task.ext.participant(participant) if participant else None
         if sender is not None and sender.kind == "agent":
             source = "agent"
+        media: tuple[MediaRef, ...] = ()
+        if accepted and ordinary:
+            media = await self._own_media(task.id, arg.message)
         return IntakeOut(
             accepted=accepted,
             text=text if accepted and ordinary else "",
@@ -354,7 +361,33 @@ class Activities:
             ui_action=ui_action if accepted else None,
             command=command if accepted else None,
             control=control if accepted else None,
+            media=media,
         )
+
+    async def _own_media(self, task_id: str, message: Message) -> tuple[MediaRef, ...]:
+        """The message's media (issue-38 R1.5): each url part whose path ends in
+        ``/media/<this task>/<id>`` and whose id the store knows. Anything else (another
+        task's media, an unknown id, a raw part that skipped intake) is ignored and logged:
+        the workflow never takes a reference it cannot resolve."""
+        store = self.engine.media_store
+        refs: list[MediaRef] = []
+        for part in message.parts:
+            content = part.WhichOneof("content")
+            if content not in ("url", "raw"):
+                continue
+            ref: MediaRef | None = None
+            if content == "url" and store is not None:
+                segments = urlsplit(part.url).path.rstrip("/").split("/")
+                if len(segments) >= 3 and segments[-3:-1] == [MEDIA_SEGMENT, task_id]:
+                    ref = await store.lookup(task_id, segments[-1])
+            if ref is None:
+                log.warning(
+                    "file part ignored: not this task's stored media",
+                    extra={"task_id": task_id, "part": content},
+                )
+                continue
+            refs.append(ref)
+        return tuple(refs)
 
     # --- commands (issue-25 R6, R6a) ------------------------------------------------
 

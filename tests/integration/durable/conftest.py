@@ -31,7 +31,8 @@ from tiny_harness.harness.core import (
 from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
 from tiny_harness.harness.hooks import HookManager
-from tiny_harness.harness.models import FakeLLM, LLMResponse
+from tiny_harness.harness.media import MediaStore
+from tiny_harness.harness.models import FakeLLM, LLMResponse, SpeechToText, TextToSpeech
 from tiny_harness.harness.persistence import SqliteStore
 from tiny_harness.harness.tools import (
     Idempotency,
@@ -89,7 +90,13 @@ class Harness:
     """Everything one worker needs, over fakes."""
 
     def __init__(
-        self, responses: Sequence[LLMResponse], *, turn_budget_tokens: int = 12_000
+        self,
+        responses: Sequence[LLMResponse],
+        *,
+        turn_budget_tokens: int = 12_000,
+        media_store: MediaStore | None = None,
+        speech_to_text: SpeechToText | None = None,
+        text_to_speech: TextToSpeech | None = None,
     ) -> None:
         self.registry = Registry()
         self.hooks = HookManager()
@@ -107,6 +114,10 @@ class Harness:
             store=self.store,
             system_prompt="You are the harness.",
             manager=ContextWindowManager(turn_budget_tokens=turn_budget_tokens),
+            media_store=media_store,
+            speech_to_text=speech_to_text,
+            text_to_speech=text_to_speech,
+            media_base_url="http://harness",
         )
 
     async def bind(self) -> Harness:

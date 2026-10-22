@@ -43,6 +43,7 @@ from tiny_harness.harness.hooks import (
     OperationRunner,
     Phase,
 )
+from tiny_harness.harness.media import MediaStore
 from tiny_harness.harness.models import (
     LLM,
     LLMModelInfo,
@@ -51,6 +52,8 @@ from tiny_harness.harness.models import (
     MessageItem,
     ModelCatalog,
     Role,
+    SpeechToText,
+    TextToSpeech,
     extract_tool_calls,
 )
 from tiny_harness.harness.persistence import (
@@ -109,6 +112,10 @@ class InProcessOperations:
         correlation_id: str = "local",
         actor: str | None = None,
         catalog: ModelCatalog | None = None,
+        media_store: MediaStore | None = None,
+        speech_to_text: SpeechToText | None = None,
+        text_to_speech: TextToSpeech | None = None,
+        media_base_url: str = "",
     ) -> None:
         self.registry = registry
         self.hooks = hooks
@@ -134,6 +141,12 @@ class InProcessOperations:
         self.ui_commands: list[WorkflowCommand] = []
         self.sources: list[McpToolSource] = []
         self.resolved_children: set[str] = set()
+        # Media (issue-38): the store the activities resolve references from, the speech
+        # entities, and the base of the media route's URLs; all absent when text-only.
+        self.media_store = media_store
+        self.speech_to_text = speech_to_text
+        self.text_to_speech = text_to_speech
+        self.media_base_url = media_base_url.rstrip("/")
         self._bound = False
 
     async def bind(self) -> None:

@@ -73,6 +73,7 @@ with workflow.unsafe.imports_passed_through():
     )
     from tiny_harness.harness.core.intrinsics import link_subtask
     from tiny_harness.harness.entities import EntityKind, EntityRef
+    from tiny_harness.harness.media import MediaAttachment
     from tiny_harness.harness.models import LLMRequest, LLMResponse, MessageItem, extract_tool_calls
     from tiny_harness.harness.models import Role as MessageRole
     from tiny_harness.harness.security import Redactor
@@ -457,6 +458,7 @@ class TaskWorkflow:
         self.handled = 0  # commands and controls consumed since the last wake
         self.completion_by: str | None = None  # a participant's accepted control complete
         self.fresh_run = False
+        self.intake_message: Message | None = None  # the message the last intake read
         self.surfaces = SurfaceRegistry()
         self._redactor = Redactor()
 
@@ -739,11 +741,48 @@ class TaskWorkflow:
                 text = f"[{out.participant_id}] {out.text}"
             if out.participant_id:
                 self.actor = out.participant_id
-            state = state.append(MessageItem(role=MessageRole.USER, text=text, source=out.source))
+            media = tuple(MediaAttachment(ref=ref) for ref in out.media)
+            state = state.append(
+                MessageItem(role=MessageRole.USER, text=text, source=out.source, media=media)
+            )
             # Committed now, not at the end of the turn: an interrupt that cancels the
             # run restarts from ``self.state`` and must not lose what intake accepted.
             self.state = state
+            if out.media and self.intake_message is not None:
+                await self._echo(self.intake_message, out)
         return state, accepted
+
+    async def _echo(self, message: Message, out: IntakeOut) -> None:
+        """Log the user's message as stored, its text and its media URLs (issue-38 R6.3),
+        so every surface of the task shows the media and any participant can fetch it.
+        An artifact update, not a ``Message`` (refused once a task exists) nor a status
+        (one in INPUT_REQUIRED would end the sender's stream before the reply)."""
+        own = {ref.id for ref in out.media}
+        parts: list[Part] = []
+        for part in message.parts:
+            if part.HasField("text"):
+                parts.append(Part(text=part.text))
+            elif part.HasField("url") and part.url.rstrip("/").rsplit("/", 1)[-1] in own:
+                kept = Part()
+                kept.CopyFrom(part)
+                parts.append(kept)
+        artifact = Artifact(
+            artifact_id=f"message:{message.message_id}", name="user message", parts=parts
+        )
+        artifact.metadata.update(
+            {
+                "role": "user",
+                "participant_id": out.participant_id or "",
+                "message_id": message.message_id,
+            }
+        )
+        event = TaskArtifactUpdateEvent(
+            task_id=self.task.id,
+            context_id=self.task.context_id,
+            artifact=artifact,
+            last_chunk=True,
+        )
+        await self._deliver(self._emit(event))
 
     def _fold_history_notes(self, state: AgentState) -> AgentState:
         """Add pending history notes (a participant's /sub-task, R9) to ``state`` without
@@ -760,6 +799,7 @@ class TaskWorkflow:
         a control, else return it. The message leaves the mailbox only once its intake
         has completed: an interrupt or a cancel during intake leaves it for the next
         dispatch (R15.5)."""
+        self.intake_message = self.mailbox[0]
         out = await self.call(
             ActivityName.INTAKE,
             IntakeIn(
@@ -839,7 +879,10 @@ class TaskWorkflow:
                 continue
             if out is None or (assignee is not None and out.participant_id != assignee):
                 continue
-            self.state = self.state.append(MessageItem(role=MessageRole.USER, text=out.text))
+            media = tuple(MediaAttachment(ref=ref) for ref in out.media)
+            self.state = self.state.append(
+                MessageItem(role=MessageRole.USER, text=out.text, media=media)
+            )
             return await self._finish(TaskState.TASK_STATE_COMPLETED, text=out.text)
 
     async def _complete(self) -> Task | None:

@@ -549,8 +549,7 @@ media = "P30D"                         # NEW
   still names it). Media the model cannot take is rendered as text first:
   `[image: <name>, <w>×<h>, media <id>]`, `[audio: <name>, <s> s, transcript: "<…>"]`;
   native audio with no transcript is transcribed before compaction WHEN `[speech_to_text]`
-  is set. The bytes stay in the store until retention, and a later turn may re-attach a
-  folded item by id (`[image <id>]` in the summary is resolvable).
+  is set. The bytes stay in the store until retention.
 - **`speak` activity** `SpeakIn{task, media_id, text, voice} → MediaRef`. WHEN a reply's
   triggering message has `speak: true` AND `[text_to_speech]` is set THEN the workflow
   (1) creates the id with `workflow.uuid4()`-derived token, (2) **awaits the short
@@ -652,10 +651,16 @@ class PcmPlayer:    # sounddevice.RawOutputStream fed from an async byte stream
   the start of an empty line; spaces inside text are never held back.
 
 - `tui/media.py`: `MediaEntry` fetches the media through the client (`get_media(url)`,
-  with the participant header), saves it to `~/.cache/tiny-harness/media/<task>/<name>`
-  and shows it inline with `textual-image` WHERE that extra is installed and the terminal
+  with the participant header), saves it to
+  `~/.cache/tiny-harness/media/<task_id>/<media_id><ext>` (design critic 8): both ids are
+  validated against `[A-Za-z0-9_-]{1,128}` and taken from the URL the TUI itself parsed,
+  `<ext>` comes from the media type (`.png`, `.wav`, …), the directory is created `0700`,
+  and the file is written to a temp name with `O_NOFOLLOW | O_EXCL` then `os.replace`d,
+  so neither a file name nor a planted symlink steers the write and two `photo.png`
+  attachments never collide. The original file name is display text only. It then shows
+  it inline with `textual-image` WHERE that extra is installed and the terminal
   reports kitty, iTerm2 or sixel support; otherwise one line: `image · photo.png ·
-  1024×768 · saved to ~/.cache/…/photo.png` (R2.4). `AudioEntry` shows name, duration and
+  1024×768 · saved to ~/.cache/tiny-harness/media/9c41…/Qm3x…k2.png` (R2.4). `AudioEntry` shows name, duration and
   transcript, and `Enter` on it plays it. The `AudioPlayer` A2UI placeholder stays (A2UI
   is out of scope here).
 - `client.py`: `A2AClientPort.send(parts: Sequence[Part], *, task_id, context_id,

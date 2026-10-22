@@ -325,3 +325,79 @@ describe("voice controls against the harness (issue-38 fixture client)", () => {
     expect(screen.queryByRole("button", { name: "Spoken replies" })).toBeNull();
   });
 });
+
+describe("a pending spoken-reply download (issue-38 critic 5)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    let n = 0;
+    Object.assign(URL, { createObjectURL: () => `blob:test/${(n += 1)}`, revokeObjectURL: () => undefined });
+  });
+
+  /** The fixture client, with every speech download held until the test releases it. */
+  const held = () => {
+    const client = new MediaFixtureClient();
+    const pending: Array<{ signal: AbortSignal | undefined; release: () => void; cancelled: () => boolean }> = [];
+    const original = client.getMedia.bind(client);
+    client.getMedia = (url, signal) => {
+      if (!/\/s\d+\w*$/.test(url)) return original(url, signal);
+      let cancelled = false;
+      return new Promise<Response>((resolve) => {
+        pending.push({
+          signal,
+          cancelled: () => cancelled,
+          release: () => {
+            const body = new ReadableStream<Uint8Array>({
+              cancel() {
+                cancelled = true;
+              },
+            });
+            resolve(new Response(body, { headers: { "content-type": "audio/L16;rate=24000;channels=1" } }));
+          },
+        });
+      });
+    };
+    return { client, pending };
+  };
+
+  it("never plays a download that Stop overtook, and cancels its body", async () => {
+    const { client, pending } = held();
+    const play = vi.spyOn(PcmStreamPlayer.prototype, "play").mockImplementation(() => new Promise(() => undefined));
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Play spoken reply" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "Stop speaking" }));
+    expect(pending[0]?.signal?.aborted).toBe(true);
+    await act(async () => {
+      pending[0]?.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(play).not.toHaveBeenCalled();
+    expect(pending[0]?.cancelled()).toBe(true);
+    expect(screen.getByRole("button", { name: "Replay spoken reply" })).toBeInTheDocument();
+    play.mockRestore();
+  });
+
+  it("does not let an older Replay's late answer replace the newer playback", async () => {
+    const { client, pending } = held();
+    const play = vi.spyOn(PcmStreamPlayer.prototype, "play").mockImplementation(() => new Promise(() => undefined));
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Play spoken reply" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "Stop speaking" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Replay spoken reply" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    await act(async () => {
+      pending[1]?.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(play).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      pending[0]?.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(pending[0]?.cancelled()).toBe(true);
+    expect(screen.getByRole("button", { name: "Stop speaking" })).toBeInTheDocument();
+    play.mockRestore();
+  });
+});

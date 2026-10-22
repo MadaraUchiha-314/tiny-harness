@@ -164,15 +164,6 @@ export function App(props: { config: AppConfig }): JSX.Element {
     }));
   }, []);
 
-  // The task view's blob URLs and its playback go with it (issue-38).
-  useEffect(() => {
-    const media = cache.current;
-    const speaker = player.current;
-    return () => {
-      media.revokeAll();
-      speaker.stop();
-    };
-  }, [attached]);
 
   /** Start audio from the user's gesture (a send, the mic, Replay): browsers allow it there. */
   const unlockAudio = useCallback(() => {
@@ -183,23 +174,68 @@ export function App(props: { config: AppConfig }): JSX.Element {
     }
   }, []);
 
+  /**
+   * One spoken reply at a time (critic 5): each play is a generation with an
+   * AbortController that spans the download and the playback. Stop, a recording, a send
+   * and a task change end the current one; a download that a newer generation overtook is
+   * aborted, and its body cancelled if it still arrives, so it can never start playing.
+   */
+  const speechRun = useRef<{ generation: number; controller: AbortController | null; mediaId: string | null }>({
+    generation: 0,
+    controller: null,
+    mediaId: null,
+  });
+  const stopSpeech = useCallback(() => {
+    const run = speechRun.current;
+    run.controller?.abort();
+    const stopped = run.mediaId;
+    speechRun.current = { generation: run.generation + 1, controller: null, mediaId: null };
+    player.current.stop();
+    if (stopped !== null) {
+      // A download still pending shows as stopped; a playing reply reports it itself.
+      const playedMs = player.current.playedMs;
+      setSpeechUi((current) =>
+        current[stopped]?.state === "speaking" ? { ...current, [stopped]: { state: "stopped", playedMs } } : current,
+      );
+    }
+  }, []);
+
+  // The task view's blob URLs and its playback (a pending download too) go with it.
+  useEffect(() => {
+    const media = cache.current;
+    return () => {
+      media.revokeAll();
+      stopSpeech();
+    };
+  }, [attached, stopSpeech]);
+
   const playSpeech = useCallback(
     async (item: SpeechItemData) => {
+      stopSpeech();
       unlockAudio();
-      setSpeechUi((current) => ({ ...current, [item.mediaId]: { state: "speaking", playedMs: 0 } }));
+      const controller = new AbortController();
+      const generation = speechRun.current.generation;
+      speechRun.current = { generation, controller, mediaId: item.mediaId };
+      const current = () => speechRun.current.generation === generation;
+      setSpeechUi((ui) => ({ ...ui, [item.mediaId]: { state: "speaking", playedMs: 0 } }));
       let outcome: "done" | "stopped" | "interrupted" = "interrupted";
       try {
-        const response = await client.current.getMedia(item.url);
+        const response = await client.current.getMedia(item.url, controller.signal);
+        if (!current()) {
+          void response.body?.cancel().catch(() => undefined);
+          return;
+        }
         outcome = await player.current.play(response, PCM_FORMAT);
       } catch {
         outcome = "interrupted";
       }
+      if (!current()) return; // a newer play, or Stop, owns the line now
+      speechRun.current = { generation, controller: null, mediaId: null };
       const playedMs = player.current.playedMs;
-      setSpeechUi((current) => ({ ...current, [item.mediaId]: { state: outcome, playedMs } }));
+      setSpeechUi((ui) => ({ ...ui, [item.mediaId]: { state: outcome, playedMs } }));
     },
-    [unlockAudio],
+    [stopSpeech, unlockAudio],
   );
-  const stopSpeech = useCallback(() => player.current.stop(), []);
 
   // A spoken reply this page asked for plays as it arrives (R4.1); one in a replayed log
   // or asked for by another surface waits for Play.
@@ -375,7 +411,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
    */
   const send = useCallback(
     async (text: string, files: Attachment[] = []): Promise<boolean> => {
-      player.current.stop(); // R4.3: a new message interrupts the reply being spoken
+      stopSpeech(); // R4.3: a new message interrupts the reply being spoken
       const fileParts: Part[] = [];
       const shown: Part[] = [];
       for (const file of files) {
@@ -424,7 +460,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
       await consume(client.current.sendMessage(message), refused);
       return !wasRefused;
     },
-    [offline, config.participant, consume, fold, view.contextId, view.taskId, media, speak, unlockAudio],
+    [offline, config.participant, consume, fold, view.contextId, view.taskId, media, speak, stopSpeech, unlockAudio],
   );
 
   /** A voice turn (R3.1): the recording is sent at once, as a `voice` file part. */

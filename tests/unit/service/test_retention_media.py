@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from a2a.types import Task
 
 from tests.integration.durable.conftest import Harness
@@ -83,3 +85,46 @@ async def test_purging_a_task_deletes_its_media(tmp_path: Path) -> None:
     off = tmp_path / "off"
     off.mkdir()
     assert await purge_media(load(off), task_id="t-2") == 0
+
+
+async def test_purge_terminates_the_workflow_before_it_deletes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A running workflow can still write media (a spoken reply, a generated image) and
+    rows: the purge stops it first, then deletes (self-review 2.4)."""
+    from contextlib import asynccontextmanager
+
+    from tests.unit.test_config_media import load
+    from tiny_harness.service import commands
+
+    order: list[str] = []
+
+    class Handle:
+        async def terminate(self, *, reason: str) -> None:
+            order.append("terminate")
+
+    class Client:
+        def get_workflow_handle(self, task_id: str) -> Handle:
+            return Handle()
+
+    @asynccontextmanager
+    async def client(settings: object) -> AsyncGenerator[Client]:
+        yield Client()
+
+    class Store:
+        def __init__(self, path: object) -> None:
+            pass
+
+        async def purge_task(self, task_id: str) -> dict[RecordKind, int]:
+            order.append("rows")
+            return {}
+
+    async def purge_media(settings: object, *, task_id: str) -> int:
+        order.append("media")
+        return 0
+
+    monkeypatch.setattr(commands, "temporal_client", client)
+    monkeypatch.setattr(commands, "SqliteStore", Store)
+    monkeypatch.setattr(commands, "purge_media", purge_media)
+    assert await commands.tasks_purge(load(tmp_path, "[media]"), task_id="t-1") == 0
+    assert order == ["terminate", "rows", "media"]

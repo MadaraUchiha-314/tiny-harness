@@ -118,14 +118,15 @@ async def purge_media(settings: Settings, *, task_id: str) -> int:
 
 
 async def tasks_purge(settings: Settings, *, task_id: str) -> int:
-    """Delete the task's rows and media and terminate its workflow (the deletion request
-    path)."""
+    """Terminate the task's workflow, then delete its rows and media (the deletion
+    request path). Terminated first: a running workflow could still write a row or a
+    medium (a spoken reply, a generated image) after the delete (self-review 2.4)."""
     async with temporal_client(settings) as client:
+        with contextlib.suppress(RPCError):
+            await client.get_workflow_handle(task_id).terminate(reason="purged by operator")
         store = SqliteStore(settings.store.sqlite_path)
         deleted = {k.value: v for k, v in (await store.purge_task(task_id)).items()}
         deleted["media"] = await purge_media(settings, task_id=task_id)
-        with contextlib.suppress(RPCError):
-            await client.get_workflow_handle(task_id).terminate(reason="purged by operator")
     print("purged " + ", ".join(f"{k}={v}" for k, v in deleted.items() if v), file=sys.stderr)
     return 0
 

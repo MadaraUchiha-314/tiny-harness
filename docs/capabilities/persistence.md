@@ -33,8 +33,8 @@ default store is SQLite; a plugin implements `Store` for a production database. 
   delivered to.
 - Every record kind SHALL have a time to live (`[retention]`, 30 days by default; tasks
   and plans measured from the terminal state), applied by the heartbeat's retention
-  sweep; `tiny-harness tasks purge <task-id>` deletes one task's rows and terminates its
-  workflow.
+  sweep; `tiny-harness tasks purge <task-id>` terminates one task's workflow, then
+  deletes its rows (and media), so the workflow writes nothing after the delete.
 - Persistence reads and writes SHALL run through the `persistence.read` and
   `persistence.write` hook points, so a hook can replace the target.
 - The media store (see [media](media.md)) SHALL keep each task's images and audio as

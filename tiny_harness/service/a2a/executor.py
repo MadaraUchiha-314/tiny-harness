@@ -81,6 +81,33 @@ def media_refused(exc: MediaRejected) -> InvalidParamsError:
     return InvalidParamsError(message=exc.message, data=dict(exc.detail))
 
 
+FILE_PART_ALLOWANCE = 1_024
+"""What a file part counts toward a message's size: its rewritten ``url`` part and
+metadata, never its bytes, which go to the media store."""
+
+
+def check_message_size(message: Message, limit: int | None) -> None:
+    """Refuse a message whose serialized form, with each file part counted as its
+    rewritten url part, is larger than ``limit`` (``[server] max_request_bytes``;
+    self-review 2.2). With ``[media]`` the routes admit a full message of media, but the
+    message itself goes to the workflow inbox, whose payload Temporal bounds at 2 MB."""
+    if limit is None:
+        return
+    probe = Message()
+    probe.CopyFrom(message)
+    files = 0
+    for part in probe.parts:
+        if is_file_part(part) and part.WhichOneof("content") == "raw":
+            part.raw = b""
+            files += 1
+    size = len(json_format.MessageToJson(probe, indent=None)) + files * FILE_PART_ALLOWANCE
+    if size > limit:
+        raise InvalidParamsError(
+            message=f"the message is larger than {limit} bytes",
+            data={"reason": "message_too_large", "limit": str(limit)},
+        )
+
+
 def message_text(message: Message) -> str:
     return "\n".join(p.text for p in message.parts if p.HasField("text"))
 
@@ -208,8 +235,10 @@ class HarnessExecutor(AgentExecutor):
         models: Collection[str] | None = None,
         media_intake: MediaIntake | None = None,
         extensions: Collection[str] = SUPPORTED_EXTENSIONS,
+        max_request_bytes: int | None = None,
     ) -> None:
         self._client = client
+        self._max_message_bytes = max_request_bytes  # None: not checked (tests)
         self._extensions = frozenset(extensions)
         self._media = media_intake  # None: media off, every file part is refused
         # Who may brief a new task fully (issue-34 R7): this agent itself, always.
@@ -238,6 +267,8 @@ class HarnessExecutor(AgentExecutor):
             raise TaskNotFoundError
         if existing is not None:
             refuse_terminal(existing)
+        # Before intake, so a refused message stores nothing (self-review 2.2).
+        check_message_size(message, self._max_message_bytes)
         if any(is_file_part(p) for p in message.parts):
             # Media is stored only for an asserted participant (fail closed), checked on a
             # copy: the message's own participant is written after redaction, as always.
@@ -328,6 +359,7 @@ class HarnessExecutor(AgentExecutor):
             message = await guard(message, allow="refuse")
         except MediaRejected as exc:
             raise media_refused(exc) from exc
+        check_message_size(message, self._max_message_bytes)
         message = redact_message(self._redactor, message)
         message.task_id = task.id
         message.context_id = task.context_id

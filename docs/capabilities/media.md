@@ -80,7 +80,11 @@ flowchart LR
   media limit` in the newest message), and an image whose base64 is larger than the
   adapter's `max_image_bytes` SHALL become `[image <name> too large for this model]`.
 - WHEN `[media]` is set the request cap SHALL be
-  `max(max_request_bytes, ceil(max_message_bytes * 4 / 3) + 65536)`.
+  `max(max_request_bytes, ceil(max_message_bytes * 4 / 3) + 65536)`. A new turn's
+  message (before intake) and a control SHALL still be refused `InvalidParams`
+  (`message_too_large`, limit `max_request_bytes`) WHEN their serialized form, each file
+  part counted as 1 KiB, is larger than `max_request_bytes`, so the workflow inbox
+  payload stays bounded.
 - The retention sweep SHALL delete the media of every task whose record it deletes and
   every object older than `[retention] media`; `tiny-harness tasks purge` deletes the
   task's media too.

@@ -22,13 +22,16 @@ from typing import cast
 import httpx
 import pytest
 from a2a.client.client import Client as A2AClient
+from a2a.server.agent_execution import RequestContext
 from a2a.server.context import ServerCallContext
+from a2a.server.events import EventQueueLegacy
 from a2a.types import (
     AgentCapabilities,
     AgentCard,
     Message,
     Part,
     Role,
+    SendMessageRequest,
     Task,
     TaskState,
     TaskStatus,
@@ -50,12 +53,12 @@ from tests.integration.media.flows import (
     replied,
     with_files,
 )
-from tiny_harness.config import O11yConfig, ServerConfig
+from tiny_harness.config import MediaConfig, O11yConfig, ServerConfig
 from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.core import HarnessTask, Participant, TaskExtensionData
 from tiny_harness.harness.core import Role as TaskRole
 from tiny_harness.harness.entities import EntityKind, EntityRef, RegistryEntry
-from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore, spans
+from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore, MediaIntake, spans
 from tiny_harness.harness.models import (
     FakeImageGenerator,
     FakeSpeechToText,
@@ -129,6 +132,53 @@ async def test_control_with_file_refused() -> None:
             pass
     assert "controls carry no files" in caught.value.message
     assert getattr(caught.value, "data", None) == {"reason": "files_not_accepted"}
+
+
+# --- a message larger than the server's request limit ------------------------------------------
+
+
+BIG_TEXT = "x" * 5_000_000  # past the 2 MB Temporal payload, inside the media request cap
+LIMIT: int = ServerConfig.model_fields["max_request_bytes"].default
+TOO_LARGE = {"reason": "message_too_large", "limit": str(LIMIT)}
+
+
+def sized_executor(store: FileMediaStore) -> HarnessExecutor:
+    client = cast(Client, NoClient())
+    return HarnessExecutor(
+        client,
+        task_queue="tq",
+        bridge=PollingEventBridge(client),
+        config=WorkflowConfig(search_attributes=False),
+        media_intake=MediaIntake(store, MediaConfig(), base_url="http://h"),
+        max_request_bytes=LIMIT,
+    )
+
+
+async def test_large_text_with_media_on_refused(tmp_path: Path) -> None:
+    """With [media] the HTTP cap admits ~33 MiB, but a message's text and data must still
+    fit the server's request limit: the serialized message goes to the workflow inbox
+    (self-review 2.2). Refused before intake, so nothing is stored and no task starts."""
+    store = FileMediaStore(EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), tmp_path / "m")
+    call = ServerCallContext()
+    call.state[PARTICIPANT_STATE_KEY] = "alice"
+    message = with_image(Part(text=BIG_TEXT))
+    context = RequestContext(
+        call, request=SendMessageRequest(message=message), task_id="t-1", context_id="ctx-1"
+    )
+    with pytest.raises(InvalidParamsError) as caught:
+        await sized_executor(store).execute(context, EventQueueLegacy())
+    assert getattr(caught.value, "data", None) == TOO_LARGE
+    assert not (tmp_path / "m").exists() or not any((tmp_path / "m").iterdir())
+
+
+async def test_large_control_refused(tmp_path: Path) -> None:
+    store = FileMediaStore(EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), tmp_path / "m")
+    message = control(task_id="t-1")
+    message.parts.append(Part(text=BIG_TEXT))
+    with pytest.raises(InvalidParamsError) as caught:
+        async for _ in sized_executor(store).control(task_of_alice(), message, alice()):
+            pass
+    assert getattr(caught.value, "data", None) == TOO_LARGE
 
 
 # --- remote agents' deliveries drop files ------------------------------------------------------

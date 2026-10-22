@@ -69,6 +69,9 @@ A folder with a built web renderer. The server shows it at `/ui/`.
 The largest request the server accepts, in bytes. A larger request gets the error 413.
 
 - **Default:** `1048576` (1 MiB)
+- It is also the largest message without its files. With [`[media]`](media), the server
+  accepts larger requests for the files. A message whose text and data are larger than
+  this value gets an `InvalidParams` error with the reason `message_too_large`.
 
 ### `rate_limit_per_minute` {#rate-limit-per-minute}
 

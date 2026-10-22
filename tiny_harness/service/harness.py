@@ -378,6 +378,7 @@ class Harness:
             delegators=settings.server.delegators,
             models=ModelCatalog.from_settings(settings).selectable,
             media_intake=runtime.media_intake,
+            max_request_bytes=settings.server.max_request_bytes,
             # a request may activate the media extension where the card declares it
             extensions=(
                 (*SUPPORTED_EXTENSIONS, MEDIA_EXT_URI)

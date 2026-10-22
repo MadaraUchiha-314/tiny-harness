@@ -128,8 +128,26 @@ async function openMedia(page: Page, theme: string, width: number, query = ""): 
   await page.emulateMedia({ colorScheme: theme === "dark" ? "dark" : "light" });
   await page.goto(`/?fixture=media${query}`);
   await expect(page.getByTestId("state")).toHaveText("INPUT_REQUIRED");
-  await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Generated: the same room with a green sofa and a rust rug" })).toBeVisible();
+  // Images load lazily, when they come near the viewport (critic 6). Whether one far
+  // above the bottom loaded before the stream auto-scrolled depends on timing, so bring
+  // each into view as a reader scrolling up would, then return to the bottom.
+  for (const name of ["Image living-room.png", "Generated: the same room with a green sofa and a rust rug"]) {
+    await page.getByTestId("media-image").first().waitFor();
+    await scrollUntilLoaded(page, page.getByRole("img", { name }));
+  }
+  const viewport = page.locator('[data-slot="message-scroller-viewport"]');
+  await viewport.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+  await expect.poll(() => viewport.evaluate((el) => Math.round(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+}
+
+/** Scroll each image figure into view in turn until `image` has loaded. */
+async function scrollUntilLoaded(page: Page, image: ReturnType<Page["getByRole"]>): Promise<void> {
+  const figures = page.getByTestId("media-image");
+  for (let i = 0; i < (await figures.count()); i += 1) {
+    if (await image.isVisible()) break;
+    await figures.nth(i).scrollIntoViewIfNeeded();
+  }
+  await expect(image).toBeVisible();
 }
 
 for (const state of states) {

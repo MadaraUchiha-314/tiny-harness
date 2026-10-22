@@ -128,6 +128,8 @@ export class PcmStreamPlayer {
       }
     } catch {
       if (stopped()) return "stopped";
+      // The scheduled audio would play on past the break, under a Replay (self-review 2.3).
+      this.silence();
       this.finish();
       return "interrupted";
     } finally {
@@ -142,6 +144,14 @@ export class PcmStreamPlayer {
   /** Stop every queued source and the download. */
   stop(): void {
     this.generation += 1;
+    this.silence();
+    void this.reader?.cancel().catch(() => undefined);
+    this.reader = null;
+    this.finish();
+  }
+
+  /** Stop every scheduled source. */
+  private silence(): void {
     for (const source of this.sources) {
       try {
         source.stop();
@@ -149,9 +159,6 @@ export class PcmStreamPlayer {
         // a source that never started
       }
     }
-    void this.reader?.cancel().catch(() => undefined);
-    this.reader = null;
-    this.finish();
   }
 
   private finish(): void {

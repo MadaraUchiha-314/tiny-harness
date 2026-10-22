@@ -170,6 +170,21 @@ describe("PcmStreamPlayer", () => {
     await expect(player.play(new Response("gone", { status: 404 }), FMT)).resolves.toBe("interrupted");
   });
 
+  it("stops every scheduled source when the stream breaks off, so a Replay never overlaps it", async () => {
+    const { ctx, sources } = fakeContext();
+    const player = new PcmStreamPlayer(() => ctx);
+    await expect(player.play(streamed([samples(2400), samples(2400)], "error"), FMT)).resolves.toBe("interrupted");
+    expect(sources).toHaveLength(2);
+    expect(sources.every((s) => s.stopped)).toBe(true);
+    const replay = player.play(streamed([samples(2400)]), FMT);
+    await flush();
+    await flush();
+    expect(sources.slice(0, 2).every((s) => s.stopped)).toBe(true);
+    expect(sources[2]?.stopped).toBe(false);
+    sources[2]?.onended?.();
+    await expect(replay).resolves.toBe("done");
+  });
+
   it("creates and resumes one context on unlock, from the user's gesture", () => {
     const { ctx } = fakeContext();
     const create = vi.fn(() => ctx);

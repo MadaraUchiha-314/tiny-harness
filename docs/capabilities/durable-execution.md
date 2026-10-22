@@ -89,7 +89,9 @@ reuses them. Lives in `tiny_harness/service/durable/`.
 - The `transcribe` activity SHALL run for each audio attachment of a new message unless
   the model takes that format natively; the transcript is kept on the attachment and
   emitted as the `transcript:<mediaId>` artifact. Without `[speech_to_text]` the turn
-  continues on its text with a status note.
+  continues on its text with a status note. WHEN an interrupt cuts the turn during a
+  transcription THEN that message's audio SHALL be transcribed again before the next
+  turn (and before a rollover).
 - WHEN the message a reply answers has `speak: true` and text-to-speech is configured THEN
   the workflow SHALL await `open_speech` (which creates the growing object), emit the
   `speech:<mediaId>` artifact before the reply's final status, and run `speak` as a

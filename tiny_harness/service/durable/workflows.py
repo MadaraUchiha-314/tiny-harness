@@ -488,6 +488,9 @@ class TaskWorkflow:
         self.noted_media: set[str] = set()  # media the user was told the model cannot take
         self.held_notes: list[str] = []  # status notes waiting for the next turn to start
         self.speak = False  # the message the next reply answers asked for speech (R4.1)
+        # The history index of a message whose audio is being transcribed: a cut turn
+        # leaves it set, and it is transcribed again before the next run (self-review 2.8).
+        self.transcribing: int | None = None
         # Spoken replies being written (design critic 4): a workflow coroutine each, not an
         # update handler, so rollover and completion wait for them explicitly.
         self.speech_jobs: dict[str, SpeechJob] = {}
@@ -674,6 +677,11 @@ class TaskWorkflow:
                         TaskState.TASK_STATE_CANCELED, text=self.cancel_reason
                     )
                 self.interrupted = False
+                if self.transcribing is not None:
+                    # Before a rollover can drop the mark: the audio the cut turn was
+                    # transcribing gets its transcript before the next turn.
+                    at, self.transcribing = self.transcribing, None
+                    self.state = await self._transcribe(self.state, at=at)
                 continue
             try:
                 outcome = runner.result()
@@ -785,15 +793,19 @@ class TaskWorkflow:
             if out.media and self.intake_message is not None:
                 await self._echo(self.intake_message, out)
             if any(ref.kind is MediaKind.AUDIO for ref in out.media):
+                self.transcribing = len(state.history) - 1
                 state = await self._transcribe(state)
+                self.transcribing = None
         return state, accepted
 
-    async def _transcribe(self, state: AgentState) -> AgentState:
-        """The audio of the message just appended (issue-38 R1.6, R3.4): each attachment
-        the model cannot take natively gets its transcript, kept on the attachment in the
-        history and shown as the ``transcript:<mediaId>`` artifact. Without speech-to-text,
-        or when it fails, the user is told and the turn goes on."""
-        entry = state.history[-1]
+    async def _transcribe(self, state: AgentState, *, at: int = -1) -> AgentState:
+        """The audio of the message at ``at``, by default the one just appended (issue-38
+        R1.6, R3.4): each attachment the model cannot take natively gets its transcript,
+        kept on the attachment in the history and shown as the ``transcript:<mediaId>``
+        artifact. Without speech-to-text, or when it fails, the user is told and the turn
+        goes on."""
+        at = at % len(state.history)
+        entry = state.history[at]
         item = entry.item
         if not isinstance(item, MessageItem):
             return state
@@ -840,7 +852,8 @@ class TaskWorkflow:
             )
             await self._deliver(self._emit(event))
         updated = entry.model_copy(update={"item": item.model_copy(update={"media": tuple(media)})})
-        state = state.model_copy(update={"history": (*state.history[:-1], updated)})
+        history = (*state.history[:at], updated, *state.history[at + 1 :])
+        state = state.model_copy(update={"history": history})
         self.state = state
         return state
 

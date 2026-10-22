@@ -9,13 +9,22 @@ speech-to-text, or when it fails, the user is told and the turn goes on.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import pytest
 from temporalio.testing import WorkflowEnvironment
 
 from tests.fixtures import media as fx
-from tests.integration.durable.conftest import awaiting_next_message, close, env, send, start
+from tests.integration.durable.conftest import (
+    awaiting_next_message,
+    close,
+    env,
+    message,
+    send,
+    start,
+)
+from tests.integration.durable.test_complete import GET_ORDER
 from tests.integration.media.flows import (
     artifacts,
     ids,
@@ -27,6 +36,7 @@ from tests.integration.media.flows import (
 )
 from tiny_harness.errors import ProviderError
 from tiny_harness.harness.models import FakeSpeechToText, MessageItem, scripted
+from tiny_harness.harness.models.speech import Transcript
 from tiny_harness.service.durable.workflows import TaskWorkflow
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -177,3 +187,65 @@ async def test_a_failed_transcription_leaves_a_note_and_the_turn_continues(
         assert "transcription of question.wav failed" in status_texts(page.events)
         assert artifacts(page.events, "transcript:") == []
         await close(handle)
+
+
+class FirstCallBlocks(FakeSpeechToText):
+    """Speech-to-text whose first call blocks until ``gate`` is set; later calls answer
+    from the script at once."""
+
+    def __init__(self, transcripts: list[str]) -> None:
+        super().__init__(transcripts)
+        self.entered, self.gate = asyncio.Event(), asyncio.Event()
+
+    async def transcribe(
+        self, audio: bytes, *, media_type: str, name: str = "audio", language: str | None = None
+    ) -> Transcript:
+        if not self.entered.is_set():
+            self.entered.set()
+            await self.gate.wait()
+            return Transcript(text="(the cut call's answer, never used)")
+        return await super().transcribe(audio, media_type=media_type, name=name, language=language)
+
+
+async def test_audio_cut_mid_transcription_is_transcribed_before_the_next_turn(
+    env: WorkflowEnvironment, tmp_path: Path
+) -> None:
+    """
+    Feature: Audio reaches the model
+    Requirement: docs/specs/issue-38/requirements.md#R3.4
+
+    Scenario: an interrupt during transcription does not leave the audio untranscribed
+        Given a turn blocked in a tool call, and alice's recording question.wav sent meanwhile
+        When the turn resumes and question.wav is being transcribed
+        And an interrupting message cuts the turn
+        Then question.wav is transcribed again before the next turn
+        And the model gets its transcript, not "no transcript"
+    """
+    stt = FirstCallBlocks(["where is my order?"])
+    h, store = await media_harness(
+        tmp_path, [scripted("", tool_calls=[GET_ORDER]), scripted("Stopped.")], stt=stt
+    )
+    h.get_order.gate = asyncio.Event()
+    tq, tid = ids()
+    audio = await with_files(
+        store, tid, "", [(fx.wav(0.5), "audio/wav", "question.wav")], message_id="m2", voice=True
+    )
+    async with h.worker(env.client, tq):
+        handle = await send(
+            env.client, tq, start(media_task(tid)), message("refund", task_id=tid, message_id="m1")
+        )
+        await asyncio.wait_for(h.get_order.released.wait(), timeout=30)
+        await handle.execute_update(TaskWorkflow.inbox, audio)  # pyright: ignore[reportUnknownMemberType]
+        h.get_order.gate.set()
+        await asyncio.wait_for(stt.entered.wait(), timeout=30)
+        stop = message("stop", task_id=tid, message_id="m3")
+        stop.metadata.update({"interrupt": True})
+        await handle.execute_update(TaskWorkflow.inbox, stop)  # pyright: ignore[reportUnknownMemberType]
+        await awaiting_next_message(handle)
+        stt.gate.set()
+        await close(handle)
+    last = h.llm.requests[-1]
+    texts = [i.text for i in last.input if isinstance(i, MessageItem)]
+    assert not any("no transcript" in t for t in texts), texts
+    [item] = [i for i in last.input if isinstance(i, MessageItem) and i.media]
+    assert item.media[0].transcript == "where is my order?"

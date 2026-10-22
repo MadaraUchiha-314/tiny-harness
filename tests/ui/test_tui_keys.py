@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 from a2a.types import Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
 from google.protobuf import json_format
@@ -879,6 +880,44 @@ async def test_voice_f6_speaks_replies_and_escape_stops_them(tmp_path: Path) -> 
         gate.set()
         await settle(app)
         await pilot.pause()
+        assert line.text == "🔊 stopped at 0:00 · ⏎ replays"
+
+
+async def _speaking(pilot: Any, app: Any, client: Any, speakers: Any, pcm: bytes) -> Any:
+    """F6 on, a message sent, and the reply streaming to the speakers: the speech line."""
+    app.feed(conversation_events())
+    await pilot.press("f6")
+    await pilot.press(*"rug?", "enter")
+    for _ in range(50):
+        if speakers.played == pcm:
+            break
+        await pilot.pause(0.02)
+    [line] = app.query(SpeechEntry)
+    assert app.player.playing
+    return line
+
+
+@pytest.mark.parametrize("act", ["record", "send"])
+async def test_voice_a_new_recording_or_message_stops_the_reply(tmp_path: Path, act: str) -> None:
+    """R4.3: starting a recording (F5) or sending a message stops the reply being spoken."""
+    gate = asyncio.Event()
+    pcm = fx_tone(0.5, rate=24_000)
+    reply = agent_text("A rust rug warms the floor.", "a-1")
+    client = media_client(
+        [speech("Sp1"), status(TaskState.TASK_STATE_WORKING, reply), parked()],
+        files={media_url("Sp1"): [pcm, gate]},
+    )
+    app, _, _, speakers = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        line = await _speaking(pilot, app, client, speakers, pcm)
+        if act == "record":
+            await pilot.press("f5")
+        else:
+            await pilot.press(*"and the lamp?", "enter")
+        gate.set()
+        await settle(app)
+        await pilot.pause()
+        assert not app.player.playing
         assert line.text == "🔊 stopped at 0:00 · ⏎ replays"
 
 

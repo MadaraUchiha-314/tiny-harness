@@ -169,7 +169,8 @@ it. Press `Escape` to stop a recording without sending it.
 
 Press `F6` to turn spoken replies on. The top bar shows `spoken replies: on`. The agent
 then speaks each reply. The reply starts to play before the agent has spoken all of it.
-Press `Escape` to stop it. Select the reply line and press `Enter` to play it again.
+Press `Escape` to stop it. The reply also stops when you start a recording or send a
+message. Select the reply line and press `Enter` to play it again.
 
 ### When voice is not available
 

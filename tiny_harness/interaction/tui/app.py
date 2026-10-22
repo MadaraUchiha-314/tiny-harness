@@ -741,6 +741,7 @@ class HarnessApp(App[None]):
         if view is not None and view.terminal:
             self._notice(f"── task is {view.state_name}; nothing sent")
             return
+        self._stop_speaking()  # R4.3: a new message interrupts the reply being spoken
         files = tuple(self.attachments)
         self.attachments.clear()
         self._show_chips()
@@ -1200,6 +1201,7 @@ class HarnessApp(App[None]):
         if not self.voice_input:
             self._notice("── voice input unavailable: this agent accepts no WAV audio")
             return
+        self._stop_speaking()  # R4.3: a new recording interrupts the reply being spoken
         try:
             self.recorder.start()
         except VoiceUnavailable as exc:
@@ -1248,7 +1250,11 @@ class HarnessApp(App[None]):
         """Escape: discard a recording, or stop the reply being spoken."""
         if self.recording:
             self._stop_recording(send=False)
-        elif self.player.playing:
+        else:
+            self._stop_speaking()
+
+    def _stop_speaking(self) -> None:
+        if self.player.playing:
             self.player.stop()
 
     def _speech(self, item: RenderItem, view: TaskView, indent: int) -> None:

@@ -96,7 +96,8 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
 - The TUI SHALL record a voice turn while Space is held on an empty composer (a
   `HoldDetector` over auto-repeat: a second Space within `--hold-ms`, default 600 ms,
   starts the hold, a 0.25 s gap ends it; a lone Space types a space), and with `F5` as a
-  toggle; `Escape` discards a recording or stops a spoken reply; `F6` turns spoken replies
+  toggle; `Escape` discards a recording or stops a spoken reply, and starting a recording
+  or sending a message also stops it (R4.3, both surfaces); `F6` turns spoken replies
   on (off at start), sent as the message's `speak`. The `Recorder` captures 16 kHz mono
   WAV through `sounddevice` and discards a recording shorter than 0.3 s or silent; the
   `PcmPlayer` plays the speech stream as it arrives, with a speaking line that `Enter`

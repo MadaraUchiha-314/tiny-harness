@@ -20,7 +20,9 @@ Any participant of a task fetches the task's media by one URL, from any surface:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -129,7 +131,9 @@ class GrowingMediaResponse(StreamingResponse):
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
 
-def media_response(source: MediaSource, ref: MediaRef) -> Response:
+async def media_response(source: MediaSource, ref: MediaRef) -> Response:
+    """The response for a ref the store found. A file that retention removed after the
+    lookup is ``404``: the file is looked at here, not first when the response is sent."""
     if is_growing(ref):
         chunks = source.store.read_stream(ref, poll=source.poll, idle_timeout=source.idle_timeout)
         return GrowingMediaResponse(chunks, ref)
@@ -137,7 +141,13 @@ def media_response(source: MediaSource, ref: MediaRef) -> Response:
     store = source.store
     if isinstance(store, FileMediaStore):
         path = store.root / ref.task_id / ref.id
-        return FileResponse(path, media_type=ref.media_type, headers=headers)
+        try:
+            stat_result = await asyncio.to_thread(os.stat, path)
+        except FileNotFoundError:
+            return Response(status_code=404)
+        return FileResponse(
+            path, media_type=ref.media_type, headers=headers, stat_result=stat_result
+        )
     stream = store.read_stream(ref, poll=source.poll, idle_timeout=source.idle_timeout)
     return StreamingResponse(stream, media_type=ref.media_type, headers=headers)
 
@@ -162,7 +172,7 @@ def media_route(source: Callable[[], MediaSource | None], context_of: ContextOf)
         ref = await media.store.lookup(task_id, media_id)
         if ref is None:
             return Response(status_code=404)
-        return media_response(media, ref)
+        return await media_response(media, ref)
 
     return Route(MEDIA_PATH, media_view, methods=["GET"])
 

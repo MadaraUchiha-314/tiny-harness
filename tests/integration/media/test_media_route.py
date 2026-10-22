@@ -200,3 +200,20 @@ def test_route_options_turn_the_media_route_off() -> None:
 
     assert MEDIA_PATH in paths(RouteOptions())
     assert MEDIA_PATH not in paths(RouteOptions(media=False))
+
+
+async def test_a_file_removed_after_the_lookup_is_404(tmp_path: Path) -> None:
+    """
+    Feature: The media route serves a closed object from its file
+    Scenario: retention removes the file between the lookup and the response
+        Given a stored image whose ref the store still finds
+        And whose file retention has just removed
+        When a participant of the task requests it
+        Then the answer is 404, not a server error
+    """
+    async with route(tmp_path) as (store, http):
+        ref = await store.put("t-1", fx.png(4, 4), media_type="image/png", name="a.png")
+        (tmp_path / "t-1" / ref.id).unlink()
+        assert await store.lookup("t-1", ref.id) is not None
+        response = await http.get(f"/media/t-1/{ref.id}", headers=ALICE)
+        assert response.status_code == 404

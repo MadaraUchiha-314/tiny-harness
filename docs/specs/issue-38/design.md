@@ -469,7 +469,7 @@ media = "P30D"                         # NEW
   |---------|------|-------------------|
   | `HarnessExecutor.execute` (`SendMessage`, new turn) | `extract` | stored, rewritten to media URLs |
   | `HarnessExecutor.control` (complete, cancel and other controls) | `refuse` | `InvalidParams` "controls carry no files" |
-  | push receive `/a2a/push/{task_id}` and remote-agent follow results | `drop` | removed, with a note "[remote agent sent a <type> file; files from remote agents are not supported]" |
+  | push receive `/a2a/push/{task_id}` and remote-agent follow results | `drop` | removed, with a note `[remote agent sent a <type> file; files from remote agents are not supported]` |
   | channel deliveries | `drop` | removed, with the same note |
 
   Remote-agent media is out of scope; dropping it keeps the 64 KiB push cap and the
@@ -540,8 +540,8 @@ media = "P30D"                         # NEW
   `transcript:<id>` artifact.
 - **`invoke_llm`.** Before calling the engine, the activity resolves attachments:
   images → `data = await store.get(ref)` WHEN `image in input_modalities`, else the
-  attachment is replaced by the text `[image <name> not shown: the model takes no image
-  input]` and the workflow emits that once as a status note (R1.7); native audio → `data`;
+  attachment is replaced by the text
+  `[image <name> not shown: the model takes no image input]` and the workflow emits that once as a status note (R1.7); native audio → `data`;
   transcribed audio → text. The `LLMRequest` that crosses into the activity carries refs;
   the resolved one never leaves it.
 - **Media in the turn.** `context.py` sends the media of every history entry still in
@@ -554,9 +554,9 @@ media = "P30D"                         # NEW
   corrected by `last_usage.input_tokens` after each turn, as text already is.
 - **Compaction** (R6.2, design critic 7). The summarise request **carries the media** of
   the entries it folds (resolved inside the activity, like a turn) WHERE the model accepts
-  that modality, and its prompt requires one line per media item — `[image <id>
-  "<name>": <one-sentence description>]`, `[audio <id> "<name>": <transcript, or a
-  one-sentence description>]` — which `compaction.py` checks is present for every folded
+  that modality, and its prompt requires one line per media item —
+  `[image <id> "<name>": <one-sentence description>]`,
+  `[audio <id> "<name>": <transcript, or a one-sentence description>]` — which `compaction.py` checks is present for every folded
   id (a missing line is appended as `[image <id> "<name>": not described]` so the summary
   still names it). Media the model cannot take is rendered as text first:
   `[image: <name>, <w>×<h>, media <id>]`, `[audio: <name>, <s> s, transcript: "<…>"]`;
@@ -592,10 +592,10 @@ media = "P30D"                         # NEW
 - **`generate_image` intrinsic** (`tools/intrinsics.py`, registered only when an
   `ImageGenerator` exists): input `{prompt: string ≤ 4000, size?: "1024x1024" |
   "1536x1024" | "1024x1536", alt: string ≤ 200}`. The tool activity calls `generate`,
-  `put`s the bytes and returns a `ToolResult` with a `ContentPart(kind="media",
-  media=ref)` and the text `image <id> shown to the user`. The workflow then emits the
-  `image:<id>` artifact and appends an agent note `MessageItem(role=USER, source="agent",
-  text="[image generated: <alt>]", media=(attachment,))` so later turns can see it (R2.5).
+  `put`s the bytes and returns a `ToolResult` with a
+  `ContentPart(kind="media", media=ref)` and the text `image <id> shown to the user`. The workflow then emits the
+  `image:<id>` artifact and appends an agent note
+  `MessageItem(role=USER, source="agent", text="[image generated: <alt>]", media=(attachment,))` so later turns can see it (R2.5).
   Its JSON schema is `docs/a2a/ext/intrinsics/generate_image.json`, like the other
   intrinsics.
 
@@ -817,8 +817,8 @@ Each trust boundary of the requirements' Security considerations, and what enfor
     `AccessPolicy.allows` as `GetTask`; it fails closed (no participant, or not on the
     task → `404`). Ids carry 144 random bits.
   - *Rendering:* the route only ever serves allow-listed raster images and audio with
-    `nosniff`, `Content-Disposition: inline` with a sanitised name and a `default-src
-    'none'` CSP; the web renderer shows media only through `<img>` / `<audio>` on a blob
+    `nosniff`, `Content-Disposition: inline` with a sanitised name and a
+    `default-src 'none'` CSP; the web renderer shows media only through `<img>` / `<audio>` on a blob
     URL and refuses any type outside `ACCEPTED` (no SVG, no HTML) (abuse case 6).
 - **(c) Provider keys.** Unchanged and server-only: STT, TTS and images reuse
   `OPENAI_API_KEY` from the environment through the existing client factory (explicit

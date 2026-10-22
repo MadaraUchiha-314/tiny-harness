@@ -90,7 +90,9 @@ flowchart LR
   (`message_too_large`, limit `max_request_bytes`) WHEN their serialized form, each file
   part counted as 1 KiB, is larger than `max_request_bytes`, so the workflow inbox
   payload stays bounded.
-- The retention sweep SHALL delete the media of every task whose record it deletes and
+- The retention sweep SHALL delete the media of every task whose record it deletes (it
+  pages through the expired task records oldest first, 1000 at a time, and deletes each
+  task's media before its record, so any number of expired tasks is covered) and
   every object older than `[retention] media`, skip an object deleted under it, and
   delete a `.tmp-*` file older than an hour (a writer that died before its rename);
   `tiny-harness tasks purge` deletes the task's media too.

@@ -983,19 +983,28 @@ class Activities:
         """Delete expired records, then media (issue-38): every object of a task whose
         record this sweep deletes, and every object older than ``[retention] media``."""
         now = datetime.now(UTC)
-        media = self.engine.media_store
-        expired: list[str] = []
+        store, media = self.engine.store, self.engine.media_store
+        count, expired_tasks = 0, 0
         ttl = self.retention.get(RecordKind.TASKS)
         if media is not None and ttl is not None:
-            # Oldest first: the tasks this sweep deletes lead the page.
-            records = await self.engine.store.query(TaskRecord, Filter(limit=1000))
-            expired = [r.task_id for r in records if r.created_at < now - ttl]
-        deleted = await self.engine.store.sweep(self.retention, now)
+            # Page by page, oldest first, so no expired task is missed however many
+            # there are (critic 4): delete a task's media, then its record, so a
+            # failure part-way leaves the record for the next sweep to retry.
+            while True:
+                page = await store.query(TaskRecord, Filter(limit=1000))
+                expired = [r for r in page if r.created_at < now - ttl]
+                removed = 0
+                for record in expired:
+                    count += await media.delete_task(record.task_id)
+                    removed += int(await store.delete(TaskRecord, record.id))
+                expired_tasks += removed
+                if not removed or len(expired) < len(page) or len(page) < 1000:
+                    break
+        deleted = await store.sweep(self.retention, now)
         out = {k.value: v for k, v in deleted.items()}
+        if expired_tasks:
+            out[RecordKind.TASKS.value] = out.get(RecordKind.TASKS.value, 0) + expired_tasks
         if media is not None:
-            count = 0
-            for task_id in expired:
-                count += await media.delete_task(task_id)
             if self.media_retention is not None:
                 count += await media.sweep(now - self.media_retention)
             out["media"] = count

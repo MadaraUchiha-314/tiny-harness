@@ -61,6 +61,33 @@ async def test_the_sweep_deletes_old_media_and_the_media_of_swept_tasks(tmp_path
     assert await media.lookup("new", kept.id) == kept
 
 
+async def test_the_sweep_deletes_the_media_of_every_expired_task(tmp_path: Path) -> None:
+    """More expired tasks than one store page (1000) still lose all their media
+    (critic 4); expired tasks share one timestamp, so no page can split on it."""
+    media = FileMediaStore(EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), tmp_path)
+    h = Harness([], media_store=media)
+    now = datetime.now(UTC)
+    old = [f"old-{n:04d}" for n in range(1001)]
+    for task_id, created in [*((t, now - 40 * DAY) for t in old), ("new", now)]:
+        await h.store.put(
+            TaskRecord(
+                id=task_id,
+                context_id="ctx",
+                task_id=task_id,
+                created_at=created,
+                task=Task(id=task_id),
+                state_name="COMPLETED",
+            )
+        )
+        await media.put(task_id, b"\x89PNG", media_type="image/png")
+    activities = Activities(h.engine, retention={RecordKind.TASKS: 30 * DAY})
+
+    out = await activities.retention_sweep(SweepIn(task_id="heartbeat", correlation_id="c"))
+
+    assert out.deleted == {"tasks": 1001, "media": 1001}
+    assert sorted(p.name for p in media.root.iterdir()) == ["new"]
+
+
 async def test_without_a_media_store_the_sweep_reports_no_media(tmp_path: Path) -> None:
     h = Harness([])
     activities = Activities(h.engine, retention={RecordKind.TASKS: 30 * DAY})

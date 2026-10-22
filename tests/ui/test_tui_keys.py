@@ -49,6 +49,7 @@ from tiny_harness.harness.core import TaskRef
 from tiny_harness.interaction.tui import EventSource, HarnessApp, ScriptedClient
 from tiny_harness.interaction.tui.a2ui import SurfaceView
 from tiny_harness.interaction.tui.app import CHEVRON, Entry, SubTaskRow
+from tiny_harness.interaction.tui.client import Attachment
 from tiny_harness.interaction.tui.media import (
     NO_GRAPHICS,
     TIMES,
@@ -57,6 +58,7 @@ from tiny_harness.interaction.tui.media import (
     MediaEntry,
     SpeechEntry,
     human_size,
+    rejection_text,
 )
 from tiny_harness.interaction.tui.voice import (
     INPUT_UNAVAILABLE,
@@ -623,6 +625,16 @@ async def test_attach_rejected_by_the_server_keeps_the_chips(tmp_path: Path) -> 
         assert app.query_one("#composer", Input).value == "Is this the sofa?"
         assert not any("Is this the sofa?" in t for t in entries(app))
         assert list(app.query(AudioEntry)) == []
+
+
+def test_attach_a_codec_the_server_does_not_count_is_named() -> None:
+    """Critic 3: a recording in a codec the server cannot count (Vorbis, Opus in MP4)
+    says so, not that it holds more than audio."""
+    clip = Attachment("memo.ogg", "audio/ogg", b"x")
+    assert (
+        rejection_text(clip, "audio_codec_not_accepted", None, "fallback")
+        == "memo.ogg uses an audio codec this agent does not accept"
+    )
 
 
 async def test_attach_echo_stores_the_own_image_without_fetching_it(tmp_path: Path) -> None:

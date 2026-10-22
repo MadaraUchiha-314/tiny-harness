@@ -38,12 +38,21 @@ flowchart LR
   require the sniffed signature to equal the declared type (`type_mismatch`); read an
   image's size from its header only (for a GIF, the canvas that the logical screen and
   every frame's offset plus size cover, walked without decoding and capped at 4096
-  frames) and enforce `max_image_pixels`; count an audio
-  file's duration from its container (WAV `data` at a byte rate that matches its format,
-  every MP3 frame, the MP4 `stts` that agrees with `stsz` and is no shorter than the
-  `mdat` payload at 512 kbit/s, every Ogg page, every WebM cluster) with bounded walks,
-  require audio-only tracks, and
-  enforce `max_audio_seconds`. All-or-nothing: on any refusal nothing stays stored and
+  frames) and enforce `max_image_pixels`; require audio-only
+  tracks (`not_audio_only`) in a codec whose duration it can count
+  (`audio_codec_not_accepted`): PCM or IEEE float in WAV, MPEG audio in MP3, AAC (`mp4a`
+  with `esds` object type 0x40, 0x66 or 0x67) in MP4, Opus in Ogg and in WebM
+  (`A_OPUS`); count an audio file's duration from what a decoder plays, never from a
+  header (`mvhd`, `mdhd`, `stts`, a granule position, Info `Duration` or block
+  timecodes): WAV `data` at a byte rate that matches its format; every MP3 frame but a
+  Xing/Info/VBRI tag frame; every MP4 access unit (`stsz` and every `trun`) times the
+  frame length (1024, or 960 when the AudioSpecificConfig says so) over the core sample
+  rate, with the sample sizes no larger than the `mdat` payload; every Ogg Opus packet,
+  reassembled across pages, at its TOC duration less the pre-skip, with no granule
+  position past what the packets play; every Opus frame of every WebM block (laced or
+  not, in known- or unknown-size Clusters) at its TOC duration. Every walk is bounded
+  (a hop budget, depth 8) and stops as soon as the running duration passes
+  `max_audio_seconds`. All-or-nothing: on any refusal nothing stays stored and
   the request is answered `InvalidParams` with the code and the limit.
 - An accepted part SHALL be stored and rewritten to a `url` part
   (`<base>/media/<task_id>/<media_id>`, same type and file name) whose metadata gains

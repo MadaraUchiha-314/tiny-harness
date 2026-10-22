@@ -93,9 +93,9 @@ async def test_a_recording_keeps_its_voice_flag_and_gains_a_duration(
     (audio,) = (await intake.extract(message(part), task_id=TASK)).parts
     data = meta(audio)
     assert audio.media_type == "audio/webm"
-    assert data["voice"] is True and data["durationMs"] == 1_020
+    assert data["voice"] is True and data["durationMs"] == 2_000
     ref = await store.lookup(TASK, str(data["mediaId"]))
-    assert ref is not None and ref.voice and ref.duration_ms == 1_020
+    assert ref is not None and ref.voice and ref.duration_ms == 2_000
 
 
 async def test_a_message_without_files_is_unchanged(intake: MediaIntake, tmp_path: Path) -> None:
@@ -197,6 +197,7 @@ async def test_rejects_a_gif_frame_bigger_than_its_screen(
             "not_audio_only",
         ),
         (fx.ogg()[:-5], "audio/ogg", "audio_duration_unknown"),
+        (fx.ogg(codec="vorbis"), "audio/ogg", "audio_codec_not_accepted"),
     ],
 )
 async def test_rejects_audio_the_checks_refuse(

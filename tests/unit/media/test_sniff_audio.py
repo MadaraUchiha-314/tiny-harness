@@ -1,8 +1,11 @@
-"""Audio duration and track checks (issue-38 R1.4, NFR size limits, design critic 6).
+"""Audio duration and track checks (issue-38 R1.4, NFR size limits, design critic 6,
+critic 3).
 
-Every walker counts the duration from what is in the file, not from a header that could
-understate it, refuses a container with any non-audio track, and stops (refusing) as soon
-as the running duration passes the cap or its hop budget runs out."""
+Every walker counts the duration from what a decoder plays, not from a header that could
+understate it: WAV data at its byte rate, every MPEG frame, every AAC access unit, every
+Opus packet. It refuses a container with any non-audio track or a codec it cannot count,
+and stops (refusing) as soon as the running duration passes the cap or its hop budget
+runs out."""
 
 from __future__ import annotations
 
@@ -54,50 +57,119 @@ def test_mp3_duration_sums_every_frame() -> None:
     assert info(fx.mp3(20, id3=False), "audio/mpeg").duration_ms == 522
 
 
+def test_mp3_encoder_tag_frame_is_not_counted() -> None:
+    """A LAME "Info" or "Xing" frame carries no audio; a decoder skips it."""
+    assert info(fx.mp3(21, info=b"Info"), "audio/mpeg").duration_ms == 522
+    assert info(fx.mp3(21, info=b"Xing"), "audio/mpeg").duration_ms == 522
+
+
 def test_mp3_trailing_tag_area_is_allowed() -> None:
     id3v1 = b"TAG" + b"\x00" * 125
     assert info(fx.mp3(10, trailer=id3v1), "audio/mpeg").duration_ms == 261
 
 
-def test_mp4_duration_is_the_largest_of_its_clocks() -> None:
-    # mvhd 1 s, mdhd 1 s, stts 47 x 1024 / 48 000 = 1.0027 s
+def test_mp4_duration_counts_the_access_units() -> None:
+    # 47 AAC access units x 1024 samples / 48 000 Hz = 1.0027 s
     assert info(fx.mp4(), "audio/mp4").duration_ms == 1_002
 
 
-def test_mp4_understated_header_is_overruled_by_the_samples() -> None:
-    lying = fx.mp4(fx.mp4_track(duration=48, stts=((4_700, 1_024),)), duration=1)
-    assert info(lying, "audio/mp4").duration_ms == 100_266
+def test_mp4_frame_length_and_rate_come_from_the_decoder_config() -> None:
+    def track(asc: bytes | None, rate: int = 48_000) -> bytes:
+        entry = fx.sample_entry(rate=rate, child=fx.esds(asc=asc))
+        return fx.mp4(fx.mp4_track(entry=entry))
+
+    assert info(track(fx.ASC_LC_48K_960), "audio/mp4").duration_ms == 940  # 47 x 960
+    assert info(track(fx.ASC_LC_44K), "audio/mp4").duration_ms == 1_091  # at 44.1 kHz
+    # HE-AAC plays 2048 samples at twice the core rate: 1024 at the core rate.
+    assert info(track(fx.ASC_HE_24K), "audio/mp4").duration_ms == 2_005
+    # No decoder-specific info: the sample entry's rate, 1024-sample frames.
+    assert info(track(None, rate=16_000), "audio/mp4").duration_ms == 3_008
+
+
+def test_mp4_per_sample_sizes_are_counted() -> None:
+    raw = fx.mp4(fx.mp4_track(sizes=(10,) * 47))
+    assert info(raw, "audio/mp4").duration_ms == 1_002
 
 
 def test_fragmented_mp4_counts_the_fragments() -> None:
-    # 3 fragments x 47 samples x 1024 / 48 000 Hz = 3.008 s
+    # 3 fragments x 47 access units x 1024 / 48 000 Hz = 3.008 s
     assert info(fx.mp4_fragmented(3), "audio/mp4").duration_ms == 3_008
+    assert info(fx.mp4_fragmented(3, explicit_sizes=True), "audio/mp4").duration_ms == 3_008
 
 
-def test_ogg_opus_duration_is_the_last_granule_at_48k() -> None:
-    assert info(fx.ogg((48_000, 96_000, 120_000)), "audio/ogg").duration_ms == 2_500
+def test_ogg_opus_duration_sums_every_packet_less_the_pre_skip() -> None:
+    # 100 packets x 20 ms - 312 samples of pre-skip
+    assert info(fx.ogg(100), "audio/ogg").duration_ms == (100 * 960 - 312) * 1000 // 48_000
 
 
-def test_ogg_vorbis_uses_the_id_header_rate() -> None:
-    raw = fx.ogg((16_000, 24_000), codec="vorbis", rate=16_000)
-    assert info(raw, "audio/ogg").duration_ms == 1_500
+def test_ogg_opus_reads_each_packet_toc() -> None:
+    packets = (fx.OPUS_20MS, fx.OPUS_60MS, fx.OPUS_40MS) * 10
+    assert info(fx.ogg(packets=packets, preskip=0), "audio/ogg").duration_ms == 1_200
 
 
-def test_webm_duration_from_info() -> None:
-    assert info(fx.webm(duration_ms=2_000.0), "audio/webm").duration_ms == 2_000
+def test_ogg_packets_that_continue_on_the_next_page_count_once() -> None:
+    big = fx.OPUS_20MS + b"\x00" * 600  # three segments; split over pages of two
+    raw = fx.ogg(packets=(big,) * 30, segments_per_page=2, preskip=0)
+    assert info(raw, "audio/ogg").duration_ms == 600
 
 
-def test_webm_without_duration_walks_the_clusters() -> None:
-    raw = fx.webm(((0, (0, 20)), (1_000, (0, 480))), duration_ms=None, unknown_sizes=True)
-    assert info(raw, "audio/webm").duration_ms == 1_480
+def test_webm_duration_sums_every_opus_frame() -> None:
+    # 100 SimpleBlocks of one 20 ms frame
+    assert info(fx.webm(), "audio/webm").duration_ms == 2_000
 
 
-def test_webm_understated_duration_is_overruled_by_the_clusters() -> None:
-    raw = fx.webm(((0, (0,)), (3_000, (0, 500))), duration_ms=10.0)
-    assert info(raw, "audio/webm").duration_ms == 3_500
+def test_webm_without_duration_walks_unknown_size_clusters() -> None:
+    raw = fx.webm(duration_ms=None, unknown_sizes=True)
+    assert info(raw, "audio/webm").duration_ms == 2_000
 
 
-# --- not audio only -----------------------------------------------------------------------
+@pytest.mark.parametrize("lacing", ["xiph", "ebml", "fixed"])
+def test_webm_laced_blocks_count_every_frame(lacing: str) -> None:
+    block = fx.webm_block((fx.OPUS_20MS,) * 3, lacing=lacing)
+    raw = fx.webm((), blocks=(block,) * 10, duration_ms=None)
+    assert info(raw, "audio/webm").duration_ms == 600
+
+
+def test_webm_block_group_blocks_count() -> None:
+    group = fx.ebml(0xA0, fx.ebml(0xA1, fx.webm_block((fx.OPUS_60MS,))))
+    cluster = fx.ebml(0x1F43B675, fx.ebml(0xE7, b"\x00") + group * 5)
+    raw = fx.webm((), duration_ms=None, unknown_sizes=True) + cluster
+    assert info(raw, "audio/webm").duration_ms == 300
+
+
+# --- real encoder output ---------------------------------------------------------------------
+
+REAL = [
+    ("aac.m4a", "audio/mp4"),
+    ("aac-fragmented.m4a", "audio/mp4"),
+    ("mp3.mp3", "audio/mpeg"),
+    ("pcm.wav", "audio/wav"),
+    ("opus.ogg", "audio/ogg"),
+    ("opus.webm", "audio/webm"),
+    ("opus-live.webm", "audio/webm"),
+    ("chrome-mediarecorder.webm", "audio/webm"),
+]
+
+
+@pytest.mark.parametrize(("name", "media_type"), REAL)
+def test_real_samples_measure_what_a_decoder_plays(name: str, media_type: str) -> None:
+    """Each sample is 1.5 s as ffmpeg decodes it (``samples/make.sh``; the Chrome one was
+    recorded from the fake microphone with ``MediaRecorder``, 250 ms timeslices)."""
+    raw = (fx.SAMPLES / name).read_bytes()
+    assert sniff.detect(raw) == media_type
+    assert abs(info(raw, media_type).duration_ms - 1_500) <= 60
+    assert refused(raw, media_type, cap=1.0) == "audio_too_long"
+
+
+@pytest.mark.parametrize(
+    ("name", "media_type"), [("vorbis.ogg", "audio/ogg"), ("opus.mp4", "audio/mp4")]
+)
+def test_real_samples_in_a_codec_not_counted_are_refused(name: str, media_type: str) -> None:
+    raw = (fx.SAMPLES / name).read_bytes()
+    assert refused(raw, media_type) == "audio_codec_not_accepted"
+
+
+# --- not audio only, or a codec not counted ---------------------------------------------------
 
 
 def test_mp4_with_video_is_refused() -> None:
@@ -105,8 +177,20 @@ def test_mp4_with_video_is_refused() -> None:
     assert refused(raw, "audio/mp4") == "not_audio_only"
 
 
-def test_mp4_with_an_unsupported_codec_is_refused() -> None:
-    assert refused(fx.mp4(fx.mp4_track(codec=b"xyz1")), "audio/mp4") == "not_audio_only"
+@pytest.mark.parametrize(
+    "entry",
+    [
+        pytest.param(fx.sample_entry(b"Opus", child=fx.box(b"dOps", payload=bytes(11))), id="opus"),
+        pytest.param(fx.sample_entry(b"alac"), id="alac"),
+        pytest.param(fx.sample_entry(b"xyz1"), id="unknown"),
+        pytest.param(fx.sample_entry(child=fx.esds(object_type=0x6B)), id="mp3-in-mp4"),
+        pytest.param(fx.sample_entry(child=fx.esds(asc=fx.ASC_ELD_48K)), id="aac-eld"),
+        pytest.param(fx.sample_entry(child=b""), id="mp4a-without-esds"),
+    ],
+)
+def test_mp4_with_a_codec_other_than_aac_is_refused(entry: bytes) -> None:
+    raw = fx.mp4(fx.mp4_track(entry=entry))
+    assert refused(raw, "audio/mp4") == "audio_codec_not_accepted"
 
 
 def test_webm_with_video_is_refused() -> None:
@@ -114,17 +198,22 @@ def test_webm_with_video_is_refused() -> None:
     assert refused(raw, "audio/webm") == "not_audio_only"
 
 
-def test_webm_with_an_unsupported_codec_is_refused() -> None:
-    raw = fx.webm(tracks=(fx.webm_track(2, b"A_WHATEVER"),))
-    assert refused(raw, "audio/webm") == "not_audio_only"
+@pytest.mark.parametrize("codec", [b"A_VORBIS", b"A_WHATEVER"])
+def test_webm_with_a_codec_other_than_opus_is_refused(codec: bytes) -> None:
+    raw = fx.webm(tracks=(fx.webm_track(2, codec),))
+    assert refused(raw, "audio/webm") == "audio_codec_not_accepted"
 
 
 def test_ogg_with_a_non_audio_stream_is_refused() -> None:
     assert refused(fx.ogg(codec="\x80theora"), "audio/ogg") == "not_audio_only"
 
 
+def test_ogg_vorbis_is_refused() -> None:
+    assert refused(fx.ogg(codec="vorbis"), "audio/ogg") == "audio_codec_not_accepted"
+
+
 def test_ogg_with_two_logical_streams_is_refused() -> None:
-    assert refused(fx.ogg((48_000, 96_000), serials=(7, 8)), "audio/ogg") == "not_audio_only"
+    assert refused(fx.ogg(serials={1: 8}), "audio/ogg") == "not_audio_only"
 
 
 def test_wav_that_is_not_pcm_or_float_is_refused() -> None:
@@ -145,23 +234,36 @@ def test_long_wav_is_refused() -> None:
     assert refused(fx.wav(3.0, rate=8_000), "audio/wav", cap=2.0) == "audio_too_long"
 
 
-def test_mp4_whose_samples_pass_the_cap_is_refused() -> None:
-    raw = fx.mp4(fx.mp4_track(duration=48, stts=((6_000, 1_024),)), duration=1)
+def test_mp4_whose_headers_understate_its_access_units_is_refused() -> None:
+    """10 minutes of access units behind an mvhd, mdhd and stts that declare 1 ms."""
+    units = 600 * 48_000 // 1024
+    track = fx.mp4_track(duration=48, stts=((1, 48),), samples=units, sample_size=1)
+    raw = fx.mp4(track, duration=1, mdat=b"\x00" * units)
     assert refused(raw, "audio/mp4") == "audio_too_long"
 
 
-def test_ogg_with_a_lying_last_granule_is_refused() -> None:
-    assert refused(fx.ogg((48_000, 96_000, 1_000)), "audio/ogg") == "audio_duration_unknown"
-    assert refused(fx.ogg((48_000, 48_000 * 600)), "audio/ogg") == "audio_too_long"
+def test_fragmented_mp4_whose_fragments_pass_the_cap_is_refused() -> None:
+    raw = fx.mp4_fragmented(60, samples=100, sample_duration=1)  # 128 s of AUs
+    assert refused(raw, "audio/mp4") == "audio_too_long"
 
 
-def test_webm_cluster_past_the_cap_is_refused() -> None:
-    raw = fx.webm(((0, (0,)), (121_000, (0,))), duration_ms=None, unknown_sizes=True)
+def test_ogg_whose_granule_understates_its_packets_is_refused() -> None:
+    """10 minutes of packets; every granule position claims one second."""
+    pages = 600 * 50 // 50
+    raw = fx.ogg(600 * 50, granules=dict.fromkeys(range(pages), 48_000))
+    assert refused(raw, "audio/ogg") == "audio_too_long"
+
+
+def test_webm_whose_timecodes_and_duration_understate_its_frames_is_refused() -> None:
+    """10 minutes of 20 ms frames, every block at timecode 0, no Duration."""
+    raw = fx.webm(((0, 30_000),), step=0, duration_ms=None, unknown_sizes=True)
     assert refused(raw, "audio/webm") == "audio_too_long"
 
 
-def test_webm_info_duration_past_the_cap_is_refused() -> None:
-    assert refused(fx.webm(duration_ms=500_000.0), "audio/webm") == "audio_too_long"
+def test_webm_header_duration_does_not_count() -> None:
+    """Info's Duration is a claim: the frames are what plays."""
+    assert info(fx.webm(duration_ms=500_000.0), "audio/webm").duration_ms == 2_000
+    assert info(fx.webm(duration_ms=10.0), "audio/webm").duration_ms == 2_000
 
 
 # --- indeterminate and truncated ------------------------------------------------------------
@@ -175,9 +277,9 @@ def test_webm_info_duration_past_the_cap_is_refused() -> None:
         (fx.wav(0.0), "audio/wav"),
         (fx.wav(1.0)[:30], "audio/wav"),
         (fx.mp4()[:-10], "audio/mp4"),
-        (fx.mp4(fx.mp4_track(duration=0, stts=()), duration=0), "audio/mp4"),
+        (fx.mp4(fx.mp4_track(samples=0)), "audio/mp4"),
         (fx.ogg()[:-5], "audio/ogg"),
-        (fx.ogg(()), "audio/ogg"),
+        (fx.ogg(0), "audio/ogg"),
         (fx.webm()[:-3], "audio/webm"),
         (fx.webm((), duration_ms=None), "audio/webm"),
         (b"ID3\x04\x00\x00\x00\x00\x00\x0a" + b"\x00" * 10, "audio/mpeg"),
@@ -203,25 +305,40 @@ def test_wav_whose_rates_disagree_is_refused(raw: bytes) -> None:
     assert refused(raw, "audio/wav") == "audio_duration_unknown"
 
 
-def test_mp4_whose_sample_tables_disagree_is_refused() -> None:
-    raw = fx.mp4(fx.mp4_track(stts=((47, 1_024),), stsz=4_700))
+def test_mp4_whose_samples_are_larger_than_its_media_data_is_refused() -> None:
+    raw = fx.mp4(fx.mp4_track(samples=47, sample_size=100), mdat=b"\x00" * 1024)
     assert refused(raw, "audio/mp4") == "audio_duration_unknown"
-    assert info(fx.mp4(fx.mp4_track(stsz=47)), "audio/mp4").duration_ms == 1_002
+    fragmented = fx.mp4_fragmented(2, sample_size=100, mdat_size=10)
+    assert refused(fragmented, "audio/mp4") == "audio_duration_unknown"
 
 
-def test_mp4_with_tiny_sample_deltas_and_a_big_mdat_is_refused() -> None:
-    """Declared clocks of a few milliseconds cannot hide a payload that takes longer
-    to play even at 512 kbit/s: 128 KiB is at least 2 s."""
-    track = fx.mp4_track(timescale=48_000, duration=47, stts=((47, 1),), stsz=47)
-    raw = fx.mp4(track, duration=1, mdat=b"\x00" * (128 * 1024))
-    assert refused(raw, "audio/mp4", cap=1.0) == "audio_too_long"
-    assert info(raw, "audio/mp4", cap=CAP).duration_ms == 2_048
+@pytest.mark.parametrize(
+    "packet",
+    [
+        pytest.param(b"", id="empty"),
+        pytest.param(bytes([0xFB]), id="code-3-without-count"),
+        pytest.param(bytes([0xFB, 0x00]), id="code-3-zero-frames"),
+        pytest.param(bytes([0xFB, 0x07]), id="longer-than-120-ms"),
+    ],
+)
+def test_ogg_packet_whose_toc_cannot_be_counted_is_refused(packet: bytes) -> None:
+    raw = fx.ogg(packets=(fx.OPUS_20MS, packet, fx.OPUS_20MS))
+    assert refused(raw, "audio/ogg") == "audio_duration_unknown"
 
 
-def test_fragmented_mp4_with_a_big_mdat_is_bounded_by_its_payload() -> None:
-    raw = fx.mp4_fragmented(1, sample_duration=48)  # declares 47 ms
-    raw += fx.box(b"mdat", payload=b"\x00" * (128 * 1024))
-    assert refused(raw, "audio/mp4", cap=1.0) == "audio_too_long"
+def test_ogg_granule_past_what_the_packets_play_is_refused() -> None:
+    raw = fx.ogg(100, granules={1: 48_000 * 600})
+    assert refused(raw, "audio/ogg") == "audio_duration_unknown"
+
+
+def test_ogg_granule_going_backwards_is_refused() -> None:
+    raw = fx.ogg(150, granules={2: 1_000})
+    assert refused(raw, "audio/ogg") == "audio_duration_unknown"
+
+
+def test_webm_block_of_an_unknown_track_is_refused() -> None:
+    raw = fx.webm((), blocks=(fx.webm_block((fx.OPUS_20MS,), track=5),), duration_ms=None)
+    assert refused(raw, "audio/webm") == "audio_duration_unknown"
 
 
 def test_unaccounted_bytes_after_the_frames_are_refused() -> None:
@@ -260,8 +377,9 @@ def test_mp4_box_budget_is_finite() -> None:
 
 
 def test_ogg_page_budget_is_finite() -> None:
-    # Pages that advance no time: the walk gives up long before reading them all.
-    raw = fx.ogg((48_000,) + (-1,) * 50_000)
+    # Empty pages that advance no time: the walk gives up long before reading them all.
+    empty = b"".join(fx.ogg_page(7, n + 2, -1, b"", b"", 0) for n in range(50_000))
+    raw = fx.ogg(packets=()) + empty
     assert refused(raw, "audio/ogg", cap=1.0) == "audio_duration_unknown"
 
 

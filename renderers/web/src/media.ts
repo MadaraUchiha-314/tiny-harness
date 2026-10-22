@@ -140,6 +140,7 @@ export function rejectionText(name: string, size: number, reason: string, limit:
   }
   if (reason === "audio_too_long" && limit) return `${name} is longer than ${limit} s, the limit`;
   if (reason === "not_audio_only") return `${name} holds more than audio; only audio is accepted`;
+  if (reason === "audio_codec_not_accepted") return `${name} uses an audio codec this agent does not accept`;
   if (reason === "type_not_accepted" || reason === "type_mismatch") return `${name} is not a file this agent accepts`;
   return fallback;
 }

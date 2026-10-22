@@ -194,6 +194,8 @@ def rejection_text(attachment: Attachment, reason: str, limit: str | None, fallb
         return f"{name} is longer than {limit} s, the limit"
     if reason == "not_audio_only":
         return f"{name} holds more than audio; only audio is accepted"
+    if reason == "audio_codec_not_accepted":
+        return f"{name} uses an audio codec this agent does not accept"
     if reason in ("type_not_accepted", "type_mismatch"):
         return f"{name} is not a file this agent accepts"
     return fallback

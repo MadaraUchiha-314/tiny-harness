@@ -41,6 +41,7 @@ MediaRejectReason = Literal[
     "audio_too_long",
     "media_off",
     "not_audio_only",
+    "audio_codec_not_accepted",
     "audio_duration_unknown",
     "files_not_accepted",
 ]

@@ -118,6 +118,9 @@ describe("checkFile against the card", () => {
     expect(rejectionText("a.png", 30 * 1024 * 1024, "too_large", String(20 * 1024 * 1024), "x")).toBe(
       "a.png is 30 MB; the limit is 20 MiB per file",
     );
+    expect(rejectionText("memo.ogg", 1, "audio_codec_not_accepted", null, "x")).toBe(
+      "memo.ogg uses an audio codec this agent does not accept",
+    );
     expect(rejectionText("a.png", 1, "media_off", null, "fallback")).toBe("fallback");
   });
 });

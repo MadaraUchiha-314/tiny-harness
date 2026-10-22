@@ -49,6 +49,21 @@ The TUI needs two optional packages for voice and inline images. See
 | Images | PNG, JPEG, WebP, GIF |
 | Audio | WAV, MP3, M4A (`audio/mp4`), Ogg, WebM |
 
+Each audio type must use one codec:
+
+| Audio type | Codec |
+|------------|-------|
+| WAV | PCM or IEEE float |
+| MP3 | MPEG audio |
+| M4A (`audio/mp4`) | AAC (AAC-LC or HE-AAC) |
+| Ogg | Opus |
+| WebM | Opus |
+
+Browsers record WebM with Opus (Chrome, Firefox) or M4A with AAC (Safari), so voice
+messages from the web UI are accepted. The server refuses other codecs, for example
+Vorbis in Ogg or Opus in M4A. Convert such a file before you send it, for example with
+`ffmpeg -i <file> -c:a libopus <file>.ogg`.
+
 The server reads the start of each file. A file whose content does not match its type
 is refused. So is a file that is too large, an image with too many pixels, and audio
 that is too long. The client gets an error that names the limit. The server keeps
@@ -99,6 +114,8 @@ the screen and every frame. A frame that is larger than the screen counts.
 The longest audio file or voice message, in seconds.
 
 - **Default:** `120`
+- The server counts the duration from the audio itself: every frame or packet that a
+  player plays. A header that declares a shorter duration does not change the count.
 
 ### `max_request_media_bytes` {#max-request-media-bytes}
 

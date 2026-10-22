@@ -48,6 +48,10 @@ def test_every_entity_kind_is_a_known_construct() -> None:
         "store",
         "agent",
         "command",
+        "speech_to_text",
+        "text_to_speech",
+        "image_generator",
+        "media_store",
     }
 
 

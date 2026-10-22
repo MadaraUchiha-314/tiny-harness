@@ -1,0 +1,9 @@
+# tiny_harness.harness.media
+ACCEPTED = mappingproxy
+PCM_MEDIA_TYPE = str
+class AudioFormat(object)
+  def __init__(self, encoding: "Literal['pcm_s16le']", sample_rate: 'int', channels: 'int') -> None
+  property media_type
+model MediaAttachment(ref: <class 'tiny_harness.harness.media.models.MediaRef'>, transcript: str | None = ..., data: bytes | None = ...)
+enum MediaKind: IMAGE='image', AUDIO='audio'
+model MediaRef(id: <class 'str'>, task_id: <class 'str'>, kind: <enum 'MediaKind'>, media_type: <class 'str'>, size: <class 'int'>, name: <class 'str'> = ..., duration_ms: int | None = ..., width: int | None = ..., height: int | None = ..., voice: <class 'bool'> = ...)

@@ -30,6 +30,10 @@ class EntityKind(StrEnum):
     STORE = "store"
     AGENT = "agent"
     COMMAND = "command"
+    SPEECH_TO_TEXT = "speech_to_text"
+    TEXT_TO_SPEECH = "text_to_speech"
+    IMAGE_GENERATOR = "image_generator"
+    MEDIA_STORE = "media_store"
 
 
 class EntityRef(BaseModel, frozen=True):

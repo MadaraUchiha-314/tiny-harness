@@ -29,7 +29,7 @@ red→green run.
 
 ### Track A — media core
 
-- [ ] 1. Media models and entity kinds
+- [x] 1. Media models and entity kinds
   - `harness/media/models.py`: `MediaKind`, `ACCEPTED`, `PCM_MEDIA_TYPE`, `MediaRef`,
     `MediaAttachment` (its serialiser refuses `data`), `AudioFormat`. `EntityKind` gains
     `speech_to_text`, `text_to_speech`, `image_generator` and `media_store`.

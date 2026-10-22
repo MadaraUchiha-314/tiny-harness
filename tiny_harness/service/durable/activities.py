@@ -65,6 +65,7 @@ from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.hooks import HookPoint, Operation, Phase
 from tiny_harness.harness.media import MediaRef, guard
 from tiny_harness.harness.media.extension import MEDIA_ROUTE
+from tiny_harness.harness.media.render import unseen_images
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
@@ -479,6 +480,7 @@ class Activities:
         self.engine.correlation_id = arg.correlation_id
         task = HarnessTask(arg.task)
         self.engine.context.task = task
+        unseen = unseen_images(arg.request, self.engine.model_info(arg.request.model))
         try:
             response = await _heartbeating(
                 self.engine.invoke_llm(task, arg.request), every=self.heartbeat_every
@@ -486,7 +488,7 @@ class Activities:
             calls = await self.engine.extract(task, response)
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
-        return LLMTurn(response=response, calls=calls)
+        return LLMTurn(response=response, calls=calls, unseen=unseen)
 
     @activity.defn(name=ActivityName.INVOKE_TOOL.value)
     async def invoke_tool(self, arg: ToolIn) -> ToolOut:

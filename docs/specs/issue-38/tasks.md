@@ -131,7 +131,7 @@ red→green run.
   - _Depends on:_ 7, 11
   - _Requirements:_ R1.5, R6.3
   - _Test:_ T2 — `Scenario: media sent from one surface is fetched by another participant on the task`
-- [ ] 15. `invoke_llm` resolves media; context budget
+- [x] 15. `invoke_llm` resolves media; context budget
   - Resolve images and native audio inside the activity, and transcripts to text. The
     R1.7 note when the model takes no images. `_chars` for image, transcript and native
     audio.

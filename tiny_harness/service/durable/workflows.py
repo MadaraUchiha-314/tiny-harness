@@ -73,7 +73,7 @@ with workflow.unsafe.imports_passed_through():
     )
     from tiny_harness.harness.core.intrinsics import link_subtask
     from tiny_harness.harness.entities import EntityKind, EntityRef
-    from tiny_harness.harness.media import MediaAttachment
+    from tiny_harness.harness.media import MediaAttachment, MediaRef
     from tiny_harness.harness.models import LLMRequest, LLMResponse, MessageItem, extract_tool_calls
     from tiny_harness.harness.models import Role as MessageRole
     from tiny_harness.harness.security import Redactor
@@ -335,6 +335,7 @@ class WorkflowOperations:
             ActivityName.INVOKE_LLM, self._arg(LLMIn, task=task.proto, request=request), LLMTurn
         )
         self._turn = turn
+        await self._wf.note_unseen(turn.unseen)
         return turn.response
 
     async def extract(self, task: HarnessTask, response: LLMResponse) -> tuple[ToolCall, ...]:
@@ -403,7 +404,10 @@ class WorkflowOperations:
         await self._wf.persist(compaction)
 
     async def set_state(self, task: HarnessTask, state: int) -> HarnessTask:
-        return await self._wf.set_status(task, state)
+        updated = await self._wf.set_status(task, state)
+        if state == TaskState.TASK_STATE_WORKING:
+            await self._wf.flush_notes()  # notes held while a message waited for its turn
+        return updated
 
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
         return await self._wf.ask(task, help)
@@ -459,6 +463,8 @@ class TaskWorkflow:
         self.completion_by: str | None = None  # a participant's accepted control complete
         self.fresh_run = False
         self.intake_message: Message | None = None  # the message the last intake read
+        self.noted_media: set[str] = set()  # media the user was told the model cannot take
+        self.held_notes: list[str] = []  # status notes waiting for the next turn to start
         self.surfaces = SurfaceRegistry()
         self._redactor = Redactor()
 
@@ -979,6 +985,7 @@ class TaskWorkflow:
         self.unanswered = start.unanswered
         self.attempts = dict(start.attempt_counters)
         self.surfaces = start.surfaces
+        self.noted_media = set(start.noted_media)
         self.loaded = True
         early, self.early_child_done = self.early_child_done, []
         for done in early:  # a child's change that came before the load (issue-34)
@@ -1000,6 +1007,7 @@ class TaskWorkflow:
                 "unanswered": self.unanswered,
                 "attempt_counters": dict(self.attempts),
                 "surfaces": self.surfaces,
+                "noted_media": tuple(sorted(self.noted_media)),
             }
         )
 
@@ -1093,6 +1101,46 @@ class TaskWorkflow:
         if self.start.parent_workflow_id and not updated.is_terminal:
             await self._tell_parent(updated)  # a terminal state is told by ``_finish``
         return updated
+
+    async def status_note(self, text: str) -> None:
+        """Tell the task's surfaces ``text`` in a status update that leaves the task as it
+        is (issue-38: a media note). The task is not changed, so a turn running beside this
+        never sees it. A parked task with a message waiting for its turn holds the note
+        until that turn starts: a parked status logged now would end the new message's
+        stream before its reply."""
+        task = self.task
+        waiting = bool(self.mailbox) or self.unanswered or self.completion_by is not None
+        if task.state != TaskState.TASK_STATE_WORKING and waiting:
+            self.held_notes.append(text)
+            return
+        status = TaskStatus(state=task.state, timestamp=workflow.now())  # type: ignore[arg-type]
+        status.message.CopyFrom(
+            text_message(task, text, message_id=f"{task.id}:note:{self.next_seq}")
+        )
+        event = TaskStatusUpdateEvent(task_id=task.id, context_id=task.context_id, status=status)
+        if task.sub_state is not None and STATUS_EXT_KEY in task.proto.metadata.fields:
+            event.metadata.fields[STATUS_EXT_KEY].CopyFrom(
+                task.proto.metadata.fields[STATUS_EXT_KEY]
+            )
+        await self._deliver(self._emit(event))
+
+    async def flush_notes(self) -> None:
+        notes, self.held_notes = self.held_notes, []
+        for note in notes:
+            await self.status_note(note)
+
+    async def note_unseen(self, unseen: Sequence[MediaRef]) -> None:
+        """R1.7: tell the user, once per image, that the model was not shown it."""
+        new = [ref for ref in unseen if ref.id not in self.noted_media]
+        if not new:
+            return
+        self.noted_media.update(ref.id for ref in new)
+        names = ", ".join(ref.name or ref.id for ref in new)
+        noun = "image" if len(new) == 1 else "images"
+        verb = "was" if len(new) == 1 else "were"
+        await self.status_note(
+            f"{noun} {names} {verb} not given to the model: the model takes no image input"
+        )
 
     async def _tell_parent(self, task: HarnessTask) -> None:
         """A sub-task tells its parent each state change, so the parent's row for it stays

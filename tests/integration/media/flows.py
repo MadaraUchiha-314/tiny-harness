@@ -4,7 +4,7 @@ media store, and a message whose files went through media intake as the executor
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from a2a.types import Message, Part
@@ -12,7 +12,13 @@ from a2a.types import Role as A2ARole
 
 from tests.integration.durable.conftest import Harness
 from tiny_harness.config import MediaConfig
-from tiny_harness.harness.core import HarnessTask, Participant, Role, TaskExtensionData
+from tiny_harness.harness.core import (
+    HarnessTask,
+    Participant,
+    Role,
+    SubState,
+    TaskExtensionData,
+)
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.media import FileMediaStore, MediaIntake
 from tiny_harness.harness.models import LLMResponse, Modality, SpeechToText, TextToSpeech
@@ -103,6 +109,20 @@ def artifacts(events: Sequence[EventEntry], prefix: str) -> list[JsonObject]:
     return found
 
 
+def replied(text: str) -> Callable[[HarnessTask], bool]:
+    """The task parked awaiting the next message with ``text`` as its status message."""
+
+    def check(task: HarnessTask) -> bool:
+        parts = task.proto.status.message.parts
+        return (
+            task.sub_state is SubState.AWAITING_NEXT_MESSAGE
+            and bool(parts)
+            and parts[0].text == text
+        )
+
+    return check
+
+
 def parts_of(artifact: JsonObject) -> list[JsonObject]:
     """An artifact's parts, as ProtoJSON objects."""
     parts = artifact.get("parts")
@@ -130,6 +150,7 @@ __all__ = [
     "media_harness",
     "media_task",
     "parts_of",
+    "replied",
     "status_texts",
     "with_files",
 ]

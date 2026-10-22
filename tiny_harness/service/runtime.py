@@ -338,6 +338,7 @@ async def build_runtime(
         manager=ContextWindowManager(
             turn_budget_tokens=settings.context.turn_budget_tokens,
             compaction_fraction=settings.context.compaction_fraction,
+            audio_tokens_per_second=settings.openai.audio_tokens_per_second,
         ),
         redactor=redactor,
         catalog=catalog,

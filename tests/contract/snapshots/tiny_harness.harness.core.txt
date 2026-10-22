@@ -28,7 +28,7 @@ enum CompletionDecision: WAIT='wait', COMPLETE='complete', FAIL='fail'
 model ContextSection(name: <class 'str'>, stability: <enum 'Stability'>, never_compact: <class 'bool'>, content: <class 'str'>)
 model ContextWindow(sections: tuple[tiny_harness.harness.core.context.ContextSection, ...], tools: tuple[tiny_harness.harness.tools.models.ToolDefinition, ...], input: tuple[InputItem, ...], estimated_tokens: <class 'int'>, chars: <class 'int'>, model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ...)
 class ContextWindowManager(object)
-  def __init__(self, *, turn_budget_tokens: 'int' = 12000, compaction_fraction: 'float' = 0.75) -> 'None'
+  def __init__(self, *, turn_budget_tokens: 'int' = 12000, compaction_fraction: 'float' = 0.75, audio_tokens_per_second: 'int' = 10) -> 'None'
   def assemble(self, *, task: 'HarnessTask', state: 'AgentState', system_prompt: 'str', skills_index: 'str', tools: 'Sequence[ToolDefinition]', agents_roster: 'str' = '(no agents)') -> 'ContextWindow'
   def budget(self, model: 'LLMModelInfo') -> 'int'
   def over_budget(self, window: 'ContextWindow', model: 'LLMModelInfo') -> 'bool'

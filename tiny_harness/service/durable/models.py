@@ -185,6 +185,8 @@ class TaskStart(_Frozen):
     attempt_counters: dict[str, int] = Field(default_factory=dict)
     parent_workflow_id: str | None = None
     surfaces: SurfaceRegistry = SurfaceRegistry()
+    noted_media: tuple[str, ...] = ()
+    """Media the user was already told the model could not take (issue-38 R1.7)."""
 
 
 class InboxReceipt(_Frozen):
@@ -267,6 +269,8 @@ class LLMTurn(_Frozen):
 
     response: LLMResponse
     calls: tuple[ToolCall, ...]
+    unseen: tuple[MediaRef, ...] = ()
+    """Images the model was not shown because it takes no image input (issue-38 R1.7)."""
 
 
 class ToolIn(ActivityIn):

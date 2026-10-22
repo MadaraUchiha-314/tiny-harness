@@ -44,6 +44,7 @@ from tiny_harness.harness.hooks import (
     Phase,
 )
 from tiny_harness.harness.media import MediaStore
+from tiny_harness.harness.media.render import resolve_media
 from tiny_harness.harness.models import (
     LLM,
     LLMModelInfo,
@@ -240,7 +241,11 @@ class InProcessOperations:
         )
 
         async def body(ctx: LLMInvokedPre) -> LLMResponse:
-            return await self.llm.invoke(ctx.request)
+            # Media references become bytes here, inside the call, and nowhere else: the
+            # resolved request never reaches a hook, a record or a payload (issue-38).
+            info = ctx.model or self.model_info(ctx.request.model)
+            request = await resolve_media(ctx.request, self.media_store, info)
+            return await self.llm.invoke(request)
 
         return await self.runner.run(
             Operation.LLM_INVOKED,

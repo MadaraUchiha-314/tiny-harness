@@ -2,7 +2,9 @@
 commands from the card and, after a surface command that takes a path, the path.
 
 ``Tab`` takes the suggestion when there is one, else moves focus as before. ``Backspace``
-on an empty composer asks the app to remove the last attachment chip.
+on an empty composer asks the app to remove the last attachment chip. With ``hold_space``
+set (the agent takes voice), Space on an empty composer is not typed: it goes to the app's
+hold-to-talk detector, which types it back when it was a lone press.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
+from textual import events
 from textual.binding import Binding, BindingType
 from textual.message import Message
 from textual.suggester import Suggester
@@ -45,8 +48,21 @@ class Composer(Input):
         Binding("tab", "complete", "complete", show=False),
     ]
 
+    hold_space = False
+
     class EmptyBackspace(Message):
         """``Backspace`` with nothing to delete."""
+
+    class SpaceDown(Message):
+        """Space on an empty composer, for the hold-to-talk detector."""
+
+    async def _on_key(self, event: events.Key) -> None:
+        if self.hold_space and event.key == "space" and not self.value:
+            event.stop()
+            event.prevent_default()
+            self.post_message(self.SpaceDown())
+            return
+        await super()._on_key(event)
 
     def action_complete(self) -> None:
         if self._suggestion and self._suggestion != self.value:

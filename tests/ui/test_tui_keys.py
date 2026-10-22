@@ -6,12 +6,14 @@ from __future__ import annotations
 
 import asyncio
 import stat
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+import httpx
 from a2a.types import Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
+from google.protobuf import json_format
 from textual.pilot import Pilot
 from textual.widgets import Button, Input, ListView, Static, TabbedContent
 
@@ -24,6 +26,7 @@ from tests.ui.prototype import (
     SUB_TASK_ID,
     TASK_ID,
     agent_image,
+    agent_text,
     completed_events,
     conversation_events,
     conversation_task,
@@ -31,12 +34,15 @@ from tests.ui.prototype import (
     media_url,
     parked,
     prototype_events,
+    speech,
     status,
     sub_task,
     sub_task_events,
     transcript,
     url_part,
 )
+from tests.unit.tui.fakes import FakeInput, FakeMicrophone, FakeSpeakers
+from tests.unit.tui.fakes import tone as fx_tone
 from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.core import TaskRef
 from tiny_harness.interaction.tui import EventSource, HarnessApp, ScriptedClient
@@ -48,7 +54,16 @@ from tiny_harness.interaction.tui.media import (
     AudioEntry,
     MediaCache,
     MediaEntry,
+    SpeechEntry,
     human_size,
+)
+from tiny_harness.interaction.tui.voice import (
+    INPUT_UNAVAILABLE,
+    HoldDetector,
+    PcmPlayer,
+    Recorder,
+    VoiceUnavailable,
+    wav_pcm,
 )
 
 
@@ -698,3 +713,218 @@ async def test_attach_audio_and_another_participants_echo(tmp_path: Path) -> Non
         ]
         assert "      hear this" in entries(app)
         assert not any("agent" in t and "hear this" in t for t in entries(app))
+
+
+# --- issue-38: voice (T5): hold Space, F5, F6, Escape, with a fake clock and devices -----
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def voice_app(
+    tmp_path: Path, client: ScriptedClient, **kwargs: Any
+) -> tuple[HarnessApp, Clock, FakeMicrophone, FakeSpeakers]:
+    clock, mic, speakers = Clock(), FakeMicrophone(), FakeSpeakers()
+    app = media_app(
+        tmp_path,
+        client,
+        recorder=Recorder(open_input=mic),
+        player=PcmPlayer(open_output=speakers),
+        hold=HoldDetector(clock=clock),
+        **kwargs,
+    )
+    return app, clock, mic, speakers
+
+
+async def at(pilot: Pilot[None], clock: Clock, when: float) -> None:
+    """Move the fake clock and let the voice timer see it."""
+    clock.now = when
+    await pilot.pause(0.12)
+
+
+async def test_voice_hold_space_records_and_release_sends(tmp_path: Path) -> None:
+    """R3.2: Space held on an empty composer records; the end of the auto-repeat sends."""
+    client = media_client([*conversation_events()])
+    app, clock, mic, _ = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("space")
+        assert app.query_one("#composer", Input).value == "" and not mic.opened
+        clock.now = 0.45
+        await pilot.press("space")  # the terminal's first auto-repeat
+        await pilot.pause()
+        assert app.recording == "hold" and mic.stream.started
+        mic.stream.feed(fx_tone(2.0))
+        for when in (0.5, 0.55, 0.6):
+            clock.now = when
+            await pilot.press("space")
+        await at(pilot, clock, 0.7)
+        assert static_text(app, "#rec").startswith("● REC  ")
+        assert static_text(app, "#rec").endswith("  0:02")
+        assert static_text(app, "#hint") == "release Space to send · Esc discards"
+        await at(pilot, clock, 0.9)  # repeats stopped 0.3 s ago: released
+        await settle(app)
+        await pilot.pause()
+        assert app.recording is None and mic.stream.closed
+        assert not app.query_one("#rec").display
+        [parts] = client.sent_parts
+        [voice] = parts
+        assert (voice.media_type, voice.filename) == ("audio/wav", "voice.wav")
+        assert json_format.MessageToDict(voice.metadata) == {"voice": True, "durationMs": 2000}
+        assert [e.text for e in app.query(AudioEntry)] == [
+            f"you {CHEVRON} [voice] 0:02 · transcribing…"
+        ]
+
+
+async def test_voice_a_lone_space_is_typed(tmp_path: Path) -> None:
+    app, clock, mic, _ = voice_app(tmp_path, media_client())
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("space")
+        await at(pilot, clock, 0.7)
+        composer = app.query_one("#composer", Input)
+        assert composer.value == " " and not mic.opened
+        await pilot.press("space", "x")  # spaces inside text are never held back
+        assert composer.value == "  x"
+
+
+async def test_voice_f5_toggles_and_a_short_recording_is_discarded(tmp_path: Path) -> None:
+    """R3.3, R3.6."""
+    client = media_client()
+    app, _, mic, _ = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("f5")
+        assert app.recording == "toggle"
+        assert static_text(app, "#hint") == "F5 to send · Esc discards"
+        mic.stream.feed(fx_tone(0.2))
+        await pilot.press("f5")
+        await pilot.pause()
+        assert client.sent == [] and mic.stream.closed
+        assert "── nothing recorded (too short or silent)" in entries(app)
+
+
+async def test_voice_escape_discards_a_recording(tmp_path: Path) -> None:
+    client = media_client()
+    app, _, mic, _ = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("f5")
+        mic.stream.feed(fx_tone(1.0))
+        assert app.check_action("stop_voice", ()) is True
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.recording is None and mic.stream.closed and client.sent == []
+        assert "── recording discarded" in entries(app)
+
+
+async def test_voice_without_portaudio_names_the_extra_and_typing_works(tmp_path: Path) -> None:
+    """R3.5."""
+
+    def no_portaudio(rate: int, on_audio: Callable[[bytes], None]) -> FakeInput:
+        raise VoiceUnavailable(INPUT_UNAVAILABLE)
+
+    client = media_client([])
+    app = media_app(tmp_path, client, recorder=Recorder(open_input=no_portaudio))
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("f5")
+        await pilot.pause()
+        assert f"── {INPUT_UNAVAILABLE}" in entries(app)
+        assert app.recording is None
+        await pilot.press(*"hello", "enter")
+        await settle(app)
+        assert client.sent == ["hello"]
+
+
+async def test_voice_controls_hide_without_media(tmp_path: Path) -> None:
+    app = media_app(tmp_path, ScriptedClient())
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.press("space")
+        assert app.query_one("#composer", Input).value == " "
+        assert app.check_action("toggle_record", ()) is False
+        assert app.check_action("toggle_speak", ()) is False
+        assert "spoken replies" not in app.topbar_text()
+
+
+async def test_voice_f6_speaks_replies_and_escape_stops_them(tmp_path: Path) -> None:
+    """R4.1, R4.4: F6 sends ``speak``; the reply plays as it streams; Escape stops it."""
+    gate = asyncio.Event()
+    pcm = fx_tone(0.5, rate=24_000)
+    reply = agent_text("A rust rug warms the floor.", "a-1")
+    client = media_client(
+        [speech("Sp1"), status(TaskState.TASK_STATE_WORKING, reply), parked()],
+        files={media_url("Sp1"): [pcm, gate]},
+    )
+    app, _, _, speakers = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        await pilot.press("f6")
+        assert "🔈 spoken replies: on (F6)" in app.topbar_text()
+        await pilot.press(*"rug?", "enter")
+        for _ in range(50):
+            if speakers.played == pcm:
+                break
+            await pilot.pause(0.02)
+        assert client.spoken == [True]
+        assert speakers.played == pcm
+        [line] = app.query(SpeechEntry)
+        await pilot.pause(0.12)
+        assert line.text.startswith("🔊 speaking ") and line.text.endswith("0:00 / streaming")
+        assert static_text(app, "#hint") == "speaking… Esc stops"
+        conversation = [w for w in app.query_one("#conversation").children if w.display]
+        texts = [getattr(w, "text", "") for w in conversation]
+        assert texts.index(line.text) == texts.index(f"agent {CHEVRON} {reply.parts[0].text}") + 1
+        await pilot.press("escape")
+        gate.set()
+        await settle(app)
+        await pilot.pause()
+        assert line.text == "🔊 stopped at 0:00 · ⏎ replays"
+
+
+async def test_voice_an_interrupted_reply_offers_replay(tmp_path: Path) -> None:
+    """R4.3: a broken stream is "interrupted"; Enter on the line requests the URL again."""
+    broken = httpx.RemoteProtocolError("peer closed connection without sending complete body")
+    client = media_client(files={media_url("Sp2"): [fx_tone(0.25, rate=24_000), broken]})
+    app, _, _, _ = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        await pilot.press("f6")
+        app.feed([speech("Sp2")])
+        await settle(app)
+        await pilot.pause()
+        [line] = app.query(SpeechEntry)
+        assert line.text == "🔊 speech interrupted · ⏎ replays"
+        line.focus()
+        await pilot.press("enter")
+        await settle(app)
+        assert client.media_fetched == [media_url("Sp2"), media_url("Sp2")]
+
+
+async def test_voice_a_spoken_reply_waits_when_spoken_replies_are_off(tmp_path: Path) -> None:
+    client = media_client(files={media_url("Sp3"): [fx_tone(0.25, rate=24_000)]})
+    app, _, _, speakers = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed([*conversation_events(), speech("Sp3")])
+        await settle(app)
+        [line] = app.query(SpeechEntry)
+        assert line.text == "🔊 spoken reply · ⏎ to play" and client.media_fetched == []
+        line.focus()
+        await pilot.press("enter")
+        await settle(app)
+        await pilot.pause()
+        assert line.text == "🔊 spoken · 0:00 · ⏎ replays" and speakers.played
+
+
+async def test_voice_enter_on_a_wav_entry_plays_it(tmp_path: Path) -> None:
+    wav = fx.wav(0.5)
+    (tmp_path / "note.wav").write_bytes(wav)
+    app, _, _, speakers = voice_app(tmp_path, media_client([]))
+    async with app.run_test(size=(110, 36)) as pilot:
+        await type_line(pilot, app, f"/attach {tmp_path}/note.wav")
+        await type_line(pilot, app, "listen")
+        [entry] = app.query(AudioEntry)
+        entry.focus()
+        await pilot.press("enter")
+        await settle(app)
+        assert speakers.played == wav_pcm(wav)[0]

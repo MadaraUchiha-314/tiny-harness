@@ -31,6 +31,7 @@ from textual.widgets import Static
 from tiny_harness.harness.media import ACCEPTED, PCM_MEDIA_TYPE, MediaKind, sniff
 from tiny_harness.harness.media.extension import MEDIA_ROUTE, MediaExtensionParams
 from tiny_harness.interaction.tui.client import Attachment
+from tiny_harness.interaction.tui.voice import meter
 
 MEDIA_ID: Final = re.compile(r"[A-Za-z0-9_-]{1,128}")
 EXTENSIONS: Final[Mapping[str, str]] = MappingProxyType(
@@ -488,6 +489,54 @@ class AudioEntry(MediaLine):
         self.post_message(self.Play(self))
 
 
+class SpeechEntry(MediaLine):
+    """A spoken reply (R4): ``🔊 speaking ▂▃▅▇▅▃ 0:03 / streaming`` while it plays, then
+    spoken, stopped (``Escape``) or interrupted (the stream broke). Enter replays it: the
+    URL is requested again and the newest attempt plays from its start."""
+
+    can_focus = True
+    BINDINGS: ClassVar[list[BindingType]] = [Binding("enter", "replay", "replay", show=False)]
+    DEFAULT_CSS = """
+    SpeechEntry { margin: 0 0 1 0; }
+    SpeechEntry:focus { background: $boost; }
+    """
+
+    class Replay(Message):
+        def __init__(self, entry: SpeechEntry) -> None:
+            super().__init__()
+            self.entry = entry
+
+    def __init__(self, url: str, *, media_id: str, indent: int = 0) -> None:
+        self.url = url
+        self.media_id = media_id
+        self.state = "ready"
+        super().__init__("🔊 spoken reply · ⏎ to play", classes="agent")
+        self.styles.padding = (0, 0, 0, indent)
+
+    def streaming(self, levels: list[float], played_ms: int) -> None:
+        self.state = "streaming"
+        self.show(f"🔊 speaking {meter(levels, width=6)} {clock(played_ms)} / streaming")
+
+    def done(self, played_ms: int) -> None:
+        self.state = "done"
+        self.show(f"🔊 spoken · {clock(played_ms)} · ⏎ replays")
+
+    def stopped(self, played_ms: int) -> None:
+        self.state = "stopped"
+        self.show(f"🔊 stopped at {clock(played_ms)} · ⏎ replays")
+
+    def interrupted(self) -> None:
+        self.state = "interrupted"
+        self.show("🔊 speech interrupted · ⏎ replays")
+
+    def unavailable(self, reason: str) -> None:
+        self.state = "unavailable"
+        self.show(f"🔊 spoken reply · {reason}")
+
+    def action_replay(self) -> None:
+        self.post_message(self.Replay(self))
+
+
 __all__ = [
     "DEFAULT_CACHE_ROOT",
     "EXTENSIONS",
@@ -501,6 +550,7 @@ __all__ = [
     "MediaCacheError",
     "MediaEntry",
     "MediaLine",
+    "SpeechEntry",
     "chip_text",
     "clock",
     "complete_path",

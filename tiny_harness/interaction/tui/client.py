@@ -10,6 +10,7 @@ medium of the task from the agent's own media route with the participant header.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -308,7 +309,7 @@ class ScriptedClient:
         tasks: Sequence[Task] = (),
         follow: Mapping[str, Sequence[A2AEvent]] | None = None,
         media: MediaExtensionParams | None = None,
-        files: Mapping[str, Sequence[bytes | Exception]] | None = None,
+        files: Mapping[str, Sequence[bytes | Exception | asyncio.Event]] | None = None,
     ) -> None:
         self._scripts = [list(s) for s in scripts]
         self._media = media
@@ -372,7 +373,8 @@ class ScriptedClient:
 
     async def get_media(self, url: str) -> MediaSource:
         """``files``' chunks for ``url``; an exception among them is raised there (a
-        stream aborted midway); an unknown URL is a 404."""
+        stream aborted midway), an ``asyncio.Event`` holds the stream open until it is
+        set (a growing object); an unknown URL is a 404."""
         self.media_fetched.append(url)
         if url not in self._files:
             request = httpx.Request("GET", url)
@@ -380,9 +382,12 @@ class ScriptedClient:
                 "404 Not Found", request=request, response=httpx.Response(404, request=request)
             )
         for chunk in self._files[url]:
-            if isinstance(chunk, Exception):
+            if isinstance(chunk, asyncio.Event):
+                await chunk.wait()
+            elif isinstance(chunk, Exception):
                 raise chunk
-            yield chunk
+            else:
+                yield chunk
 
     async def close(self) -> None:
         return None

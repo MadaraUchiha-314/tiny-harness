@@ -18,6 +18,11 @@ adds a chip above the composer (``Backspace`` on an empty composer removes the l
 A message goes out with its files as ``raw`` parts; the server's echo of it gives each
 file its media URL. Images draw inline or as the line naming where they were saved;
 audio and recordings are entries that play on ``Enter`` and show their transcript.
+Where the card accepts WAV audio, holding Space on an empty composer (or ``F5``) records a
+voice turn, with the recording bar above the composer; ``F6`` asks for spoken replies
+(``speak``), which play as they stream with a speaking line; ``Escape`` stops them, and
+Enter on the line replays. Textual reports no key-release events, so a hold ends when the
+terminal's auto-repeat stops (``--hold-ms`` adjusts the repeat window).
 """
 
 from __future__ import annotations
@@ -90,12 +95,24 @@ from tiny_harness.interaction.tui.media import (
     MediaCache,
     MediaCacheError,
     MediaEntry,
+    SpeechEntry,
     chip_text,
+    clock,
     graphics_image_view,
     human_size,
     load_attachment,
     media_ids,
     rejection_text,
+)
+from tiny_harness.interaction.tui.voice import (
+    SPEECH_FORMAT,
+    HoldDetector,
+    PcmPlayer,
+    Recorder,
+    VoiceUnavailable,
+    meter,
+    once,
+    wav_pcm,
 )
 from tiny_harness.jsontypes import JsonObject
 
@@ -116,6 +133,8 @@ MESSAGE_ARTIFACT = "message:"  # the user's message as stored, with its media UR
 TRANSCRIPT_ARTIFACT = "transcript:"
 # A fetched medium larger than this is not cached (the card's per-file limit wins).
 MAX_FETCH_BYTES = 64 * 1024 * 1024
+VOICE_TICK = 0.05  # the hold detector's and the meters' timer, in seconds
+RECORDING_TYPE = "audio/wav"
 
 
 def short_id(task_id: str) -> str:
@@ -224,6 +243,8 @@ class TaskView:
     pending: list[list[Widget]] = field(default_factory=list[list[Widget]])
     audio: dict[str, AudioEntry] = field(default_factory=dict[str, AudioEntry])
     transcripts: dict[str, str] = field(default_factory=dict[str, str])
+    # A spoken reply's line arrives before the reply's text; it moves below that text.
+    unplaced: SpeechEntry | None = None
 
     def replayed(self, status: TaskStatus) -> bool:
         """``status`` is one this view already applied, or older than the newest; a
@@ -274,11 +295,15 @@ class HarnessApp(App[None]):
     SubTaskRow Label { width: 1fr; }
     #hint { height: 1; padding: 0 1; color: $text-muted; }
     #chips { height: auto; padding: 0 1; color: $text-muted; }
+    #rec { height: 1; padding: 0 1; color: $error; }
     Turn > Entry, Turn > AudioEntry, Turn > MediaEntry { margin: 0; }
     """
     # The controls refuse on a terminal task (or none): the shown binding is then disabled
     # (dimmed in the footer) and the hidden one shows why instead.
     BINDINGS: ClassVar[list[BindingType]] = [
+        Binding("f5", "toggle_record", "talk"),
+        Binding("f6", "toggle_speak", "spoken replies"),
+        Binding("escape", "stop_voice", "stop"),
         Binding("tab", "focus_next", "pane"),
         Binding("f2", "cycle_pane", "task/plan/trace"),
         Binding("ctrl+d", "complete_task", "complete", priority=True),
@@ -301,6 +326,10 @@ class HarnessApp(App[None]):
         resubscribe_delay: float = RESUBSCRIBE_DELAY,
         media_cache: MediaCache | None = None,
         image_view: ImageView | None = None,
+        recorder: Recorder | None = None,
+        player: PcmPlayer | None = None,
+        hold: HoldDetector | None = None,
+        hold_ms: int | None = None,
     ) -> None:
         super().__init__()
         self.client = client
@@ -317,6 +346,15 @@ class HarnessApp(App[None]):
         self.media_cache = media_cache or MediaCache()
         self.image_view = image_view
         self.attachments: list[Attachment] = []
+        # Voice (issue-38 R3, R4): devices are opened only when used, so a TUI without
+        # PortAudio starts and types as before.
+        self.recorder = recorder or Recorder()
+        self.player = player or PcmPlayer()
+        window = hold_ms / 1000 if hold_ms else 0.6
+        self.hold = hold or HoldDetector(repeat_window=window)
+        self.recording: str | None = None  # "hold" or "toggle" while the microphone is open
+        self.speak_replies = False
+        self.speaking: SpeechEntry | None = None
         # Surface commands this client implements; it runs one only when the card lists it
         # as a surface command (the commands come from the registry, issue-38 R1.2).
         implemented: dict[str, Callable[[str], None]] = {"attach": self._attach_file}
@@ -407,6 +445,7 @@ class HarnessApp(App[None]):
         if self.commands:
             placeholder += " · / for commands"
         yield Static("", id="chips")
+        yield Static("", id="rec", markup=False)
         yield Composer(
             placeholder=placeholder,
             id="composer",
@@ -418,9 +457,14 @@ class HarnessApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#composer", Input).focus()
+        composer = self.query_one("#composer", Composer)
+        composer.focus()
+        composer.hold_space = self.voice_input
         self.query_one("#sub-tasks-title", Static).display = False
+        self.query_one("#rec", Static).display = False
         self._show_chips()
+        if self.voice_input or self.voice_output:
+            self.set_interval(VOICE_TICK, self._voice_tick)
         if self.task_id:
             self._subscribe_once(self.task_id)
 
@@ -434,7 +478,10 @@ class HarnessApp(App[None]):
             task = "no task"
         state = self.view.label if self.view else "—"
         harness = f"tiny-harness · {self.agent} v{self.version} · A2A 1.0 · {self.url}"
-        return harness, f"{task} · {state}"
+        right = f"{task} · {state}"
+        if self.voice_output:
+            right += f"   🔈 spoken replies: {'on' if self.speak_replies else 'off'} (F6)"
+        return harness, right
 
     def topbar_text(self) -> str:
         return "   ".join(self._topbar_parts())
@@ -503,8 +550,12 @@ class HarnessApp(App[None]):
             self.trace.append("command reply")
         elif item.kind == "text":
             who = f"you {CHEVRON}" if item.role == "user" else f"agent {CHEVRON}"
-            self._mount(view, Entry(f"{who} {item.text}", classes=item.role))
+            entry = Entry(f"{who} {item.text}", classes=item.role)
+            self._mount(view, entry)
             self.trace.append(f"message · {item.role}")
+            if item.role == "agent" and view.unplaced is not None:
+                speech, view.unplaced = view.unplaced, None
+                self.query_one("#conversation", VerticalScroll).move_child(speech, after=entry)
         elif item.kind == "status":
             if view.state == TaskState.TASK_STATE_UNSPECIFIED:
                 return
@@ -682,6 +733,10 @@ class HarnessApp(App[None]):
             self.local_commands[call.name](call.arguments.strip())
             self._update_hint()
             return
+        self._submit(text)
+
+    def _submit(self, text: str) -> None:
+        """Send ``text`` with the pending attachments (a recording among them)."""
         view = self.view
         if view is not None and view.terminal:
             self._notice(f"── task is {view.state_name}; nothing sent")
@@ -756,7 +811,10 @@ class HarnessApp(App[None]):
         sent_to = self.task_id
         try:
             async for event in self.client.send(
-                user_parts(text, files), task_id=self.task_id, context_id=self.context_id
+                user_parts(text, files),
+                task_id=self.task_id,
+                context_id=self.context_id,
+                speak=self.speak_replies and self.voice_output,
             ):
                 if not self.is_running:  # shutting down: the screen is being torn down
                     return
@@ -971,7 +1029,7 @@ class HarnessApp(App[None]):
             if candidate is view:
                 task_id = key
         if item.media_type == PCM_MEDIA_TYPE:
-            self.trace.append("speech")
+            self._speech(item, view, indent)
             return
         widget: Widget
         if item.media_type in ACCEPTED and ACCEPTED[item.media_type].value == "image":
@@ -1091,7 +1149,173 @@ class HarnessApp(App[None]):
             return not self._controllable()
         if action == "parent_task":
             return True if len(self.stack) > 1 else None
+        if action == "toggle_record":
+            return self.voice_input
+        if action == "toggle_speak":
+            return self.voice_output
+        if action == "stop_voice":  # shown only while there is something to stop
+            return bool(self.recording or self.speaking is not None or self.player.playing)
         return True
+
+    # --- voice (issue-38 R3, R4) ------------------------------------------------------
+
+    @property
+    def voice_input(self) -> bool:
+        """The card accepts the WAV a recording is."""
+        return self.media_params is not None and RECORDING_TYPE in self.media_params.input
+
+    @property
+    def voice_output(self) -> bool:
+        return self.media_params is not None and self.media_params.text_to_speech
+
+    def on_composer_space_down(self, event: Composer.SpaceDown) -> None:
+        now = self.hold.clock()
+        self._hold_result(self.hold.tick(now))
+        if self.hold.key_down(now) == "start":
+            self._start_recording("hold")
+
+    def _hold_result(self, result: str | None) -> None:
+        if result == "type-space":
+            composer = self.query_one("#composer", Input)
+            if not composer.value:  # typed meanwhile: the leading space is not kept
+                composer.insert_text_at_cursor(" ")
+        elif result == "end" and self.recording == "hold":
+            self._stop_recording()
+
+    def _voice_tick(self) -> None:
+        if self.hold.active:
+            self._hold_result(self.hold.tick(self.hold.clock()))
+        if self.recording:
+            self._show_recording()
+        if self.speaking is not None and self.player.playing:
+            self.speaking.streaming(self.player.levels, self.player.played_ms)
+
+    def action_toggle_record(self) -> None:
+        if self.recording:
+            self._stop_recording()
+        else:
+            self._start_recording("toggle")
+
+    def _start_recording(self, mode: str) -> None:
+        if not self.voice_input:
+            self._notice("── voice input unavailable: this agent accepts no WAV audio")
+            return
+        try:
+            self.recorder.start()
+        except VoiceUnavailable as exc:
+            self._notice(f"── {exc}")
+            return
+        self.recording = mode
+        self._show_recording()
+        self.trace.append(f"recording · {mode}")
+        self.refresh_bindings()
+
+    def _show_recording(self) -> None:
+        bar = self.query_one("#rec", Static)
+        bar.display = True
+        levels = meter(self.recorder.levels, width=12)
+        bar.update(f"● REC  {levels}  {clock(self.recorder.duration_ms)}")
+        release = "release Space" if self.recording == "hold" else "F5"
+        self.query_one("#hint", Static).update(Text(f"{release} to send · Esc discards"))
+
+    def _stop_recording(self, *, send: bool = True) -> None:
+        self.recording = None
+        self.query_one("#rec", Static).display = False
+        self._update_hint()
+        self.refresh_bindings()
+        if not send:
+            self.recorder.discard()
+            self._notice("── recording discarded")
+            return
+        wav = self.recorder.stop()
+        if wav is None:
+            self._notice("── nothing recorded (too short or silent)")
+            return
+        voice = Attachment(
+            "voice.wav", RECORDING_TYPE, wav, duration_ms=self.recorder.duration_ms, voice=True
+        )
+        composer = self.query_one("#composer", Input)
+        text, composer.value = composer.value.strip(), ""
+        self.attachments.append(voice)
+        self.trace.append("recording · sent")
+        self._submit(text)
+
+    def action_toggle_speak(self) -> None:
+        self.speak_replies = not self.speak_replies
+        self._refresh_panes()
+
+    def action_stop_voice(self) -> None:
+        """Escape: discard a recording, or stop the reply being spoken."""
+        if self.recording:
+            self._stop_recording(send=False)
+        elif self.player.playing:
+            self.player.stop()
+
+    def _speech(self, item: RenderItem, view: TaskView, indent: int) -> None:
+        """A spoken reply: its line, played at once when spoken replies are on."""
+        media_id = str((item.data or {}).get("mediaId", ""))
+        entry = SpeechEntry(item.url, media_id=media_id, indent=indent)
+        self._mount(view, entry)
+        view.unplaced = entry
+        self.trace.append("speech")
+        if self.speak_replies and self.client is not None:
+            self.run_worker(self._play_speech(entry), exclusive=False)
+
+    def on_speech_entry_replay(self, event: SpeechEntry.Replay) -> None:
+        if self.client is not None:
+            self.run_worker(self._play_speech(event.entry), exclusive=False)
+
+    async def _play_speech(self, entry: SpeechEntry) -> None:
+        """Stream the reply's PCM to the speakers as it arrives (R4.1); a broken stream is
+        "interrupted" (R4.3) and Enter replays the URL from its start."""
+        assert self.client is not None
+        if self.player.playing:
+            self.player.stop()
+        self.speaking = entry
+        entry.streaming([], 0)
+        self.query_one("#hint", Static).update(Text("speaking… Esc stops"))
+        self.refresh_bindings()
+        try:
+            await self.player.play(self.client.get_media(entry.url), SPEECH_FORMAT)
+        except VoiceUnavailable as exc:
+            entry.unavailable(str(exc))
+        except (*CLIENT_ERRORS, OSError):
+            entry.interrupted()
+        else:
+            if self.player.stopped:
+                entry.stopped(self.player.played_ms)
+            else:
+                entry.done(self.player.played_ms)
+        finally:
+            if self.speaking is entry:
+                self.speaking = None
+            if self.is_running:
+                self._update_hint()
+                self.refresh_bindings()
+
+    def on_audio_entry_play(self, event: AudioEntry.Play) -> None:
+        self.run_worker(self._play_audio(event.entry), exclusive=False)
+
+    async def _play_audio(self, entry: AudioEntry) -> None:
+        """Enter on an audio entry: a WAV plays here; another type is saved and named."""
+        try:
+            data = entry.data
+            if data is None:
+                data = await self._download(entry.url)
+            if entry.media_type == RECORDING_TYPE:
+                pcm, fmt = wav_pcm(data)
+                await self.player.play(once(pcm), fmt)
+                return
+            if entry.ids is None:
+                raise ValueError("not stored yet")
+            path = self.media_cache.write(*entry.ids, entry.media_type, data)
+        except VoiceUnavailable as exc:
+            self._notice(f"── {exc}")
+            return
+        except (*CLIENT_ERRORS, MediaCacheError, OSError, ValueError) as exc:
+            self._notice(f"── cannot play {entry.name_text}: {exc}")
+            return
+        self._notice(f"── {entry.name_text} plays outside the TUI; saved to {path}")
 
     def action_cycle_pane(self) -> None:
         side = self.query_one("#side", TabbedContent)
@@ -1149,12 +1373,12 @@ class HarnessApp(App[None]):
         self._subscribe_once(ref.task_id)
 
 
-async def run_tui(url: str, *, participant: str) -> int:
+async def run_tui(url: str, *, participant: str, hold_ms: int | None = None) -> int:
     image_view = graphics_image_view()  # asks the terminal before Textual owns it
     client = await SdkClient.connect(url, participant=participant)
     try:
         await HarnessApp(
-            client, url=url, participant=participant, image_view=image_view
+            client, url=url, participant=participant, image_view=image_view, hold_ms=hold_ms
         ).run_async()
     finally:
         await client.close()

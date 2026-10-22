@@ -194,7 +194,7 @@ red→green run.
   - _Depends on:_ 12, 22
   - _Requirements:_ R1.2, R2.4, R6.3, R8, design critic 8
   - _Test:_ T5 — `tests/ui/test_tui_keys.py::test_attach_*`; T6 — snapshots (chips, image fallback line, rejection); T8 — `::test_tui_cache_refuses_symlink`
-- [ ] 24. TUI voice: hold, record, play
+- [x] 24. TUI voice: hold, record, play
   - `HoldDetector`, `Recorder`, `PcmPlayer`. Hold-Space, `F5`, `F6` and `Escape`, the
     recording bar, the speaking line, interrupted and Replay. The no-PortAudio reason.
     The `voice` extra.

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import importlib
 import os
 import sys
@@ -70,13 +71,17 @@ async def worker(settings: Settings) -> int:
     return 0
 
 
-async def tui(settings: Settings, *, url: str | None, participant: str) -> int:
+async def tui(
+    settings: Settings, *, url: str | None, participant: str, hold_ms: int | None = None
+) -> int:
     try:
         module = importlib.import_module("tiny_harness.interaction.tui")
     except ImportError:
         print("the TUI renderer is not installed in this build (Layer 7)", file=sys.stderr)
         return 1
     run_tui = cast(Callable[..., Awaitable[int]], module.run_tui)
+    if hold_ms is not None:  # hold-to-talk's repeat window (issue-38)
+        run_tui = functools.partial(run_tui, hold_ms=hold_ms)
     if url is not None or settings.temporal.mode == "remote":
         return await run_tui(url or str(settings.server.base_url), participant=participant)
     # Embedded mode, no URL: host the harness in this process (issue-17 R5.3). Its logs go

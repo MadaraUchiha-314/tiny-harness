@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path, PurePath
 from typing import Any, Protocol
@@ -27,14 +28,18 @@ from tests.ui.prototype import (
     media_url,
     parked,
     prototype_events,
+    speech,
     status,
     sub_task,
     sub_task_events,
+    transcript,
     url_part,
 )
+from tests.unit.tui.fakes import FakeMicrophone, FakeSpeakers, tone
 from tiny_harness.interaction.tui import EventSource, HarnessApp, ScriptedClient
 from tiny_harness.interaction.tui.client import Attachment
 from tiny_harness.interaction.tui.media import MediaCache
+from tiny_harness.interaction.tui.voice import PcmPlayer, Recorder
 
 
 class SnapCompare(Protocol):
@@ -231,3 +236,86 @@ def test_attachment_rejected(snap_compare: SnapCompare, tmp_path: Path) -> None:
 
     client = Refusing(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
     assert snap_compare(media_app(tmp_path, client), terminal_size=(110, 36), run_before=run_before)
+
+
+def voice_snapshot_app(
+    tmp_path: Path, client: ScriptedClient
+) -> tuple[HarnessApp, FakeMicrophone, FakeSpeakers]:
+    mic, speakers = FakeMicrophone(), FakeSpeakers()
+    app = HarnessApp(
+        client,
+        url=AGENT_URL,
+        participant="you",
+        media_cache=MediaCache(tmp_path, label="~/.cache/tiny-harness/media"),
+        recorder=Recorder(open_input=mic),
+        player=PcmPlayer(open_output=speakers),
+    )
+    return app, mic, speakers
+
+
+def speaking_levels(seconds: float) -> bytes:
+    """A voice-like signal: louder and quieter blocks, so the meter moves."""
+    return b"".join(tone(0.1, amplitude=a) for a in (2000, 4000, 7000, 8000) * int(seconds * 2.5))
+
+
+def test_recording_bar(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 4: recording, with the level meter and the timer above the composer."""
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
+    app, mic, _ = voice_snapshot_app(tmp_path, client)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(conversation_events())
+        await pilot.press("f5")
+        mic.stream.feed(speaking_levels(4.0), block=1600)
+        await pilot.pause(0.15)
+
+    assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)
+
+
+def test_voice_transcript(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 5: the voice turn shows its transcript; the task works on it."""
+    voice = url_part("Vo1", "audio/wav", "voice.wav", durationMs=4_000, voice=True, size=128_044)
+    events = [
+        *conversation_events(),
+        echo(voice, message_id="m-3"),
+        status(TaskState.TASK_STATE_WORKING),
+        transcript("Vo1", "Would a rug work better than a throw on the sofa in the first photo?"),
+    ]
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(events)
+        await pilot.pause()
+
+    app, _, _ = voice_snapshot_app(tmp_path, client)
+    assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)
+
+
+def test_speaking_line(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 6: the reply is spoken as it streams; Escape stops it."""
+    gate = asyncio.Event()
+    reply = agent_text(
+        "Yes — a 160 by 230 cm rug in rust under the front legs of the sofa warms the whole "
+        "floor; a throw only changes the sofa.",
+        "a-3",
+    )
+    pcm = speaking_levels(1.0)  # 16 kHz samples played as 24 kHz: 0:00 of 0:01, still streaming
+    client = ScriptedClient(
+        commands=MEDIA_COMMANDS, media=MEDIA_PARAMS, files={media_url("Sp1"): [pcm, gate]}
+    )
+    app, _, speakers = voice_snapshot_app(tmp_path, client)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(conversation_events())
+        await pilot.press("f6")
+        pilot.app.feed([speech("Sp1"), status(TaskState.TASK_STATE_WORKING, reply), parked()])
+        for _ in range(50):
+            if speakers.played == pcm:
+                break
+            await pilot.pause(0.02)
+        await pilot.pause(0.15)
+
+    assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)

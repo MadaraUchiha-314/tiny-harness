@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import io
 import wave
+from collections.abc import Callable
 
 import pytest
 
@@ -77,3 +78,28 @@ def test_without_portaudio_the_reason_names_the_extra(monkeypatch: pytest.Monkey
         recorder.start()
     assert str(VoiceUnavailable(INPUT_UNAVAILABLE)) == INPUT_UNAVAILABLE
     assert not recorder.recording
+
+
+def test_a_device_that_fails_to_start_is_closed_and_unavailable() -> None:
+    """A ``PortAudioError`` from ``start`` (the device went away, or it is busy) closes
+    the stream and is ``VoiceUnavailable`` with the reason; nothing records."""
+    from tests.unit.tui.fakes import FakeInput
+
+    class PortAudioError(Exception):
+        pass
+
+    class FailingInput(FakeInput):
+        def start(self) -> None:
+            raise PortAudioError("Error starting stream: Device unavailable [PaErrorCode -9985]")
+
+    opened: list[FailingInput] = []
+
+    def open_input(rate: int, on_audio: Callable[[bytes], None]) -> FailingInput:
+        stream = FailingInput(rate, on_audio)
+        opened.append(stream)
+        return stream
+
+    recorder = Recorder(open_input=open_input)
+    with pytest.raises(VoiceUnavailable, match="Device unavailable"):
+        recorder.start()
+    assert opened[0].closed and not recorder.recording

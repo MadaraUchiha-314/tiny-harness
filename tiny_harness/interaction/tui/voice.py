@@ -13,6 +13,7 @@ here needs a microphone or speakers; the default factories use ``sounddevice``
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import importlib
 import io
 import math
@@ -203,7 +204,12 @@ class Recorder:
             return
         self._chunks, self._size, self.level, self.levels = [], 0, 0.0, []
         stream = self.open_input(self.rate, self._on_audio)
-        stream.start()
+        try:
+            stream.start()
+        except Exception as exc:  # PortAudioError: the device went away, or it is busy
+            with contextlib.suppress(Exception):  # the start's error is the one to report
+                stream.close()
+            raise VoiceUnavailable(f"voice input unavailable: {exc}") from exc
         self._stream = stream
 
     def _on_audio(self, data: bytes) -> None:

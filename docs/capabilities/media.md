@@ -60,6 +60,9 @@ flowchart LR
   `read_stream` follows one generation, ends on `done`, and raises `MediaFailed` on
   `failed` or `MediaInterrupted` when a newer generation starts or nothing grows for
   `idle_timeout`.
+- The `transcribe` activity SHALL scrub the transcript with the runner's redactor
+  (configured secrets and credential shapes) before it returns, so a secret spoken
+  aloud never reaches workflow history.
 - `MediaAttachment.data` SHALL be set only inside an activity; serialising an attachment
   with `data` raises, so no media bytes reach workflow history or an activity payload.
 - `capabilities(model_info, stt, tts, image_generator, config)` SHALL compute the

@@ -551,7 +551,9 @@ class Activities:
             return TranscribeOut(mode="failed")
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
-        return TranscribeOut(mode="transcribed", text=transcript.text)
+        # Scrubbed here, so a secret spoken aloud never reaches Temporal history (critic 2).
+        text = engine.runner.redactor.scrub_text(transcript.text)
+        return TranscribeOut(mode="transcribed", text=text)
 
     # --- spoken replies (issue-38 R4) -------------------------------------------------
 

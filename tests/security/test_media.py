@@ -58,6 +58,7 @@ from tiny_harness.harness.agents import RemoteAgent
 from tiny_harness.harness.core import HarnessTask, Participant, TaskExtensionData
 from tiny_harness.harness.core import Role as TaskRole
 from tiny_harness.harness.entities import EntityKind, EntityRef, RegistryEntry
+from tiny_harness.harness.hooks.runner import OperationRunner
 from tiny_harness.harness.media import PCM_MEDIA_TYPE, FileMediaStore, MediaIntake, spans
 from tiny_harness.harness.models import (
     FakeImageGenerator,
@@ -65,17 +66,23 @@ from tiny_harness.harness.models import (
     FakeTextToSpeech,
     MessageItem,
     ToolResultItem,
+    Transcript,
     scripted,
 )
 from tiny_harness.harness.models import Role as MessageRole
-from tiny_harness.harness.security import Redactor
+from tiny_harness.harness.security import MASK, Redactor
 from tiny_harness.harness.tools import ToolCall
 from tiny_harness.service.a2a import HarnessExecutor, PollingEventBridge, create_app
 from tiny_harness.service.a2a.app import DeferredRequestHandler
 from tiny_harness.service.a2a.media_routes import MediaSource
 from tiny_harness.service.a2a.task_store import PARTICIPANT_STATE_KEY
 from tiny_harness.service.durable.activities import Activities
-from tiny_harness.service.durable.models import PushIn, RemoteTaskIn, WorkflowConfig
+from tiny_harness.service.durable.models import (
+    PushIn,
+    RemoteTaskIn,
+    TranscribeIn,
+    WorkflowConfig,
+)
 from tiny_harness.service.durable.workflows import TaskWorkflow
 from tiny_harness.service.o11y import JsonFormatter, O11yExecutor, configure_tracing
 
@@ -618,3 +625,24 @@ def test_tui_cache_refuses_symlink(tmp_path: Path) -> None:
     written = cache.write("task3", "img3", "image/png", fx.png())
     assert written == root / "task3" / "img3.png" and written.read_bytes() == fx.png()
     assert [p.name for p in (root / "task3").iterdir()] == ["img3.png"]  # no temp left
+
+
+async def test_transcript_redacted_before_history(tmp_path: Path) -> None:
+    """A transcript is scrubbed inside the activity, before it reaches Temporal history
+    (critic 2): a configured secret and a credential shape are masked."""
+    store = FileMediaStore(EntityRef(kind=EntityKind.MEDIA_STORE, id="file"), tmp_path)
+    ref = await store.put("t-1", fx.wav(0.5), media_type="audio/wav", name="q.wav")
+    spoken = "my password is hunter2-orchid and the key is sk-abcdefghijklmnop"
+    stt = FakeSpeechToText([Transcript(text=spoken, duration_ms=500)])
+    h = Harness([], media_store=store, speech_to_text=stt)
+    h.engine.runner = OperationRunner(h.hooks, Redactor(["hunter2-orchid"]))
+    ext = TaskExtensionData(
+        name="n",
+        goal="g",
+        participants=(Participant(id="alice", kind="human", role=TaskRole.REPORTER),),
+    )
+    task = HarnessTask.new("t-1", "ctx-1", ext)
+    arg = TranscribeIn(task_id="t-1", correlation_id="c", task=task.proto, ref=ref)
+    out = await ActivityEnvironment().run(Activities(h.engine).transcribe, arg)
+    assert out.mode == "transcribed"
+    assert out.text == f"my password is {MASK} and the key is {MASK}"

@@ -246,4 +246,25 @@ describe("MicButton", () => {
     expect(screen.getByTestId("mic-live")).toHaveTextContent("Voice input unavailable: MediaRecorder: unsupported MIME type");
     expect(onRecording).not.toHaveBeenCalledWith(expect.anything());
   });
+  it("discards a recorder that cannot start, so its meter's audio context closes", async () => {
+    const mic = deferredMic();
+    const discard = vi.fn();
+    const createRecorder = vi.fn(
+      (): RecorderLike => ({
+        level: 0,
+        elapsedMs: 0,
+        start() {
+          throw new Error("MediaRecorder: unsupported MIME type");
+        },
+        stop: async () => null,
+        discard,
+        sample() {},
+      }),
+    );
+    render(<MicButton onRecorded={vi.fn()} getUserMedia={mic.getUserMedia} createRecorder={createRecorder} />);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Hold to talk" }));
+    await mic.grant();
+    expect(discard).toHaveBeenCalledTimes(1);
+    expect(mic.tracks.every((t) => t.stopped)).toBe(true);
+  });
 });

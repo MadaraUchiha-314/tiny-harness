@@ -109,12 +109,18 @@ export function MicButton(props: {
       stopTracks(stream); // a late grant: released, toggled off or unmounted meanwhile
       return;
     }
-    let live: RecorderLike;
+    let live: RecorderLike | undefined;
     try {
       live = createRecorder(stream);
       live.onCap = () => void finish(true);
       live.start();
     } catch (error) {
+      // A recorder made but not started still holds its meter's audio context (2.7).
+      try {
+        live?.discard();
+      } catch {
+        // the tracks are stopped below either way
+      }
       stopTracks(stream); // the recorder failed: the microphone must not stay live
       want.current = false;
       generation.current += 1;

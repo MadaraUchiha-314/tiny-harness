@@ -442,6 +442,20 @@ media = "P30D"                         # NEW
   A `MediaRejected` answers the request with an A2A `InvalidParams` error carrying the code
   and the limit (no task is started or updated). The redactor therefore never scans base64,
   and the workflow mailbox — Temporal history — receives only URLs.
+- **Every other ingress** (design critic 5). One function,
+  `media.intake.guard(message, *, allow: Literal["extract", "refuse", "drop"])`, runs
+  before redaction on every path that turns an external A2A message into workflow input,
+  and a unit test enumerates those paths so a new one cannot skip it:
+
+  | Ingress | Mode | File parts become |
+  |---------|------|-------------------|
+  | `HarnessExecutor.execute` (`SendMessage`, new turn) | `extract` | stored, rewritten to media URLs |
+  | `HarnessExecutor.control` (complete, cancel and other controls) | `refuse` | `InvalidParams` "controls carry no files" |
+  | push receive `/a2a/push/{task_id}` and remote-agent follow results | `drop` | removed, with a note "[remote agent sent a <type> file; files from remote agents are not supported]" |
+  | channel deliveries | `drop` | removed, with the same note |
+
+  Remote-agent media is out of scope; dropping it keeps the 64 KiB push cap and the
+  history rule intact.
 - **Media route** `GET /media/{task_id}/{media_id}` (`media_routes.py`), mounted with the
   harness's own routes (and under `RouteOptions.media: bool = True`):
   1. resolve the participant exactly as the A2A routes do (the `X-Participant-Id` header or
@@ -731,8 +745,9 @@ follow the message-text rule: they reach the trace only where message text alrea
 Each trust boundary of the requirements' Security considerations, and what enforces it:
 
 - **(a) File parts → media store → provider.**
-  - *Input validation:* `MediaIntake` is the only ingress for media and runs before
-    anything else touches the message; it enforces the allow-list, the declared-vs-sniffed
+  - *Input validation:* `media.intake.guard` runs on **every** message ingress (the table
+    under *A2A surface*) before anything else touches the message: only `execute`
+    accepts media, through `MediaIntake`; it enforces the allow-list, the declared-vs-sniffed
     type match, per-file and per-message size, image pixel count from the header (no
     decode) and WAV duration. `LimitsMiddleware` caps the body before parsing.
   - *Injection surfaces:* **path** — ids are validated against `[A-Za-z0-9_-]{1,128}` and

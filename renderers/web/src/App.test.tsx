@@ -1,11 +1,12 @@
 import { Role, userMessage } from "./a2a";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
 import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
 import { replay } from "./model";
+import { PcmStreamPlayer } from "./voice";
 
 describe("the web renderer", () => {
   it("folds the prototype's events into the view", () => {
@@ -232,6 +233,29 @@ describe("voice controls against the harness (issue-38 fixture client)", () => {
       fireEvent.click(screen.getByRole("button", { name: "Send" }));
     });
     expect(sent).toEqual([true, false]);
+  });
+
+  it("stops the reply being spoken when a new message is sent (R4.3)", async () => {
+    const client = new MediaFixtureClient();
+    const order: string[] = [];
+    const stop = vi.spyOn(PcmStreamPlayer.prototype, "stop").mockImplementation(() => {
+      order.push("stop");
+    });
+    const original = client.sendMessage.bind(client);
+    client.sendMessage = (message) => {
+      order.push("send");
+      return original(message);
+    };
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    await screen.findByRole("button", { name: "Spoken replies" });
+    order.length = 0;
+    const box = screen.getByRole("combobox", { name: "Message or /command" });
+    fireEvent.change(box, { target: { value: "and the lamp?" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    expect(order.slice(0, 2)).toEqual(["stop", "send"]);
+    stop.mockRestore();
   });
 
   it("shows no mic or speaker for a harness without the media extension", async () => {

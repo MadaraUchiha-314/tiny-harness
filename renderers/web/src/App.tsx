@@ -370,6 +370,7 @@ export function App(props: { config: AppConfig }): JSX.Element {
    */
   const send = useCallback(
     async (text: string, files: Attachment[] = []): Promise<boolean> => {
+      player.current.stop(); // R4.3: a new message interrupts the reply being spoken
       const fileParts: Part[] = [];
       const shown: Part[] = [];
       for (const file of files) {

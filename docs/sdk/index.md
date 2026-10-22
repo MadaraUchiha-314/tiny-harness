@@ -167,3 +167,5 @@ async for event in client.send_message(SendMessageRequest(message=done)):
 - [Deploy](deploy): run the agent for real users.
 - [Example: support agent](example): a complete agent with tools, a skill and a web
   user interface.
+- [Example: images and voice](example-multimodal): an agent that looks at photos,
+  listens, speaks and makes images.

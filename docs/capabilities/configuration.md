@@ -99,11 +99,22 @@ How a deployment is described and how the processes come up. Lives in
 - The demo configuration SHALL document the keyring lookups
   `secret-tool lookup service temporal project tiny-harness` and
   `secret-tool lookup service openai project tiny-harness`.
+- `[media]` (`max_file_bytes`, `max_message_bytes`, `max_image_pixels`,
+  `max_audio_seconds`, `dir`, `speech_drain`) SHALL turn media on; absent, the instance
+  is text-only. `[speech_to_text]`, `[text_to_speech]` and `[image_generation]`
+  (`provider = "openai"`, `model`, and `voice` / `instructions` / `size`) SHALL each
+  require `[media]` and reuse `[openai]`'s key and `base_url`; `max_file_bytes` above
+  `max_message_bytes` is a config error. `[openai] input_modalities` (must include
+  `text`) and `audio_tokens_per_second`, and `[retention] media`, are new keys.
+- `Harness` and `build_runtime` SHALL take `speech_to_text=`, `text_to_speech=`,
+  `image_generator=` and `media_store=` instances that replace what the sections would
+  build, as `llm=` replaces `[openai]`; `tiny-harness tui` SHALL take `--hold-ms`.
 
 ## Design
 
 [design.md § Configuration](../specs/issue-3/design.md#configuration-r21--configpy),
 [deploy guide](../sdk/deploy), [configuration](../configuration/).
+[issue-38 design.md § Configuration](../specs/issue-38/design.md#components-interfaces).
 
 ## History
 
@@ -118,3 +129,4 @@ How a deployment is described and how the processes come up. Lives in
 | issue-34 | `[card]`: this agent's own card name, description, version and skills | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-34 (R7) | `[server] delegators`; the agent id `self` reserved | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-36 | `[agent]`; the task queue defaults to the agent id; `Harness`, `harnesses_lifespan`, `RouteOptions` exported; the `fastapi` extra | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |
+| issue-38 | `[media]`, `[speech_to_text]`, `[text_to_speech]`, `[image_generation]`, `[openai] input_modalities` and `audio_tokens_per_second`, `[retention] media`; the media seams on `Harness` and `build_runtime`; `tui --hold-ms`; the `voice` and `images` extras | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

@@ -48,11 +48,27 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
   absent (`OPENAI_API_KEY` and `TEMPORAL_API_KEY`; `OPENAI_API_KEY` alone for the
   embedded demo); each run uses its own task queue, port and state
   directory, and writes redacted evidence to `TINY_HARNESS_E2E_EVIDENCE` when set.
+- `python -m examples.multimodal [CONFIG]` SHALL start the multi-modal demo on
+  `127.0.0.1:8080` with an embedded Temporal, the web renderer under `/ui` and OpenAI for
+  the model (`gpt-6.1-sol`), speech-to-text (`gpt-4o-mini-transcribe`), text-to-speech
+  (`gpt-4o-mini-tts`, voice `coral`) and images (`gpt-image-2`), and print how to start
+  the TUI and the `tiny-harness[voice,images]` extras. Its plugin's prompt makes the agent
+  an interior design helper that calls `generate_image` whenever it is asked to see a
+  change. Its fixtures (`room.jpg`, `question.wav`, `followup.wav`) are synthetic, made by
+  OpenAI with `fixtures/generate.py`.
+- `tests/e2e/test_demo_multimodal.py` SHALL drive that demo through the A2A client: the
+  photo with a question, the audio file, a voice turn with `speak=true` whose speech
+  stream is read through the media route and timed from the reply's final status, the
+  generated image fetched and checked as a PNG, and a turn that refers to the first photo
+  and generates another image. It asserts the card's modes, the states, the transcripts,
+  a non-empty even-length PCM stream and no secret, media bytes or base64 in the trace or
+  log, and skips naming `OPENAI_API_KEY` when it is absent.
 
 ## Design
 
 [design.md § Testing strategy](../specs/issue-3/design.md#testing-strategy),
 [testing-plan.md](../specs/issue-3/testing-plan.md) rows T4 and T12.
+[issue-38 design.md § Demo](../specs/issue-38/design.md#components-interfaces), [testing-plan.md](../specs/issue-38/testing-plan.md) rows T4 and T7.
 
 ## History
 
@@ -61,3 +77,4 @@ extension) with a `config.toml`, started by `python -m examples.demo`. The
 | issue-3 | The demo plugin, configuration and e2e tests (Layer 9) | [spec](../specs/issue-3/), [issue #3](https://github.com/MadaraUchiha-314/tiny-harness/issues/3) |
 | issue-17 | `config.embedded.toml`, the optional config path, the embedded-mode e2e | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18) |
 | issue-19 | `config.ollama.toml`, the offline Ollama e2e | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22) |
+| issue-38 | `examples/multimodal` and its e2e test with the first-chunk latency | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

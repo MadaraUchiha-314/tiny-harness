@@ -77,12 +77,51 @@ renderer (React 19 on the official A2UI renderer) are the two implementations. L
   closes). `?fixture=controls` runs it against a scripted harness for the visual tests.
 - WHEN two surfaces are connected to one task THEN both SHALL receive the same updates,
   completion and cancellation included.
+- `Modality` SHALL include `image` and `audio`; a `RenderItem` of kind `media` carries the
+  `url` and `name` of an image or audio file. A renderer that cannot show a received
+  media type SHALL show the placeholder naming it.
+- `/attach <path>` SHALL be a surface command (`CommandSpec.runs_on = "surface"`, listed
+  in the card with `runsOn`): the TUI runs it locally, the web renderer opens its file
+  picker, and the server answers a client that sends it anyway with "this client cannot
+  attach files". Every control that needs a media service SHALL be hidden or disabled
+  unless the card's media extension says the service is on.
+- The TUI SHALL attach files with `/attach` as chips above the composer (`Backspace` on an
+  empty composer removes the last), checked against the card's types and limits, and send
+  them as `raw` file parts. It SHALL show an image inline with `textual-image` WHERE that
+  extra is installed and the terminal answers a kitty-graphics or sixel query, else one
+  line with the name, the size and the path of a copy under
+  `~/.cache/tiny-harness/media/<task_id>/<media_id><ext>` (directory `0700`, written with
+  `O_NOFOLLOW | O_EXCL` and `os.replace`, ids validated). Audio entries show their
+  transcript and play on `Enter`.
+- The TUI SHALL record a voice turn while Space is held on an empty composer (a
+  `HoldDetector` over auto-repeat: a second Space within `--hold-ms`, default 600 ms,
+  starts the hold, a 0.25 s gap ends it; a lone Space types a space), and with `F5` as a
+  toggle; `Escape` discards a recording or stops a spoken reply; `F6` turns spoken replies
+  on (off at start), sent as the message's `speak`. The `Recorder` captures 16 kHz mono
+  WAV through `sounddevice` and discards a recording shorter than 0.3 s or silent; the
+  `PcmPlayer` plays the speech stream as it arrives, with a speaking line that `Enter`
+  replays. WITHOUT the `voice` extra, PortAudio or a device the TUI SHALL say "voice
+  input unavailable: install tiny-harness[voice] (PortAudio)" (or "voice output …") and
+  typing SHALL keep working.
+- The web renderer SHALL attach files by a paperclip picker, by drop on the composer and
+  by pasting an image, show them as removable chips, and send them as `raw` file parts.
+  `MediaItem` SHALL fetch media with `X-Participant-Id` into a blob URL and render only
+  accepted raster images and audio through `<img>` / `<audio>` (never SVG, never
+  `innerHTML`); images fit the column and open full size in a dialog.
+- The web `MicButton` SHALL record while held (pointer) and toggle with `Space` or
+  `Enter`, with `aria-pressed`, the name "Hold to talk" and a live region announcing
+  "Recording", "Sent" and "Nothing recorded"; a generation counter stops every track of a
+  microphone stream granted after the user let go. The speaker toggle (on by default)
+  sets `speak`; `PcmStreamPlayer` schedules the PCM stream on Web Audio as it arrives,
+  and the speech line offers Stop while it plays and Replay after it ends, stops or is
+  interrupted. Starting a recording stops the reply being spoken.
 
 ## Design
 
 [design.md § Surfaces and renderers](../specs/issue-3/design.md#surfaces-and-renderers-r20--interaction-rendererswebb),
 [design.md § UI/UX design](../specs/issue-3/design.md#uiux-design) and the prototypes
 under `docs/specs/issue-3/design/`.
+[issue-38 design.md § TUI](../specs/issue-38/design.md#components-interfaces), [§ Web renderer](../specs/issue-38/design.md#components-interfaces) and the prototypes under `docs/specs/issue-38/design/`.
 
 ## History
 
@@ -91,3 +130,4 @@ under `docs/specs/issue-3/design/`.
 | issue-3 | A2UI 0.9.1, surface and renderer entities, the Textual TUI (Layer 7); the web renderer (Layer 8) | [spec](../specs/issue-3/), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13), [PR #14](https://github.com/MadaraUchiha-314/tiny-harness/pull/14) |
 | issue-20 | The TUI asserts a participant (`--participant`, else the OS user name) so it can send at all | [spec](../specs/issue-20/), [PR #21](https://github.com/MadaraUchiha-314/tiny-harness/pull/21) |
 | issue-25 | TUI and web Complete/Cancel controls, the sub-state in the top bar and badge, `/` command completion, sub-task open and back; bare `tiny-harness` opens the TUI | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
+| issue-38 | Image and audio modalities; `/attach` as a surface command; attachments, inline media, hold-to-talk and spoken replies in the TUI (`voice` and `images` extras) and the web renderer | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

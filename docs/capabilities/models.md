@@ -63,10 +63,38 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
 - Provider credentials SHALL come only from `OPENAI_API_KEY` (optional with a
   `base_url`) and `ANTHROPIC_API_KEY`.
 - `FakeLLM` SHALL be the scripted implementation tests use.
+- `MessageItem.media` SHALL carry the turn's `MediaAttachment`s as references. Inside the
+  `invoke_llm` activity an attachment is resolved, and each adapter maps a resolved one:
+  an image as `input_image` with a data URL and `detail="auto"` (Responses), an
+  `image_url` part (Chat Completions) or a base64 `image` block (Anthropic); native audio
+  as `input_audio` with `wav` or `mp3` (Chat Completions only); a transcribed audio file
+  as the text `[transcript of <name>] …`. A message with no media SHALL keep its
+  plain-string content, so a text-only request is byte-identical to 0.8.0. An attachment
+  that reaches an adapter unresolved SHALL raise `ProviderError("media not resolved")`.
+- `LLMModelInfo` SHALL state `input_modalities` and `output_modalities` (`text`, `image`,
+  `audio`) and `audio_input_formats`. `input_modalities` comes from `[openai]
+  input_modalities` (default `["text", "image"]` with Responses, `["text"]` with Chat
+  Completions); `audio_input_formats` is the adapter's own (`audio/wav`, `audio/mpeg` for
+  Chat Completions, none otherwise). The harness decides image delivery, native audio
+  and transcription from these fields, never from the provider's name.
+- The SDK SHALL define `SpeechToText` (`transcribe(audio, *, media_type, name, language)
+  -> Transcript`), `TextToSpeech` (`stream(text, *, voice, instructions)` yielding chunks
+  in its `AudioFormat`) and `ImageGenerator` (`generate(prompt, *, size) ->
+  GeneratedImage`) as entities with a `SpeechModelInfo` / `ImageModelInfo` (provider,
+  model, endpoint), each with a scripted fake (`FakeSpeechToText`, `FakeTextToSpeech`,
+  `FakeImageGenerator`).
+- `OpenAISpeechToText` (`audio.transcriptions`), `OpenAITextToSpeech` (`audio.speech`
+  streamed as 16-bit mono PCM at 24 kHz) and `OpenAIImageGenerator` (`images.generate`,
+  PNG from `b64_json`) SHALL use the LLM's client factory — `max_retries=0`, the
+  configured `base_url` as the only host, redirects refused — and the same error mapping
+  (429, 5xx, timeouts → `RetryableProviderError`; others → `ProviderError`). They are
+  built from `[speech_to_text]`, `[text_to_speech]` and `[image_generation]`; each
+  section absent means that entity is absent.
 
 ## Design
 
 [design.md § Models](../specs/issue-3/design.md#models-r18--harnessmodels).
+[issue-38 design.md § LLM types](../specs/issue-38/design.md#components-interfaces), [§ Speech and image interfaces](../specs/issue-38/design.md#components-interfaces).
 
 ## History
 
@@ -75,3 +103,4 @@ clients' own retries are off. Lives in `tiny_harness/harness/models/`.
 | issue-3 | LLM and System One entities, OpenAI and Anthropic adapters, the fake (Layer 3); provider-safe wire names (Layer 9) | [spec](../specs/issue-3/), [PR #9](https://github.com/MadaraUchiha-314/tiny-harness/pull/9) |
 | issue-19 | `base_url`, the Chat Completions wire API, the keyless client, `context_window_tokens`, parse failures as `ProviderError`, endpoint observability | [spec](../specs/issue-19/), [PR #22](https://github.com/MadaraUchiha-314/tiny-harness/pull/22), [decision-006](../decisions/decision-006.md) |
 | issue-25 | Per-request `model` and `reasoning_effort` on `LLMRequest`, the provider effort mappings, `ModelCatalog` and the per-model context window, for `/model` and `/effort` | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
+| issue-38 | Media content parts in `LLMRequest` and each adapter's mapping; `input_modalities`, `output_modalities`, `audio_input_formats`; the `SpeechToText`, `TextToSpeech` and `ImageGenerator` entities, their OpenAI implementations and fakes | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39), [decision-010](../decisions/decision-010.md) |

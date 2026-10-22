@@ -27,6 +27,7 @@ The path of the database file.
 - Other files go in the same folder:
   - `temporal.sqlite3`: the data of embedded Temporal.
   - `plugin-data/`: the private data of each plugin.
+  - `media/`: the images and audio of each task, when [`[media]`](media) is set.
   - `tiny-harness.log`: the log, when the TUI runs the agent in its own process.
 - A new file is readable only by its owner. Keep the folder and its backups private.
   The file holds the conversations.
@@ -46,6 +47,9 @@ How long tiny-harness keeps each kind of data. Every
 | `inbox_audit` | The record of each incoming message | `"P30D"` |
 | `compactions` | The summaries of long conversations | `"P30D"` |
 | `push_configs` | The addresses and tokens that clients gave for updates | `"P30D"` |
+| `media` | The images and audio of each task, including spoken replies | `"P30D"` |
+
+When tiny-harness deletes a task, it also deletes the images and audio of that task.
 
 To delete one task now, run `tiny-harness tasks purge <task-id>`.
 

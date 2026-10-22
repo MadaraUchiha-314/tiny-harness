@@ -81,6 +81,23 @@ reuses them. Lives in `tiny_harness/service/durable/`.
   same agent id, namespace and queue, or store file before it connects
   (`HarnessConflictError`). Each worker sets the agent id on every activity's log lines
   (`AgentContextInterceptor`).
+- The intake activity SHALL return the message's media (`IntakeOut.media`): each `url`
+  part whose path is `/media/<this task>/<id>` and whose id the store knows; anything
+  else is ignored with a WARNING. History holds `MediaRef`s only; `invoke_llm` resolves
+  them to bytes inside the activity, and an image the model cannot see becomes the text
+  `[image <name> not shown: the model takes no image input]` with one status note.
+- The `transcribe` activity SHALL run for each audio attachment of a new message unless
+  the model takes that format natively; the transcript is kept on the attachment and
+  emitted as the `transcript:<mediaId>` artifact. Without `[speech_to_text]` the turn
+  continues on its text with a status note.
+- WHEN the message a reply answers has `speak: true` and text-to-speech is configured THEN
+  the workflow SHALL await `open_speech` (which creates the growing object), emit the
+  `speech:<mediaId>` artifact before the reply's final status, and run `speak` as a
+  tracked speech job beside the mailbox. Each attempt writes a new generation; a failure
+  closes the object `failed` and emits "speech unavailable". Continue-as-new and
+  completion SHALL wait for running speech jobs up to `[media] speech_drain`, then cancel
+  them with the same note; `cancel` stops them at once. Media survives a worker restart
+  (it lives in the store, not in history).
 
 ## Design
 
@@ -88,6 +105,7 @@ reuses them. Lives in `tiny_harness/service/durable/`.
 [design.md § A request's life](../specs/issue-3/design.md#a-requests-life),
 [decision-002](../decisions/decision-002.md),
 [issue-17 design.md](../specs/issue-17/design.md), [decision-005](../decisions/decision-005.md).
+[issue-38 design.md § Workflow and activities](../specs/issue-38/design.md#components-interfaces).
 
 ## History
 
@@ -96,3 +114,4 @@ reuses them. Lives in `tiny_harness/service/durable/`.
 | issue-3 | Workflows, activities, client, worker, child and remote workflows, heartbeat (Layer 5); `emit_ui` and surfaces in the workflow (Layer 7); opt-in search attributes (Layer 9) | [spec](../specs/issue-3/), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11), [decision-002](../decisions/decision-002.md) |
 | issue-17 | `temporal_client` and embedded Temporal mode: the dev server as an owned child process, loopback-only, persisted `0600` under a state lock | [spec](../specs/issue-17/), [PR #18](https://github.com/MadaraUchiha-314/tiny-harness/pull/18), [decision-005](../decisions/decision-005.md) |
 | issue-36 | `TemporalPool`; one task queue per agent; the process `Claims` registry; the agent id on every activity | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |
+| issue-38 | Media references in history; the `transcribe`, `open_speech` and `speak` activities; speech jobs drained at rollover and completion; `invoke_llm` resolves media | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39), [decision-010](../decisions/decision-010.md) |

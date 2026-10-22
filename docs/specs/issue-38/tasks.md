@@ -223,7 +223,7 @@ red→green run.
   - _Depends on:_ 20, 21, 24, 26
   - _Requirements:_ R7.1–R7.3, NFR latency
   - _Test:_ T4 — `uv run pytest tests/e2e/test_demo_multimodal.py`; T7 — first-chunk latency recorded
-- [ ] 28. User docs and capability docs
+- [x] 28. User docs and capability docs
   - Docs-writing skill: the configuration page for media and voice, the TUI keys and
     `/attach`, the web voice controls, the multimodal example (CLI and SDK personas), and
     the SDK seams. Capability docs: new `media.md`; update `models`,

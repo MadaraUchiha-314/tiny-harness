@@ -113,6 +113,16 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
   participant mode (no model call; it waits for its assignee). WHEN the first message is
   the brief alone THEN the task SHALL start with no message for its model: a
   conversation parks awaiting its first message (issue-34 R7.2).
+- WHEN `[media]` is set THEN the card's `defaultInputModes` and `defaultOutputModes`
+  SHALL list the effective media types and the card SHALL declare the media extension v1
+  (`docs/a2a/ext/media/v1.md`) with the types, the limits, which services are on and the
+  media path; without `[media]` the card is unchanged. The commands extension lists a
+  surface command with `runsOn: "surface"`.
+- `execute` SHALL extract the new turn's file parts through `MediaIntake` after the
+  access check and before redaction, so the workflow and the redactor never see base64;
+  a refusal answers `InvalidParams` with the code and the limit. `GET
+  /media/{task_id}/{media_id}` is mounted with the harness's routes
+  (`RouteOptions.media`) and the request cap grows to admit a full message of media.
 
 ## Design
 
@@ -120,6 +130,7 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 [design.md § Inbox and events](../specs/issue-3/design.md#inbox-and-events-r15--serviceinboxpy),
 [decision-002](../decisions/decision-002.md), [decision-003](../decisions/decision-003.md),
 [A2A extensions](../a2a/extensions).
+[issue-38 design.md § A2A surface](../specs/issue-38/design.md#components-interfaces).
 
 ## History
 
@@ -131,3 +142,4 @@ workflow's mailbox. Lives in `tiny_harness/service/a2a/` and `service/inbox.py`.
 | issue-34 | The card's name, description, version and skills come from `[card]` | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-34 (R7) | A new task built from its creator's brief: trusted delegators (`[server] delegators`, this agent always), participant mode for an assignee other than this agent, a brief-only start | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
 | issue-36 | `Harness` and `asgi_app()` mounted on a host app (503 before start, mount check, lifespan); routes built before start; `tiny_harness.fastapi.harness_router`; `public_url` in the card and push URL; `RouteOptions`; the participant resolver with strict mode; task and push ownership by queue | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |
+| issue-38 | Media intake in `execute`, the media route, the card's media modes and the media extension v1, `runsOn` in the commands extension | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39), [decision-010](../decisions/decision-010.md) |

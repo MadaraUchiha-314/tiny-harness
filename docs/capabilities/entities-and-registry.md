@@ -41,6 +41,8 @@ replaced, versioned or served remotely without touching the loop. Lives in
   plugin can register, override or remove an entry. Divergences from sherma's
   `Registry[T]`: one registry instead of a subclass per kind, a remote entry carries its
   protocol, no `tenant_id`.
+- `EntityKind` SHALL include `speech_to_text`, `text_to_speech`, `image_generator` and
+  `media_store` (issue-38).
 
 ## Design
 
@@ -53,3 +55,4 @@ replaced, versioned or served remotely without touching the loop. Lives in
 |-----------|--------------|-------|
 | issue-3 | Entity base, kinds, references, remote locations and the registry (Layer 1); the `surface` kind added with the renderers (Layer 7) | [spec](../specs/issue-3/), [PR #7](https://github.com/MadaraUchiha-314/tiny-harness/pull/7), [PR #13](https://github.com/MadaraUchiha-314/tiny-harness/pull/13) |
 | issue-25 | The `command` kind and the `Command` entity, filled by `CommandRegistry` and published before the worker starts | [spec](../specs/issue-25/), [PR #26](https://github.com/MadaraUchiha-314/tiny-harness/pull/26), [decision-007](../decisions/decision-007.md) |
+| issue-38 | The `speech_to_text`, `text_to_speech`, `image_generator` and `media_store` kinds | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

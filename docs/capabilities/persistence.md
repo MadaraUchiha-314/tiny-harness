@@ -37,6 +37,10 @@ default store is SQLite; a plugin implements `Store` for a production database. 
   workflow.
 - Persistence reads and writes SHALL run through the `persistence.read` and
   `persistence.write` hook points, so a hook can replace the target.
+- The media store (see [media](media.md)) SHALL keep each task's images and audio as
+  files beside the SQLite store; the retention sweep SHALL delete the media of each task
+  whose record it deletes and every object older than `[retention] media` (default 30
+  days), and `tiny-harness tasks purge` SHALL delete the task's media too.
 
 ## Design
 
@@ -50,3 +54,4 @@ default store is SQLite; a plugin implements `Store` for a production database. 
 |-----------|--------------|-------|
 | issue-3 | Records, the store entity, SQLite store, push-token cipher (Layer 4); retention sweep and purge (Layer 5) | [spec](../specs/issue-3/), [PR #10](https://github.com/MadaraUchiha-314/tiny-harness/pull/10), [PR #11](https://github.com/MadaraUchiha-314/tiny-harness/pull/11) |
 | issue-23 | Push-token cipher removed: push-config credentials kept as supplied in `SecretStr` fields, protected at rest by the store; 0.5.x encrypted rows dropped; new SQLite file `0600` | [spec](../specs/issue-23/), [PR #24](https://github.com/MadaraUchiha-314/tiny-harness/pull/24) |
+| issue-38 | The media store's retention (`[retention] media`) and purge | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39), [decision-010](../decisions/decision-010.md) |

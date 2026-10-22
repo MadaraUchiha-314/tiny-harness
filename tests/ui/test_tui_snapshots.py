@@ -11,7 +11,7 @@ from a2a.types import Part, TaskState
 from a2a.utils.errors import InvalidParamsError
 from textual.app import App
 from textual.pilot import Pilot
-from textual.widgets import Input, ListView
+from textual.widgets import Input, ListView, Static
 
 from tests.fixtures import media as fx
 from tests.ui.prototype import (
@@ -253,6 +253,16 @@ def voice_snapshot_app(
     return app, mic, speakers
 
 
+async def until_shown(pilot: Pilot[Any], text: str, *, timeout: float = 5.0) -> None:
+    """Wait until some widget renders ``text``: the meter and the timers redraw on an
+    interval, so a fixed pause races a slow machine (CI)."""
+    for _ in range(round(timeout / 0.05)):
+        if any(text in str(widget.render()) for widget in pilot.app.query(Static)):
+            return
+        await pilot.pause(0.05)
+    raise AssertionError(f"nothing showed {text!r} within {timeout} s")
+
+
 def speaking_levels(seconds: float) -> bytes:
     """A voice-like signal: louder and quieter blocks, so the meter moves."""
     return b"".join(tone(0.1, amplitude=a) for a in (2000, 4000, 7000, 8000) * int(seconds * 2.5))
@@ -268,7 +278,7 @@ def test_recording_bar(snap_compare: SnapCompare, tmp_path: Path) -> None:
         pilot.app.feed(conversation_events())
         await pilot.press("f5")
         mic.stream.feed(speaking_levels(4.0), block=1600)
-        await pilot.pause(0.15)
+        await until_shown(pilot, "0:04")
 
     assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)
 
@@ -316,6 +326,6 @@ def test_speaking_line(snap_compare: SnapCompare, tmp_path: Path) -> None:
             if speakers.played == pcm:
                 break
             await pilot.pause(0.02)
-        await pilot.pause(0.15)
+        await until_shown(pilot, "0:01 / streaming")
 
     assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)

@@ -86,7 +86,7 @@ red→green run.
   - _Depends on:_ 1
   - _Requirements:_ R5.3, R5.4
   - _Test:_ T1 — `tests/unit/models/test_speech_fakes.py`; T3 — models API snapshot
-- [ ] 9. OpenAI media implementations
+- [x] 9. OpenAI media implementations
   - `openai_media.py` over the existing client factory: transcriptions, streamed `pcm`
     speech, and `images.generate`. Error mapping. `base_url` is the only host.
   - _Depends on:_ 5, 8

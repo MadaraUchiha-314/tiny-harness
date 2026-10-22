@@ -46,10 +46,19 @@ class ModelChoice(Protocol)
   property reasoning_effort
 model NoulAnswer(kind: typing.Literal['noul'] = ..., probability: <class 'float'>)
 model NoulQuestion(kind: typing.Literal['noul'] = ..., instructions: <class 'str'>)
+class OpenAIImageGenerator(ImageGenerator)
+  def __init__(self, api_key: 'SecretStr | None', *, model: 'str' = 'gpt-image-2', size: 'str' = '1024x1024', timeout: 'timedelta' = datetime.timedelta(seconds=120), base_url: 'str | None' = None, client: 'AsyncOpenAI | None' = None) -> 'None'
+  def generate(self, prompt: 'str', *, size: 'str | None' = None) -> 'GeneratedImage'
 class OpenAILLM(LLM)
   def __init__(self, api_key: 'SecretStr | None', *, model: 'str' = 'gpt-6.1-sol', timeout: 'timedelta' = datetime.timedelta(seconds=60), max_output_tokens: 'int' = 2000, base_url: 'str | None' = None, api: 'WireApi' = 'responses', context_window_tokens: 'int | None' = None, client: 'AsyncOpenAI | None' = None, input_modalities: 'Iterable[Modality] | None' = None) -> 'None'
   def invoke(self, request: 'LLMRequest') -> 'LLMResponse'
   def stream(self, request: 'LLMRequest') -> 'AsyncIterator[LLMStreamEvent]'
+class OpenAISpeechToText(SpeechToText)
+  def __init__(self, api_key: 'SecretStr | None', *, model: 'str' = 'gpt-4o-mini-transcribe', timeout: 'timedelta' = datetime.timedelta(seconds=60), base_url: 'str | None' = None, client: 'AsyncOpenAI | None' = None) -> 'None'
+  def transcribe(self, audio: 'bytes', *, media_type: 'str', name: 'str' = 'audio', language: 'str | None' = None) -> 'Transcript'
+class OpenAITextToSpeech(TextToSpeech)
+  def __init__(self, api_key: 'SecretStr | None', *, model: 'str' = 'gpt-4o-mini-tts', voice: 'str' = 'coral', instructions: 'str' = '', timeout: 'timedelta' = datetime.timedelta(seconds=60), base_url: 'str | None' = None, client: 'AsyncOpenAI | None' = None) -> 'None'
+  def stream(self, text: 'str', *, voice: 'str | None' = None, instructions: 'str | None' = None) -> 'AsyncIterator[bytes]'
 Question = TypeAliasType
 enum Role: USER='user', ASSISTANT='assistant'
 model ScoreAnswer(kind: typing.Literal['score'] = ..., score: <class 'float'>, confidence: <class 'float'>, probabilities: collections.abc.Mapping[int, float])

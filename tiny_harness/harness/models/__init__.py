@@ -27,6 +27,11 @@ from tiny_harness.harness.models.llm import (
     scripted,
 )
 from tiny_harness.harness.models.openai_adapter import OpenAILLM
+from tiny_harness.harness.models.openai_media import (
+    OpenAIImageGenerator,
+    OpenAISpeechToText,
+    OpenAITextToSpeech,
+)
 from tiny_harness.harness.models.speech import (
     FakeSpeechToText,
     FakeTextToSpeech,
@@ -74,7 +79,10 @@ __all__ = [
     "ModelChoice",
     "NoulAnswer",
     "NoulQuestion",
+    "OpenAIImageGenerator",
     "OpenAILLM",
+    "OpenAISpeechToText",
+    "OpenAITextToSpeech",
     "Question",
     "Role",
     "ScoreAnswer",

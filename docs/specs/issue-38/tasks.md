@@ -216,7 +216,7 @@ red→green run.
   - _Depends on:_ 17, 25
   - _Requirements:_ R3.1, R3.3, R3.5, R3.6, R4.1–R4.5, R8, design critic 10
   - _Test:_ T8 — `MicButton.test.tsx::late_grant_stops_tracks`; web unit `voice.test.ts` (PCM scheduling, stop); T5 — visual states (recording, speaking, interrupted); T9 — keyboard flow
-- [ ] 27. `examples/multimodal` and its e2e test
+- [x] 27. `examples/multimodal` and its e2e test
   - Package, config (embedded Temporal, OpenAI), plugin prompt, fixtures (`room.jpg`, and
     TTS-generated `question.wav` and `followup.wav`), README. `test_demo_multimodal.py`
     with the latency measurement.

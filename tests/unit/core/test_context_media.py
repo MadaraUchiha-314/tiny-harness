@@ -82,9 +82,22 @@ def test_an_image_counts_as_its_token_estimate() -> None:
 
 def test_a_large_image_counts_by_its_size() -> None:
     """A large image costs more than the flat estimate (self-review 2.1): one token per
-    750 bytes, so many large images push the window toward compaction."""
-    size = 3_000_000
-    assert _chars(_image(size)) - _chars() == math.ceil(size / 750) * 4
+    4 000 bytes, so many large images push the window toward compaction."""
+    size = 12_000_000
+    assert _chars(_image(size)) - _chars() == math.ceil(size / 4_000) * 4
+
+
+def test_one_image_at_the_file_limit_fits_the_default_budget() -> None:
+    """One image at ``max_file_bytes`` (20 MiB) does not make the first turn compact."""
+    manager = ContextWindowManager()
+    state = AgentState(task_id="t-1").append(
+        MessageItem(role=MessageRole.USER, text="look", media=(_image(20_971_520),))
+    )
+    window = manager.assemble(
+        task=_task(), state=state, system_prompt="sys", skills_index="", tools=()
+    )
+    info = LLMModelInfo(provider="fake", model="m", context_window_tokens=128_000)
+    assert not manager.over_budget(window, info)
 
 
 def test_transcribed_audio_counts_as_its_transcript() -> None:

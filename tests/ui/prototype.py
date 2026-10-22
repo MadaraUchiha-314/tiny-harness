@@ -1,5 +1,6 @@
-"""The events behind the states of ``design/tui-renderer.html`` and issue-25's
-``design/tui-task-controls.html`` (T5/T6 fixtures)."""
+"""The events behind the states of ``design/tui-renderer.html``, issue-25's
+``design/tui-task-controls.html`` and issue-38's ``design/tui-multimodal.html`` (T5/T6
+fixtures)."""
 
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from google.protobuf import struct_pb2
 
 from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, ChannelMessageData
-from tiny_harness.harness.commands import CommandSpec
+from tiny_harness.harness.commands import ATTACH, CommandSpec
 from tiny_harness.harness.core import (
     STATUS_EXT_KEY,
     AcceptanceCriterion,
@@ -35,6 +36,8 @@ from tiny_harness.harness.core import (
     TaskRef,
 )
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.media import ACCEPTED, PCM_MEDIA_TYPE, MediaKind
+from tiny_harness.harness.media.extension import MediaExtensionParams
 from tiny_harness.interaction.a2ui import A2UI_MEDIA_TYPE, A2UI_VERSION, BASIC_CATALOG_ID
 from tiny_harness.jsontypes import JsonObject
 
@@ -342,20 +345,97 @@ def completed_events() -> list[A2AEvent]:
     return [status(TaskState.TASK_STATE_COMPLETED, agent_text("completed by alice", "m-done"))]
 
 
+# --- issue-38: media (``design/tui-multimodal.html``) -------------------------------------
+
+AGENT_URL = "http://localhost:8080"
+MEDIA_COMMANDS = (*COMMANDS, ATTACH)
+MEDIA_PARAMS = MediaExtensionParams(
+    input=(
+        *(t for t, kind in ACCEPTED.items() if kind is MediaKind.IMAGE),
+        "audio/wav",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/ogg",
+        "audio/webm",
+    ),
+    output=("image/png", PCM_MEDIA_TYPE),
+    max_file_bytes=20 * 1024 * 1024,
+    max_message_bytes=25 * 1024 * 1024,
+    max_audio_seconds=120,
+    speech_to_text=True,
+    text_to_speech=True,
+    image_generation=True,
+)
+
+
+def media_url(media_id: str, *, task_id: str = TASK_ID) -> str:
+    return f"{AGENT_URL}/media/{task_id}/{media_id}"
+
+
+def url_part(media_id: str, media_type: str, name: str, **metadata: int | bool) -> Part:
+    part = Part(url=media_url(media_id), media_type=media_type, filename=name)
+    part.metadata.update({"mediaId": media_id, **metadata})
+    return part
+
+
+def echo(
+    *parts: Part, participant: str = "you", message_id: str = "m-you-2"
+) -> TaskArtifactUpdateEvent:
+    """The server's echo of a user message with files: its text and media URLs."""
+    artifact = Artifact(artifact_id=f"message:{message_id}", name="user message", parts=list(parts))
+    artifact.metadata.update(
+        {"role": "user", "participant_id": participant, "message_id": message_id}
+    )
+    return TaskArtifactUpdateEvent(task_id=TASK_ID, context_id=CONTEXT_ID, artifact=artifact)
+
+
+def transcript(media_id: str, text: str) -> TaskArtifactUpdateEvent:
+    artifact = Artifact(
+        artifact_id=f"transcript:{media_id}", name="transcript", parts=[Part(text=text)]
+    )
+    artifact.metadata.update({"mediaId": media_id})
+    return TaskArtifactUpdateEvent(task_id=TASK_ID, context_id=CONTEXT_ID, artifact=artifact)
+
+
+def agent_image(media_id: str, alt: str, name: str = "generated.png") -> TaskArtifactUpdateEvent:
+    part = url_part(media_id, "image/png", name, width=1024, height=768)
+    artifact = Artifact(artifact_id=f"image:{media_id}", name=alt, parts=[part])
+    artifact.metadata.update({"mediaId": media_id})
+    return TaskArtifactUpdateEvent(task_id=TASK_ID, context_id=CONTEXT_ID, artifact=artifact)
+
+
+def speech(media_id: str) -> TaskArtifactUpdateEvent:
+    part = Part(url=media_url(media_id), media_type=PCM_MEDIA_TYPE)
+    part.metadata.update({"mediaId": media_id})
+    artifact = Artifact(artifact_id=f"speech:{media_id}", name="speech", parts=[part])
+    artifact.metadata.update({"mediaId": media_id})
+    return TaskArtifactUpdateEvent(task_id=TASK_ID, context_id=CONTEXT_ID, artifact=artifact)
+
+
 __all__ = [
+    "AGENT_URL",
     "AWAITING_NEXT",
     "CARD",
     "COMMANDS",
     "CONTEXT_ID",
+    "MEDIA_COMMANDS",
+    "MEDIA_PARAMS",
     "SUB_TASK_ID",
     "TASK_ID",
+    "agent_image",
+    "agent_text",
     "command_reply",
     "completed_events",
     "conversation_events",
     "conversation_task",
+    "echo",
     "extension",
+    "media_url",
     "parked",
     "prototype_events",
+    "speech",
     "sub_task",
     "sub_task_events",
+    "transcript",
+    "url_part",
 ]

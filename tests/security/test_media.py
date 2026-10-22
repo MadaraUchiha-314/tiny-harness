@@ -529,3 +529,42 @@ async def test_no_media_bytes_in_trace_or_log(
             assert encoded[:32] not in text
             assert repr(blob)[2:40] not in text
         assert transcript not in text
+
+
+def test_tui_cache_refuses_symlink(tmp_path: Path) -> None:
+    """Design critic 8: the TUI's cache path comes from the ids alone; a symlink planted
+    at the file name or the task directory is refused, never followed, and a bad id or
+    an unknown type writes nothing."""
+    from tiny_harness.interaction.tui.media import MediaCache, MediaCacheError
+
+    root = tmp_path / "cache"
+    cache = MediaCache(root)
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep me")
+
+    task_dir = root / "task1"
+    task_dir.mkdir(parents=True)
+    (task_dir / "img1.png").symlink_to(victim)
+    with pytest.raises(MediaCacheError):
+        cache.write("task1", "img1", "image/png", fx.png())
+    assert victim.read_text() == "keep me"
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "task2").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(MediaCacheError):
+        cache.write("task2", "img2", "image/png", fx.png())
+    assert list(outside.iterdir()) == []
+
+    for task_id, media_id, media_type in [
+        ("..", "img3", "image/png"),
+        ("task3", "../../victim", "image/png"),
+        ("task3", "img3", "image/svg+xml"),
+    ]:
+        with pytest.raises(MediaCacheError):
+            cache.write(task_id, media_id, media_type, fx.png())
+    assert victim.read_text() == "keep me"
+
+    written = cache.write("task3", "img3", "image/png", fx.png())
+    assert written == root / "task3" / "img3.png" and written.read_bytes() == fx.png()
+    assert [p.name for p in (root / "task3").iterdir()] == ["img3.png"]  # no temp left

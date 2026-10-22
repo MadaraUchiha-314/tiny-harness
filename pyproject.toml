@@ -49,6 +49,10 @@ fastapi = [
     "a2a-sdk[fastapi]>=1.2.2",
     "fastapi>=0.143",
 ]
+# The TUI draws images inline in kitty, iTerm2 and sixel terminals (issue-38 R2.4).
+images = [
+    "textual-image[textual]>=0.14.2",
+]
 
 [dependency-groups]
 dev = [

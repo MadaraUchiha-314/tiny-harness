@@ -186,7 +186,7 @@ red→green run.
   - _Depends on:_ 13
   - _Requirements:_ R1.2, R5.6
   - _Test:_ T1 — `tests/unit/commands/test_surface_commands.py`, `tests/unit/interaction/test_plan_media.py`; T3 — commands and interaction API snapshots
-- [ ] 23. TUI client, attachments and media entries
+- [x] 23. TUI client, attachments and media entries
   - `send(parts, …, speak)`, `get_media`, `ScriptedClient`. `/attach` with path
     completion, chips, Backspace removal and limits from the card. `MediaEntry` with
     `textual-image` or the path line, and the id-keyed no-follow cache. `AudioEntry`.

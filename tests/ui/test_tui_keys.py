@@ -5,29 +5,51 @@ sub-task navigation (R5.5-R5.7, R6.7, R9.4)."""
 from __future__ import annotations
 
 import asyncio
+import stat
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
-from a2a.types import Task, TaskState, TaskStatusUpdateEvent
-from a2a.utils.errors import UnsupportedOperationError
+from a2a.types import Part, Task, TaskState, TaskStatusUpdateEvent
+from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
 from textual.pilot import Pilot
 from textual.widgets import Button, Input, ListView, Static, TabbedContent
 
+from tests.fixtures import media as fx
 from tests.ui.prototype import (
+    AGENT_URL,
     COMMANDS,
+    MEDIA_COMMANDS,
+    MEDIA_PARAMS,
     SUB_TASK_ID,
     TASK_ID,
+    agent_image,
     completed_events,
     conversation_events,
     conversation_task,
+    echo,
+    media_url,
     parked,
     prototype_events,
     status,
     sub_task,
     sub_task_events,
+    transcript,
+    url_part,
 )
+from tiny_harness.harness.agents import A2AEvent
 from tiny_harness.harness.core import TaskRef
 from tiny_harness.interaction.tui import EventSource, HarnessApp, ScriptedClient
 from tiny_harness.interaction.tui.a2ui import SurfaceView
 from tiny_harness.interaction.tui.app import CHEVRON, Entry, SubTaskRow
+from tiny_harness.interaction.tui.media import (
+    NO_GRAPHICS,
+    TIMES,
+    AudioEntry,
+    MediaCache,
+    MediaEntry,
+    human_size,
+)
 
 
 async def test_enter_sends_and_the_reply_streams_in() -> None:
@@ -429,3 +451,250 @@ async def until_fetched(pilot: Pilot[None], client: ScriptedClient, task_id: str
             return
         await pilot.pause(0.02)
     raise AssertionError(f"{task_id} was never fetched: {client.fetched}")
+
+
+# --- issue-38: /attach, chips and media entries (T5) -----------------------------------
+
+
+def media_app(tmp_path: Path, client: ScriptedClient, **kwargs: Any) -> HarnessApp:
+    cache = MediaCache(tmp_path / "cache", label="~/.cache/tiny-harness/media")
+    return HarnessApp(client, url=AGENT_URL, media_cache=cache, **kwargs)
+
+
+def media_client(*scripts: list[A2AEvent], **kwargs: Any) -> ScriptedClient:
+    return ScriptedClient(
+        scripts=list(scripts), commands=MEDIA_COMMANDS, media=MEDIA_PARAMS, **kwargs
+    )
+
+
+def chips(app: HarnessApp) -> str:
+    return static_text(app, "#chips")
+
+
+async def type_line(pilot: Pilot[None], app: HarnessApp, text: str) -> None:
+    app.query_one("#composer", Input).value = text
+    await pilot.press("enter")
+    await settle(app)
+    await pilot.pause()
+
+
+async def test_attach_adds_a_chip_and_enter_sends_the_file(tmp_path: Path) -> None:
+    photo = tmp_path / "sofa.png"
+    photo.write_bytes(fx.png(1024, 768))
+    client = media_client([*conversation_events()])
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await type_line(pilot, app, f"/attach {photo}")
+        assert client.sent == []  # a surface command runs here and sends nothing
+        assert "[image] sofa.png ·" in chips(app)
+        assert app.query_one("#chips").display
+        assert static_text(app, "#hint") == "Enter sends the message with 1 attachment"
+        await type_line(pilot, app, "Which works?")
+        assert client.sent == ["Which works?"]
+        [parts] = client.sent_parts
+        assert parts[0].text == "Which works?"
+        assert parts[1].raw == photo.read_bytes()
+        assert (parts[1].media_type, parts[1].filename) == ("image/png", "sofa.png")
+        assert not app.query_one("#chips").display and app.attachments == []
+        lines = entries(app) + [e.text for e in app.query(MediaEntry)]
+        assert any(t.startswith(f"you {CHEVRON} [image] sofa.png · 1024{TIMES}768") for t in lines)
+        assert "      Which works?" in lines
+
+
+async def test_attach_runs_only_when_the_card_lists_it(tmp_path: Path) -> None:
+    """The client implements no command of its own: without ``attach`` on the card the
+    text goes to the agent like any message."""
+    client = ScriptedClient(scripts=[[]], commands=COMMANDS, media=MEDIA_PARAMS)
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await type_line(pilot, app, f"/attach {tmp_path}/x.png")
+        assert client.sent == [f"/attach {tmp_path}/x.png"]
+        assert app.attachments == []
+
+
+async def test_attach_refuses_what_the_card_does_not_accept(tmp_path: Path) -> None:
+    svg = tmp_path / "logo.png"
+    svg.write_bytes(fx.SVG)
+    big = tmp_path / "big.png"
+    big.write_bytes(fx.png(4, 4, padding=4096))
+    small = MEDIA_PARAMS.model_copy(update={"max_file_bytes": 1024})
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=small)
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await type_line(pilot, app, f"/attach {svg}")
+        await type_line(pilot, app, f"/attach {big}")
+        await type_line(pilot, app, f"/attach {tmp_path}/missing.png")
+        await type_line(pilot, app, "/attach")
+        assert app.attachments == [] and client.sent == []
+        lines = entries(app)
+        assert any(t.startswith("✗ not attached: logo.png is not a file this agent") for t in lines)
+        assert "✗ not attached: big.png is 4 KB; the limit is 1024 bytes per file" in lines
+        assert any(t.startswith("✗ not attached: missing.png:") for t in lines)
+        assert "── usage: /attach <path>" in lines
+
+
+async def test_attach_backspace_on_empty_composer_removes_the_last_chip(tmp_path: Path) -> None:
+    for name in ("a.png", "b.wav"):
+        (tmp_path / name).write_bytes(fx.png() if name.endswith("png") else fx.wav(2.0))
+    app = media_app(tmp_path, media_client())
+    async with app.run_test(size=(110, 36)) as pilot:
+        await type_line(pilot, app, f"/attach {tmp_path}/a.png")
+        await type_line(pilot, app, f"/attach {tmp_path}/b.wav")
+        assert [a.name for a in app.attachments] == ["a.png", "b.wav"]
+        assert "[audio] b.wav · 0:02" in chips(app)
+        composer = app.query_one("#composer", Input)
+        await pilot.press("x", "backspace")  # deletes the character, not a chip
+        assert composer.value == "" and len(app.attachments) == 2
+        await pilot.press("backspace")
+        assert [a.name for a in app.attachments] == ["a.png"]
+        await pilot.press("backspace", "backspace")
+        assert app.attachments == [] and not app.query_one("#chips").display
+
+
+async def test_attach_tab_completes_the_path(tmp_path: Path) -> None:
+    (tmp_path / "pictures").mkdir()
+    (tmp_path / "pictures" / "sofa-closeup.png").write_bytes(fx.png())
+    app = media_app(tmp_path, media_client())
+    async with app.run_test(size=(110, 36)) as pilot:
+        composer = app.query_one("#composer", Input)
+        composer.value = f"/attach {tmp_path}/pic"
+        await pilot.pause(0.05)
+        assert "Tab completes the path" in static_text(app, "#hint")
+        await pilot.press("tab")
+        assert composer.value == f"/attach {tmp_path}/pictures/"
+        await pilot.press("s")
+        await pilot.pause(0.05)
+        await pilot.press("tab")
+        assert composer.value == f"/attach {tmp_path}/pictures/sofa-closeup.png"
+        assert isinstance(app.focused, Input)  # completing never moved focus
+
+
+async def test_attach_rejected_by_the_server_keeps_the_chips(tmp_path: Path) -> None:
+    """R1.3: the server's refusal names the file and the limit; nothing is shown as sent,
+    and the chips and the text come back so a file can be removed."""
+
+    class Refusing(ScriptedClient):
+        def send(
+            self,
+            parts: Sequence[Part],
+            *,
+            task_id: str | None,
+            context_id: str,
+            speak: bool = False,
+        ) -> EventSource:
+            super().send(parts, task_id=task_id, context_id=context_id, speak=speak)
+            return self._refuse()
+
+        async def _refuse(self) -> EventSource:
+            raise InvalidParamsError(
+                message="'clip.webm' is larger than the 20971520-byte limit per file",
+                data={"reason": "too_large", "limit": "20971520", "part": "1"},
+            )
+            yield
+
+    clip = tmp_path / "clip.webm"
+    clip.write_bytes(fx.webm())
+    app = media_app(tmp_path, Refusing(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS))
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        await type_line(pilot, app, f"/attach {clip}")
+        await type_line(pilot, app, "Is this the sofa?")
+        size = human_size(len(fx.webm()))
+        assert (
+            f"✗ not sent: clip.webm is {size}; the limit is 20 MiB per file. Backspace removes it."
+        ) in entries(app)
+        assert [a.name for a in app.attachments] == ["clip.webm"]
+        assert app.query_one("#composer", Input).value == "Is this the sofa?"
+        assert not any("Is this the sofa?" in t for t in entries(app))
+        assert list(app.query(AudioEntry)) == []
+
+
+async def test_attach_echo_stores_the_own_image_without_fetching_it(tmp_path: Path) -> None:
+    photo = tmp_path / "sofa.png"
+    photo.write_bytes(fx.png(1024, 768))
+    stored = url_part("Qm3xk2", "image/png", "sofa.png", width=1024, height=768)
+    client = media_client([*conversation_events(), echo(Part(text="Which?"), stored)])
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        await type_line(pilot, app, f"/attach {photo}")
+        await type_line(pilot, app, "Which?")
+        await settle(app)
+        await pilot.pause()
+        assert client.media_fetched == []  # the user's own bytes were cached
+        cached = tmp_path / "cache" / TASK_ID / "Qm3xk2.png"
+        assert cached.read_bytes() == photo.read_bytes()
+        assert stat.S_IMODE(cached.stat().st_mode) == 0o600
+        assert stat.S_IMODE(cached.parent.stat().st_mode) == 0o700
+        [entry] = app.query(MediaEntry)
+        assert entry.ids == (TASK_ID, "Qm3xk2")
+        assert "saved to" not in entry.text  # the user has the file
+
+
+async def test_attach_agent_image_shows_the_fallback_line(tmp_path: Path) -> None:
+    """R2.4: no graphics protocol: one line naming the image and where it was saved."""
+    image = fx.png(1024, 768)
+    client = media_client(files={media_url("Im9a1"): [image[:10], image[10:]]})
+    app = media_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed([*conversation_events(), agent_image("Im9a1", "the green sofa")])
+        await settle(app)
+        await pilot.pause()
+        assert client.media_fetched == [media_url("Im9a1")]
+        assert (tmp_path / "cache" / TASK_ID / "Im9a1.png").read_bytes() == image
+        [entry] = app.query(MediaEntry)
+        expected = (
+            f"image · generated.png · 1024{TIMES}768 · saved to "
+            "~/.cache/tiny-harness/media/7f3a…1e/Im9a1.png\n"
+            f"{NO_GRAPHICS}"
+        )
+        assert entry.text == expected
+
+
+async def test_attach_agent_image_draws_inline_with_graphics(tmp_path: Path) -> None:
+    client = media_client(files={media_url("Im9a1"): [fx.png(1024, 768)]})
+    shown: list[Path] = []
+
+    def view(path: Path) -> Static:
+        shown.append(path)
+        return Static("[picture]", markup=False)
+
+    app = media_app(tmp_path, client, image_view=view)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed([*conversation_events(), agent_image("Im9a1", "the green sofa")])
+        await settle(app)
+        await pilot.pause()
+        assert shown == [tmp_path / "cache" / TASK_ID / "Im9a1.png"]
+        [entry] = app.query(MediaEntry)
+        assert entry.text == f"image · generated.png · 1024{TIMES}768"
+
+
+async def test_attach_a_missing_medium_names_the_file(tmp_path: Path) -> None:
+    app = media_app(tmp_path, media_client())
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed([*conversation_events(), agent_image("Gone1", "gone")])
+        await settle(app)
+        await pilot.pause()
+        [entry] = app.query(MediaEntry)
+        assert entry.text.startswith("image · generated.png · unavailable (")
+
+
+async def test_attach_audio_and_another_participants_echo(tmp_path: Path) -> None:
+    """R6.3: another participant's files show under their name; a voice turn shows its
+    transcript once it arrives, also when the transcript comes first."""
+    note = url_part("Au1", "audio/mp4", "note.m4a", durationMs=12_000, size=9000)
+    voice = url_part("Vo1", "audio/webm", "voice.webm", durationMs=4_000, voice=True)
+    app = media_app(tmp_path, media_client())
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        app.feed([echo(note, Part(text="hear this"), participant="bob", message_id="m-b")])
+        app.feed([transcript("Vo1", "Would a rug work better?")])
+        app.feed([echo(voice, participant="bob", message_id="m-b2")])
+        app.feed([echo(note, participant="bob", message_id="m-b")])  # a replay: drawn once
+        await pilot.pause()
+        audio = [e.text for e in app.query(AudioEntry)]
+        assert audio == [
+            f"bob {CHEVRON} [audio] note.m4a · 0:12 · ⏎ to play",
+            f"bob {CHEVRON} [voice] 0:04 · “Would a rug work better?”",
+        ]
+        assert "      hear this" in entries(app)
+        assert not any("agent" in t and "hear this" in t for t in entries(app))

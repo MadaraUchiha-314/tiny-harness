@@ -89,7 +89,8 @@ The largest total size of all the files in one message, in bytes.
 ### `max_image_pixels` {#max-image-pixels}
 
 The largest image, as width × height in pixels. The server reads the size from the
-file header. It does not decode the image.
+file header. It does not decode the image. For a GIF, the size is the area that covers
+the screen and every frame. A frame that is larger than the screen counts.
 
 - **Default:** `40000000` (for example, 8000 × 5000)
 

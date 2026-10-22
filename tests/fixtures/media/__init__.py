@@ -40,6 +40,26 @@ def gif(width: int = 6, height: int = 7, *, version: bytes = b"89a") -> bytes:
     return b"GIF" + version + struct.pack("<HH", width, height) + b"\x00\x00\x00" + b"\x3b"
 
 
+def gif_frame(left: int, top: int, width: int, height: int, *, data: bytes = b"\x00") -> bytes:
+    """One GIF frame: a graphic control extension, an image descriptor with a local colour
+    table, an LZW minimum code size and ``data`` split into sub-blocks of at most 255 bytes."""
+    control = b"\x21\xf9\x04\x00\x0a\x00\x00\x00"
+    descriptor = b"\x2c" + struct.pack("<HHHH", left, top, width, height) + b"\x80"
+    blocks = b"".join(
+        bytes([len(data[i : i + 255])]) + data[i : i + 255] for i in range(0, len(data), 255)
+    )
+    return control + descriptor + b"\x00" * 6 + b"\x02" + blocks + b"\x00"
+
+
+def animated_gif(width: int, height: int, frames: list[bytes]) -> bytes:
+    """A GIF89a with a ``width`` x ``height`` logical screen, a global colour table, a
+    NETSCAPE loop extension, a comment and ``frames`` (built with ``gif_frame``)."""
+    screen = b"GIF89a" + struct.pack("<HH", width, height) + b"\x80\x00\x00" + b"\x00" * 6
+    loop = b"\x21\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00"
+    comment = b"\x21\xfe\x05hello\x00"
+    return screen + loop + comment + b"".join(frames) + b"\x3b"
+
+
 def _riff(form: bytes, chunks: bytes) -> bytes:
     return b"RIFF" + struct.pack("<I", 4 + len(chunks)) + form + chunks
 

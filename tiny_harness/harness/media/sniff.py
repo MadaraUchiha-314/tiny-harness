@@ -106,6 +106,7 @@ def detect(raw: bytes) -> str | None:
 # --- image dimensions ----------------------------------------------------------------------
 
 _JPEG_HOPS: Final = 1024
+_GIF_FRAMES: Final = 4096
 # SOF0-SOF15 less DHT (C4), JPG (C8) and DAC (CC), which share the range.
 _JPEG_SOF: Final = frozenset(range(0xC0, 0xD0)) - {0xC4, 0xC8, 0xCC}
 _JPEG_STANDALONE: Final = frozenset({0x01, *range(0xD0, 0xD8)})
@@ -145,10 +146,51 @@ def _jpeg_size(raw: bytes) -> tuple[int, int]:
     raise _unreadable("jpeg")
 
 
+def _gif_sub_blocks(raw: bytes, pos: int) -> int:
+    """The position after the data sub-blocks at ``pos``, hopped by their length bytes
+    without decoding; each hop moves at least one byte, so the walk ends."""
+    while True:
+        if pos >= len(raw):
+            raise _unreadable("gif")
+        length = raw[pos]
+        pos += 1 + length
+        if length == 0:
+            return pos
+
+
 def _gif_size(raw: bytes) -> tuple[int, int]:
-    if len(raw) < 10:
+    """The canvas every frame of the GIF covers: the logical screen widened to each image
+    descriptor's ``left + width`` and ``top + height`` (critic 1). A 1x1 screen cannot hide
+    a 10000x10000 frame. The walk hops extensions and LZW sub-blocks by their lengths,
+    reads at most ``_GIF_FRAMES`` frames and refuses a block it does not know."""
+    if len(raw) < 13:
         raise _unreadable("gif")
-    width, height = struct.unpack("<HH", raw[6:10])
+    width, height, packed = struct.unpack("<HHB", raw[6:11])
+    pos = 13
+    if packed & 0x80:
+        pos += 3 << ((packed & 0x07) + 1)
+    frames = 0
+    while pos < len(raw):
+        block = raw[pos]
+        if block == 0x3B:  # trailer
+            break
+        if block == 0x21:  # extension: label, then sub-blocks
+            pos = _gif_sub_blocks(raw, pos + 2)
+        elif block == 0x2C:  # image descriptor
+            frames += 1
+            if frames > _GIF_FRAMES or pos + 10 > len(raw):
+                raise _unreadable("gif")
+            left, top, frame_width, frame_height, flags = struct.unpack(
+                "<HHHHB", raw[pos + 1 : pos + 10]
+            )
+            width = max(width, left + frame_width)
+            height = max(height, top + frame_height)
+            pos += 10
+            if flags & 0x80:
+                pos += 3 << ((flags & 0x07) + 1)
+            pos = _gif_sub_blocks(raw, pos + 1)  # LZW minimum code size, then the data
+        else:
+            raise _unreadable("gif")
     return width, height
 
 

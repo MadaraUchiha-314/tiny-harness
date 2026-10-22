@@ -115,3 +115,33 @@ def test_jpeg_dht_is_not_mistaken_for_a_frame() -> None:
 def test_image_size_refuses_unreadable_headers(raw: bytes) -> None:
     with pytest.raises(SniffError):
         sniff.image_size(raw)
+
+
+def test_gif_size_spans_every_frame() -> None:
+    frames = [fx.gif_frame(0, 0, 20, 10, data=b"\x01" * 600), fx.gif_frame(5, 3, 15, 7)]
+    assert sniff.image_size(fx.animated_gif(20, 10, frames)) == (20, 10)
+
+
+def test_gif_frame_larger_than_the_screen_counts() -> None:
+    """A 1x1 logical screen does not hide a 10000x10000 frame (critic 1)."""
+    bomb = fx.animated_gif(1, 1, [fx.gif_frame(0, 0, 10_000, 10_000)])
+    assert sniff.image_size(bomb) == (10_000, 10_000)
+
+
+def test_gif_frame_offset_counts_toward_the_extent() -> None:
+    raw = fx.animated_gif(4, 4, [fx.gif_frame(60_000, 2, 5, 5)])
+    assert sniff.image_size(raw) == (60_005, 7)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        fx.animated_gif(4, 4, [fx.gif_frame(0, 0, 4, 4)])[:-12],  # descriptor cut off
+        fx.animated_gif(4, 4, [b"\x99"]),  # unknown block
+        fx.animated_gif(4, 4, [fx.gif_frame(0, 0, 1, 1)] * 5000),  # past the frame budget
+    ],
+    ids=["descriptor-cut-off", "unknown-block", "frame-budget"],
+)
+def test_gif_walk_refuses_what_it_cannot_account_for(raw: bytes) -> None:
+    with pytest.raises(SniffError):
+        sniff.image_size(raw)

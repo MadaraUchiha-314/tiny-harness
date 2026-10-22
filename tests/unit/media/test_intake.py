@@ -178,6 +178,15 @@ async def test_rejects_huge_dimensions(intake: MediaIntake, tmp_path: Path) -> N
     assert stored(tmp_path) == []
 
 
+async def test_rejects_a_gif_frame_bigger_than_its_screen(
+    intake: MediaIntake, tmp_path: Path
+) -> None:
+    bomb = fx.animated_gif(1, 1, [fx.gif_frame(0, 0, 10_000, 10_000)])
+    error = await rejected(intake, message(file_part(bomb, "image/gif")))
+    assert error.reason == "image_too_large"
+    assert stored(tmp_path) == []
+
+
 @pytest.mark.parametrize(
     ("raw", "media_type", "reason"),
     [

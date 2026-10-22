@@ -36,7 +36,9 @@ flowchart LR
   fetching it (`url_not_accepted`); refuse a type outside the effective input set
   (`type_not_accepted`); enforce `max_file_bytes` and the running `max_message_bytes`;
   require the sniffed signature to equal the declared type (`type_mismatch`); read an
-  image's size from its header only and enforce `max_image_pixels`; count an audio
+  image's size from its header only (for a GIF, the canvas that the logical screen and
+  every frame's offset plus size cover, walked without decoding and capped at 4096
+  frames) and enforce `max_image_pixels`; count an audio
   file's duration from its container (WAV `data` at a byte rate that matches its format,
   every MP3 frame, the MP4 `stts` that agrees with `stsz` and is no shorter than the
   `mdat` payload at 512 kbit/s, every Ogg page, every WebM cluster) with bounded walks,

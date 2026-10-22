@@ -187,6 +187,43 @@ def test_truncated_or_empty_files_are_refused(raw: bytes, media_type: str) -> No
     assert refused(raw, media_type) == "audio_duration_unknown"
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        # 1 s of samples that would "play" in 0 ms
+        pytest.param(fx.wav(1.0, byte_rate=0xFFFFFFFF), id="byte-rate-max"),
+        pytest.param(fx.wav(1.0, byte_rate=64_000), id="byte-rate-doubled"),
+        pytest.param(fx.wav(1.0, block_align=64), id="block-align"),
+        pytest.param(fx.wav(1.0, bits=12), id="bits"),
+    ],
+)
+def test_wav_whose_rates_disagree_is_refused(raw: bytes) -> None:
+    """The byte rate must be what the sample rate, channels and sample size play at:
+    a header cannot understate the duration with a large byte rate."""
+    assert refused(raw, "audio/wav") == "audio_duration_unknown"
+
+
+def test_mp4_whose_sample_tables_disagree_is_refused() -> None:
+    raw = fx.mp4(fx.mp4_track(stts=((47, 1_024),), stsz=4_700))
+    assert refused(raw, "audio/mp4") == "audio_duration_unknown"
+    assert info(fx.mp4(fx.mp4_track(stsz=47)), "audio/mp4").duration_ms == 1_002
+
+
+def test_mp4_with_tiny_sample_deltas_and_a_big_mdat_is_refused() -> None:
+    """Declared clocks of a few milliseconds cannot hide a payload that takes longer
+    to play even at 512 kbit/s: 128 KiB is at least 2 s."""
+    track = fx.mp4_track(timescale=48_000, duration=47, stts=((47, 1),), stsz=47)
+    raw = fx.mp4(track, duration=1, mdat=b"\x00" * (128 * 1024))
+    assert refused(raw, "audio/mp4", cap=1.0) == "audio_too_long"
+    assert info(raw, "audio/mp4", cap=CAP).duration_ms == 2_048
+
+
+def test_fragmented_mp4_with_a_big_mdat_is_bounded_by_its_payload() -> None:
+    raw = fx.mp4_fragmented(1, sample_duration=48)  # declares 47 ms
+    raw += fx.box(b"mdat", payload=b"\x00" * (128 * 1024))
+    assert refused(raw, "audio/mp4", cap=1.0) == "audio_too_long"
+
+
 def test_unaccounted_bytes_after_the_frames_are_refused() -> None:
     junk = b"\x00" * (256 * 1024 + 1)
     assert refused(fx.mp3(10, trailer=junk), "audio/mpeg") == "audio_duration_unknown"

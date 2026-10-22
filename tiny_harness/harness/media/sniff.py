@@ -271,6 +271,25 @@ def _ms(units: int, rate: int) -> int:
 _WAV_PCM: Final = 0x0001
 _WAV_FLOAT: Final = 0x0003
 _WAV_EXTENSIBLE: Final = 0xFFFE
+_WAV_BITS: Final = frozenset({8, 16, 24, 32, 64})
+_WAV_MAX_CHANNELS: Final = 32
+_WAV_MAX_RATE: Final = 768_000
+
+
+def _wav_byte_rate(body: bytes) -> int:
+    """The byte rate of a ``fmt `` body, refused unless it is the one its sample rate,
+    channels and sample size play at: a large declared rate would understate the
+    duration."""
+    _tag, channels, rate, byte_rate, block_align, bits = struct.unpack("<HHIIHH", body[:16])
+    if not (
+        1 <= channels <= _WAV_MAX_CHANNELS
+        and 1 <= rate <= _WAV_MAX_RATE
+        and bits in _WAV_BITS
+        and block_align == channels * bits // 8
+        and byte_rate == rate * block_align
+    ):
+        raise _unknown("wav", "the fmt chunk's byte rate is not what its format plays at")
+    return byte_rate
 
 
 def _wav(raw: bytes, max_seconds: float) -> AudioInfo:
@@ -291,11 +310,12 @@ def _wav(raw: bytes, max_seconds: float) -> AudioInfo:
         if kind == b"fmt ":
             if size < 16:
                 raise _unknown("wav", "the fmt chunk is too short")
-            tag, _channels, _rate, byte_rate = struct.unpack("<HHII", raw[body : body + 12])
+            (tag,) = struct.unpack("<H", raw[body : body + 2])
             if tag == _WAV_EXTENSIBLE and size >= 26:
                 (tag,) = struct.unpack("<H", raw[body + 24 : body + 26])
             if tag not in (_WAV_PCM, _WAV_FLOAT):
                 raise _not_audio("wav", "the format is neither PCM nor IEEE float")
+            byte_rate = _wav_byte_rate(raw[body : body + 16])
             codec = "pcm" if tag == _WAV_PCM else "float"
         elif kind == b"data":
             data += size
@@ -384,6 +404,9 @@ _MP4_CONTAINERS: Final = frozenset(
     {b"moov", b"trak", b"mdia", b"minf", b"stbl", b"mvex", b"moof", b"traf"}
 )
 _MP4_AUDIO_CODECS: Final = frozenset({b"mp4a", b"Opus"})
+# AAC and Opus voice stays well under this; a payload plays at least bytes * 8 / this
+# seconds, whatever the sample tables declare.
+_MP4_MAX_BITS_PER_SECOND: Final = 512_000
 
 
 @dataclass
@@ -395,6 +418,8 @@ class _Mp4Track:
     header_duration: int = 0
     samples_duration: int = 0
     default_sample_duration: int = 0
+    stts_samples: int = 0
+    stsz_samples: int | None = None
 
 
 @dataclass
@@ -405,6 +430,7 @@ class _Mp4:
     tracks: list[_Mp4Track] = field(default_factory=lambda: list[_Mp4Track]())
     fragment_default: int = 0
     fragment_track: int = 0
+    payload_bytes: int = 0  # every mdat's payload
 
     def track(self, track_id: int) -> _Mp4Track:
         for track in self.tracks:
@@ -439,7 +465,9 @@ def _mp4_header_clock(body: bytes) -> tuple[int, int]:
 
 def _mp4_leaf(state: _Mp4, kind: bytes, body: bytes) -> None:
     track = state.tracks[-1] if state.tracks else None
-    if kind == b"mvhd":
+    if kind == b"mdat":
+        state.payload_bytes += len(body)
+    elif kind == b"mvhd":
         state.timescale, state.duration = _mp4_header_clock(body)
         if state.timescale:
             state.budget.check(state.duration, state.timescale)
@@ -464,7 +492,11 @@ def _mp4_leaf(state: _Mp4, kind: bytes, body: bytes) -> None:
             raise _unknown("mp4", "stts declares more entries than it holds")
         for index in range(count):
             state.budget.hop()
-            state.add_samples(track, _u32(body, 8 + 8 * index) * _u32(body, 12 + 8 * index))
+            samples = _u32(body, 8 + 8 * index)
+            track.stts_samples += samples
+            state.add_samples(track, samples * _u32(body, 12 + 8 * index))
+    elif kind == b"stsz":
+        track.stsz_samples = _u32(body, 8)
     elif kind == b"trex":
         state.track(_u32(body, 4)).default_sample_duration = _u32(body, 12)
     elif kind == b"tfhd":
@@ -529,13 +561,19 @@ def _mp4(raw: bytes, max_seconds: float) -> AudioInfo:
             raise _not_audio("mp4", f"a {track.handler.decode('latin-1')!r} track")
         if track.codec not in _MP4_AUDIO_CODECS:
             raise _not_audio("mp4", f"unsupported codec {track.codec.decode('latin-1')!r}")
+        if track.stsz_samples is not None and track.stsz_samples != track.stts_samples:
+            raise _unknown("mp4", "stts and stsz count different samples")
+    # The payload bounds the duration from below: tiny sample deltas cannot hide it.
+    payload_bits = state.payload_bytes * 8
+    state.budget.check(payload_bits, _MP4_MAX_BITS_PER_SECOND)
     durations = [_ms(state.duration, state.timescale)] if state.timescale else []
     for track in state.tracks:
         longest = max(track.header_duration, track.samples_duration)
         durations.append(_ms(longest, track.timescale))
-    duration = max(durations)
-    if not duration:
+    declared = max(durations)
+    if not declared:
         raise _unknown("mp4", "no duration and no samples")
+    duration = max(declared, _ms(payload_bits, _MP4_MAX_BITS_PER_SECOND))
     return AudioInfo(duration_ms=duration, codec=state.tracks[0].codec.decode("latin-1"))
 
 

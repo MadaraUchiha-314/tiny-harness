@@ -82,11 +82,16 @@ def wav(
     fmt_tag: int = 1,
     extra: bytes = b"",
     data_size: int | None = None,
+    byte_rate: int | None = None,
+    block_align: int | None = None,
 ) -> bytes:
     """A WAV of silence; ``extra`` is appended after the data chunk (more chunks, or junk)
-    and ``data_size`` overrides the data chunk's declared size."""
+    and ``data_size``, ``byte_rate`` and ``block_align`` override what the header
+    declares."""
     block = channels * bits // 8
-    fmt = struct.pack("<HHIIHH", fmt_tag, channels, rate, rate * block, block, bits)
+    declared_rate = rate * block if byte_rate is None else byte_rate
+    declared_block = block if block_align is None else block_align
+    fmt = struct.pack("<HHIIHH", fmt_tag, channels, rate, declared_rate, declared_block, bits)
     samples = b"\x00" * (int(seconds * rate) * block)
     data = b"data" + struct.pack("<I", len(samples) if data_size is None else data_size) + samples
     return _riff(b"WAVE", _riff_chunk(b"fmt ", fmt) + data + extra)
@@ -144,13 +149,16 @@ def mp4_track(
     duration: int = 48_000,
     stts: tuple[tuple[int, int], ...] = ((47, 1024),),
     codec: bytes = b"mp4a",
+    stsz: int | None = None,
 ) -> bytes:
+    """A track; ``stsz`` adds a sample-size box that counts that many samples."""
     mdhd = _full(b"mdhd", struct.pack(">IIIIHH", 0, 0, timescale, duration, 0, 0))
     hdlr = _full(b"hdlr", struct.pack(">I", 0) + handler + b"\x00" * 12 + b"handler\x00")
     entries = b"".join(struct.pack(">II", count, delta) for count, delta in stts)
     stts_box = _full(b"stts", struct.pack(">I", len(stts)) + entries)
     stsd = _full(b"stsd", struct.pack(">I", 1) + box(codec, payload=b"\x00" * 28))
-    stbl = box(b"stbl", stsd, stts_box)
+    sizes = () if stsz is None else (_full(b"stsz", struct.pack(">II", 6, stsz)),)
+    stbl = box(b"stbl", stsd, stts_box, *sizes)
     return box(b"trak", box(b"mdia", mdhd, hdlr, box(b"minf", stbl)))
 
 

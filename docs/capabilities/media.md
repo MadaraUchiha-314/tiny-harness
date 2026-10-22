@@ -37,8 +37,10 @@ flowchart LR
   (`type_not_accepted`); enforce `max_file_bytes` and the running `max_message_bytes`;
   require the sniffed signature to equal the declared type (`type_mismatch`); read an
   image's size from its header only and enforce `max_image_pixels`; count an audio
-  file's duration from its container (WAV `data`, every MP3 frame, the MP4 `stts`, every
-  Ogg page, every WebM cluster) with bounded walks, require audio-only tracks, and
+  file's duration from its container (WAV `data` at a byte rate that matches its format,
+  every MP3 frame, the MP4 `stts` that agrees with `stsz` and is no shorter than the
+  `mdat` payload at 512 kbit/s, every Ogg page, every WebM cluster) with bounded walks,
+  require audio-only tracks, and
   enforce `max_audio_seconds`. All-or-nothing: on any refusal nothing stays stored and
   the request is answered `InvalidParams` with the code and the limit.
 - An accepted part SHALL be stored and rewritten to a `url` part

@@ -1292,23 +1292,22 @@ class HarnessApp(App[None]):
         """Stream the reply's PCM to the speakers as it arrives (R4.1); a broken stream is
         "interrupted" (R4.3) and Enter replays the URL from its start."""
         assert self.client is not None
-        if self.player.playing:
-            self.player.stop()
         self.speaking = entry
         entry.streaming([], 0)
         self.query_one("#hint", Static).update(Text("speaking… Esc stops"))
         self.refresh_bindings()
         try:
-            await self.player.play(self.client.get_media(entry.url), SPEECH_FORMAT)
+            # ``play`` stops a reply already playing (one at a time, R4.3).
+            played = await self.player.play(self.client.get_media(entry.url), SPEECH_FORMAT)
         except VoiceUnavailable as exc:
             entry.unavailable(str(exc))
         except (*CLIENT_ERRORS, OSError):
             entry.interrupted()
         else:
-            if self.player.stopped:
-                entry.stopped(self.player.played_ms)
+            if played.stopped:
+                entry.stopped(played.played_ms)
             else:
-                entry.done(self.player.played_ms)
+                entry.done(played.played_ms)
         finally:
             if self.speaking is entry:
                 self.speaking = None
@@ -1327,7 +1326,7 @@ class HarnessApp(App[None]):
                 data = await self._download(entry.url)
             if entry.media_type == RECORDING_TYPE:
                 pcm, fmt = wav_pcm(data)
-                await self.player.play(once(pcm), fmt)
+                await self.player.play(once(pcm), fmt)  # stops a reply being spoken
                 return
             if entry.ids is None:
                 raise ValueError("not stored yet")

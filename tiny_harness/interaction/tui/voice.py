@@ -20,6 +20,7 @@ import time
 import wave
 from array import array
 from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
 from types import ModuleType
 from typing import Final, Literal, Protocol, cast
 
@@ -269,10 +270,21 @@ def open_sounddevice_output(fmt: AudioFormat) -> OutputStream:
     return cast(OutputStream, stream)
 
 
+@dataclass(frozen=True, slots=True)
+class Played:
+    """How one ``PcmPlayer.play`` ended: what it played, and whether it was stopped
+    (by ``stop`` or by a newer ``play``) before its stream ended."""
+
+    played_ms: int
+    stopped: bool
+
+
 class PcmPlayer:
     """Plays 16-bit PCM from an async byte stream as it arrives, in blocks of 100 ms (so
     ``stop`` takes effect within one block and ``levels`` moves with the voice); ``stop``
-    ends it. A stream that breaks raises from ``play`` (the caller shows "interrupted")."""
+    ends it, also while the stream waits for bytes. One play at a time: a new ``play``
+    stops the running one and waits for it to close its output first. A stream that
+    breaks raises from ``play`` (the caller shows "interrupted")."""
 
     def __init__(self, *, open_output: OpenOutput = open_sounddevice_output) -> None:
         self.open_output = open_output
@@ -280,8 +292,28 @@ class PcmPlayer:
         self.played_ms = 0
         self.stopped = False
         self.playing = False
+        self._interrupt = asyncio.Event()  # set: the current play stops
+        self._finished: asyncio.Event | None = None  # set when the current play ended
 
-    async def play(self, chunks: AsyncIterator[bytes], fmt: AudioFormat) -> None:
+    async def play(self, chunks: AsyncIterator[bytes], fmt: AudioFormat) -> Played:
+        previous = self._finished
+        self._interrupt.set()
+        interrupt, finished = asyncio.Event(), asyncio.Event()
+        self._interrupt, self._finished = interrupt, finished
+        try:
+            if previous is not None:
+                await previous.wait()
+            if interrupt.is_set():  # a newer play (or stop) came while this one waited
+                return Played(0, stopped=True)
+            return await self._play(chunks, fmt, interrupt)
+        finally:
+            if self._interrupt is interrupt:  # no newer play: nothing plays now
+                self.playing = False
+            finished.set()
+
+    async def _play(
+        self, chunks: AsyncIterator[bytes], fmt: AudioFormat, interrupt: asyncio.Event
+    ) -> Played:
         self.levels, self.played_ms, self.stopped = [], 0, False
         frame = 2 * fmt.channels
         rate = fmt.sample_rate * frame
@@ -291,30 +323,58 @@ class PcmPlayer:
         self.playing = True
         carry = b""
         written = 0
+        played_ms = 0
+        iterator = aiter(chunks)
         try:
-            async for chunk in chunks:
-                if self.stopped:
+            while not interrupt.is_set():
+                chunk = await self._next(iterator, interrupt)
+                if chunk is None:
                     break
                 data = carry + chunk
                 usable = len(data) - len(data) % frame
                 carry = data[usable:]
-                if not usable:
-                    continue
                 for at in range(0, usable, block_size):
-                    if self.stopped:
+                    if interrupt.is_set():
                         break
                     block = data[at : min(at + block_size, usable)]
-                    self.levels.append(min(1.0, rms(block) * 4))
+                    level = min(1.0, rms(block) * 4)
                     await asyncio.to_thread(stream.write, block)
                     written += len(block)
-                    self.played_ms = written * 1000 // rate
+                    played_ms = written * 1000 // rate
+                    if self._interrupt is interrupt:  # the meter shows the current play
+                        self.levels.append(level)
+                        self.played_ms = played_ms
         finally:
-            self.playing = False
             stream.stop()
             stream.close()
+            if self._interrupt is interrupt:  # a newer play owns ``playing`` now
+                self.playing = False
+                self.stopped = interrupt.is_set()
+        return Played(played_ms, stopped=interrupt.is_set())
+
+    @staticmethod
+    async def _next(iterator: AsyncIterator[bytes], interrupt: asyncio.Event) -> bytes | None:
+        """The stream's next chunk, or ``None`` at its end or once ``interrupt`` is set
+        (the pending read is cancelled)."""
+        read = asyncio.ensure_future(anext(iterator))
+        halt = asyncio.ensure_future(interrupt.wait())
+        try:
+            await asyncio.wait((read, halt), return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            halt.cancel()
+            if not read.done():
+                read.cancel()
+                await asyncio.gather(read, return_exceptions=True)
+        if not read.done() or read.cancelled():
+            return None
+        try:
+            return read.result()
+        except StopAsyncIteration:
+            return None
 
     def stop(self) -> None:
         self.stopped = True
+        self._interrupt.set()
 
 
 def wav_pcm(data: bytes) -> tuple[bytes, AudioFormat]:
@@ -348,6 +408,7 @@ __all__ = [
     "OpenOutput",
     "OutputStream",
     "PcmPlayer",
+    "Played",
     "Recorder",
     "VoiceUnavailable",
     "meter",

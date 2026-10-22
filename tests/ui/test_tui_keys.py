@@ -1012,3 +1012,35 @@ async def test_voice_a_replayed_speech_or_image_is_drawn_and_played_once(tmp_pat
         assert len(app.query(MediaEntry)) == 1
         assert client.media_fetched.count(media_url("Sp1")) == 1
         assert speakers.played == pcm
+
+
+async def test_voice_replay_during_playback_then_escape_stops(tmp_path: Path) -> None:
+    """R4.3: Enter replays the reply while it plays: the first playback stops, only the
+    replay plays, and Escape stops the replay."""
+    gate = asyncio.Event()
+    pcm = fx_tone(0.5, rate=24_000)
+    reply = agent_text("A rust rug warms the floor.", "a-1")
+    client = media_client(
+        [speech("Sp1"), status(TaskState.TASK_STATE_WORKING, reply), parked()],
+        files={media_url("Sp1"): [pcm, gate]},
+    )
+    app, _, _, speakers = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        line = await _speaking(pilot, app, client, speakers, pcm)
+        line.focus()
+        await pilot.press("enter")
+        for _ in range(50):
+            if speakers.played == pcm + pcm:
+                break
+            await pilot.pause(0.02)
+        assert speakers.opened[0].closed and len(speakers.opened) == 2
+        assert app.player.playing
+        await pilot.press("escape")
+        await pilot.pause(0.12)
+        assert not app.player.playing
+        assert speakers.opened[1].closed
+        assert line.text == "🔊 stopped at 0:00 · ⏎ replays"
+        gate.set()
+        await settle(app)
+        await pilot.pause()
+        assert speakers.played == pcm + pcm

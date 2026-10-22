@@ -134,29 +134,46 @@ synthetic); logs are checked for `OPENAI_API_KEY`, bearer tokens and hostnames o
 
 ## Verification activities
 
-- [ ] T1 — `uv run pytest tests/unit`
-- [ ] T2 — `uv run pytest tests/integration/media`
-- [ ] T3 — `uv run pytest tests/contract`
-- [ ] T4 — `uv run pytest tests/e2e/test_demo_multimodal.py` (with `OPENAI_API_KEY`)
-- [ ] T5 — `cd renderers/web && bun run build && bun x playwright test --project=visual`; `uv run pytest tests/ui/test_tui_keys.py`
-- [ ] T6 — `uv run pytest tests/ui/test_tui_snapshots.py`
-- [ ] T7 — latency recorded from the T4 run
-- [ ] T8 — `uv run pytest tests/security/test_media.py`; `cd renderers/web && bun run test`
-- [ ] T9 — `cd renderers/web && bun x playwright test --project=a11y`
-- [ ] T10 — `uv run pytest tests/integration/media/test_compat.py`
-- [ ] T11 — `uv run pytest tests/unit tests/integration tests/contract tests/security tests/ui`
-- [ ] T12 — `uv run pytest tests/integration/test_package.py`
-- [ ] T13 — `uv run pre-commit run --all-files`; `cd renderers/web && bun run typecheck`
+- [x] T1 — `uv run pytest tests/unit`
+- [x] T2 — `uv run pytest tests/integration/media`
+- [x] T3 — `uv run pytest tests/contract`
+- [x] T4 — `uv run pytest tests/e2e/test_demo_multimodal.py` (with `OPENAI_API_KEY`)
+- [x] T5 — `cd renderers/web && bun run build && bun x playwright test --project=visual`; `uv run pytest tests/ui/test_tui_keys.py`
+- [x] T6 — `uv run pytest tests/ui/test_tui_snapshots.py`
+- [x] T7 — latency recorded from the T4 run
+- [x] T8 — `uv run pytest tests/security/test_media.py`; `cd renderers/web && bun run test`
+- [x] T9 — `cd renderers/web && bun x playwright test --project=a11y`
+- [x] T10 — `uv run pytest tests/integration/media/test_compat.py`
+- [x] T11 — `uv run pytest tests/unit tests/integration tests/contract tests/security tests/ui`
+- [x] T12 — `uv run pytest tests/integration/test_package.py`
+- [x] T13 — `uv run pre-commit run --all-files`; `cd renderers/web && bun run typecheck`
 - [ ] T14 — manual run per `examples/multimodal/README.md`
-- [ ] T15 — `cd docs && bun run docs:build`
+- [x] T15 — `cd docs && bun run docs:build`
 
 ## Verification results
 
-_Not yet executed._
+Executed 2026-10-22 on branch `issue-38-multimodal` (`8d924e3` → `22701e9`), Python
+3.14.7, `uv sync --locked --all-extras`, the local Temporal dev server. Verification
+added one planned check that had no test (`ec5f6b8`, the T7 size check) and fixed one
+defect that T11 found (`22701e9`, see T11).
 
 | Activity | Command / procedure | Outcome | Evidence |
 |----------|--------------------|---------|----------|
-| | | | |
+| T1 | `uv run pytest tests/unit` | pass: 1033 passed (373 new in 23 files) | [unit.md](evidence/unit.md) |
+| T2 | `uv run pytest tests/integration/media`; `the-loop scenarios --root "$PWD" --glob 'tests/integration/media/*.py' --format markdown` | pass: 31 passed; 28 Gherkin scenarios listed | [integration.md](evidence/integration.md) |
+| T3 | `uv run pytest tests/contract` | pass: 45 passed; card without `[media]` unchanged from 0.8.0 | [contract.md](evidence/contract.md) |
+| T4 | `env -u TEMPORAL_API_KEY TINY_HARNESS_E2E_EVIDENCE=… uv run pytest tests/e2e/test_demo_multimodal.py -s` with `OPENAI_API_KEY` | pass: 1 passed in 75.8 s against OpenAI; 2 images generated, spoken reply 8.75 s | [e2e.md](evidence/e2e.md), [generated.png](evidence/e2e/generated.png), [reply-excerpt.wav](evidence/e2e/reply-excerpt.wav) |
+| T5 | `cd renderers/web && bun run build && bun x playwright test --project=visual` (and again with `TINY_HARNESS_VISUAL_STRICT=1`); `uv run pytest tests/ui/test_tui_keys.py` | pass: visual 28 passed, strict 28 passed against the baselines; TUI keys 42 passed | [ui.md](evidence/ui.md), `evidence/ui/web-*.png`, [web-voice-flow.gif](evidence/ui/web-voice-flow.gif) |
+| T6 | `uv run pytest tests/ui/test_tui_snapshots.py` | pass: 16 passed, 15 snapshots matched; 6 media snapshots rendered to PNG | [ui.md](evidence/ui.md), `evidence/ui/tui-*.png` |
+| T7 | first PCM chunk after the voice reply's final status, from the T4 run; `read_stream` within 2 × `poll` (T1); 20 MiB image through intake, store and route (T2, `test_size.py`, added `ec5f6b8`) | **0.311 s** (target ≤ 1.5 s); offline checks pass | [e2e.md § Latency](evidence/e2e.md#latency-t7), [integration.md](evidence/integration.md) |
+| T8 | `uv run pytest tests/security/test_media.py`; `cd renderers/web && bun run test` | pass: 16 passed; web 97 passed (8 files); every abuse case 1–8 and design critic 5, 8, 10 has a passing test | [security.md](evidence/security.md) |
+| T9 | `cd renderers/web && bun x playwright test --project=a11y` | pass: 8 passed; axe `violations: []` on every media and voice state; keyboard-only attach, mic, Stop, Replay | [a11y.md](evidence/a11y.md) |
+| T10 | `uv run pytest tests/integration/media/test_compat.py` | pass: 2 passed (0.8.0 history replays, 0.8.0 state deserialises) | [regression.md](evidence/regression.md) |
+| T11 | `uv run pytest tests/unit tests/integration tests/contract tests/security tests/ui` | run 1 at `ec5f6b8`: **fail**, 1 failed, 1408 passed (`test_voice_a_new_recording_or_message_stops_the_reply[record]`: a voice tick after shutdown with a recording open). Fixed test-first in `22701e9`. Run 2 at `22701e9`: pass, 1410 passed | [regression.md](evidence/regression.md) |
+| T12 | `uv run pytest tests/integration/test_package.py` | pass: 4 passed (text-only install serves media and opens the TUI; extras import) | [packaging.md](evidence/packaging.md) |
+| T13 | `uv run pre-commit run --all-files`; `cd renderers/web && bun run typecheck`; CI parity: `uv sync --locked`, `uv run pyright`, `uv run pre-commit run --all-files`, `uv sync --locked --all-extras` | pass: every hook passed with and without extras; pyright 0 errors without extras; typecheck exit 0 | [static.md](evidence/static.md) |
+| T14 | manual run per `examples/multimodal/README.md` | **Not executed.** It needs a real microphone, speakers, the kitty terminal and a person; the verification agent runs unattended and headless. Substitutes ran: fake-microphone Chromium (T5, T9), injected audio devices and a fake clock in the TUI (T1, T5), the real OpenAI voice path with synthetic recordings (T4). Pending a human | [manual.md](evidence/manual.md) |
+| T15 | `cd docs && bun run docs:build` | pass: build complete; the new media configuration, TUI voice, multimodal example, media extension, capability and decision pages render | [docs.md](evidence/docs.md) |
 
 ## Review comments
 

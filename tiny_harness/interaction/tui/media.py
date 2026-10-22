@@ -12,6 +12,7 @@ from the URL, both checked against ``[A-Za-z0-9_-]{1,128}``.
 from __future__ import annotations
 
 import contextlib
+import importlib
 import os
 import re
 import secrets
@@ -19,7 +20,7 @@ import stat
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
-from typing import ClassVar, Final
+from typing import ClassVar, Final, cast
 from urllib.parse import urlsplit
 
 from textual.binding import Binding, BindingType
@@ -302,17 +303,19 @@ def graphics_image_view() -> ImageView | None:
     answered its kitty-graphics or sixel query. Call it before the app starts: the
     terminal cannot be queried once Textual owns it."""
     try:
-        from textual_image.renderable import Image as Detected  # pyright: ignore
-        from textual_image.renderable import SixelImage, TGPImage  # pyright: ignore
-        from textual_image.widget import Image as InlineImage  # pyright: ignore
+        # By name, not a static import: the ``images`` extra is optional, so a type check
+        # of an install without it must not need the package.
+        renderable = importlib.import_module("textual_image.renderable")
+        widgets = importlib.import_module("textual_image.widget")
+        inline = cast(Callable[[str], Widget], widgets.Image)
     except ImportError:
         return None
-    if Detected not in (SixelImage, TGPImage):  # halfcell or unicode: no real graphics
-        return None
+    detected = cast(type, renderable.Image)
+    if detected not in (cast(type, renderable.SixelImage), cast(type, renderable.TGPImage)):
+        return None  # halfcell or unicode: no real graphics
 
     def view(path: Path) -> Widget:
-        widget: Widget = InlineImage(str(path))  # pyright: ignore
-        return widget
+        return inline(str(path))
 
     return view
 

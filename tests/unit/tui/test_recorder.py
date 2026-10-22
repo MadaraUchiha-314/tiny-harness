@@ -62,16 +62,16 @@ def test_capture_stops_at_the_cap_and_discard_closes_the_microphone() -> None:
 
 
 def test_without_portaudio_the_reason_names_the_extra(monkeypatch: pytest.MonkeyPatch) -> None:
-    import builtins
+    import importlib
 
-    real = builtins.__import__
+    real = importlib.import_module
 
-    def no_portaudio(name: str, *args: object, **kwargs: object) -> object:
+    def no_portaudio(name: str, package: str | None = None) -> object:
         if name == "sounddevice":
             raise OSError("PortAudio library not found")
-        return real(name, *args, **kwargs)  # type: ignore[arg-type]
+        return real(name, package)
 
-    monkeypatch.setattr(builtins, "__import__", no_portaudio)
+    monkeypatch.setattr(importlib, "import_module", no_portaudio)
     recorder = Recorder(open_input=open_sounddevice_input)
     with pytest.raises(VoiceUnavailable, match=r"install tiny-harness\[voice\] \(PortAudio\)"):
         recorder.start()

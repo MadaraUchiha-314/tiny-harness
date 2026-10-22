@@ -13,6 +13,7 @@ here needs a microphone or speakers; the default factories use ``sounddevice``
 from __future__ import annotations
 
 import asyncio
+import importlib
 import io
 import math
 import time
@@ -42,10 +43,11 @@ def sounddevice() -> ModuleType:
     """The ``sounddevice`` module; importing it loads PortAudio, so a missing library is
     an ``OSError`` there."""
     try:
-        import sounddevice as module  # pyright: ignore[reportMissingTypeStubs]
+        # By name, not a static import: the ``voice`` extra is optional, so a type check
+        # of an install without it must not need the module.
+        return importlib.import_module("sounddevice")
     except (ImportError, OSError) as exc:
         raise VoiceUnavailable(INPUT_UNAVAILABLE) from exc
-    return module
 
 
 def meter(levels: list[float], width: int = 12) -> str:

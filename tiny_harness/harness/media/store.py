@@ -80,6 +80,10 @@ class SpeechWriter(ABC):
     async def close(self, *, failed: bool = False) -> None:
         """Finish this generation as done (or failed); ``MediaFenced`` when superseded."""
 
+    def release(self) -> None:  # noqa: B027 - optional: a writer may hold nothing
+        """Let go of what this writer holds (its open file) without finishing the
+        generation: an attempt that will be retried leaves the object open (2.9)."""
+
 
 class MediaStore(Entity):
     """Where media bytes live, scoped by task (R1.5)."""
@@ -204,6 +208,9 @@ class _FileSpeechWriter(SpeechWriter):
     async def close(self, *, failed: bool = False) -> None:
         self._file.close()
         await asyncio.to_thread(self._finish, failed)
+
+    def release(self) -> None:
+        self._file.close()
 
     def _finish(self, failed: bool) -> None:
         paths = self._paths

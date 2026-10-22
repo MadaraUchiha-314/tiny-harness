@@ -591,13 +591,18 @@ class Activities:
             nonlocal written
             chunks = tts.stream(text, voice=arg.voice)
             try:
-                async for chunk in chunks:
-                    await writer.append(chunk)  # MediaFenced: a newer attempt owns it
-                    written += len(chunk)
-                    activity.heartbeat()
+                try:
+                    async for chunk in chunks:
+                        await writer.append(chunk)  # MediaFenced: a newer attempt owns it
+                        written += len(chunk)
+                        activity.heartbeat()
+                finally:
+                    await close_stream(chunks)  # an early exit hangs up on the provider
+                await writer.close()
             finally:
-                await close_stream(chunks)  # an early exit hangs up on the provider
-            await writer.close()
+                # The generation's file, also when this attempt fails and is retried: the
+                # object stays open for the retry, not marked failed (self-review 2.9).
+                writer.release()
 
         try:
             with media_span(

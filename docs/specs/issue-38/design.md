@@ -113,6 +113,8 @@ sequenceDiagram
     W-->>S: artifact transcript:m1 (text)
     W->>A: invoke_llm (refs resolved to bytes inside the activity)
     A-->>W: reply text
+    W->>A: open_speech(s1)
+    A->>M: create s1 (open)
     W-->>S: artifact speech:s1 (url=/media/t/s1, audio/L16;rate=24000)
     W-->>S: status INPUT_REQUIRED + reply message  [final status last: the stream may end here]
     W->>A: speak(s1, reply text)  [tracked speech job, does not block the mailbox]
@@ -160,7 +162,7 @@ tiny_harness/
     a2a/executor.py                 MediaIntake before redaction; reject url file parts
     a2a/media_routes.py             ── NEW: GET /media/{task_id}/{media_id}
     a2a/app.py, card.py, middleware.py   route, modes + media extension, size cap
-    durable/activities.py           transcribe, speak; invoke_llm resolves media
+    durable/activities.py           transcribe, open_speech, speak; invoke_llm resolves media
     durable/workflows.py            ingest media, transcript/speech/image artifacts
     runtime.py, harness.py          build and pass the new entities (SDK seams)
   interaction/
@@ -493,9 +495,12 @@ media = "P30D"                         # NEW
   bytes stay in the store until retention.
 - **`speak` activity** `SpeakIn{task, media_id, text, voice} → MediaRef`. WHEN a reply's
   triggering message has `speak: true` AND `[text_to_speech]` is set THEN the workflow
-  (1) creates the id with `workflow.uuid4()`-derived token, (2) emits the `speech:<id>`
-  artifact **before the reply's final status** (finding 1 of the design critic), (3) starts `speak` as a workflow coroutine so the mailbox keeps draining (the
-  user can speak again at once). The activity `create`s the open object, `append`s each
+  (1) creates the id with `workflow.uuid4()`-derived token, (2) **awaits the short
+  `open_speech` activity** (`OpenSpeechIn{task, media_id} → MediaRef`), which `create`s
+  the open object, so the URL never points at nothing (design critic 2), (3) emits the
+  `speech:<id>` artifact **before the reply's final status** (design critic 1), (4) starts
+  `speak` as a workflow coroutine so the mailbox keeps draining (the
+  user can speak again at once). The activity `append`s each
   chunk of `tts.stream(text)`, then `close`s it; on error it `close(failed=True)` and the
   workflow emits a status note "speech unavailable" (R4.5). A retry after a worker crash
   truncates and rewrites the object; a listener mid-stream sees the stream end and the

@@ -42,7 +42,7 @@ red→green run.
   - _Depends on:_ 1
   - _Requirements:_ R1.4, abuse cases 2, 7
   - _Test:_ T1/T8 — `tests/unit/media/test_sniff_images.py` (one per type; SVG, HTML named `.png`, PNG declared JPEG, a bomb PNG)
-- [ ] 3. `sniff`: audio duration and track checks
+- [x] 3. `sniff`: audio duration and track checks
   - Bounded walkers for WAV, MP3 (frame walk), MP4 (`hdlr`, `mvhd`/`mdhd`/`stts`), Ogg
     (page walk, `OpusHead`/vorbis) and WebM (tracks, `Info/Duration` or the cluster walk),
     each with a hop budget. Over the cap, indeterminate, or not audio only → reject.

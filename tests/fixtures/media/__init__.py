@@ -70,12 +70,231 @@ SVG = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><script>x()
 HTML = b"<!doctype html><html><body><script>alert(1)</script></body></html>"
 
 
+# --- audio ---------------------------------------------------------------------------------
+
+
+def wav(
+    seconds: float = 0.5,
+    *,
+    rate: int = 16_000,
+    channels: int = 1,
+    bits: int = 16,
+    fmt_tag: int = 1,
+    extra: bytes = b"",
+    data_size: int | None = None,
+) -> bytes:
+    """A WAV of silence; ``extra`` is appended after the data chunk (more chunks, or junk)
+    and ``data_size`` overrides the data chunk's declared size."""
+    block = channels * bits // 8
+    fmt = struct.pack("<HHIIHH", fmt_tag, channels, rate, rate * block, block, bits)
+    samples = b"\x00" * (int(seconds * rate) * block)
+    data = b"data" + struct.pack("<I", len(samples) if data_size is None else data_size) + samples
+    return _riff(b"WAVE", _riff_chunk(b"fmt ", fmt) + data + extra)
+
+
+# MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417-byte frames of 1152 samples (26.1 ms).
+MP3_FRAME_128K = b"\xff\xfb\x90\x00"
+# MPEG-2.5 Layer III, 8 kbit/s, 8 kHz: 72-byte frames of 576 samples (72 ms). A small file
+# that plays for a long time.
+MP3_FRAME_8K = b"\xff\xe3\x18\x00"
+
+
+def _mp3_frame_length(header: bytes) -> int:
+    return 417 if header == MP3_FRAME_128K else 72
+
+
+def mp3(
+    frames: int = 20,
+    *,
+    header: bytes = MP3_FRAME_128K,
+    id3: bool = True,
+    trailer: bytes = b"",
+) -> bytes:
+    """``frames`` MPEG audio frames, behind an ID3v2 tag when ``id3``, then ``trailer``."""
+    tag = b""
+    if id3:
+        body = b"TIT2" + struct.pack(">I", 6) + b"\x00\x00\x00title"
+        size = len(body)
+        syncsafe = bytes(
+            [(size >> 21) & 0x7F, (size >> 14) & 0x7F, (size >> 7) & 0x7F, size & 0x7F]
+        )
+        tag = b"ID3\x04\x00\x00" + syncsafe + body
+    frame = header + b"\x00" * (_mp3_frame_length(header) - 4)
+    return tag + frame * frames + trailer
+
+
+def mp3_seconds(seconds: float, *, header: bytes = MP3_FRAME_8K) -> bytes:
+    per_frame = 1152 / 44_100 if header == MP3_FRAME_128K else 576 / 8_000
+    return mp3(int(seconds / per_frame) + 1, header=header, id3=False)
+
+
+def box(kind: bytes, *children: bytes, payload: bytes = b"") -> bytes:
+    body = payload + b"".join(children)
+    return struct.pack(">I", 8 + len(body)) + kind + body
+
+
+def _full(kind: bytes, payload: bytes, version: int = 0) -> bytes:
+    return box(kind, payload=bytes([version, 0, 0, 0]) + payload)
+
+
+def mp4_track(
+    handler: bytes = b"soun",
+    *,
+    timescale: int = 48_000,
+    duration: int = 48_000,
+    stts: tuple[tuple[int, int], ...] = ((47, 1024),),
+    codec: bytes = b"mp4a",
+) -> bytes:
+    mdhd = _full(b"mdhd", struct.pack(">IIIIHH", 0, 0, timescale, duration, 0, 0))
+    hdlr = _full(b"hdlr", struct.pack(">I", 0) + handler + b"\x00" * 12 + b"handler\x00")
+    entries = b"".join(struct.pack(">II", count, delta) for count, delta in stts)
+    stts_box = _full(b"stts", struct.pack(">I", len(stts)) + entries)
+    stsd = _full(b"stsd", struct.pack(">I", 1) + box(codec, payload=b"\x00" * 28))
+    stbl = box(b"stbl", stsd, stts_box)
+    return box(b"trak", box(b"mdia", mdhd, hdlr, box(b"minf", stbl)))
+
+
+def mp4(
+    *tracks: bytes,
+    timescale: int = 1_000,
+    duration: int = 1_000,
+    mdat: bytes = b"\x00" * 64,
+    extra: bytes = b"",
+) -> bytes:
+    """An MP4/M4A: ``ftyp``, ``moov`` (``mvhd`` and ``tracks``, one AAC track by default),
+    ``mdat``, then ``extra``."""
+    ftyp = box(b"ftyp", payload=b"M4A \x00\x00\x00\x00M4A isom")
+    mvhd = _full(b"mvhd", struct.pack(">IIII", 0, 0, timescale, duration) + b"\x00" * 80)
+    moov = box(b"moov", mvhd, *(tracks or (mp4_track(),)))
+    return ftyp + moov + box(b"mdat", payload=mdat) + extra
+
+
+def mp4_fragmented(fragments: int = 3, *, sample_duration: int = 1024, samples: int = 47) -> bytes:
+    """A fragmented MP4 as Safari's MediaRecorder writes it: an empty ``moov`` (zero
+    durations, no samples) then ``moof``/``mdat`` pairs whose ``trun`` boxes hold the time."""
+    track = mp4_track(duration=0, stts=())
+    trex = _full(b"trex", struct.pack(">IIIII", 1, 1, sample_duration, 0, 0))
+    ftyp = box(b"ftyp", payload=b"iso5\x00\x00\x00\x00iso5mp41")
+    mvhd = _full(b"mvhd", struct.pack(">IIII", 0, 0, 1_000, 0) + b"\x00" * 80)
+    moov = box(b"moov", mvhd, track, box(b"mvex", trex))
+    out = ftyp + moov
+    for _ in range(fragments):
+        tfhd = box(b"tfhd", payload=bytes([0, 0, 0, 0]) + struct.pack(">I", 1))
+        trun = box(b"trun", payload=bytes([0, 0, 0, 0]) + struct.pack(">I", samples))
+        out += box(b"moof", box(b"traf", tfhd, trun)) + box(b"mdat", payload=b"\x00" * 16)
+    return out
+
+
+def _ogg_page(serial: int, sequence: int, granule: int, packets: list[bytes], flags: int) -> bytes:
+    lacing = b""
+    body = b""
+    for packet in packets:
+        size = len(packet)
+        lacing += b"\xff" * (size // 255) + bytes([size % 255])
+        body += packet
+    header = (
+        b"OggS\x00"
+        + bytes([flags])
+        + struct.pack("<qIII", granule, serial, sequence, 0)
+        + bytes([len(lacing)])
+    )
+    return header + lacing + body
+
+
+def ogg(
+    granules: tuple[int, ...] = (48_000, 96_000),
+    *,
+    codec: str = "opus",
+    rate: int = 48_000,
+    serials: tuple[int, ...] | None = None,
+) -> bytes:
+    """An Ogg stream: the id header page, a comment page, then one audio page per granule
+    position. ``serials`` gives each audio page its own stream serial."""
+    if codec == "opus":
+        head = b"OpusHead\x01\x01\x38\x01" + struct.pack("<I", rate) + b"\x00\x00\x00"
+        tags = b"OpusTags" + b"\x00" * 8
+    elif codec == "vorbis":
+        head = b"\x01vorbis" + struct.pack("<IBI", 0, 1, rate) + b"\x00" * 13 + b"\x01"
+        tags = b"\x03vorbis" + b"\x00" * 8
+    else:
+        head = codec.encode() + b"\x00" * 16
+        tags = b"\x00" * 8
+    pages = [_ogg_page(7, 0, 0, [head], 0x02), _ogg_page(7, 1, 0, [tags], 0x00)]
+    for index, granule in enumerate(granules):
+        serial = serials[index] if serials is not None else 7
+        last = 0x04 if index == len(granules) - 1 else 0x00
+        pages.append(_ogg_page(serial, index + 2, granule, [b"\x00" * 40], last))
+    return b"".join(pages)
+
+
+def _vint_size(size: int | None) -> bytes:
+    if size is None:
+        return b"\x01\xff\xff\xff\xff\xff\xff\xff"  # unknown size
+    return (
+        bytes([0x08]) + size.to_bytes(4, "big")
+        if size >= 2**21
+        else (size | 0x200000).to_bytes(3, "big")
+    )
+
+
+def ebml(element: int, payload: bytes, *, unknown: bool = False) -> bytes:
+    ident = element.to_bytes((element.bit_length() + 7) // 8, "big")
+    return ident + _vint_size(None if unknown else len(payload)) + payload
+
+
+def webm_track(track_type: int = 2, codec: bytes = b"A_OPUS", number: int = 1) -> bytes:
+    return ebml(
+        0xAE,
+        ebml(0xD7, bytes([number])) + ebml(0x83, bytes([track_type])) + ebml(0x86, codec),
+    )
+
+
+def webm(
+    clusters: tuple[tuple[int, tuple[int, ...]], ...] = ((0, (0, 20)), (1_000, (0, 20))),
+    *,
+    tracks: tuple[bytes, ...] = (),
+    duration_ms: float | None = 1_020.0,
+    unknown_sizes: bool = False,
+    doctype: bytes = b"webm",
+) -> bytes:
+    """A WebM: EBML header, Segment(Info, Tracks, Cluster*). Each cluster is (timecode,
+    block offsets) in ms (TimecodeScale 1 ms). ``unknown_sizes`` writes the Segment and
+    the Clusters with unknown size and no Duration, as Chrome's MediaRecorder does."""
+    header = ebml(0x1A45DFA3, ebml(0x4286, b"\x01") + ebml(0x4282, doctype))
+    info_body = ebml(0x2AD7B1, (1_000_000).to_bytes(3, "big"))
+    if duration_ms is not None:
+        info_body += ebml(0x4489, struct.pack(">d", duration_ms))
+    body = ebml(0x1549A966, info_body)
+    body += ebml(0x1654AE6B, b"".join(tracks or (webm_track(),)))
+    for timecode, offsets in clusters:
+        blocks = b"".join(
+            ebml(0xA3, b"\x81" + struct.pack(">h", offset) + b"\x80" + b"\x00" * 8)
+            for offset in offsets
+        )
+        cluster_body = ebml(0xE7, timecode.to_bytes(4, "big")) + blocks
+        body += ebml(0x1F43B675, cluster_body, unknown=unknown_sizes)
+    return header + ebml(0x18538067, body, unknown=unknown_sizes)
+
+
 __all__ = [
     "HTML",
+    "MP3_FRAME_8K",
+    "MP3_FRAME_128K",
     "SVG",
+    "box",
+    "ebml",
     "gif",
     "jpeg",
+    "mp3",
+    "mp3_seconds",
+    "mp4",
+    "mp4_fragmented",
+    "mp4_track",
+    "ogg",
     "png",
+    "wav",
+    "webm",
+    "webm_track",
     "webp_vp8",
     "webp_vp8l",
     "webp_vp8x",

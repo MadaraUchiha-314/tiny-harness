@@ -36,7 +36,7 @@ red→green run.
   - _Depends on:_ none
   - _Requirements:_ R1.4, R1.5, NFR durability, abuse case 8
   - _Test:_ T1 — `tests/unit/media/test_models.py` (id format, `data` not serialisable); T3 — entities API snapshot
-- [ ] 2. `sniff`: signatures and image sizes
+- [x] 2. `sniff`: signatures and image sizes
   - Signature detection for every accepted type. Image dimensions read from the header
     only.
   - _Depends on:_ 1

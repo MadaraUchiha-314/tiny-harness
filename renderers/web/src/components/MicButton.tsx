@@ -109,10 +109,21 @@ export function MicButton(props: {
       stopTracks(stream); // a late grant: released, toggled off or unmounted meanwhile
       return;
     }
-    const live = createRecorder(stream);
-    live.onCap = () => void finish(true);
+    let live: RecorderLike;
+    try {
+      live = createRecorder(stream);
+      live.onCap = () => void finish(true);
+      live.start();
+    } catch (error) {
+      stopTracks(stream); // the recorder failed: the microphone must not stay live
+      want.current = false;
+      generation.current += 1;
+      const reason = `Voice input unavailable: ${reasonOf(error)}`;
+      setUnavailable(reason);
+      say(reason);
+      return;
+    }
     recorder.current = live;
-    live.start();
     setPressed(true);
     say("Recording");
     callbacks.current.onRecording?.(live);

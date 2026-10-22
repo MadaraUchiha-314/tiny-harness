@@ -981,3 +981,34 @@ async def test_voice_enter_on_a_wav_entry_plays_it(tmp_path: Path) -> None:
         await pilot.press("enter")
         await settle(app)
         assert speakers.played == wav_pcm(wav)[0]
+
+
+async def test_voice_a_replayed_speech_or_image_is_drawn_and_played_once(tmp_path: Path) -> None:
+    """The task's subscription replays the log the send stream already showed: an image
+    and a spoken reply are each drawn once, and the reply plays once."""
+    pcm = fx_tone(0.25, rate=24_000)
+    reply = agent_text("A rust rug warms the floor.", "a-1")
+    turn: list[A2AEvent] = [
+        speech("Sp1"),
+        agent_image("Im9a1", "the green sofa"),
+        status(TaskState.TASK_STATE_WORKING, reply),
+        parked(),
+    ]
+    client = media_client(
+        turn,
+        files={media_url("Sp1"): [pcm], media_url("Im9a1"): [fx.png(1024, 768)]},
+        follow={TASK_ID: [*conversation_events(), *turn]},
+    )
+    app, _, _, speakers = voice_app(tmp_path, client)
+    async with app.run_test(size=(110, 36)) as pilot:
+        app.feed(conversation_events())
+        await pilot.press("f6")
+        await pilot.press(*"rug?", "enter")
+        await settle(app)
+        await pilot.pause()
+        await settle(app)
+        assert client.subscribed == [TASK_ID]
+        assert len(app.query(SpeechEntry)) == 1
+        assert len(app.query(MediaEntry)) == 1
+        assert client.media_fetched.count(media_url("Sp1")) == 1
+        assert speakers.played == pcm

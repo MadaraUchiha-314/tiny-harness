@@ -926,7 +926,8 @@ class HarnessApp(App[None]):
 
     def _media_artifact(self, event: TaskArtifactUpdateEvent, view: TaskView) -> bool:
         """The user's message echo and a transcript are not agent text: they complete
-        entries already drawn. True when ``event`` was one of them."""
+        entries already drawn. True when ``event`` was one of them, or a media artifact
+        already drawn."""
         artifact_id = event.artifact.artifact_id
         if artifact_id.startswith(MESSAGE_ARTIFACT):
             if artifact_id not in view.seen:
@@ -941,6 +942,12 @@ class HarnessApp(App[None]):
                 view.audio[media_id].set_transcript(text)
             self.trace.append("transcript")
             return True
+        if any(is_media_part(p) for p in event.artifact.parts):
+            # An image or a spoken reply: the task's subscription replays the log the
+            # send stream already showed, so draw (and play) each artifact once.
+            if artifact_id in view.seen:
+                return True
+            view.seen.add(artifact_id)
         return False
 
     def _echo(self, event: TaskArtifactUpdateEvent, view: TaskView) -> None:

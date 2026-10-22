@@ -80,7 +80,7 @@ red→green run.
   - _Depends on:_ 1, 5
   - _Requirements:_ R1.6, R5.1, R5.2
   - _Test:_ T1 — `tests/unit/models/test_media_content.py` (golden bodies; **text-only bodies byte-identical to 0.8.0**); T3 — models API snapshot
-- [ ] 8. Speech and image interfaces, plus fakes
+- [x] 8. Speech and image interfaces, plus fakes
   - `speech.py` (`SpeechToText`, `TextToSpeech`, `Transcript`), `images.py`
     (`ImageGenerator`, `GeneratedImage`), and the three scripted fakes.
   - _Depends on:_ 1

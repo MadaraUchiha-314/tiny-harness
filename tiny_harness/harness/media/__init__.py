@@ -1,5 +1,6 @@
 """Provider-neutral media handling (issue-38): references, sniffing, the store, intake."""
 
+from tiny_harness.harness.media.intake import MediaIntake, MediaRejected, guard
 from tiny_harness.harness.media.models import (
     ACCEPTED,
     PCM_MEDIA_TYPE,
@@ -25,9 +26,12 @@ __all__ = [
     "MediaAttachment",
     "MediaFailed",
     "MediaFenced",
+    "MediaIntake",
     "MediaInterrupted",
     "MediaKind",
     "MediaRef",
+    "MediaRejected",
     "MediaStore",
     "SpeechWriter",
+    "guard",
 ]

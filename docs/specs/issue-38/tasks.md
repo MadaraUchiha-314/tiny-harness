@@ -64,7 +64,7 @@ red→green run.
   - _Depends on:_ none
   - _Requirements:_ R5.5, NFR size limits
   - _Test:_ T1 — `tests/unit/test_config_media.py`; T3 — `settings.schema.json` and the config API snapshot
-- [ ] 6. `MediaIntake` and `guard`
+- [x] 6. `MediaIntake` and `guard`
   - `extract` (checks in order, all-or-nothing rollback, url-part rewrite and part
     metadata). `guard` with the `extract` / `refuse` / `drop` modes.
   - _Depends on:_ 3, 4, 5

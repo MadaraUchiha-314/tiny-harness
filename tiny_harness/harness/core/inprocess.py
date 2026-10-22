@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 
 from a2a.types import TaskState
 
-from tiny_harness.harness.core.compaction import CompactionRecord, Compactor
+from tiny_harness.harness.core.compaction import CompactionMedia, CompactionRecord, Compactor
 from tiny_harness.harness.core.context import NO_AGENTS, ContextWindow, ContextWindowManager
 from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics, image_intrinsic
 from tiny_harness.harness.core.loop import (
@@ -134,7 +134,16 @@ class InProcessOperations:
             selectable=(llm.info.model,),
             fallback_window=llm.info.context_window_tokens,
         )
-        self.compactor = Compactor(hooks=hooks, manager=self.manager, llm=llm)
+        self.compactor = Compactor(
+            hooks=hooks,
+            manager=self.manager,
+            llm=llm,
+            media=(
+                CompactionMedia(media_store, self.model_info, speech_to_text)
+                if media_store is not None
+                else None
+            ),
+        )
         self.runner = OperationRunner(hooks, redactor)
         self.invoker = ToolInvoker(registry)
         self.correlation_id = correlation_id

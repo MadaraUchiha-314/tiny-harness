@@ -17,10 +17,10 @@ model AcceptanceCriterion(text: <class 'str'>, met: <class 'bool'> = ...)
 model AgentState(task_id: <class 'str'>, history: tuple[tiny_harness.harness.core.state.HistoryEntry, ...] = ..., next_history_id: <class 'int'> = ..., summary: <class 'str'> = ..., loaded_skills: tuple[tiny_harness.harness.core.state.LoadedSkillRecord, ...] = ..., data: <class 'tiny_harness.harness.core.state.SchemaValidated'> = ..., last_usage: tiny_harness.harness.models.llm.Usage | None = ..., last_context_chars: <class 'int'> = ..., turn: <class 'int'> = ...)
 model CompactionKeepIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., sections: tuple[str, ...], result: tuple[str, ...] | None = ...)
 model CompactionRecord(task_id: <class 'str'>, turn: <class 'int'>, removed_ids: tuple[int, ...], summary: <class 'str'>, tokens_before: <class 'int'>, tokens_after: <class 'int'>, at: <class 'datetime.datetime'>)
-model CompactionSummariseIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., previous_summary: <class 'str'>, history: <class 'str'>, removed_ids: tuple[int, ...], model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ..., result: str | None = ...)
+model CompactionSummariseIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., previous_summary: <class 'str'>, history: <class 'str'>, removed_ids: tuple[int, ...], folded_media: tuple[tiny_harness.harness.media.models.MediaRef, ...] = ..., media: tuple[tiny_harness.harness.media.models.MediaAttachment, ...] = ..., model: str | None = ..., reasoning_effort: typing.Literal['low', 'medium', 'high'] | None = ..., result: str | None = ...)
 model CompactionTriggerIn(task_id: <class 'str'>, correlation_id: <class 'str'>, attempt: <class 'int'> = ..., estimated_tokens: <class 'int'>, budget: <class 'int'>, fraction: <class 'float'>, result: bool | None = ...)
 class Compactor(object)
-  def __init__(self, *, hooks: 'HookManager', manager: 'ContextWindowManager', llm: 'LLM', now: 'type[datetime]' = <class 'datetime.datetime'>) -> 'None'
+  def __init__(self, *, hooks: 'HookManager', manager: 'ContextWindowManager', llm: 'LLM', now: 'type[datetime]' = <class 'datetime.datetime'>, media: 'CompactionMedia | None' = None) -> 'None'
   def compact(self, state: 'AgentState', window: 'ContextWindow', *, task_id: 'str', correlation_id: 'str') -> 'tuple[AgentState, CompactionRecord]'
   def register_defaults(self) -> 'None'
   def should_compact(self, window: 'ContextWindow', model: 'LLMModelInfo', *, task_id: 'str', correlation_id: 'str') -> 'bool'
@@ -106,7 +106,7 @@ def estimate_tokens(chars: 'int', state: 'AgentState') -> 'int'
 def link_subtask(task: 'HarnessTask', ref: 'TaskRef', step_id: 'str | None') -> 'HarnessTask'
 def participant_of(message: 'Message') -> 'str | None'
 def proto_json(message_type: 'type[M]') -> 'object'
-def render_entries(entries: 'tuple[HistoryEntry, ...]') -> 'str'
+def render_entries(entries: 'tuple[HistoryEntry, ...]', *, carried: 'Collection[str]' = (), media: 'Mapping[str, MediaAttachment] | None' = None) -> 'str'
 def render_participants(task: 'HarnessTask') -> 'str'
 def render_plan(task: 'HarnessTask') -> 'str'
 def render_task(task: 'HarnessTask') -> 'str'

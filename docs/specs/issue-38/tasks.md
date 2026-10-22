@@ -157,7 +157,7 @@ red→green run.
   - _Depends on:_ 9, 14
   - _Requirements:_ R2.1, R2.2, R2.5
   - _Test:_ T2 — `Scenario: generate_image shows an image and a later turn sees it`
-- [ ] 19. Compaction with media
+- [x] 19. Compaction with media
   - The summarise request carries media. One description line per folded item is
     enforced, with the fallback line. Native audio is transcribed first when STT exists.
   - _Depends on:_ 15, 16

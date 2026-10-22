@@ -116,3 +116,69 @@ for (const state of states) {
     await capture(page, `completed-${state.name}`, true);
   });
 }
+
+/** The multimodal prototype (issue-38, `design/web-multimodal.html`), T5. */
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAMCAIAAADkharWAAAAHUlEQVR4nGO8c+cOAymAiSTVoxpGNYxqGNVATQ0A3NQCZlxZHasAAAAASUVORK5CYII=",
+  "base64",
+);
+
+async function openMedia(page: Page, theme: string, width: number, query = ""): Promise<void> {
+  await page.setViewportSize({ width, height: 900 });
+  await page.emulateMedia({ colorScheme: theme === "dark" ? "dark" : "light" });
+  await page.goto(`/?fixture=media${query}`);
+  await expect(page.getByTestId("state")).toHaveText("INPUT_REQUIRED");
+  await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Generated: the same room with a green sofa and a rust rug" })).toBeVisible();
+}
+
+for (const state of states) {
+  test(`media turns render: image, voice turn, transcript, agent image (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    await expect(page.getByText("living-room.png · ")).toBeVisible();
+    await expect(page.getByTestId("transcript")).toHaveText("“Would a rug work better than a throw on the sofa in the first photo?”");
+    await expect(page.locator("audio")).toHaveAttribute("src", /^blob:/);
+    await expect(page.getByRole("button", { name: "Attach image or audio" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-${state.name}`, true);
+  });
+
+  test(`attachment chips render (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    await page.locator("input[type=file]").setInputFiles([
+      { name: "sofa-closeup.png", mimeType: "image/png", buffer: TINY_PNG },
+      { name: "note.wav", mimeType: "audio/wav", buffer: Buffer.from("RIFF\0\0\0\0WAVE") },
+    ]);
+    const chips = page.getByRole("list", { name: "Attachments" });
+    await expect(chips).toContainText("sofa-closeup.png");
+    await expect(chips).toContainText("note.wav");
+    await expect(page.getByRole("button", { name: "Remove note.wav" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-chips-${state.name}`, false);
+  });
+
+  test(`a refused file is named and its chip stays (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    await page.locator("input[type=file]").setInputFiles([{ name: "photo.png", mimeType: "image/png", buffer: Buffer.from("not really a png") }]);
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByTestId("error")).toHaveText("Not sent: photo.png is not a file this agent accepts. Remove it and send again.");
+    await expect(page.getByRole("button", { name: "Remove photo.png" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-rejected-${state.name}`, false);
+  });
+}
+
+test("a sent image shows at once, then from the media route; it opens full size", async ({ page }) => {
+  await openMedia(page, "light", 1280);
+  await page.locator("input[type=file]").setInputFiles([{ name: "sofa-closeup.png", mimeType: "image/png", buffer: TINY_PNG }]);
+  await page.getByRole("combobox", { name: "Message or /command" }).fill("And this one?");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("img", { name: "Image sofa-closeup.png" })).toBeVisible();
+  await expect(page.getByText("Noted. A rust rug and a warm lamp would do the most.")).toBeVisible();
+  await page.getByRole("button", { name: "Open living-room.png full size" }).click();
+  const dialog = page.getByRole("dialog", { name: "living-room.png" });
+  await expect(dialog).toBeVisible();
+  await capture(page, "media-dialog", false);
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toBeHidden();
+});

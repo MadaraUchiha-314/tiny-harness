@@ -201,7 +201,7 @@ red→green run.
   - _Depends on:_ 17, 23
   - _Requirements:_ R3.2, R3.3, R3.5, R3.6, R4.1, R4.3, R4.4, R4.5, R8
   - _Test:_ T1 — `tests/unit/tui/test_hold_detector.py`, `test_recorder.py`, `test_pcm_player.py`; T5 — `test_tui_keys.py::test_voice_*`; T6 — snapshots (recording bar, transcript, speaking line)
-- [ ] 25. Web: attachments and media items
+- [x] 25. Web: attachments and media items
   - `media.ts`. Composer attach via picker, drop and paste, and chips.
     `onSend(text, files)`. `model.ts` media and speech items, plus the transcript.
     `MediaItem` (blob URLs, raster only, full-size dialog). Fixture states for

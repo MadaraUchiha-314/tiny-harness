@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "./App";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
+import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
 import { replay } from "./model";
 
 describe("the web renderer", () => {
@@ -162,4 +163,39 @@ it("userMessage builds the SDK's message shape with the participant in the metad
   expect(message.taskId).toBe("t-1");
   expect(message.parts[0]?.content).toEqual({ $case: "text", value: "hello" });
   expect(message.metadata).toEqual({ participant_id: "alice" });
+});
+
+describe("media against the harness (issue-38 fixture client)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    let n = 0;
+    Object.assign(URL, { createObjectURL: () => `blob:test/${(n += 1)}`, revokeObjectURL: () => undefined });
+  });
+
+  const mount = () =>
+    render(
+      <App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client: new MediaFixtureClient() }} />,
+    );
+
+  it("shows the conversation's images, voice turn, transcript and the agent's image", async () => {
+    mount();
+    expect(await screen.findByRole("img", { name: "Image living-room.png" })).toHaveAttribute("src", expect.stringMatching(/^blob:/));
+    expect(await screen.findByText("“Would a rug work better than a throw on the sofa in the first photo?”")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Generated: the same room with a green sofa and a rust rug" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Attach image or audio" })).toBeInTheDocument();
+  });
+
+  it("puts the chips back and names the file when the harness refuses it", async () => {
+    const { container } = mount();
+    await screen.findByRole("img", { name: "Image living-room.png" });
+    const input = container.querySelector<HTMLInputElement>("input[type=file]")!;
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array([1, 2, 3])], "photo.png", { type: "image/png" })] } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("error")).toHaveTextContent("Not sent: photo.png is not a file this agent accepts. Remove it and send again."),
+    );
+    expect(screen.getByRole("button", { name: "Remove photo.png" })).toBeInTheDocument();
+  });
 });

@@ -8,6 +8,10 @@
  * state the renderer keeps a subscription open, so a reply or a completion from another
  * surface shows up here (R5.6). The header carries the state, the sub-state and the
  * Complete and Cancel controls (R5.5, R5.7); sub-task and parent links attach in place.
+ * Issue-38: files are sent as `raw` parts and shown at once from the page's own copy until
+ * the server's echo names their stored URLs; media is fetched through the harness's media
+ * route into blob URLs that go with the task view; a refused file is named and its chips
+ * come back. `?fixture=media` runs the multimodal prototype against a scripted harness.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
@@ -23,12 +27,16 @@ import {
   type CommandSpec,
   type HarnessPort,
   type JsonObject,
+  type MediaParams,
+  type Part,
   type StreamResponse,
 } from "./a2a";
-import { apply, attach, emptyView, type View } from "./model";
+import { apply, attach, emptyView, withoutMessage, type View } from "./model";
+import { MediaCache, blobBytes, filePart, rejectionText } from "./media";
+import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
-import { Composer } from "./components/Composer";
+import { Composer, type Attachment } from "./components/Composer";
 import { Stream } from "./components/Stream";
 import { TaskLink, taskHref } from "./components/TaskLink";
 import { TaskPane } from "./components/TaskPane";
@@ -80,7 +88,24 @@ export function configFromLocation(): AppConfig {
     config.client = new FixtureClient(400);
     config.taskId = task ?? CONTROLS_ROOT;
   }
+  if (params.get("fixture") === "media") {
+    config.client = new MediaFixtureClient({ delay: 400, speech: params.get("speech") === "broken" ? "broken" : "ok" });
+    config.taskId = MEDIA_ROOT;
+  }
   return config;
+}
+
+/** The media refusal in an A2A error (`InvalidParams` data: reason, limit, part). */
+function refusalOf(error: unknown): { reason: string; limit: string | null; part: number | null } | null {
+  const data: unknown = typeof error === "object" && error !== null ? (error as { data?: unknown }).data : undefined;
+  if (typeof data !== "object" || data === null) return null;
+  const { reason, limit, part } = data as { [key: string]: unknown };
+  if (typeof reason !== "string") return null;
+  return {
+    reason,
+    limit: limit === undefined || limit === null ? null : String(limit),
+    part: typeof part === "number" ? part : typeof part === "string" && /^\d+$/.test(part) ? Number(part) : null,
+  };
 }
 
 const pillVariant = (state: string): "default" | "secondary" | "outline" => {
@@ -101,6 +126,9 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const offline = config.fixture !== undefined; // the prototype's events: nothing to send to
   const [attached, setAttached] = useState(config.taskId);
   const [commands, setCommands] = useState<CommandSpec[]>([]);
+  const [media, setMedia] = useState<MediaParams | null>(null);
+  const cache = useRef<MediaCache>(new MediaCache((url) => client.current.getMedia(url)));
+  const load = useCallback((url: string, mediaType: string) => cache.current.url(url, mediaType), []);
 
   const fold = useCallback((event: StreamResponse) => {
     const index = seq.current++;
@@ -116,6 +144,12 @@ export function App(props: { config: AppConfig }): JSX.Element {
       ],
     }));
   }, []);
+
+  // The task view's blob URLs go with it (issue-38).
+  useEffect(() => {
+    const media = cache.current;
+    return () => media.revokeAll();
+  }, [attached]);
 
   const stopSubscription = useCallback(() => {
     subscription.current?.abort();
@@ -200,7 +234,8 @@ export function App(props: { config: AppConfig }): JSX.Element {
     return () => window.removeEventListener("popstate", back);
   }, []);
 
-  // The commands the harness advertises on its card, for the composer (R6.7).
+  // The commands the harness advertises on its card, for the composer (R6.7), and its
+  // media extension, for the attach, mic and speaker controls (issue-38 R5.5).
   useEffect(() => {
     if (offline) return;
     let live = true;
@@ -210,17 +245,24 @@ export function App(props: { config: AppConfig }): JSX.Element {
       },
       () => undefined, // no card, no completions: commands still work when typed
     );
+    client.current.media().then(
+      (found) => {
+        if (live) setMedia(found);
+      },
+      () => undefined, // no card: no media controls
+    );
     return () => {
       live = false;
     };
   }, [offline]);
 
   const consume = useCallback(
-    async (events: AsyncGenerator<StreamResponse>) => {
+    async (events: AsyncGenerator<StreamResponse>, refused?: (error: unknown) => boolean): Promise<boolean> => {
       stopSubscription();
       setBusy(true);
       let taskId: string | null = null;
       let state = "";
+      let ok = true;
       try {
         for await (const event of events) {
           folded.current += 1;
@@ -235,12 +277,15 @@ export function App(props: { config: AppConfig }): JSX.Element {
           }
         }
       } catch (error) {
-        fail(error);
+        ok = false;
+        if (!refused?.(error)) fail(error);
       } finally {
         setBusy(false);
       }
       // Keep following the task while it is not finished: another surface may answer.
-      if (taskId && !TERMINAL.has(state)) void subscribe(taskId);
+      const following = taskId ?? viewRef.current.taskId;
+      if (following && !TERMINAL.has(state || viewRef.current.state)) void subscribe(following);
+      return ok;
     },
     [fail, fold, stopSubscription, subscribe],
   );
@@ -259,21 +304,63 @@ export function App(props: { config: AppConfig }): JSX.Element {
     [fail],
   );
 
+  /**
+   * Send the text and the files (issue-38 R1.1): the message carries `raw` file parts,
+   * while the page shows its own copy of each file under a `local:` key until the echo
+   * binds it to the stored URL. Resolves false when the harness refused a file: the turn
+   * goes, and the error names the file and the limit.
+   */
   const send = useCallback(
-    (text: string) => {
-      const options = {
-        text,
+    async (text: string, files: Attachment[] = []): Promise<boolean> => {
+      const fileParts: Part[] = [];
+      const shown: Part[] = [];
+      for (const file of files) {
+        const metadata: { [key: string]: unknown } = {};
+        if (file.voice) metadata["voice"] = true;
+        if (file.durationMs !== undefined) metadata["durationMs"] = Math.round(file.durationMs);
+        const extra = Object.keys(metadata).length > 0 ? metadata : undefined;
+        fileParts.push(filePart(await blobBytes(file.blob), file.mediaType, file.name, extra));
+        shown.push({
+          content: { $case: "url", value: cache.current.adopt(file.blob) },
+          metadata: { ...extra, size: file.size },
+          filename: file.name,
+          mediaType: file.mediaType,
+        });
+      }
+      const base = {
         contextId: view.contextId ?? contextId.current,
         participant: config.participant,
         ...(view.taskId ? { taskId: view.taskId } : {}),
       };
-      const message = userMessage(options);
-      fold({ payload: { $case: "message", value: message } });
-      if (offline) return;
-      void consume(client.current.sendMessage(message));
+      const message = userMessage({ ...base, parts: fileParts, ...(text ? { text } : {}) });
+      const display = { ...message, parts: [...shown, ...(text ? [textPart(text)] : [])] };
+      fold({ payload: { $case: "message", value: display } });
+      if (offline) return true;
+      let wasRefused = false;
+      const refused = (error: unknown): boolean => {
+        const refusal = refusalOf(error);
+        if (refusal === null || files.length === 0) return false;
+        wasRefused = true;
+        const index = refusal.part === null ? -1 : refusal.part - (text ? 1 : 0);
+        const file = files[index];
+        const fallback = error instanceof Error ? error.message : String(error);
+        const detail = file ? rejectionText(file.name, file.size, refusal.reason, refusal.limit, fallback) : fallback;
+        const key = `err${seq.current++}`;
+        setView((current) => {
+          const without = withoutMessage(current, message.messageId);
+          return { ...without, items: [...without.items, { kind: "error", text: `Not sent: ${detail}. Remove it and send again.`, key }] };
+        });
+        return true;
+      };
+      await consume(client.current.sendMessage(message), refused);
+      return !wasRefused;
     },
     [offline, config.participant, consume, fold, view.contextId, view.taskId],
   );
+
+  const attachError = useCallback((text: string) => {
+    setView((current) => ({ ...current, items: [...current.items, { kind: "error", text, key: `err${seq.current++}` }] }));
+  }, []);
 
   const onAction = useCallback(
     (action: ActionPayload) => {
@@ -399,8 +486,8 @@ export function App(props: { config: AppConfig }): JSX.Element {
       </header>
       <main className="grid min-h-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
         <section className="flex min-h-0 min-w-0 flex-col" aria-label="Conversation">
-          <Stream items={view.items} onAction={onAction} onOpen={open} />
-          <Composer onSend={send} disabled={busy} commands={commands} />
+          <Stream items={view.items} onAction={onAction} onOpen={open} load={load} />
+          <Composer onSend={send} disabled={busy} commands={commands} media={media} onError={attachError} />
         </section>
         <TaskPane ext={view.ext} trace={view.trace} onOpen={open} />
       </main>

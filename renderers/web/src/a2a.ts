@@ -22,6 +22,21 @@ export const EVENT_MEDIA_TYPE = "application/vnd.tiny-harness.event+json";
 /** The status extension's key in `Task.metadata` and a status update's metadata. */
 export const STATUS_EXT_KEY = "io.github.madarauchiha-314.tiny-harness/status";
 export const COMMANDS_EXT_URI = "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1";
+/** The media extension (issue-38): what the agent accepts and produces, and its limits. */
+export const MEDIA_EXT_URI = "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/media/v1";
+
+/** The media extension's card params (`docs/a2a/ext/media/v1.md`). */
+export interface MediaParams {
+  input: string[];
+  output: string[];
+  maxFileBytes: number;
+  maxMessageBytes: number;
+  maxAudioSeconds: number;
+  speechToText: boolean;
+  textToSpeech: boolean;
+  imageGeneration: boolean;
+  mediaPath: string;
+}
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
@@ -66,6 +81,8 @@ export interface SendOptions {
   taskId?: string;
   contextId: string;
   participant?: string;
+  /** The speaker setting when sent (media extension `speak`): true asks for a spoken reply. */
+  speak?: boolean;
 }
 
 /** A user message in the SDK's shape; the participant id rides in the metadata (decision-003). */
@@ -78,10 +95,17 @@ export function userMessage(options: SendOptions): Message {
     taskId: options.taskId ?? "",
     role: Role.ROLE_USER,
     parts,
-    metadata: options.participant ? { participant_id: options.participant } : undefined,
+    metadata: messageMetadata(options),
     extensions: [],
     referenceTaskIds: [],
   };
+}
+
+function messageMetadata(options: SendOptions): { [key: string]: unknown } | undefined {
+  const metadata: { [key: string]: unknown } = {};
+  if (options.participant) metadata["participant_id"] = options.participant;
+  if (options.speak !== undefined) metadata["speak"] = options.speak;
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
 /** The message that completes `taskId` (R5.1): one control envelope, sent like any message. */
@@ -108,11 +132,34 @@ export function commandsOf(card: CardWithExtensions): CommandSpec[] {
   const commands: CommandSpec[] = [];
   for (const entry of raw as unknown[]) {
     if (typeof entry !== "object" || entry === null) continue;
-    const { name, description, argument_hint: hint } = entry as { [key: string]: unknown };
+    const { name, description, argument_hint: hint, runsOn } = entry as { [key: string]: unknown };
     if (typeof name !== "string" || typeof description !== "string") continue;
-    commands.push({ name, description, argument_hint: typeof hint === "string" ? hint : "" });
+    const command: CommandSpec = { name, description, argument_hint: typeof hint === "string" ? hint : "" };
+    if (runsOn === "surface" || runsOn === "agent") command.runsOn = runsOn;
+    commands.push(command);
   }
   return commands;
+}
+
+/** The card's media extension params; null when the card does not declare it (the agent
+ * then refuses every file part, so the surface shows no attach, mic or speaker control). */
+export function mediaOf(card: CardWithExtensions): MediaParams | null {
+  const ext = card.capabilities?.extensions?.find((e) => e.uri === MEDIA_EXT_URI);
+  const p = ext?.params;
+  if (p === undefined) return null;
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const number = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
+  return {
+    input: strings(p["input"]),
+    output: strings(p["output"]),
+    maxFileBytes: number(p["maxFileBytes"], 0),
+    maxMessageBytes: number(p["maxMessageBytes"], 0),
+    maxAudioSeconds: number(p["maxAudioSeconds"], 0),
+    speechToText: p["speechToText"] === true,
+    textToSpeech: p["textToSpeech"] === true,
+    imageGeneration: p["imageGeneration"] === true,
+    mediaPath: typeof p["mediaPath"] === "string" ? p["mediaPath"] : "/media",
+  };
 }
 
 /** What the renderer needs from a harness; `HarnessClient` is the real one, and the
@@ -123,6 +170,10 @@ export interface HarnessPort {
   cancel(taskId: string): Promise<Task>;
   complete(taskId: string): AsyncGenerator<StreamResponse>;
   commands(): Promise<CommandSpec[]>;
+  /** The card's media extension (issue-38), null without one. */
+  media(): Promise<MediaParams | null>;
+  /** GET a media URL of this harness with the participant's identity (the media route). */
+  getMedia(url: string, signal?: AbortSignal): Promise<Response>;
 }
 
 /** `fetch` that adds the participant header the perimeter would otherwise set. */
@@ -138,15 +189,18 @@ function fetchWithParticipant(participant: string | undefined): typeof fetch {
 /** The SDK client for one server, built from its agent card on first use. */
 export class HarnessClient implements HarnessPort {
   private client: Promise<Client> | null = null;
+  private readonly fetchImpl: typeof fetch;
 
   constructor(
     private readonly baseUrl: string,
     private readonly participant?: string,
-  ) {}
+  ) {
+    this.fetchImpl = fetchWithParticipant(participant);
+  }
 
   private connect(): Promise<Client> {
     if (this.client === null) {
-      const fetchImpl = fetchWithParticipant(this.participant);
+      const fetchImpl = this.fetchImpl;
       const factory = new ClientFactory({
         transports: [new JsonRpcTransportFactory({ fetchImpl }), new RestTransportFactory({ fetchImpl })],
         preferredTransports: ["JSONRPC", "HTTP+JSON"],
@@ -181,5 +235,22 @@ export class HarnessClient implements HarnessPort {
   async commands(): Promise<CommandSpec[]> {
     const client = await this.connect();
     return commandsOf(await client.getAgentCard());
+  }
+
+  async media(): Promise<MediaParams | null> {
+    const client = await this.connect();
+    return mediaOf(await client.getAgentCard());
+  }
+
+  /** Only URLs under this harness's media route get the participant's identity: a URL
+   * anywhere else is refused, not fetched (the server never sends one). */
+  async getMedia(url: string, signal?: AbortSignal): Promise<Response> {
+    const media = (await this.media())?.mediaPath ?? "/media";
+    const resolved = new URL(url, `${this.baseUrl}/`);
+    const root = new URL(`${this.baseUrl}${media.replace(/\/$/, "")}/`);
+    if (resolved.origin !== root.origin || !resolved.pathname.startsWith(root.pathname)) {
+      throw new Error(`not a media URL of this harness: ${url}`);
+    }
+    return this.fetchImpl(resolved.href, signal ? { signal } : {});
   }
 }

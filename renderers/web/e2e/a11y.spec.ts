@@ -83,3 +83,47 @@ test("Complete, Cancel, the listbox, sub-task links and ← Parent are keyboard-
   await page.keyboard.press("Enter");
   await expect(parent).toHaveCount(0);
 });
+
+/** Issue-38 (T9): the multimodal states and the keyboard-only attach flow. */
+const axe = async (page: import("@playwright/test").Page) =>
+  (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()).violations;
+
+test("the media states have no axe violations", async ({ page }) => {
+  await page.goto("/?fixture=media");
+  await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
+  await expect(page.locator("audio")).toHaveAttribute("src", /^blob:/);
+  expect(await axe(page)).toEqual([]);
+  await page.locator("input[type=file]").setInputFiles([{ name: "photo.png", mimeType: "image/png", buffer: Buffer.from("not a png") }]);
+  await expect(page.getByRole("button", { name: "Remove photo.png" })).toBeVisible();
+  expect(await axe(page)).toEqual([]);
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByTestId("error")).toContainText("Not sent: photo.png");
+  expect(await axe(page)).toEqual([]);
+});
+
+test("attach by keyboard: the paperclip, /attach, and removing a chip", async ({ page }) => {
+  await page.goto("/?fixture=media");
+  await expect(page.getByRole("img", { name: "Image living-room.png" })).toBeVisible();
+  const clip = page.getByRole("button", { name: "Attach image or audio" });
+  await clip.focus();
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Enter")]);
+  await chooser.setFiles([{ name: "first.png", mimeType: "image/png", buffer: Buffer.from("x") }]);
+  await expect(page.getByRole("button", { name: "Remove first.png" })).toBeVisible();
+
+  const box = page.getByRole("combobox", { name: "Message or /command" });
+  await box.focus();
+  await page.keyboard.type("/att");
+  await expect(box).toHaveAttribute("aria-activedescendant", "cmd-attach");
+  await page.keyboard.press("Enter");
+  await expect(box).toHaveValue("/attach ");
+  await expect(box).toHaveAttribute("aria-expanded", "false");
+  const [second] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Enter")]);
+  await second.setFiles([{ name: "second.png", mimeType: "image/png", buffer: Buffer.from("x") }]);
+  await expect(page.getByRole("button", { name: "Remove second.png" })).toBeVisible();
+  await expect(box).toHaveValue("");
+
+  await page.getByRole("button", { name: "Remove first.png" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Remove first.png" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove second.png" })).toBeVisible();
+});

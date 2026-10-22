@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workItem": "issue-38",
-  "currentNode": "design-approval",
+  "currentNode": "tasks-breakdown",
   "nodes": {
     "phase-selection": {
       "attempts": 1,
@@ -61,8 +61,32 @@
     },
     "design-approval": {
       "attempts": 1,
-      "outcome": "",
+      "outcome": "approved",
       "enteredAt": "2026-10-22T15:46:12+00:00",
+      "exitedAt": "2026-10-22T16:06:31+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "spec-explainer": {
+      "attempts": 0,
+      "outcome": "skipped",
+      "enteredAt": "2026-10-22T16:06:31+00:00",
+      "exitedAt": "2026-10-22T16:06:31+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "spec-quiz": {
+      "attempts": 0,
+      "outcome": "skipped",
+      "enteredAt": "2026-10-22T16:06:31+00:00",
+      "exitedAt": "2026-10-22T16:06:31+00:00",
+      "lastBlock": "",
+      "forced": false
+    },
+    "tasks-breakdown": {
+      "attempts": 1,
+      "outcome": "",
+      "enteredAt": "2026-10-22T16:06:31+00:00",
       "exitedAt": "",
       "lastBlock": "",
       "forced": false
@@ -275,11 +299,7 @@
     }
   },
   "forced": [],
-  "parked": {
-    "node": "design-approval",
-    "reason": "`classify-feedback` did not pass:\n- no authorized feedback yet",
-    "since": "2026-10-22T15:47:01+00:00"
-  },
+  "parked": null,
   "completions": {
     "requirements-definition": {
       "at": "2026-10-22T15:22:02+00:00",
@@ -370,5 +390,5 @@
     }
   ],
   "loop": "pdlc-work-item-loop",
-  "phase": "test-planning"
+  "phase": "tasks-breakdown"
 }

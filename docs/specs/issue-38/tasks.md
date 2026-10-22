@@ -92,7 +92,7 @@ red→green run.
   - _Depends on:_ 5, 8
   - _Requirements:_ R5.3, R5.4, R5.7
   - _Test:_ T1 — `tests/unit/models/test_openai_media.py` against `respx` (request shapes, `max_retries=0`, 429/5xx retryable, no `OPENAI_BASE_URL`)
-- [ ] 10. Effective capabilities and runtime wiring
+- [x] 10. Effective capabilities and runtime wiring
   - `media.capabilities(...)`. `build_runtime` and `Harness` build the media store, the
     STT/TTS/image entities and the intake from config, or take them as keyword seams.
   - _Depends on:_ 6, 7, 9

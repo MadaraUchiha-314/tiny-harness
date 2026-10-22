@@ -15,6 +15,7 @@ class FileMediaStore(MediaStore)
   def read_stream(self, ref: 'MediaRef', *, poll: 'float' = 0.05, idle_timeout: 'float' = 30.0) -> 'AsyncIterator[bytes]'
   def sweep(self, older_than: 'datetime') -> 'int'
 model MediaAttachment(ref: <class 'tiny_harness.harness.media.models.MediaRef'>, transcript: str | None = ..., data: bytes | None = ...)
+model MediaCapabilities(enabled: <class 'bool'> = ..., input: tuple[str, ...] = ..., output: tuple[str, ...] = ..., output_modalities: tuple[str, ...] = ..., speech_to_text: <class 'bool'> = ..., text_to_speech: <class 'bool'> = ..., image_generation: <class 'bool'> = ..., max_file_bytes: <class 'int'> = ..., max_message_bytes: <class 'int'> = ..., max_audio_seconds: <class 'int'> = ...)
 class MediaFailed(TinyHarnessError)
 class MediaFenced(TinyHarnessError)
 class MediaIntake(object)
@@ -37,4 +38,5 @@ class MediaStore(Entity)
 class SpeechWriter(ABC)
   def append(self, chunk: 'bytes') -> 'None'
   def close(self, *, failed: 'bool' = False) -> 'None'
+def capabilities(model_info: 'LLMModelInfo', stt: 'SpeechToText | None', tts: 'TextToSpeech | None', image_generator: 'ImageGenerator | None', config: 'MediaConfig | None') -> 'MediaCapabilities'
 def guard(message: 'Message', *, allow: 'GuardMode', intake: 'MediaIntake | None' = None, task_id: 'str' = '') -> 'Message'

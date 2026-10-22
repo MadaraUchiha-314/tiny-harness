@@ -43,7 +43,14 @@ from tiny_harness.errors import (
     HarnessStoppedError,
 )
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
-from tiny_harness.harness.models import LLM, ModelCatalog
+from tiny_harness.harness.media import MediaStore
+from tiny_harness.harness.models import (
+    LLM,
+    ImageGenerator,
+    ModelCatalog,
+    SpeechToText,
+    TextToSpeech,
+)
 from tiny_harness.harness.plugins import Plugin
 from tiny_harness.harness.security import PROCESS_SECRETS
 from tiny_harness.jsontypes import JsonObject
@@ -106,7 +113,9 @@ class Harness:
     authentication; with it the ``X-Participant-Id`` header is ignored. ``routes`` turns the
     harness's own middleware and routes off one by one. ``agent`` describes the agent for
     its card; ``[agent]``'s name and description apply over it. ``plugins``, ``commands``,
-    ``builtin_commands`` and ``llm`` go to the runtime. A harness runs once."""
+    ``builtin_commands``, ``llm`` and the media seams (``speech_to_text``,
+    ``text_to_speech``, ``image_generator``, ``media_store``) go to the runtime. A harness
+    runs once."""
 
     def __init__(
         self,
@@ -123,6 +132,10 @@ class Harness:
         builtin_commands: bool = True,
         llm: LLM | None = None,
         log_stream: TextIO | None = None,
+        speech_to_text: SpeechToText | None = None,
+        text_to_speech: TextToSpeech | None = None,
+        image_generator: ImageGenerator | None = None,
+        media_store: MediaStore | None = None,
     ) -> None:
         if settings.temporal.mode == "embedded" and not with_worker and client is None:
             log.info("embedded mode: the worker runs in this process")
@@ -139,6 +152,16 @@ class Harness:
         self._commands = tuple(commands)
         self._builtin_commands = builtin_commands
         self._llm = llm
+        self._media_seams: dict[str, object] = {
+            name: value
+            for name, value in (
+                ("speech_to_text", speech_to_text),
+                ("text_to_speech", text_to_speech),
+                ("image_generator", image_generator),
+                ("media_store", media_store),
+            )
+            if value is not None
+        }
         self._log_stream = log_stream
         self._state: Literal["new", "running", "stopped"] = "new"
         self._stack: AsyncExitStack | None = None
@@ -305,8 +328,12 @@ class Harness:
             client = await stack.enter_async_context(
                 temporal_client(settings, output=self._log_stream)
             )
-        # ``llm`` only when given: a caller (or a test) may have bound one into the builder.
-        build = build_runtime if self._llm is None else partial(build_runtime, llm=self._llm)
+        # ``llm`` and the media seams only when given: a caller (or a test) may have bound
+        # them into the builder.
+        seams = dict(self._media_seams)
+        if self._llm is not None:
+            seams["llm"] = self._llm
+        build = partial(build_runtime, **seams) if seams else build_runtime
         runtime = await build(
             settings,
             plugins=self._plugins,

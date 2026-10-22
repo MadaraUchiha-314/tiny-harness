@@ -164,6 +164,7 @@ class OpenAIImageGenerator(ImageGenerator):
         )
         self._model = model
         self._size = size
+        self._timeout = timeout  # per request: a shared client's may be shorter
         self._client = endpoint.client
         self._headers = endpoint.headers
 
@@ -176,6 +177,7 @@ class OpenAIImageGenerator(ImageGenerator):
                 output_format="png",
                 n=1,
                 extra_headers=self._headers,
+                timeout=self._timeout.total_seconds(),
             )
         except Exception as exc:
             raise translate_error(exc, api="images") from exc

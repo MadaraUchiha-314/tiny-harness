@@ -1,5 +1,6 @@
 """Provider-neutral media handling (issue-38): references, sniffing, the store, intake."""
 
+from tiny_harness.harness.media.effective import MediaCapabilities, capabilities
 from tiny_harness.harness.media.intake import MediaIntake, MediaRejected, guard
 from tiny_harness.harness.media.models import (
     ACCEPTED,
@@ -24,6 +25,7 @@ __all__ = [
     "AudioFormat",
     "FileMediaStore",
     "MediaAttachment",
+    "MediaCapabilities",
     "MediaFailed",
     "MediaFenced",
     "MediaIntake",
@@ -33,5 +35,6 @@ __all__ = [
     "MediaRejected",
     "MediaStore",
     "SpeechWriter",
+    "capabilities",
     "guard",
 ]

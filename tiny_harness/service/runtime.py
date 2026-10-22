@@ -23,7 +23,25 @@ from tiny_harness.harness.core import ContextWindowManager
 from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.entities import EntityKind, EntityRef, Registry, RegistryEntry
 from tiny_harness.harness.hooks import HookManager
-from tiny_harness.harness.models import LLM, ModelCatalog, OpenAILLM
+from tiny_harness.harness.media import (
+    FileMediaStore,
+    MediaCapabilities,
+    MediaIntake,
+    MediaStore,
+    capabilities,
+)
+from tiny_harness.harness.models import (
+    LLM,
+    ImageGenerator,
+    ModelCatalog,
+    OpenAIImageGenerator,
+    OpenAILLM,
+    OpenAISpeechToText,
+    OpenAITextToSpeech,
+    SpeechToText,
+    TextToSpeech,
+)
+from tiny_harness.harness.models.openai_adapter import openai_client
 from tiny_harness.harness.persistence import RecordKind, SqliteStore, Store
 from tiny_harness.harness.plugins import LoadReport, McpStdioServer, Plugin, PluginLoader
 from tiny_harness.harness.plugins.loader import prepare_stdio
@@ -55,6 +73,13 @@ class Runtime:
     commands: CommandRegistry  # filled before the worker starts, frozen when it does
     sources: list[McpToolSource] = field(default_factory=lambda: list[McpToolSource]())
     reports: list[LoadReport] = field(default_factory=lambda: list[LoadReport]())
+    # Media (issue-38): all None on a text-only instance (no [media] and no seams).
+    media_store: MediaStore | None = None
+    media_intake: MediaIntake | None = None
+    speech_to_text: SpeechToText | None = None
+    text_to_speech: TextToSpeech | None = None
+    image_generator: ImageGenerator | None = None
+    media: MediaCapabilities = field(default_factory=MediaCapabilities)
 
 
 def model_endpoint_line(llm: LLM) -> str | None:
@@ -94,6 +119,51 @@ def default_data_root(settings: Settings) -> Path:
     if settings.agent.id == DEFAULT_AGENT_ID:
         return folder / "plugin-data"
     return folder / f"plugin-data-{settings.agent.id}"
+
+
+def default_media_root(settings: Settings) -> Path:
+    """Where media is stored (issue-38): ``[media] dir``, else ``media`` beside the store
+    for the default agent and ``media-<id>`` for any other, as ``default_data_root``."""
+    if settings.media is not None and settings.media.dir is not None:
+        return settings.media.dir
+    folder = settings.store.sqlite_path.resolve().parent
+    if settings.agent.id == DEFAULT_AGENT_ID:
+        return folder / "media"
+    return folder / f"media-{settings.agent.id}"
+
+
+MediaEntities = tuple[SpeechToText | None, TextToSpeech | None, ImageGenerator | None]
+
+
+def build_media_entities(settings: Settings) -> MediaEntities:
+    """Speech-to-text, text-to-speech and image generation from their sections, each
+    ``None`` when its section is absent. ``provider = "openai"`` (the only one today)
+    reuses ``[openai]``'s key and ``base_url`` over one client from the LLM adapter's
+    factory; a new provider adds a literal and a branch here."""
+    if not (settings.speech_to_text or settings.text_to_speech or settings.image_generation):
+        return None, None, None
+    config = settings.openai
+    base_url = str(config.base_url) if config.base_url is not None else None
+    client = openai_client(config.api_key, base_url=base_url, timeout=config.timeout)
+    stt = tts = images = None
+    if (section := settings.speech_to_text) is not None:
+        stt = OpenAISpeechToText(
+            config.api_key, model=section.model, base_url=base_url, client=client
+        )
+    if (section := settings.text_to_speech) is not None:
+        tts = OpenAITextToSpeech(
+            config.api_key,
+            model=section.model,
+            voice=section.voice,
+            instructions=section.instructions,
+            base_url=base_url,
+            client=client,
+        )
+    if (section := settings.image_generation) is not None:
+        images = OpenAIImageGenerator(
+            config.api_key, model=section.model, size=section.size, base_url=base_url, client=client
+        )
+    return stt, tts, images
 
 
 def secret_values(settings: Settings) -> list[SecretStr]:
@@ -136,6 +206,10 @@ async def build_runtime(
     public_url: str | None = None,
     description: AgentDescription | None = None,
     local_cards: Mapping[str, AgentCard] | None = None,
+    speech_to_text: SpeechToText | None = None,
+    text_to_speech: TextToSpeech | None = None,
+    image_generator: ImageGenerator | None = None,
+    media_store: MediaStore | None = None,
 ) -> Runtime:
     """Assemble the harness (issue-25 R11): ``plugins`` (a directory or a programmatic
     ``Plugin``) load after ``settings.plugins``, with the same override, and ``commands``
@@ -144,7 +218,10 @@ async def build_runtime(
     ``/effort``, ``/sub-task`` and ``/status`` (R6.8). ``public_url`` and ``description``
     are this harness's own (default: ``base_url`` and ``[card]``). A remote agent whose URL
     is a key of ``local_cards`` (a harness of this process) gets that card, unfetched
-    (issue-36 R6.1)."""
+    (issue-36 R6.1). ``speech_to_text``, ``text_to_speech``, ``image_generator`` and
+    ``media_store`` replace what ``[speech_to_text]``, ``[text_to_speech]``,
+    ``[image_generation]`` and ``[media]`` would build, as ``llm`` replaces ``[openai]``
+    (issue-38)."""
     local_cards = local_cards or {}
     registry = Registry()
     hooks = HookManager()
@@ -259,6 +336,24 @@ async def build_runtime(
     engine.sources = sources
     await engine.bind()
     register_help_default(hooks, model, catalog)
+    configured = build_media_entities(settings)
+    stt = speech_to_text or configured[0]
+    tts = text_to_speech or configured[1]
+    images = image_generator or configured[2]
+    if media_store is None and settings.media is not None:
+        media_store = FileMediaStore(
+            EntityRef(kind=EntityKind.MEDIA_STORE, id="file"),
+            default_media_root(settings).resolve(),
+        )
+    media = capabilities(model.info, stt, tts, images, settings.media)
+    intake = None
+    if settings.media is not None and media_store is not None:
+        intake = MediaIntake(
+            media_store,
+            settings.media,
+            base_url=public_url or str(settings.server.base_url),
+            accepted=media.input,
+        )
     return Runtime(
         settings=settings,
         registry=registry,
@@ -272,6 +367,12 @@ async def build_runtime(
         commands=registered,
         sources=sources,
         reports=reports,
+        media_store=media_store,
+        media_intake=intake,
+        speech_to_text=stt,
+        text_to_speech=tts,
+        image_generator=images,
+        media=media,
     )
 
 
@@ -317,10 +418,13 @@ Retention = Mapping[RecordKind, timedelta]
 
 __all__ = [
     "SELF_AGENT_ID",
+    "MediaEntities",
     "Retention",
     "Runtime",
+    "build_media_entities",
     "build_runtime",
     "default_data_root",
+    "default_media_root",
     "registered_agents",
     "render_system_prompt",
     "retention_map",

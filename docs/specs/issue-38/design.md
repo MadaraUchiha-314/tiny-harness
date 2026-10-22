@@ -323,7 +323,7 @@ for (beyond a 256 KiB trailing tag area) reject the file. Images read only the h
 | WAV | `RIFF....WAVE` | `data` size ÷ (`fmt` byte rate) | format tag PCM / IEEE float |
 | MP3 | `ID3` (skipped by its size) then frame sync `FF Ex` | sum of every frame's samples ÷ rate, walking frame headers | MPEG audio frames only; trailing ID3v1/APE ≤ 256 KiB |
 | MP4 / M4A | `....ftyp` | the larger of `mvhd`, the audio `mdhd`, and the `stts` sample-delta sum, ÷ timescale | every `trak/mdia/hdlr` is `soun` |
-| Ogg | `OggS` | walk every page; granule positions must not decrease; last granule ÷ sample rate (48 kHz for Opus, from the `vorbis` id header otherwise) | first packet is `OpusHead` or `\\x01vorbis`; one logical stream |
+| Ogg | `OggS` | walk every page; granule positions must not decrease; last granule ÷ sample rate (48 kHz for Opus, from the `vorbis` id header otherwise) | first packet is `OpusHead` or `\x01vorbis`; one logical stream |
 | WebM | `1A 45 DF A3`, DocType `webm` | walk every `Cluster`: the larger of `Info/Duration` and the last cluster `Timecode` + its last block offset, × `TimecodeScale` (Chrome's `MediaRecorder` omits `Duration`) | every `Tracks/TrackEntry/TrackType` is 2 (audio) |
 
 ### LLM types — `harness/models/llm.py` (R1.6, R1.7, R5.1, R5.2)

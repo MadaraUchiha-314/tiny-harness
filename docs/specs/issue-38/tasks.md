@@ -232,7 +232,7 @@ red→green run.
   - _Depends on:_ 27
   - _Requirements:_ R7.4
   - _Test:_ T15 — `cd docs && bun run docs:build`; T13 — markdownlint
-- [ ] 29. Packaging and the full regression
+- [x] 29. Packaging and the full regression
   - The `voice` and `images` extras. The wheel without them. The whole suite and static
     checks green.
   - _Depends on:_ 28

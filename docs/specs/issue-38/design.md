@@ -113,13 +113,21 @@ sequenceDiagram
     W-->>S: artifact transcript:m1 (text)
     W->>A: invoke_llm (refs resolved to bytes inside the activity)
     A-->>W: reply text
-    W-->>S: status INPUT_REQUIRED + reply message
     W-->>S: artifact speech:s1 (url=/media/t/s1, audio/L16;rate=24000)
-    W->>A: speak(s1, reply text)  [workflow coroutine, does not block the mailbox]
+    W-->>S: status INPUT_REQUIRED + reply message  [final status last: the stream may end here]
+    W->>A: speak(s1, reply text)  [tracked speech job, does not block the mailbox]
     S->>X: GET /media/t/s1 (streamed)
     A->>M: append PCM chunks … close
     M-->>S: chunks as they are written → plays at once
 ```
+
+**Order matters.** The response stream of `SendMessage` ends at the first final status
+(`bridge.py:99`), so the speech artifact is emitted **before** the reply's
+`INPUT_REQUIRED`/`COMPLETED` status. After that, speech progress needs no A2A event: the
+media stream ends cleanly when speech is done and aborts when it fails or is interrupted
+(below), and the surface shows that. A status note "speech unavailable" is also emitted;
+a surface that resubscribed (`SubscribeToTask` follows a parked task) shows it, and one
+that did not still learns it from the aborted stream.
 
 ## Components & interfaces
 
@@ -486,7 +494,7 @@ media = "P30D"                         # NEW
 - **`speak` activity** `SpeakIn{task, media_id, text, voice} → MediaRef`. WHEN a reply's
   triggering message has `speak: true` AND `[text_to_speech]` is set THEN the workflow
   (1) creates the id with `workflow.uuid4()`-derived token, (2) emits the `speech:<id>`
-  artifact, (3) starts `speak` as a workflow coroutine so the mailbox keeps draining (the
+  artifact **before the reply's final status** (finding 1 of the design critic), (3) starts `speak` as a workflow coroutine so the mailbox keeps draining (the
   user can speak again at once). The activity `create`s the open object, `append`s each
   chunk of `tts.stream(text)`, then `close`s it; on error it `close(failed=True)` and the
   workflow emits a status note "speech unavailable" (R4.5). A retry after a worker crash

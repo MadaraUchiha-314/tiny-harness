@@ -241,6 +241,7 @@ async def build_runtime(
             data_root=root,
             commands=registered,
             catalog=catalog if builtin_commands else None,
+            media=settings.media is not None,  # the card lists /attach (issue-38 R1.2)
         )
     ]
     registrar.override = True

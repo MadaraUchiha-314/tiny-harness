@@ -58,6 +58,15 @@ SUB_TASK = CommandSpec(
 )
 STATUS = CommandSpec(name="status", description="Show this task's status")
 BUILTIN_SPECS: Final = (MODEL, EFFORT, SUB_TASK, STATUS)
+# issue-38 R1.2: a surface command reads a file on the user's machine, so the client runs
+# it; the harness lists it on the card only where it takes media.
+ATTACH = CommandSpec(
+    name="attach",
+    description="Attach a local image or audio file to your next message",
+    argument_hint="<path>",
+    runs_on="surface",
+)
+SURFACE_SPECS: Final = (ATTACH,)
 
 # Commands that change the task when given an argument (/sub-task always does).
 _CHANGES_WITH_ARGUMENT: Final = frozenset({MODEL.name, EFFORT.name})
@@ -131,8 +140,19 @@ def status_command(ctx: CommandInvokedIn, catalog: ModelCatalog) -> CommandResul
     return CommandResult(reply="\n".join(lines))
 
 
-def register_builtin_commands(commands: CommandRegistry, catalog: ModelCatalog) -> None:
-    """Register the four built-ins at ``DEFAULT_BODY_PRIORITY`` (R6.8, R6a.3)."""
+def attach_command(ctx: CommandInvokedIn) -> CommandResult:
+    """``/attach`` reaches the harness only from a client that does not implement it: the
+    file is on the user's machine, so the harness reads nothing and says so (issue-38)."""
+    return CommandResult(
+        reply=f"/{ATTACH.name} runs in your client; this client cannot attach files"
+    )
+
+
+def register_builtin_commands(
+    commands: CommandRegistry, catalog: ModelCatalog, *, attach: bool = False
+) -> None:
+    """Register the four built-ins at ``DEFAULT_BODY_PRIORITY`` (R6.8, R6a.3), and with
+    ``attach`` (an agent that takes media, issue-38) the surface command ``/attach``."""
     commands.register(
         MODEL, lambda ctx: model_command(ctx, catalog), priority=DEFAULT_BODY_PRIORITY
     )
@@ -143,6 +163,8 @@ def register_builtin_commands(commands: CommandRegistry, catalog: ModelCatalog) 
     commands.register(
         STATUS, lambda ctx: status_command(ctx, catalog), priority=DEFAULT_BODY_PRIORITY
     )
+    if attach:
+        commands.register(ATTACH, attach_command, priority=DEFAULT_BODY_PRIORITY)
 
 
 async def _role_policy(point: HookPoint, ctx: HookContext) -> HookContext | None:
@@ -170,6 +192,7 @@ def register_role_policy(hooks: HookManager) -> None:
 
 
 __all__ = [
+    "ATTACH",
     "BUILTIN_SPECS",
     "EFFORT",
     "EFFORTS",
@@ -177,6 +200,8 @@ __all__ = [
     "ROLE_POLICY_PRIORITY",
     "STATUS",
     "SUB_TASK",
+    "SURFACE_SPECS",
+    "attach_command",
     "effort_command",
     "model_command",
     "register_builtin_commands",

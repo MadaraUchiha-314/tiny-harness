@@ -179,7 +179,7 @@ red→green run.
 
 ### Track E — surfaces, demo, docs
 
-- [ ] 22. Surface command `/attach` and `Modality`/`RenderItem` changes
+- [x] 22. Surface command `/attach` and `Modality`/`RenderItem` changes
   - `CommandSpec.runs_on`, the `attach` builtin and its server reply. `Modality.IMAGE`
     and `Modality.AUDIO`. The `RenderItem` kind `media`, and `plan_message` for url
     file parts.

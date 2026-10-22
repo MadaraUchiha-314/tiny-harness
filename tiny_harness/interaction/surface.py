@@ -1,4 +1,5 @@
-"""Surfaces (R20.1, R20.8): where a user meets the harness. Text is the only modality."""
+"""Surfaces (R20.1, R20.8): where a user meets the harness. Text, and with the media
+extension (issue-38) images and audio."""
 
 from __future__ import annotations
 
@@ -9,6 +10,8 @@ from tiny_harness.harness.entities import Entity, EntityKind, EntityRef
 
 class Modality(StrEnum):
     TEXT = "text"
+    IMAGE = "image"
+    AUDIO = "audio"
 
 
 class Surface(Entity):

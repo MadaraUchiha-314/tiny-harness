@@ -5,7 +5,8 @@ namespace directory with ``systemprompt.md``), loaded by the same loader before 
 operator's plugins. The intrinsic tools and the default ``in`` bodies register through
 ``register_defaults`` as later layers add them. With a command registry it also
 registers the command role policy and, given the model catalog, the built-in commands
-``/model``, ``/effort``, ``/sub-task`` and ``/status`` (issue-25 R6.8, R6a.3).
+``/model``, ``/effort``, ``/sub-task`` and ``/status`` (issue-25 R6.8, R6a.3), and on an
+agent that takes media the surface command ``/attach`` (issue-38 R1.2).
 """
 
 from __future__ import annotations
@@ -31,14 +32,16 @@ async def load_builtin(
     data_root: Path,
     commands: CommandRegistry | None = None,
     catalog: ModelCatalog | None = None,
+    media: bool = False,
 ) -> LoadReport:
     """Load the built-in plugin first; its registrations are the defaults every operator
     plugin may override (R3.9). ``catalog`` (with ``commands``) adds the built-in
-    commands; without it the harness has none (R6.8)."""
+    commands; without it the harness has none (R6.8). ``media`` (the agent has
+    ``[media]``) adds ``/attach`` to them."""
     if commands is not None:
         register_role_policy(hook_manager)
         if catalog is not None:
-            register_builtin_commands(commands, catalog)
+            register_builtin_commands(commands, catalog, attach=media)
     loader = PluginLoader(
         hook_manager=hook_manager, registrar=registrar, data_root=data_root, commands=commands
     )

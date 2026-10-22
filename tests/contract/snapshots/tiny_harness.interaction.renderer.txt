@@ -1,0 +1,14 @@
+# tiny_harness.interaction.renderer
+TEXT_PLAIN = str
+ItemKind = TypeAliasType
+ItemRole = TypeAliasType
+model RenderItem(kind: ItemKind, media_type: <class 'str'> = ..., text: <class 'str'> = ..., data: JsonObject | None = ..., role: ItemRole = ..., url: <class 'str'> = ..., name: <class 'str'> = ...)
+model RenderPlan(items: tuple[tiny_harness.interaction.renderer.RenderItem, ...] = ...)
+class Renderer(Entity)
+  def __init__(self, ref: 'EntityRef', *, supported: 'Sequence[str]') -> 'None'
+  def plan(self, event: 'A2AEvent') -> 'RenderPlan'
+  def render(self, plan: 'RenderPlan') -> 'None'
+def is_media_part(part: 'Part') -> 'bool'
+def part_media_type(part: 'Part') -> 'str'
+def plan_message(message: 'Message', supported: 'frozenset[str]') -> 'list[RenderItem]'
+def plan_part(part: 'Part', supported: 'frozenset[str]', *, role: 'ItemRole' = 'agent', unrenderable: 'str') -> 'RenderItem'

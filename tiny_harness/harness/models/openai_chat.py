@@ -18,6 +18,8 @@ from typing import cast
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.completion_usage import CompletionUsage
 
+from tiny_harness.harness.media.models import MediaKind
+from tiny_harness.harness.media.render import base64_data, data_url, transcript_text
 from tiny_harness.harness.models.json_args import loads_arguments
 from tiny_harness.harness.models.llm import (
     FinishReason,
@@ -42,6 +44,33 @@ def result_text(parts: Sequence[ContentPart]) -> str:
         elif part.data is not None:
             chunks.append(json.dumps(part.data, sort_keys=True))
     return "\n".join(chunks)
+
+
+PROVIDER = "openai"
+CHAT_AUDIO_FORMATS: dict[str, str] = {"audio/wav": "wav", "audio/mpeg": "mp3"}
+"""The audio types Chat Completions takes as ``input_audio``, and their wire format."""
+
+
+def message_content(item: MessageItem) -> JsonValue:
+    """A message's ``content``: the plain text when it has no media, so a text-only
+    request stays byte-identical (issue-38); else ``text``, ``image_url`` and
+    ``input_audio`` parts. Audio with a transcript goes as text; audio of a type Chat
+    Completions cannot carry is not sent."""
+    if not item.media:
+        return item.text
+    parts: list[JsonValue] = []
+    if item.text:
+        parts.append({"type": "text", "text": item.text})
+    for attachment in item.media:
+        if attachment.ref.kind is MediaKind.IMAGE:
+            url = data_url(attachment, provider=PROVIDER)
+            parts.append({"type": "image_url", "image_url": {"url": url}})
+        elif (text := transcript_text(attachment)) is not None:
+            parts.append({"type": "text", "text": text})
+        elif (wire := CHAT_AUDIO_FORMATS.get(attachment.ref.media_type)) is not None:
+            data = base64_data(attachment, provider=PROVIDER)
+            parts.append({"type": "input_audio", "input_audio": {"data": data, "format": wire}})
+    return parts or item.text
 
 
 def build_messages(request: LLMRequest, names: WireNames | None = None) -> list[JsonObject]:
@@ -70,7 +99,7 @@ def build_messages(request: LLMRequest, names: WireNames | None = None) -> list[
             continue
         flush()
         if isinstance(item, MessageItem):
-            messages.append({"role": item.role.value, "content": item.text})
+            messages.append({"role": item.role.value, "content": message_content(item)})
         else:
             messages.append(
                 {

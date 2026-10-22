@@ -73,7 +73,7 @@ red→green run.
 
 ### Track B — provider interfaces
 
-- [ ] 7. LLM types and adapter content mapping
+- [x] 7. LLM types and adapter content mapping
   - `MessageItem.media`. `LLMModelInfo.input_modalities`, `output_modalities` and
     `audio_input_formats`. Responses, Chat Completions and Anthropic map every row of
     the design's table. An unresolved attachment raises `ProviderError`.

@@ -233,6 +233,7 @@ async def build_runtime(
         base_url=base_url,
         api=openai_config.api,
         context_window_tokens=openai_config.context_window_tokens,
+        input_modalities=openai_config.input_modalities,
     )
     line = model_endpoint_line(model)
     if line is not None:

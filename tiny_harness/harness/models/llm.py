@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.entities import Entity, EntityKind, EntityRef
+from tiny_harness.harness.media.models import MediaAttachment
 from tiny_harness.harness.tools.models import ToolCall, ToolDefinition, ToolResult
 from tiny_harness.jsontypes import JsonSchema
 
@@ -31,12 +32,15 @@ class MessageItem(BaseModel, frozen=True):
     """A message in the history. ``source`` names an untrusted origin (``"agent"`` for a
     sub-task's result, a remote agent's reply or an agent participant's message): the
     context window renders such text inside the delimited untrusted block, like a tool
-    result, never as an instruction. A human participant's own message has no source."""
+    result, never as an instruction. A human participant's own message has no source.
+    ``media`` holds the message's attachments as references; an activity resolves their
+    bytes just before the model call (issue-38 R1.6)."""
 
     kind: Literal["message"] = "message"
     role: Role
     text: str
     source: str | None = None
+    media: tuple[MediaAttachment, ...] = ()
 
 
 class ToolCallItem(BaseModel, frozen=True):
@@ -97,6 +101,9 @@ class LLMStreamEvent(BaseModel, frozen=True):
     response: LLMResponse | None = None
 
 
+type Modality = Literal["text", "image", "audio"]
+
+
 class LLMModelInfo(BaseModel, frozen=True):
     provider: str
     model: str
@@ -104,6 +111,11 @@ class LLMModelInfo(BaseModel, frozen=True):
     min_cacheable_tokens: int = 0
     endpoint: str | None = None  # scheme://host[:port] the model is reached at (issue-19)
     api: str | None = None  # the wire API, e.g. "responses" or "chat_completions"
+    # What the model takes and gives (issue-38 R5.1, R5.2), and the audio types its adapter
+    # can send natively: the adapter's own constant.
+    input_modalities: frozenset[Modality] = frozenset({"text"})
+    output_modalities: frozenset[Modality] = frozenset({"text"})
+    audio_input_formats: frozenset[str] = frozenset()
 
 
 class LLM(Entity):
@@ -185,6 +197,7 @@ __all__ = [
     "LLMResponse",
     "LLMStreamEvent",
     "MessageItem",
+    "Modality",
     "Role",
     "ToolCallItem",
     "ToolResultItem",

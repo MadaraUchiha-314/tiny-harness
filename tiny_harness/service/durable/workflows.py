@@ -121,6 +121,8 @@ with workflow.unsafe.imports_passed_through():
         LLMTurn,
         MonitorIn,
         MonitorSnapshot,
+        OpenSpeechIn,
+        OpenSpeechOut,
         PersistIn,
         PollIn,
         PollOut,
@@ -134,6 +136,8 @@ with workflow.unsafe.imports_passed_through():
         RemoteWatch,
         RetryIn,
         RetryOut,
+        SpeakIn,
+        SpeechJob,
         StartAgentTaskIn,
         SweepIn,
         SweepOut,
@@ -161,6 +165,8 @@ FOLLOW_RETRY: Final = timedelta(seconds=5)
 """The pause after a follow activity itself failed, before the next (issue-27 R3)."""
 PUSH_RECHECKS: Final = (timedelta(seconds=1), timedelta(seconds=2), timedelta(seconds=4))
 """Delays of the fetches after a push whose claimed state the remote has not yet shown."""
+SPEECH_UNAVAILABLE: Final = "speech unavailable"
+"""The status note when a spoken reply fails or is stopped (issue-38 R4.5)."""
 TRANSCRIPTION_FAILED: Final = "(transcription failed)"
 """The transcript of audio speech-to-text refused (issue-38 error handling)."""
 TERMINAL_NAMES: Final = frozenset({"COMPLETED", "FAILED", "CANCELED", "REJECTED"})
@@ -417,16 +423,26 @@ class WorkflowOperations:
         return await self._wf.ask(task, help)
 
     async def await_next_message(self, task: HarnessTask, text: str) -> HarnessTask:
-        return await self._wf.set_status(
-            task,
-            TaskState.TASK_STATE_INPUT_REQUIRED,
-            text=text,
-            sub_state=SubState.AWAITING_NEXT_MESSAGE,
-            persist=True,
-        )
+        # The speech artifact goes before the reply's final status: a stream ends there
+        # (issue-38 design critic 1); the speech job starts once the reply is shown.
+        speech = await self._wf.open_speech(task, text)
+        try:
+            return await self._wf.set_status(
+                task,
+                TaskState.TASK_STATE_INPUT_REQUIRED,
+                text=text,
+                sub_state=SubState.AWAITING_NEXT_MESSAGE,
+                persist=True,
+            )
+        finally:
+            self._wf.start_speech(speech)
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
-        return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
+        speech = await self._wf.open_speech(task, text)
+        try:
+            return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
+        finally:
+            self._wf.start_speech(speech)
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
         await self._wf.emit_ui(task, command)
@@ -469,6 +485,11 @@ class TaskWorkflow:
         self.intake_message: Message | None = None  # the message the last intake read
         self.noted_media: set[str] = set()  # media the user was told the model cannot take
         self.held_notes: list[str] = []  # status notes waiting for the next turn to start
+        self.speak = False  # the message the next reply answers asked for speech (R4.1)
+        # Spoken replies being written (design critic 4): a workflow coroutine each, not an
+        # update handler, so rollover and completion wait for them explicitly.
+        self.speech_jobs: dict[str, SpeechJob] = {}
+        self.speech_runs: dict[str, asyncio.Task[None]] = {}
         self.surfaces = SurfaceRegistry()
         self._redactor = Redactor()
 
@@ -751,6 +772,7 @@ class TaskWorkflow:
                 text = f"[{out.participant_id}] {out.text}"
             if out.participant_id:
                 self.actor = out.participant_id
+            self.speak = out.speak  # the newest message decides whether the reply is spoken
             media = tuple(MediaAttachment(ref=ref) for ref in out.media)
             state = state.append(
                 MessageItem(role=MessageRole.USER, text=text, source=out.source, media=media)
@@ -994,8 +1016,11 @@ class TaskWorkflow:
         return None
 
     async def _finish(self, state: int | None, *, text: str = "") -> Task:
+        if state == TaskState.TASK_STATE_CANCELED:
+            await self._stop_speech(note=False)  # a cancel stops speech at once
         if state is not None:
             self.task = await self.set_status(self.task, state, text=text)
+        await self._drain_speech()  # a last spoken reply plays out, within the drain
         if state == TaskState.TASK_STATE_CANCELED:
             for child in self.children:
                 if not child.done:
@@ -1048,6 +1073,7 @@ class TaskWorkflow:
         self.attempts = dict(start.attempt_counters)
         self.surfaces = start.surfaces
         self.noted_media = set(start.noted_media)
+        self.speak = start.speak
         self.loaded = True
         early, self.early_child_done = self.early_child_done, []
         for done in early:  # a child's change that came before the load (issue-34)
@@ -1070,6 +1096,7 @@ class TaskWorkflow:
                 "attempt_counters": dict(self.attempts),
                 "surfaces": self.surfaces,
                 "noted_media": tuple(sorted(self.noted_media)),
+                "speak": self.speak,
             }
         )
 
@@ -1082,6 +1109,7 @@ class TaskWorkflow:
         over = info.get_current_history_length() > self.start.config.history_event_bound
         if not over and not info.is_continue_as_new_suggested():
             return
+        await self._drain_speech()  # the snapshot carries no speech job
         await workflow.wait_condition(workflow.all_handlers_finished)
         if self.cancel_reason is not None:
             # The snapshot does not carry a cancel: a run that rolled over now would drop
@@ -1203,6 +1231,125 @@ class TaskWorkflow:
         await self.status_note(
             f"{noun} {names} {verb} not given to the model: the model takes no image input"
         )
+
+    # --- spoken replies (issue-38 R4) ---------------------------------------------------
+
+    async def open_speech(self, task: HarnessTask, text: str) -> SpeechJob | None:
+        """When the message this reply answers asked for speech and text-to-speech is
+        configured: create the speech object and log its ``speech:<id>`` artifact, so the
+        URL a surface gets never points at nothing (design critics 1, 2). The flag is
+        spent by this reply."""
+        speak, self.speak = self.speak, False
+        if not speak or not text.strip():
+            return None
+        media_id = workflow.uuid4().hex
+        try:
+            out = await workflow.execute_activity(
+                ActivityName.OPEN_SPEECH.value,
+                OpenSpeechIn(
+                    task_id=task.id, correlation_id=self.correlation_id, media_id=media_id
+                ),
+                result_type=OpenSpeechOut,
+                start_to_close_timeout=SHORT_TIMEOUT,
+                retry_policy=RetryPolicy(maximum_attempts=3),
+            )
+        except ActivityError as exc:
+            if isinstance(exc.cause, CancelledError):
+                raise asyncio.CancelledError from exc
+            workflow.logger.warning("speech not opened: %s", exc.message)
+            await self.status_note(SPEECH_UNAVAILABLE)
+            return None
+        if out.ref is None:
+            return None
+        part = Part(url=out.url, media_type=out.ref.media_type)
+        part.metadata.update({"mediaId": media_id})
+        artifact = Artifact(artifact_id=f"speech:{media_id}", name="speech", parts=[part])
+        artifact.metadata.update({"mediaId": media_id})
+        event = TaskArtifactUpdateEvent(
+            task_id=task.id, context_id=task.context_id, artifact=artifact, last_chunk=True
+        )
+        await self._deliver(self._emit(event))
+        return SpeechJob(media_id=media_id, text=text)
+
+    def start_speech(self, job: SpeechJob | None) -> None:
+        """Speak the reply as a tracked job beside the loop, so the mailbox keeps
+        draining while it plays (the user can speak again at once)."""
+        if job is None:
+            return
+        self.speech_jobs[job.media_id] = job
+        self.speech_runs[job.media_id] = asyncio.create_task(self._speak(job))
+
+    async def _speak(self, job: SpeechJob) -> None:
+        """The ``speak`` activity, attempt by attempt: each attempt is a new generation of
+        the object. A failure once the attempts are spent tells the user (R4.5)."""
+        config = self.start.config
+        spec = self._policy(ActivityName.SPEAK.value, idempotent=True)
+        attempt = 1
+        failed = False
+        try:
+            while True:
+                try:
+                    await workflow.execute_activity(
+                        ActivityName.SPEAK.value,
+                        SpeakIn(
+                            task_id=self.task.id,
+                            correlation_id=self.correlation_id,
+                            attempt=attempt,
+                            media_id=job.media_id,
+                            text=job.text,
+                            voice=job.voice,
+                            max_attempts=spec.maximum_attempts,
+                        ),
+                        start_to_close_timeout=config.tool_timeout,
+                        heartbeat_timeout=config.heartbeat_timeout,
+                        retry_policy=ONE_ATTEMPT,
+                        # A cancel waits for the activity to close its object failed.
+                        cancellation_type=workflow.ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
+                    )
+                    break
+                except ActivityError as exc:
+                    if isinstance(exc.cause, CancelledError):
+                        raise asyncio.CancelledError from exc
+                    info = _error_info(exc)
+                    if is_non_retryable(info, spec) or attempt >= spec.maximum_attempts:
+                        workflow.logger.warning("speech failed: %s", info.message)
+                        failed = True
+                        break
+                    await workflow.sleep(backoff(spec, attempt))
+                    attempt += 1
+        finally:
+            self.speech_jobs.pop(job.media_id, None)
+            self.speech_runs.pop(job.media_id, None)
+        if failed:
+            await self.status_note(SPEECH_UNAVAILABLE)
+
+    async def _drain_speech(self) -> None:
+        """Wait, at most ``speech_drain``, for the spoken replies to finish; stop any still
+        running then, with the note (design critic 4). A cancel ends the wait."""
+        if not self.speech_jobs:
+            return
+        with contextlib.suppress(TimeoutError):
+            await workflow.wait_condition(
+                lambda: not self.speech_jobs or self.cancel_reason is not None,
+                timeout=self.start.config.speech_drain,
+            )
+        await self._stop_speech(note=True)
+
+    async def _stop_speech(self, *, note: bool) -> None:
+        """Cancel every running speech job and wait for each activity to close its object
+        failed; with ``note``, tell the user speech is unavailable."""
+        runs = list(self.speech_runs.values())
+        if not runs:
+            return
+        for run in runs:
+            run.cancel()
+        for run in runs:
+            with contextlib.suppress(asyncio.CancelledError, ActivityError):
+                await run
+        self.speech_jobs.clear()
+        self.speech_runs.clear()
+        if note:
+            await self.status_note(SPEECH_UNAVAILABLE)
 
     async def _tell_parent(self, task: HarnessTask) -> None:
         """A sub-task tells its parent each state change, so the parent's row for it stays

@@ -8,7 +8,8 @@ than dropped. Audio with a transcript is sent as text, labelled with its file na
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING
+import re
+from typing import TYPE_CHECKING, Final
 
 from tiny_harness.errors import ProviderError
 from tiny_harness.harness.media.models import MediaAttachment, MediaKind, MediaRef
@@ -46,6 +47,47 @@ def transcript_text(attachment: MediaAttachment) -> str | None:
     if attachment.transcript is None:
         return None
     return f"[transcript of {label(attachment)}] {attachment.transcript}"
+
+
+SPEECH_INPUT_LIMIT: Final = 4_096
+"""The most text one text-to-speech call takes (OpenAI's input limit); the rest of a longer
+reply is left to its text."""
+
+_FENCED: Final = re.compile(r"^\s*(```|~~~).*?^\s*\1[^\n]*$", re.MULTILINE | re.DOTALL)
+_IMAGE: Final = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
+_LINK: Final = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_HTML: Final = re.compile(r"<[^>\n]+>")
+_INLINE_CODE: Final = re.compile(r"`([^`]*)`")
+_EMPHASIS: Final = re.compile(r"(\*\*|__|~~|\*)(?=\S)(.+?)(?<=\S)\1")
+_BLOCK_MARK: Final = re.compile(r"^\s{0,3}(?:#{1,6}\s+|>\s?|[-*+]\s+|\d+[.)]\s+)")
+_RULE: Final = re.compile(r"^\s*(?:[-*_]\s*){3,}$")
+_TABLE_RULE: Final = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)*\|?\s*$")
+
+
+def speakable_text(text: str, *, limit: int = SPEECH_INPUT_LIMIT) -> str:
+    """``text`` as text-to-speech should read it (issue-38 R4.1): code blocks dropped,
+    markdown marks, links' targets and HTML tags removed, table cells joined by spaces,
+    blank lines dropped; at most ``limit`` characters, cut at a word where one is near."""
+    text = _FENCED.sub("", text)
+    text = _IMAGE.sub(r"\1", text)
+    text = _LINK.sub(r"\1", text)
+    text = _HTML.sub(" ", text)
+    text = _INLINE_CODE.sub(r"\1", text)
+    lines: list[str] = []
+    for raw in text.splitlines():
+        if _RULE.match(raw) or _TABLE_RULE.match(raw):
+            continue
+        line = _BLOCK_MARK.sub("", raw)
+        line = _EMPHASIS.sub(r"\2", line)
+        line = " ".join(line.replace("|", " ").split())
+        if line:
+            lines.append(line)
+    spoken = "\n".join(lines)
+    if len(spoken) <= limit:
+        return spoken
+    cut = spoken[:limit]
+    at = max(cut.rfind(" "), cut.rfind("\n"))
+    return cut[:at].rstrip() if at > limit // 2 else cut
 
 
 def image_not_shown(attachment: MediaAttachment) -> str:
@@ -123,6 +165,7 @@ async def resolve_media(
 
 
 __all__ = [
+    "SPEECH_INPUT_LIMIT",
     "audio_not_given",
     "base64_data",
     "data_url",
@@ -130,6 +173,7 @@ __all__ = [
     "label",
     "resolve_media",
     "resolved",
+    "speakable_text",
     "transcript_text",
     "unavailable",
     "unseen_images",

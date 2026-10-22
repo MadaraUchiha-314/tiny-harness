@@ -144,7 +144,7 @@ red→green run.
   - _Depends on:_ 9, 14
   - _Requirements:_ R1.6, R3.4
   - _Test:_ T2 — `Scenario: native audio skips speech-to-text`, `Scenario: audio with no speech-to-text configured gets a note`
-- [ ] 17. Spoken replies: `open_speech`, `speak` and speech jobs
+- [x] 17. Spoken replies: `open_speech`, `speak` and speech jobs
   - Speech artifact before the final status. `speakable_text` and the 4 096-character
     cap. Generation per attempt. `speech_jobs` drained at rollover and completion, and
     cancelled on cancel. Status note on failure.

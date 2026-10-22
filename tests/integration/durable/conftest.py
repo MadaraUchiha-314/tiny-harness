@@ -171,6 +171,7 @@ def start(
     history_event_bound: int = 10_000,
     max_turns: int = 20,
     heartbeat_timeout: timedelta = timedelta(seconds=30),
+    speech_drain: timedelta = timedelta(seconds=120),
 ) -> TaskStart:
     t = t or task()
     return TaskStart(
@@ -182,6 +183,7 @@ def start(
             search_attributes=False,
             heartbeat_timeout=heartbeat_timeout,
             retries=FAST_RETRIES,
+            speech_drain=speech_drain,
         ),
         correlation_id="test",
     )

@@ -6,6 +6,7 @@ heartbeat every 10 s so a dead worker is detected within ``heartbeat_timeout`` (
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import secrets
@@ -63,9 +64,9 @@ from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.core.loop import RequestReceivedPost, RequestReceivedPre
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.hooks import HookPoint, Operation, Phase
-from tiny_harness.harness.media import MediaRef, guard
+from tiny_harness.harness.media import MediaFenced, MediaRef, SpeechWriter, guard
 from tiny_harness.harness.media.extension import MEDIA_ROUTE
-from tiny_harness.harness.media.render import unseen_images
+from tiny_harness.harness.media.render import speakable_text, unseen_images
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
@@ -107,6 +108,8 @@ from tiny_harness.service.durable.models import (
     LLMTurn,
     MonitorIn,
     MonitorSnapshot,
+    OpenSpeechIn,
+    OpenSpeechOut,
     PersistIn,
     PollIn,
     PollOut,
@@ -117,6 +120,7 @@ from tiny_harness.service.durable.models import (
     RemoteWatch,
     RetryIn,
     RetryOut,
+    SpeakIn,
     StartAgentTaskIn,
     SweepIn,
     SweepOut,
@@ -234,6 +238,8 @@ class Activities:
             self.retention_sweep,
             self.run_command,
             self.transcribe,
+            self.open_speech,
+            self.speak,
         )
 
     # --- intake (R15, abuse cases 4 and 6) ------------------------------------------
@@ -345,9 +351,13 @@ class Activities:
                 reason=reason,
             )
         )
-        interrupt = False
-        if arg.message.HasField("metadata") and "interrupt" in arg.message.metadata.fields:
-            interrupt = bool(arg.message.metadata.fields["interrupt"].bool_value)
+        interrupt = speak = False
+        if arg.message.HasField("metadata"):
+            fields = arg.message.metadata.fields
+            if "interrupt" in fields:
+                interrupt = bool(fields["interrupt"].bool_value)
+            if "speak" in fields:  # the surface's speaker toggle (issue-38 R4.1)
+                speak = bool(fields["speak"].bool_value)
         sender = task.ext.participant(participant) if participant else None
         if sender is not None and sender.kind == "agent":
             source = "agent"
@@ -366,6 +376,7 @@ class Activities:
             command=command if accepted else None,
             control=control if accepted else None,
             media=media,
+            speak=speak and accepted and ordinary,
         )
 
     async def _own_media(self, task_id: str, message: Message) -> tuple[MediaRef, ...]:
@@ -525,6 +536,58 @@ class Activities:
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
         return TranscribeOut(mode="transcribed", text=transcript.text)
+
+    # --- spoken replies (issue-38 R4) -------------------------------------------------
+
+    @activity.defn(name=ActivityName.OPEN_SPEECH.value)
+    async def open_speech(self, arg: OpenSpeechIn) -> OpenSpeechOut:
+        """Create the open, empty object a spoken reply streams from, so its URL never
+        points at nothing (design critic 2). No text-to-speech: no object, no speech."""
+        engine = self.engine
+        store, tts = engine.media_store, engine.text_to_speech
+        if store is None or tts is None:
+            return OpenSpeechOut()
+        ref = await store.create(arg.task_id, arg.media_id, media_type=tts.format.media_type)
+        url = f"{engine.media_base_url}{MEDIA_ROUTE}/{arg.task_id}/{arg.media_id}"
+        return OpenSpeechOut(ref=ref, url=url)
+
+    @activity.defn(name=ActivityName.SPEAK.value)
+    async def speak(self, arg: SpeakIn) -> None:
+        """Speak the reply into its object, as one new generation (design critic 3): a
+        retry starts again from the first chunk and fences an older attempt still
+        writing, whose readers are told the stream was interrupted. A provider's refusal,
+        the last attempt's failure or a cancel closes the object failed (R4.5)."""
+        engine = self.engine
+        store, tts = engine.media_store, engine.text_to_speech
+        if store is None or tts is None:
+            raise ApplicationError("text-to-speech is not configured", non_retryable=True)
+        ref = await store.lookup(arg.task_id, arg.media_id)
+        if ref is None:
+            raise ApplicationError("no speech object to write", non_retryable=True)
+        writer = await store.begin(ref)
+        last = arg.attempt >= arg.max_attempts
+
+        async def stream() -> None:
+            async for chunk in tts.stream(speakable_text(arg.text), voice=arg.voice):
+                await writer.append(chunk)
+                activity.heartbeat()
+            await writer.close()
+
+        try:
+            await _heartbeating(stream(), every=self.heartbeat_every)
+        except MediaFenced as exc:  # a newer attempt owns the object
+            raise ApplicationError(exc.message, type=exc.code, non_retryable=True) from exc
+        except asyncio.CancelledError:
+            await _close_failed(writer)
+            raise
+        except TinyHarnessError as exc:
+            if last or exc.code in NON_RETRYABLE_CODES:
+                await _close_failed(writer)
+            raise _translate(exc) from exc
+        except Exception:
+            if last:
+                await _close_failed(writer)
+            raise
 
     @activity.defn(name=ActivityName.INVOKE_TOOL.value)
     async def invoke_tool(self, arg: ToolIn) -> ToolOut:
@@ -863,6 +926,12 @@ class Activities:
     async def retention_sweep(self, arg: SweepIn) -> SweepOut:
         deleted = await self.engine.store.sweep(self.retention, datetime.now(UTC))
         return SweepOut(deleted={k.value: v for k, v in deleted.items()})
+
+
+async def _close_failed(writer: SpeechWriter) -> None:
+    """Close a speech generation as failed, unless a newer one already owns the object."""
+    with contextlib.suppress(MediaFenced, OSError):
+        await writer.close(failed=True)
 
 
 def ui_action_of(message: Message) -> Action | None:

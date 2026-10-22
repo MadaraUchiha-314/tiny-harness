@@ -14,6 +14,7 @@ from tests.integration.durable.conftest import Harness
 from tiny_harness.config import MediaConfig
 from tiny_harness.harness.core import (
     HarnessTask,
+    Lifecycle,
     Participant,
     Role,
     SubState,
@@ -34,7 +35,9 @@ def ids() -> tuple[str, str]:
     return f"tq-{suffix}", f"t-{suffix}"
 
 
-def media_task(task_id: str, *, participants: Sequence[str] = ("alice",)) -> HarnessTask:
+def media_task(
+    task_id: str, *, participants: Sequence[str] = ("alice",), lifecycle: Lifecycle | None = None
+) -> HarnessTask:
     people = tuple(Participant(id=p, kind="human", role=Role.REPORTER) for p in participants)
     return HarnessTask.new(
         task_id,
@@ -43,6 +46,7 @@ def media_task(task_id: str, *, participants: Sequence[str] = ("alice",)) -> Har
             name="Media",
             goal="Talk about media",
             participants=(*people, Participant(id="agent", kind="agent", role=Role.ASSIGNEE)),
+            lifecycle=lifecycle,
         ),
     )
 

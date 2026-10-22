@@ -70,6 +70,8 @@ class ActivityName(StrEnum):
     RETENTION_SWEEP = "retention_sweep"
     RUN_COMMAND = "run_command"
     TRANSCRIBE = "transcribe"
+    OPEN_SPEECH = "open_speech"
+    SPEAK = "speak"
 
 
 # --- the durable event log ------------------------------------------------------------
@@ -165,6 +167,8 @@ class WorkflowConfig(_Frozen):
     heartbeat_timeout: timedelta = timedelta(seconds=30)
     llm_timeout: timedelta = timedelta(seconds=120)
     tool_timeout: timedelta = timedelta(seconds=300)
+    speech_drain: timedelta = timedelta(seconds=120)
+    """How long rollover and completion wait for spoken replies (``[media] speech_drain``)."""
 
 
 class TaskStart(_Frozen):
@@ -188,6 +192,9 @@ class TaskStart(_Frozen):
     surfaces: SurfaceRegistry = SurfaceRegistry()
     noted_media: tuple[str, ...] = ()
     """Media the user was already told the model could not take (issue-38 R1.7)."""
+    speak: bool = False
+    """The message the next reply answers asked for it to be spoken (issue-38 R4.1). No
+    speech job is carried: rollover waits for them, so none runs across it."""
 
 
 class InboxReceipt(_Frozen):
@@ -232,6 +239,8 @@ class IntakeOut(_Frozen):
     media: tuple[MediaRef, ...] = ()
     """The message's own media (issue-38 R1.5): its url parts that point at this task's
     media route and resolve in the store; any other file part is ignored."""
+    speak: bool = False
+    """The message's ``speak`` metadata: its reply is to be spoken (issue-38 R4.1)."""
 
 
 class AssembleIn(ActivityIn):
@@ -288,6 +297,39 @@ class TranscribeOut(_Frozen):
 
     mode: Literal["native", "transcribed", "no_stt", "failed"]
     text: str | None = None
+
+
+class OpenSpeechIn(ActivityIn):
+    """Create the growing object a spoken reply is written into (issue-38 R4.2)."""
+
+    media_id: str
+
+
+class OpenSpeechOut(_Frozen):
+    """The open object and the URL surfaces stream it from; ``ref`` ``None``: no
+    text-to-speech is configured, and the reply is not spoken."""
+
+    ref: MediaRef | None = None
+    url: str = ""
+
+
+class SpeakIn(ActivityIn):
+    """Speak ``text`` into the open object ``media_id``: one generation per attempt."""
+
+    media_id: str
+    text: str
+    voice: str | None = None
+    max_attempts: int = 1
+    """The attempt that is the last: it closes the object failed on any error, while an
+    earlier one leaves it to the next generation."""
+
+
+class SpeechJob(_Frozen):
+    """A spoken reply being written (issue-38 design critic 4)."""
+
+    media_id: str
+    text: str
+    voice: str | None = None
 
 
 class ToolIn(ActivityIn):
@@ -586,6 +628,8 @@ __all__ = [
     "MessageProto",
     "MonitorIn",
     "MonitorSnapshot",
+    "OpenSpeechIn",
+    "OpenSpeechOut",
     "PersistIn",
     "PollIn",
     "PollOut",
@@ -599,6 +643,8 @@ __all__ = [
     "RemoteWatch",
     "RetryIn",
     "RetryOut",
+    "SpeakIn",
+    "SpeechJob",
     "StartAgentTaskIn",
     "SweepIn",
     "SweepOut",

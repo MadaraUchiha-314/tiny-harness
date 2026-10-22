@@ -191,6 +191,11 @@ def workflow_config(settings: Settings, *, agent: str | None = None) -> Workflow
         retries=settings.retries,
         history_event_bound=settings.context.history_event_bound,
         search_attributes=settings.temporal.search_attributes,
+        speech_drain=(
+            settings.media.speech_drain
+            if settings.media is not None
+            else WorkflowConfig.model_fields["speech_drain"].default
+        ),
     )
 
 

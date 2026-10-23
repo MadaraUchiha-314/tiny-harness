@@ -1,9 +1,15 @@
 """The A2A executor (R14.5, R14.6, R15.1, R15.2, decision-002): ``execute`` redacts the
 message, rejects unadvertised extensions, update-with-starts the task's workflow and
-streams the workflow's event log into the SDK's queue. The core loop never runs here."""
+streams the workflow's event log into the SDK's queue. The core loop never runs here.
+
+Media (issue-38 design critic 5): before redaction, ``execute`` runs the media guard in
+``extract`` mode (file parts are stored and rewritten to media URLs) and ``control`` in
+``refuse`` mode. A refused file answers ``InvalidParams`` with the reason and the limit,
+and nothing reaches the workflow."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from collections.abc import AsyncGenerator, Collection, Iterable
@@ -29,6 +35,9 @@ from tiny_harness.harness.core import (
     TaskExtensionData,
     participant_of,
 )
+from tiny_harness.harness.media import MediaIntake, MediaRejected, guard
+from tiny_harness.harness.media.intake import is_file_part
+from tiny_harness.harness.media.spans import intake_span
 from tiny_harness.harness.security import Redactor
 from tiny_harness.jsontypes import JsonObject
 from tiny_harness.service.a2a.bridge import EventBridge
@@ -64,6 +73,39 @@ def redact_message(redactor: Redactor, message: Message) -> Message:
     clean = Message()
     json_format.ParseDict(cast(JsonObject, scrubbed), clean)
     return clean
+
+
+def media_refused(exc: MediaRejected) -> InvalidParamsError:
+    """A refused file as the A2A error the client gets: the message, and the reason, the
+    limit and the part index as the error's data (issue-38 R1.3)."""
+    return InvalidParamsError(message=exc.message, data=dict(exc.detail))
+
+
+FILE_PART_ALLOWANCE = 1_024
+"""What a file part counts toward a message's size: its rewritten ``url`` part and
+metadata, never its bytes, which go to the media store."""
+
+
+def check_message_size(message: Message, limit: int | None) -> None:
+    """Refuse a message whose serialized form, with each file part counted as its
+    rewritten url part, is larger than ``limit`` (``[server] max_request_bytes``;
+    self-review 2.2). With ``[media]`` the routes admit a full message of media, but the
+    message itself goes to the workflow inbox, whose payload Temporal bounds at 2 MB."""
+    if limit is None:
+        return
+    probe = Message()
+    probe.CopyFrom(message)
+    files = 0
+    for part in probe.parts:
+        if is_file_part(part) and part.WhichOneof("content") == "raw":
+            part.raw = b""
+            files += 1
+    size = len(json_format.MessageToJson(probe, indent=None)) + files * FILE_PART_ALLOWANCE
+    if size > limit:
+        raise InvalidParamsError(
+            message=f"the message is larger than {limit} bytes",
+            data={"reason": "message_too_large", "limit": str(limit)},
+        )
 
 
 def message_text(message: Message) -> str:
@@ -177,6 +219,9 @@ def sender_of(message: Message, call_context: ServerCallContext | None) -> str:
 
 
 class HarnessExecutor(AgentExecutor):
+    # The extensions a request may activate: the card's (the media one too, with [media]).
+    _extensions: frozenset[str] = frozenset(SUPPORTED_EXTENSIONS)
+
     def __init__(
         self,
         client: Client,
@@ -188,8 +233,14 @@ class HarnessExecutor(AgentExecutor):
         policy: AccessPolicy | None = None,
         delegators: Iterable[str] = (),
         models: Collection[str] | None = None,
+        media_intake: MediaIntake | None = None,
+        extensions: Collection[str] = SUPPORTED_EXTENSIONS,
+        max_request_bytes: int | None = None,
     ) -> None:
         self._client = client
+        self._max_message_bytes = max_request_bytes  # None: not checked (tests)
+        self._extensions = frozenset(extensions)
+        self._media = media_intake  # None: media off, every file part is refused
         # Who may brief a new task fully (issue-34 R7): this agent itself, always.
         self._delegators = frozenset({config.agent, *delegators})
         self._models = models  # the selectable models; None: not checked (tests)
@@ -200,7 +251,7 @@ class HarnessExecutor(AgentExecutor):
         self._policy = policy or AccessPolicy()
 
     def check_extensions(self, requested: set[str]) -> None:
-        unknown = sorted(requested - set(SUPPORTED_EXTENSIONS))
+        unknown = sorted(requested - self._extensions)
         if unknown:
             raise UnsupportedOperationError(
                 message=f"unsupported A2A extension(s): {', '.join(unknown)}"
@@ -216,6 +267,29 @@ class HarnessExecutor(AgentExecutor):
             raise TaskNotFoundError
         if existing is not None:
             refuse_terminal(existing)
+        # Before intake, so a refused message stores nothing (self-review 2.2).
+        check_message_size(message, self._max_message_bytes)
+        if any(is_file_part(p) for p in message.parts):
+            # Media is stored only for an asserted participant (fail closed), checked on a
+            # copy: the message's own participant is written after redaction, as always.
+            probe = Message()
+            probe.CopyFrom(message)
+            sender_of(probe, context.call_context)
+        files = [p for p in message.parts if is_file_part(p)]
+        observed = (
+            intake_span(context.task_id, count=len(files), size=sum(len(p.raw) for p in files))
+            if files
+            else contextlib.nullcontext()
+        )
+        with observed as span:
+            try:  # before redaction: the redactor never scans file bytes (abuse case 8)
+                message = await guard(
+                    message, allow="extract", intake=self._media, task_id=context.task_id
+                )
+            except MediaRejected as exc:
+                if span is not None:
+                    span.set(rejection=exc.reason)
+                raise media_refused(exc) from exc
         message = redact_message(self._redactor, message)
         message.task_id = context.task_id
         message.context_id = context.context_id
@@ -279,7 +353,13 @@ class HarnessExecutor(AgentExecutor):
         SDK's per-task request queue: that queue runs one ``execute`` at a time, so a
         completion would otherwise wait for the very turn it must interrupt. The caller
         has applied the access policy and the terminal check; the inbox update's
-        validator authorizes the sender's role before anything is interrupted."""
+        validator authorizes the sender's role before anything is interrupted. A control
+        carries no files (issue-38 design critic 5)."""
+        try:
+            message = await guard(message, allow="refuse")
+        except MediaRejected as exc:
+            raise media_refused(exc) from exc
+        check_message_size(message, self._max_message_bytes)
         message = redact_message(self._redactor, message)
         message.task_id = task.id
         message.context_id = task.context_id
@@ -366,6 +446,7 @@ __all__ = [
     "envelope_json",
     "envelope_of",
     "extension_from_envelope",
+    "media_refused",
     "message_text",
     "redact_message",
     "refuse_terminal",

@@ -37,10 +37,18 @@ and the tools. Lives in `tiny_harness/service/o11y/`.
   one agent's logs never carry another agent's key.
 - Every log field and span attribute SHALL pass through the redactor; no secret is
   logged and credential-shaped values in tool arguments and results are masked.
+- Speech-to-text, text-to-speech and image calls SHALL each produce a span like `chat`:
+  `transcribe <model>`, `speech <model>` and `image <model>`, with
+  `gen_ai.operation.name` `transcription`, `speech` or `image_generation`, the model,
+  `server.address` and `server.port`, the task and media ids and sizes (input bytes or
+  characters, output bytes or characters, audio duration), and one log line with the same
+  fields. The executor SHALL add a `media.intake` span with the file count, the bytes and
+  the refusal code. None of them SHALL carry media bytes, base64 or a transcript.
 
 ## Design
 
 [design.md § Observability](../specs/issue-3/design.md#observability-r17--serviceo11y).
+[issue-38 design.md § Error handling](../specs/issue-38/design.md#error-handling).
 
 ## History
 
@@ -48,3 +56,4 @@ and the tools. Lives in `tiny_harness/service/o11y/`.
 |-----------|--------------|-------|
 | issue-3 | The o11y executor, logging, tracing and plugin (Layer 6); the JSON-lines exporter and the single-interceptor fix (Layer 9) | [spec](../specs/issue-3/), [PR #12](https://github.com/MadaraUchiha-314/tiny-harness/pull/12) |
 | issue-36 | The agent id on log lines and spans; the process secret registry | [spec](../specs/issue-36/), [PR #37](https://github.com/MadaraUchiha-314/tiny-harness/pull/37), [decision-009](../decisions/decision-009.md) |
+| issue-38 | The `transcribe`, `speech`, `image` and `media.intake` spans | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

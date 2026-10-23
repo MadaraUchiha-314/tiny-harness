@@ -19,7 +19,8 @@ Affected docs are updated in the same PR as the work item that changes behaviour
 | [context-window](context-window.md) | Typed agent state, templated context ordered for caching, compaction policies. |
 | [persistence](persistence.md) | The store entity, the SQLite default, what is persisted where, retention. |
 | [participants-and-channels](participants-and-channels.md) | Roles, channels over A2A, help requests and `INPUT_REQUIRED`, membership. |
-| [models](models.md) | The LLM entity over OpenAI and Anthropic, the System One interface. |
+| [models](models.md) | The LLM entity over OpenAI and Anthropic, the System One interface; speech-to-text, text-to-speech and image generation. |
+| [media](media.md) | Images and audio by reference: the media store, intake and sniffing, the effective capabilities, the media route. |
 
 ## The service
 
@@ -36,7 +37,7 @@ Affected docs are updated in the same PR as the work item that changes behaviour
 | Capability | What it covers |
 |------------|----------------|
 | [surfaces-and-renderers](surfaces-and-renderers.md) | Surface and renderer entities, A2UI 0.9.1, the Textual TUI, the React web renderer. |
-| [demo](demo.md) | The runnable definition of done and its e2e and crash-recovery tests. |
+| [demo](demo.md) | The runnable definition of done and its e2e and crash-recovery tests; the multi-modal demo and its e2e test. |
 
 ## The repository
 

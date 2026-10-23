@@ -5,6 +5,7 @@ detailed record (`decision-<nnn>.md`). Newest first.
 
 | # | Title | Status | Date |
 |---|-------|--------|------|
+| [010](decision-010.md) | Media by reference: bytes in one task-scoped store | proposed | 2026-10-22 |
 | [009](decision-009.md) | Several agents in one process are kept apart by task queue, refused stores and lazy peers | proposed | 2026-10-13 |
 | [008](decision-008.md) | A remote push is a doorbell, verified in a workflow update, and its token is kept only as a digest | proposed | 2026-10-12 |
 | [007](decision-007.md) | Conversations park in `INPUT_REQUIRED` with a metadata sub-state, a control envelope completes them, and commands are a hook-extensible registry | proposed | 2026-10-12 |

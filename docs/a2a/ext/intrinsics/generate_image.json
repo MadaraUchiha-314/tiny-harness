@@ -1,0 +1,48 @@
+{
+  "description": "Generate an image from a text prompt and show it to the user. Use it when the user\nasks for a picture, a mock-up or a visual change; describe the image in ``alt``.",
+  "execution": "intrinsic",
+  "idempotency": "not_idempotent",
+  "input_schema": {
+    "additionalProperties": false,
+    "description": "Generate an image from a text prompt and show it to the user. Use it when the user\nasks for a picture, a mock-up or a visual change; describe the image in ``alt``.",
+    "properties": {
+      "alt": {
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Alt",
+        "type": "string"
+      },
+      "prompt": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "title": "Prompt",
+        "type": "string"
+      },
+      "size": {
+        "anyOf": [
+          {
+            "enum": [
+              "1024x1024",
+              "1536x1024",
+              "1024x1536"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Size"
+      }
+    },
+    "required": [
+      "prompt",
+      "alt"
+    ],
+    "title": "GenerateImageArgs",
+    "type": "object"
+  },
+  "name": "generate_image",
+  "output_schema": null
+}

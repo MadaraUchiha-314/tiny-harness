@@ -59,6 +59,8 @@ export OPENAI_API_KEY=sk-or-...   # your OpenRouter key
 | [`context_window_tokens`](#context-window-tokens) | known for OpenAI models, else 400 000 |
 | [`max_output_tokens`](#max-output-tokens) | `2000` |
 | [`timeout`](#timeout) | `"PT60S"` (60 seconds) |
+| [`input_modalities`](media#input-modalities) | `["text", "image"]`, or `["text"]` with `chat_completions` |
+| [`audio_tokens_per_second`](media#audio-tokens-per-second) | `10` |
 
 ### `model`
 
@@ -139,6 +141,11 @@ How long tiny-harness waits for one model reply.
 
 When a model call fails because of a timeout, a rate limit or a server error,
 tiny-harness tries again. See [`[retries]`](tuning#retries).
+
+### Images and audio
+
+`input_modalities` and `audio_tokens_per_second` tell tiny-harness what the model
+reads. [Images and voice](media#models-that-take-images-or-audio) explains them.
 
 ## `[anthropic]` settings
 

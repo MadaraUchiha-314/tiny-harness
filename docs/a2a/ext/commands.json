@@ -2,7 +2,7 @@
   "$defs": {
     "CommandSpec": {
       "additionalProperties": false,
-      "description": "What clients see on the card (R6.7). ``name`` must match ``[a-z][a-z0-9-]*``; the\nregistry enforces it.",
+      "description": "What clients see on the card (R6.7). ``name`` must match ``[a-z][a-z0-9-]*``; the\nregistry enforces it.\n\n``runs_on`` (issue-38 R1.2) says where the command runs: ``agent`` (the default) on\nthe harness, ``surface`` in the client, which runs a surface command it implements\nlocally and sends nothing. The card names it as ``runsOn``, only for a surface\ncommand, so an agent command's entry is unchanged.",
       "properties": {
         "argument_hint": {
           "default": "",
@@ -16,6 +16,11 @@
         "name": {
           "title": "Name",
           "type": "string"
+        },
+        "runsOn": {
+          "$ref": "#/$defs/RunsOn",
+          "default": "agent",
+          "description": "where the command runs: agent (the harness) or surface (the client)"
         }
       },
       "required": [
@@ -24,6 +29,13 @@
       ],
       "title": "CommandSpec",
       "type": "object"
+    },
+    "RunsOn": {
+      "enum": [
+        "agent",
+        "surface"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1/schema.json",

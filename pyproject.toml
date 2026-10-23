@@ -49,6 +49,15 @@ fastapi = [
     "a2a-sdk[fastapi]>=1.2.2",
     "fastapi>=0.143",
 ]
+# The TUI draws images inline in kitty, iTerm2 and sixel terminals (issue-38 R2.4).
+images = [
+    "textual-image[textual]>=0.14.2",
+]
+# The TUI records and plays voice through PortAudio (issue-38 R3, R4); the system package
+# portaudio provides the library.
+voice = [
+    "sounddevice>=0.5.6",
+]
 
 [dependency-groups]
 dev = [

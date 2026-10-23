@@ -73,6 +73,7 @@ with workflow.unsafe.imports_passed_through():
     )
     from tiny_harness.harness.core.intrinsics import link_subtask
     from tiny_harness.harness.entities import EntityKind, EntityRef
+    from tiny_harness.harness.media import MediaAttachment, MediaKind, MediaRef
     from tiny_harness.harness.models import LLMRequest, LLMResponse, MessageItem, extract_tool_calls
     from tiny_harness.harness.models import Role as MessageRole
     from tiny_harness.harness.security import Redactor
@@ -120,6 +121,8 @@ with workflow.unsafe.imports_passed_through():
         LLMTurn,
         MonitorIn,
         MonitorSnapshot,
+        OpenSpeechIn,
+        OpenSpeechOut,
         PersistIn,
         PollIn,
         PollOut,
@@ -133,6 +136,8 @@ with workflow.unsafe.imports_passed_through():
         RemoteWatch,
         RetryIn,
         RetryOut,
+        SpeakIn,
+        SpeechJob,
         StartAgentTaskIn,
         SweepIn,
         SweepOut,
@@ -140,6 +145,8 @@ with workflow.unsafe.imports_passed_through():
         TaskStart,
         ToolIn,
         ToolOut,
+        TranscribeIn,
+        TranscribeOut,
         TriggerIn,
         TriggerOut,
         event_entry,
@@ -158,6 +165,10 @@ FOLLOW_RETRY: Final = timedelta(seconds=5)
 """The pause after a follow activity itself failed, before the next (issue-27 R3)."""
 PUSH_RECHECKS: Final = (timedelta(seconds=1), timedelta(seconds=2), timedelta(seconds=4))
 """Delays of the fetches after a push whose claimed state the remote has not yet shown."""
+SPEECH_UNAVAILABLE: Final = "speech unavailable"
+"""The status note when a spoken reply fails or is stopped (issue-38 R4.5)."""
+TRANSCRIPTION_FAILED: Final = "(transcription failed)"
+"""The transcript of audio speech-to-text refused (issue-38 error handling)."""
 TERMINAL_NAMES: Final = frozenset({"COMPLETED", "FAILED", "CANCELED", "REJECTED"})
 TERMINAL: Final = frozenset(
     {
@@ -334,6 +345,7 @@ class WorkflowOperations:
             ActivityName.INVOKE_LLM, self._arg(LLMIn, task=task.proto, request=request), LLMTurn
         )
         self._turn = turn
+        await self._wf.note_unseen(turn.unseen)
         return turn.response
 
     async def extract(self, task: HarnessTask, response: LLMResponse) -> tuple[ToolCall, ...]:
@@ -365,6 +377,8 @@ class WorkflowOperations:
             if not idempotent and code != "hook.abort":
                 code = "tool.not_retried"
             return ToolResult.error(call.call_id, code, exc.message)
+        if isinstance(out.result, ToolResult):
+            await self._wf.show_media(task, out.result, out.urls)
         return out.result
 
     async def decide_completion(self, task: HarnessTask) -> TaskCompleteIn:
@@ -402,22 +416,35 @@ class WorkflowOperations:
         await self._wf.persist(compaction)
 
     async def set_state(self, task: HarnessTask, state: int) -> HarnessTask:
-        return await self._wf.set_status(task, state)
+        updated = await self._wf.set_status(task, state)
+        if state == TaskState.TASK_STATE_WORKING:
+            await self._wf.flush_notes()  # notes held while a message waited for its turn
+        return updated
 
     async def wait_for_reply(self, task: HarnessTask, help: JsonObject) -> HarnessTask:
         return await self._wf.ask(task, help)
 
     async def await_next_message(self, task: HarnessTask, text: str) -> HarnessTask:
-        return await self._wf.set_status(
-            task,
-            TaskState.TASK_STATE_INPUT_REQUIRED,
-            text=text,
-            sub_state=SubState.AWAITING_NEXT_MESSAGE,
-            persist=True,
-        )
+        # The speech artifact goes before the reply's final status: a stream ends there
+        # (issue-38 design critic 1); the speech job starts once the reply is shown.
+        speech = await self._wf.open_speech(task, text)
+        try:
+            return await self._wf.set_status(
+                task,
+                TaskState.TASK_STATE_INPUT_REQUIRED,
+                text=text,
+                sub_state=SubState.AWAITING_NEXT_MESSAGE,
+                persist=True,
+            )
+        finally:
+            self._wf.start_speech(speech)
 
     async def complete(self, task: HarnessTask, text: str) -> HarnessTask:
-        return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
+        speech = await self._wf.open_speech(task, text)
+        try:
+            return await self._wf.set_status(task, TaskState.TASK_STATE_COMPLETED, text=text)
+        finally:
+            self._wf.start_speech(speech)
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
         await self._wf.emit_ui(task, command)
@@ -457,6 +484,17 @@ class TaskWorkflow:
         self.handled = 0  # commands and controls consumed since the last wake
         self.completion_by: str | None = None  # a participant's accepted control complete
         self.fresh_run = False
+        self.intake_message: Message | None = None  # the message the last intake read
+        self.noted_media: set[str] = set()  # media the user was told the model cannot take
+        self.held_notes: list[str] = []  # status notes waiting for the next turn to start
+        self.speak = False  # the message the next reply answers asked for speech (R4.1)
+        # The history index of a message whose audio is being transcribed: a cut turn
+        # leaves it set, and it is transcribed again before the next run (self-review 2.8).
+        self.transcribing: int | None = None
+        # Spoken replies being written (design critic 4): a workflow coroutine each, not an
+        # update handler, so rollover and completion wait for them explicitly.
+        self.speech_jobs: dict[str, SpeechJob] = {}
+        self.speech_runs: dict[str, asyncio.Task[None]] = {}
         self.surfaces = SurfaceRegistry()
         self._redactor = Redactor()
 
@@ -639,6 +677,11 @@ class TaskWorkflow:
                         TaskState.TASK_STATE_CANCELED, text=self.cancel_reason
                     )
                 self.interrupted = False
+                if self.transcribing is not None:
+                    # Before a rollover can drop the mark: the audio the cut turn was
+                    # transcribing gets its transcript before the next turn.
+                    at, self.transcribing = self.transcribing, None
+                    self.state = await self._transcribe(self.state, at=at)
                 continue
             try:
                 outcome = runner.result()
@@ -739,11 +782,112 @@ class TaskWorkflow:
                 text = f"[{out.participant_id}] {out.text}"
             if out.participant_id:
                 self.actor = out.participant_id
-            state = state.append(MessageItem(role=MessageRole.USER, text=text, source=out.source))
+            self.speak = out.speak  # the newest message decides whether the reply is spoken
+            media = tuple(MediaAttachment(ref=ref) for ref in out.media)
+            state = state.append(
+                MessageItem(role=MessageRole.USER, text=text, source=out.source, media=media)
+            )
             # Committed now, not at the end of the turn: an interrupt that cancels the
             # run restarts from ``self.state`` and must not lose what intake accepted.
             self.state = state
+            if out.media and self.intake_message is not None:
+                await self._echo(self.intake_message, out)
+            if any(ref.kind is MediaKind.AUDIO for ref in out.media):
+                self.transcribing = len(state.history) - 1
+                state = await self._transcribe(state)
+                self.transcribing = None
         return state, accepted
+
+    async def _transcribe(self, state: AgentState, *, at: int = -1) -> AgentState:
+        """The audio of the message at ``at``, by default the one just appended (issue-38
+        R1.6, R3.4): each attachment the model cannot take natively gets its transcript,
+        kept on the attachment in the history and shown as the ``transcript:<mediaId>``
+        artifact. Without speech-to-text, or when it fails, the user is told and the turn
+        goes on."""
+        at = at % len(state.history)
+        entry = state.history[at]
+        item = entry.item
+        if not isinstance(item, MessageItem):
+            return state
+        media = list(item.media)
+        for index, attachment in enumerate(media):
+            ref = attachment.ref
+            if ref.kind is not MediaKind.AUDIO or attachment.transcript is not None:
+                continue
+            name = ref.name or ref.id
+            try:
+                out = await self.call(
+                    ActivityName.TRANSCRIBE,
+                    TranscribeIn(
+                        task_id=self.task.id,
+                        correlation_id=self.correlation_id,
+                        task=self.task.proto,
+                        ref=ref,
+                    ),
+                    TranscribeOut,
+                )
+            except ApplicationError:  # retries spent: the turn goes on without it
+                out = TranscribeOut(mode="failed")
+            if out.mode == "native":
+                continue
+            if out.mode == "no_stt":
+                await self.status_note(
+                    f"audio {name} was not given to the model: no speech-to-text is configured"
+                )
+                continue
+            if out.mode == "failed" or out.text is None:
+                media[index] = MediaAttachment(ref=ref, transcript=TRANSCRIPTION_FAILED)
+                await self.status_note(f"transcription of {name} failed")
+                continue
+            media[index] = MediaAttachment(ref=ref, transcript=out.text)
+            artifact = Artifact(
+                artifact_id=f"transcript:{ref.id}", name="transcript", parts=[Part(text=out.text)]
+            )
+            artifact.metadata.update({"mediaId": ref.id})
+            event = TaskArtifactUpdateEvent(
+                task_id=self.task.id,
+                context_id=self.task.context_id,
+                artifact=artifact,
+                last_chunk=True,
+            )
+            await self._deliver(self._emit(event))
+        updated = entry.model_copy(update={"item": item.model_copy(update={"media": tuple(media)})})
+        history = (*state.history[:at], updated, *state.history[at + 1 :])
+        state = state.model_copy(update={"history": history})
+        self.state = state
+        return state
+
+    async def _echo(self, message: Message, out: IntakeOut) -> None:
+        """Log the user's message as stored, its text and its media URLs (issue-38 R6.3),
+        so every surface of the task shows the media and any participant can fetch it.
+        An artifact update, not a ``Message`` (refused once a task exists) nor a status
+        (one in INPUT_REQUIRED would end the sender's stream before the reply)."""
+        own = {ref.id for ref in out.media}
+        parts: list[Part] = []
+        for part in message.parts:
+            if part.HasField("text"):
+                parts.append(Part(text=part.text))
+            elif part.HasField("url") and part.url.rstrip("/").rsplit("/", 1)[-1] in own:
+                kept = Part()
+                kept.CopyFrom(part)
+                parts.append(kept)
+        artifact = Artifact(
+            artifact_id=f"message:{message.message_id}", name="user message", parts=parts
+        )
+        artifact.metadata.update(
+            {
+                "role": "user",
+                "participant_id": out.participant_id or "",
+                "message_id": message.message_id,
+            }
+        )
+        event = TaskArtifactUpdateEvent(
+            task_id=self.task.id,
+            context_id=self.task.context_id,
+            artifact=artifact,
+            last_chunk=True,
+        )
+        await self._deliver(self._emit(event))
 
     def _fold_history_notes(self, state: AgentState) -> AgentState:
         """Add pending history notes (a participant's /sub-task, R9) to ``state`` without
@@ -760,6 +904,7 @@ class TaskWorkflow:
         a control, else return it. The message leaves the mailbox only once its intake
         has completed: an interrupt or a cancel during intake leaves it for the next
         dispatch (R15.5)."""
+        self.intake_message = self.mailbox[0]
         out = await self.call(
             ActivityName.INTAKE,
             IntakeIn(
@@ -839,7 +984,10 @@ class TaskWorkflow:
                 continue
             if out is None or (assignee is not None and out.participant_id != assignee):
                 continue
-            self.state = self.state.append(MessageItem(role=MessageRole.USER, text=out.text))
+            media = tuple(MediaAttachment(ref=ref) for ref in out.media)
+            self.state = self.state.append(
+                MessageItem(role=MessageRole.USER, text=out.text, media=media)
+            )
             return await self._finish(TaskState.TASK_STATE_COMPLETED, text=out.text)
 
     async def _complete(self) -> Task | None:
@@ -883,8 +1031,11 @@ class TaskWorkflow:
         return None
 
     async def _finish(self, state: int | None, *, text: str = "") -> Task:
+        if state == TaskState.TASK_STATE_CANCELED:
+            await self._stop_speech(note=False)  # a cancel stops speech at once
         if state is not None:
             self.task = await self.set_status(self.task, state, text=text)
+        await self._drain_speech()  # a last spoken reply plays out, within the drain
         if state == TaskState.TASK_STATE_CANCELED:
             for child in self.children:
                 if not child.done:
@@ -936,6 +1087,8 @@ class TaskWorkflow:
         self.unanswered = start.unanswered
         self.attempts = dict(start.attempt_counters)
         self.surfaces = start.surfaces
+        self.noted_media = set(start.noted_media)
+        self.speak = start.speak
         self.loaded = True
         early, self.early_child_done = self.early_child_done, []
         for done in early:  # a child's change that came before the load (issue-34)
@@ -957,6 +1110,8 @@ class TaskWorkflow:
                 "unanswered": self.unanswered,
                 "attempt_counters": dict(self.attempts),
                 "surfaces": self.surfaces,
+                "noted_media": tuple(sorted(self.noted_media)),
+                "speak": self.speak,
             }
         )
 
@@ -969,6 +1124,7 @@ class TaskWorkflow:
         over = info.get_current_history_length() > self.start.config.history_event_bound
         if not over and not info.is_continue_as_new_suggested():
             return
+        await self._drain_speech()  # the snapshot carries no speech job
         await workflow.wait_condition(workflow.all_handlers_finished)
         if self.cancel_reason is not None:
             # The snapshot does not carry a cancel: a run that rolled over now would drop
@@ -1051,6 +1207,165 @@ class TaskWorkflow:
             await self._tell_parent(updated)  # a terminal state is told by ``_finish``
         return updated
 
+    async def status_note(self, text: str) -> None:
+        """Tell the task's surfaces ``text`` in a status update that leaves the task as it
+        is (issue-38: a media note). The task is not changed, so a turn running beside this
+        never sees it. A parked task with a message waiting for its turn holds the note
+        until that turn starts: a parked status logged now would end the new message's
+        stream before its reply."""
+        task = self.task
+        waiting = bool(self.mailbox) or self.unanswered or self.completion_by is not None
+        if task.state != TaskState.TASK_STATE_WORKING and waiting:
+            self.held_notes.append(text)
+            return
+        status = TaskStatus(state=task.state, timestamp=workflow.now())  # type: ignore[arg-type]
+        status.message.CopyFrom(
+            text_message(task, text, message_id=f"{task.id}:note:{self.next_seq}")
+        )
+        event = TaskStatusUpdateEvent(task_id=task.id, context_id=task.context_id, status=status)
+        if task.sub_state is not None and STATUS_EXT_KEY in task.proto.metadata.fields:
+            event.metadata.fields[STATUS_EXT_KEY].CopyFrom(
+                task.proto.metadata.fields[STATUS_EXT_KEY]
+            )
+        await self._deliver(self._emit(event))
+
+    async def flush_notes(self) -> None:
+        notes, self.held_notes = self.held_notes, []
+        for note in notes:
+            await self.status_note(note)
+
+    async def note_unseen(self, unseen: Sequence[MediaRef]) -> None:
+        """R1.7: tell the user, once per image, that the model was not shown it."""
+        new = [ref for ref in unseen if ref.id not in self.noted_media]
+        if not new:
+            return
+        self.noted_media.update(ref.id for ref in new)
+        names = ", ".join(ref.name or ref.id for ref in new)
+        noun = "image" if len(new) == 1 else "images"
+        verb = "was" if len(new) == 1 else "were"
+        await self.status_note(
+            f"{noun} {names} {verb} not given to the model: the model takes no image input"
+        )
+
+    # --- spoken replies (issue-38 R4) ---------------------------------------------------
+
+    async def open_speech(self, task: HarnessTask, text: str) -> SpeechJob | None:
+        """When the message this reply answers asked for speech and text-to-speech is
+        configured: create the speech object and log its ``speech:<id>`` artifact, so the
+        URL a surface gets never points at nothing (design critics 1, 2). The flag is
+        spent by this reply."""
+        speak, self.speak = self.speak, False
+        if not speak or not text.strip():
+            return None
+        media_id = workflow.uuid4().hex
+        try:
+            out = await workflow.execute_activity(
+                ActivityName.OPEN_SPEECH.value,
+                OpenSpeechIn(
+                    task_id=task.id, correlation_id=self.correlation_id, media_id=media_id
+                ),
+                result_type=OpenSpeechOut,
+                start_to_close_timeout=SHORT_TIMEOUT,
+                retry_policy=RetryPolicy(maximum_attempts=3),
+            )
+        except ActivityError as exc:
+            if isinstance(exc.cause, CancelledError):
+                raise asyncio.CancelledError from exc
+            workflow.logger.warning("speech not opened: %s", exc.message)
+            await self.status_note(SPEECH_UNAVAILABLE)
+            return None
+        if out.ref is None:
+            return None
+        part = Part(url=out.url, media_type=out.ref.media_type)
+        part.metadata.update({"mediaId": media_id})
+        artifact = Artifact(artifact_id=f"speech:{media_id}", name="speech", parts=[part])
+        artifact.metadata.update({"mediaId": media_id})
+        event = TaskArtifactUpdateEvent(
+            task_id=task.id, context_id=task.context_id, artifact=artifact, last_chunk=True
+        )
+        await self._deliver(self._emit(event))
+        return SpeechJob(media_id=media_id, text=text)
+
+    def start_speech(self, job: SpeechJob | None) -> None:
+        """Speak the reply as a tracked job beside the loop, so the mailbox keeps
+        draining while it plays (the user can speak again at once)."""
+        if job is None:
+            return
+        self.speech_jobs[job.media_id] = job
+        self.speech_runs[job.media_id] = asyncio.create_task(self._speak(job))
+
+    async def _speak(self, job: SpeechJob) -> None:
+        """The ``speak`` activity, attempt by attempt: each attempt is a new generation of
+        the object. A failure once the attempts are spent tells the user (R4.5)."""
+        config = self.start.config
+        spec = self._policy(ActivityName.SPEAK.value, idempotent=True)
+        attempt = 1
+        failed = False
+        try:
+            while True:
+                try:
+                    await workflow.execute_activity(
+                        ActivityName.SPEAK.value,
+                        SpeakIn(
+                            task_id=self.task.id,
+                            correlation_id=self.correlation_id,
+                            attempt=attempt,
+                            media_id=job.media_id,
+                            text=job.text,
+                            voice=job.voice,
+                            max_attempts=spec.maximum_attempts,
+                        ),
+                        start_to_close_timeout=config.tool_timeout,
+                        heartbeat_timeout=config.heartbeat_timeout,
+                        retry_policy=ONE_ATTEMPT,
+                        # A cancel waits for the activity to close its object failed.
+                        cancellation_type=workflow.ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
+                    )
+                    break
+                except ActivityError as exc:
+                    if isinstance(exc.cause, CancelledError):
+                        raise asyncio.CancelledError from exc
+                    info = _error_info(exc)
+                    if is_non_retryable(info, spec) or attempt >= spec.maximum_attempts:
+                        workflow.logger.warning("speech failed: %s", info.message)
+                        failed = True
+                        break
+                    await workflow.sleep(backoff(spec, attempt))
+                    attempt += 1
+        finally:
+            self.speech_jobs.pop(job.media_id, None)
+            self.speech_runs.pop(job.media_id, None)
+        if failed:
+            await self.status_note(SPEECH_UNAVAILABLE)
+
+    async def _drain_speech(self) -> None:
+        """Wait, at most ``speech_drain``, for the spoken replies to finish; stop any still
+        running then, with the note (design critic 4). A cancel ends the wait."""
+        if not self.speech_jobs:
+            return
+        with contextlib.suppress(TimeoutError):
+            await workflow.wait_condition(
+                lambda: not self.speech_jobs or self.cancel_reason is not None,
+                timeout=self.start.config.speech_drain,
+            )
+        await self._stop_speech(note=True)
+
+    async def _stop_speech(self, *, note: bool) -> None:
+        """Cancel every running speech job and wait for each activity to close its object
+        failed; with ``note``, tell the user speech is unavailable."""
+        runs = list(self.speech_runs.values())
+        if not runs:
+            return
+        for run in runs:
+            run.cancel()
+        for run in runs:
+            with contextlib.suppress(asyncio.CancelledError, ActivityError):
+                await run
+        self.speech_jobs.clear()
+        self.speech_runs.clear()
+        if note:
+            await self.status_note(SPEECH_UNAVAILABLE)
+
     async def _tell_parent(self, task: HarnessTask) -> None:
         """A sub-task tells its parent each state change, so the parent's row for it stays
         current (issue-25 R5.6). A parent that has closed has no row to update."""
@@ -1112,6 +1427,26 @@ class TaskWorkflow:
             sub_state=SubState.AWAITING_ANSWER,
             persist=True,
         )
+
+    async def show_media(self, task: HarnessTask, result: ToolResult, urls: dict[str, str]) -> None:
+        """Each media part of a tool result (``generate_image``, issue-38 R2.2) as the
+        ``image:<mediaId>`` artifact: one url file part, named by the alt text."""
+        for content in result.content:
+            ref = content.media
+            if content.kind != "media" or ref is None or ref.id not in urls:
+                continue
+            part = Part(url=urls[ref.id], media_type=ref.media_type, filename=ref.name)
+            part.metadata.update({"mediaId": ref.id})
+            artifact = Artifact(
+                artifact_id=f"{ref.kind.value}:{ref.id}",
+                name=content.text or ref.name,
+                parts=[part],
+            )
+            artifact.metadata.update({"mediaId": ref.id})
+            event = TaskArtifactUpdateEvent(
+                task_id=task.id, context_id=task.context_id, artifact=artifact, last_chunk=True
+            )
+            await self._deliver(self._emit(event))
 
     async def emit_ui(self, task: HarnessTask, command: WorkflowCommand) -> None:
         """``emit_ui`` (R20.5): the validated A2UI messages become one A2A message event
@@ -1477,7 +1812,7 @@ class TaskWorkflow:
     def _timeouts(self, name: ActivityName) -> tuple[timedelta, timedelta | None]:
         """LLM, tool and compaction activities heartbeat; the rest are short (R19.6)."""
         config = self.start.config
-        if name is ActivityName.INVOKE_LLM or name is ActivityName.COMPACT:
+        if name in (ActivityName.INVOKE_LLM, ActivityName.COMPACT, ActivityName.TRANSCRIBE):
             return config.llm_timeout, config.heartbeat_timeout
         if name is ActivityName.INVOKE_TOOL:
             return config.tool_timeout, config.heartbeat_timeout

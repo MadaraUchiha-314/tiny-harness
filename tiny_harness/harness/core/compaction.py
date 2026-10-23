@@ -8,15 +8,25 @@ history with a summary (default: an LLM call). Each is an ``in`` hook point: the
 built-in plugin registers the default body at priority 1000, so a plugin that sets
 ``result`` earlier wins. Every compaction leaves a ``CompactionRecord`` naming what it
 removed, so a reviewer can audit the loss.
+
+Media (issue-38 R6.2, design critic 7): the summarise request carries the folded media
+the model can take, resolved to bytes inside the call; the rest is rendered as text, and
+native audio is transcribed first where speech-to-text exists. Whatever summarises, the
+summary is checked to name every folded media item in one line, and a missing line is
+appended, so no image or recording drops out of the conversation unnamed.
 """
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable, Collection, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
 from tiny_harness.config import ReasoningEffort
+from tiny_harness.errors import TinyHarnessError
 from tiny_harness.harness.core.context import NEVER_COMPACT, ContextWindow, ContextWindowManager
 from tiny_harness.harness.core.state import AgentState, HistoryEntry
 from tiny_harness.harness.hooks import (
@@ -28,14 +38,20 @@ from tiny_harness.harness.hooks import (
     Operation,
     Phase,
 )
+from tiny_harness.harness.media.models import MediaAttachment, MediaKind, MediaRef
+from tiny_harness.harness.media.render import resolve_media
+from tiny_harness.harness.media.store import MediaStore
 from tiny_harness.harness.models import (
     LLM,
     LLMModelInfo,
     LLMRequest,
     MessageItem,
     Role,
+    SpeechToText,
     ToolCallItem,
 )
+
+log = logging.getLogger("tiny_harness.compaction")
 
 TRIGGER = HookPoint(operation=Operation.COMPACTION_TRIGGER, phase=Phase.IN)
 KEEP = HookPoint(operation=Operation.COMPACTION_KEEP, phase=Phase.IN)
@@ -46,6 +62,23 @@ SUMMARISER_INSTRUCTIONS = (
     "below that preserves every fact, decision, identifier, number and open question the "
     "agent still needs; omit pleasantries. Output the summary only."
 )
+MEDIA_INSTRUCTIONS = (
+    "The exchange holds media; the media attached to this message is in the order the "
+    "exchange lists it. For every media item write exactly one line in the summary: "
+    '[image <id> "<name>": <one-sentence description>] for an image, and '
+    '[audio <id> "<name>": <transcript, or a one-sentence description>] for audio.'
+)
+
+
+@dataclass(frozen=True)
+class CompactionMedia:
+    """What compaction needs to carry media: the store the bytes are read from, the
+    model's modalities for a model name, and speech-to-text WHERE it is configured."""
+
+    store: MediaStore
+    model_info: Callable[[str | None], LLMModelInfo]
+    speech_to_text: SpeechToText | None = None
+    max_bytes: int | None = None  # [media] max_request_media_bytes
 
 
 class CompactionRecord(BaseModel, frozen=True):
@@ -73,28 +106,95 @@ class CompactionKeepIn(HookContext):
 
 
 class CompactionSummariseIn(HookContext):
-    """``history`` is the text of the entries to compact; ``result`` the replacement summary."""
+    """``history`` is the text of the entries to compact; ``result`` the replacement summary.
+    ``folded_media`` is every media item those entries hold, ``media`` the ones the model
+    can take, as references (issue-38): the default body resolves them for the call."""
 
     previous_summary: str
     history: str
     removed_ids: tuple[int, ...]
+    folded_media: tuple[MediaRef, ...] = ()
+    media: tuple[MediaAttachment, ...] = ()
     model: str | None = None  # the task's settings: the summary is one of its model calls
     reasoning_effort: ReasoningEffort | None = None
     result: str | None = None
 
 
-def render_entries(entries: tuple[HistoryEntry, ...]) -> str:
+def media_name(ref: MediaRef) -> str:
+    return ref.name or ref.id
+
+
+def render_media(attachment: MediaAttachment, *, carried: bool = False) -> str:
+    """One folded media item as the summariser reads it: a pointer to the attached media
+    when the request carries it, else its description as text."""
+    ref = attachment.ref
+    name = media_name(ref)
+    if carried:
+        return f'(attached: {ref.kind.value} {ref.id} "{name}")'
+    if ref.kind is MediaKind.IMAGE:
+        size = (
+            f", {ref.width}\N{MULTIPLICATION SIGN}{ref.height}" if ref.width and ref.height else ""
+        )
+        return f"[image: {name}{size}, media {ref.id}]"
+    seconds = f", {round(ref.duration_ms / 1000)} s" if ref.duration_ms is not None else ""
+    if attachment.transcript is None:
+        return f"[audio: {name}{seconds}, no transcript, media {ref.id}]"
+    return f'[audio: {name}{seconds}, transcript: "{attachment.transcript}"] (media {ref.id})'
+
+
+def render_entries(
+    entries: tuple[HistoryEntry, ...],
+    *,
+    carried: Collection[str] = (),
+    media: Mapping[str, MediaAttachment] | None = None,
+) -> str:
+    """The entries as the summariser reads them. ``carried`` names the media ids the
+    request carries; ``media`` replaces attachments by id (one transcribed for this)."""
     lines: list[str] = []
     for entry in entries:
         item = entry.item
         if isinstance(item, MessageItem):
             lines.append(f"[{entry.id}] {item.role.value}: {item.text}")
+            for attachment in item.media:
+                attachment = (media or {}).get(attachment.ref.id, attachment)
+                lines.append("  " + render_media(attachment, carried=attachment.ref.id in carried))
         elif isinstance(item, ToolCallItem):
             lines.append(f"[{entry.id}] call {item.call.name}({item.call.arguments})")
         else:
             text = " ".join(p.text or str(p.data or "") for p in item.result.content)
             lines.append(f"[{entry.id}] result: {text}")
     return "\n".join(lines)
+
+
+def folded_media(entries: tuple[HistoryEntry, ...]) -> list[MediaAttachment]:
+    """Every media item of ``entries``, once each, in order."""
+    seen: dict[str, MediaAttachment] = {}
+    for entry in entries:
+        item = entry.item
+        if isinstance(item, MessageItem):
+            for attachment in item.media:
+                seen.setdefault(attachment.ref.id, attachment)
+    return list(seen.values())
+
+
+def media_line(attachment: MediaAttachment) -> str:
+    """The line a summary names a media item with when the summariser did not."""
+    ref = attachment.ref
+    detail = attachment.transcript if attachment.transcript else "not described"
+    return f'[{ref.kind.value} {ref.id} "{media_name(ref)}": {detail}]'
+
+
+def named_media(summary: str, media: Collection[MediaAttachment]) -> str:
+    """``summary`` with a line for every media item it does not name (R6.2)."""
+    missing = [
+        media_line(a)
+        for a in media
+        if f"[{a.ref.kind.value} {a.ref.id} " not in summary
+        and f"[{a.ref.kind.value} {a.ref.id}:" not in summary
+    ]
+    if not missing:
+        return summary
+    return "\n".join([summary, *missing]) if summary else "\n".join(missing)
 
 
 class Compactor:
@@ -107,11 +207,13 @@ class Compactor:
         manager: ContextWindowManager,
         llm: LLM,
         now: type[datetime] = datetime,
+        media: CompactionMedia | None = None,
     ) -> None:
         self._hooks = hooks
         self._manager = manager
         self._llm = llm
         self._now = now
+        self._media = media
 
     def register_defaults(self) -> None:
         """The built-in bodies, at the default priority so any plugin can override them."""
@@ -138,14 +240,28 @@ class Compactor:
             if ctx.result is not None:
                 return None
             prior = f"Previous summary:\n{ctx.previous_summary}\n\n" if ctx.previous_summary else ""
-            response = await llm.invoke(
-                LLMRequest(
-                    instructions=SUMMARISER_INSTRUCTIONS,
-                    input=(MessageItem(role=Role.USER, text=f"{prior}Exchange:\n{ctx.history}"),),
-                    model=ctx.model,
-                    reasoning_effort=ctx.reasoning_effort,
-                )
+            instructions = SUMMARISER_INSTRUCTIONS
+            if ctx.folded_media:
+                instructions = f"{instructions}\n{MEDIA_INSTRUCTIONS}"
+            request = LLMRequest(
+                instructions=instructions,
+                input=(
+                    MessageItem(
+                        role=Role.USER,
+                        text=f"{prior}Exchange:\n{ctx.history}",
+                        media=ctx.media,
+                    ),
+                ),
+                model=ctx.model,
+                reasoning_effort=ctx.reasoning_effort,
             )
+            media = self._media
+            if media is not None and ctx.media:
+                # Bytes only here, inside the call: never in the hook context (issue-38).
+                request = await resolve_media(
+                    request, media.store, media.model_info(ctx.model), max_bytes=media.max_bytes
+                )
+            response = await llm.invoke(request)
             return ctx.model_copy(update={"result": response.output_text.strip()})
 
         del manager
@@ -197,19 +313,27 @@ class Compactor:
         history = state.history
         cut = max(len(history) // 2, 1) if history else 0
         removed, remaining = history[:cut], history[cut:]
+        media = await self._prepare_media(folded_media(removed))
+        carried = self._carried(media, window.model)
         summary_ctx = await self._hooks.run(
             SUMMARISE,
             CompactionSummariseIn(
                 task_id=task_id,
                 correlation_id=correlation_id,
                 previous_summary=state.summary,
-                history=render_entries(removed),
+                history=render_entries(
+                    removed,
+                    carried={a.ref.id for a in carried},
+                    media={a.ref.id: a for a in media},
+                ),
                 removed_ids=tuple(e.id for e in removed),
+                folded_media=tuple(a.ref for a in media),
+                media=carried,
                 model=window.model,
                 reasoning_effort=window.reasoning_effort,
             ),
         )
-        summary = summary_ctx.result or state.summary
+        summary = named_media(summary_ctx.result or state.summary, media)
         new_state = state.model_copy(update={"history": remaining, "summary": summary})
         removed_chars = sum(len(render_entries((e,))) for e in removed)
         tokens_after = max(window.estimated_tokens - removed_chars // 4 + len(summary) // 4, 0)
@@ -224,16 +348,70 @@ class Compactor:
         )
         return new_state, record
 
+    async def _prepare_media(self, media: list[MediaAttachment]) -> list[MediaAttachment]:
+        """Native audio with no transcript, transcribed first WHERE speech-to-text exists
+        (design critic 7); a failure leaves it as it was."""
+        helper = self._media
+        if helper is None or helper.speech_to_text is None:
+            return media
+        stt = helper.speech_to_text
+        prepared: list[MediaAttachment] = []
+        for attachment in media:
+            ref = attachment.ref
+            if ref.kind is MediaKind.AUDIO and attachment.transcript is None:
+                try:
+                    audio = await helper.store.get(ref)
+                    transcript = await stt.transcribe(
+                        audio, media_type=ref.media_type, name=ref.name or "audio"
+                    )
+                    attachment = MediaAttachment(ref=ref, transcript=transcript.text)
+                except (FileNotFoundError, TinyHarnessError) as exc:
+                    log.warning(
+                        "audio not transcribed for compaction",
+                        extra={"media_id": ref.id, "error": type(exc).__name__},
+                    )
+            prepared.append(attachment)
+        return prepared
+
+    def _carried(
+        self, media: list[MediaAttachment], model: str | None
+    ) -> tuple[MediaAttachment, ...]:
+        """The folded media the summary request carries: what the model takes (images,
+        and native audio of a type it takes), WHERE a store can resolve it."""
+        helper = self._media
+        if helper is None or not media:
+            return ()
+        info = helper.model_info(model)
+        images = "image" in info.input_modalities
+        audio = "audio" in info.input_modalities
+        return tuple(
+            MediaAttachment(ref=a.ref)
+            for a in media
+            if (a.ref.kind is MediaKind.IMAGE and images)
+            or (
+                a.ref.kind is MediaKind.AUDIO
+                and a.transcript is None
+                and audio
+                and a.ref.media_type in info.audio_input_formats
+            )
+        )
+
 
 __all__ = [
     "KEEP",
+    "MEDIA_INSTRUCTIONS",
     "SUMMARISE",
     "SUMMARISER_INSTRUCTIONS",
     "TRIGGER",
     "CompactionKeepIn",
+    "CompactionMedia",
     "CompactionRecord",
     "CompactionSummariseIn",
     "CompactionTriggerIn",
     "Compactor",
+    "folded_media",
+    "media_line",
+    "named_media",
     "render_entries",
+    "render_media",
 ]

@@ -6,13 +6,15 @@ heartbeat every 10 s so a dead worker is detected within ``heartbeat_timeout`` (
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import secrets
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Literal, Protocol, cast
+from typing import Final, Literal, Protocol, cast
+from urllib.parse import urlsplit
 
 from a2a.types import Message, Part, Task, TaskState, TaskStatusUpdateEvent
 from a2a.types import Role as A2ARole
@@ -62,15 +64,21 @@ from tiny_harness.harness.core.inprocess import InProcessOperations
 from tiny_harness.harness.core.loop import RequestReceivedPost, RequestReceivedPre
 from tiny_harness.harness.entities import EntityKind, EntityRef
 from tiny_harness.harness.hooks import HookPoint, Operation, Phase
+from tiny_harness.harness.media import MediaFenced, MediaRef, SpeechWriter, guard
+from tiny_harness.harness.media.extension import MEDIA_ROUTE
+from tiny_harness.harness.media.render import speakable_text, unseen_images
+from tiny_harness.harness.media.spans import media_span
 from tiny_harness.harness.persistence import (
     ChannelMessageRecord,
     CompactionStoreRecord,
+    Filter,
     InboxAuditRecord,
     PlanRecord,
     RecordKind,
     StateRecord,
     TaskRecord,
 )
+from tiny_harness.harness.tools import ToolResult
 from tiny_harness.interaction.a2ui import (
     A2UI_MEDIA_TYPE,
     A2UIValidationError,
@@ -103,6 +111,8 @@ from tiny_harness.service.durable.models import (
     LLMTurn,
     MonitorIn,
     MonitorSnapshot,
+    OpenSpeechIn,
+    OpenSpeechOut,
     PersistIn,
     PollIn,
     PollOut,
@@ -113,12 +123,15 @@ from tiny_harness.service.durable.models import (
     RemoteWatch,
     RetryIn,
     RetryOut,
+    SpeakIn,
     StartAgentTaskIn,
     SweepIn,
     SweepOut,
     TaskMonitor,
     ToolIn,
     ToolOut,
+    TranscribeIn,
+    TranscribeOut,
     TriggerIn,
     TriggerOut,
 )
@@ -143,6 +156,8 @@ TERMINAL = frozenset(
         TaskState.TASK_STATE_REJECTED,
     }
 )
+MEDIA_SEGMENT: Final = MEDIA_ROUTE.strip("/")
+"""The media route's path segment: ``<base>/media/<task_id>/<media_id>``."""
 NON_RETRYABLE_CODES = frozenset({ProviderError.code, HookAbort.code, ToolNotFoundError.code})
 
 
@@ -187,8 +202,11 @@ class Activities:
         commands: CommandRegistry | None = None,
         push_base_url: str | None = None,
         task_queue: str | None = None,
+        media_retention: timedelta | None = None,
     ) -> None:
         self.engine = engine
+        # ``[retention] media`` (issue-38): media older than this is swept; None: kept.
+        self.media_retention = media_retention
         # This agent's queue: the heartbeat scans only its own tasks (issue-36 R5.6).
         self.task_queue = task_queue
         # Where a parked remote task is asked to push (issue-27 R1.2); None: follow only.
@@ -225,6 +243,9 @@ class Activities:
             self.monitor_snapshot,
             self.retention_sweep,
             self.run_command,
+            self.transcribe,
+            self.open_speech,
+            self.speak,
         )
 
     # --- intake (R15, abuse cases 4 and 6) ------------------------------------------
@@ -336,12 +357,19 @@ class Activities:
                 reason=reason,
             )
         )
-        interrupt = False
-        if arg.message.HasField("metadata") and "interrupt" in arg.message.metadata.fields:
-            interrupt = bool(arg.message.metadata.fields["interrupt"].bool_value)
+        interrupt = speak = False
+        if arg.message.HasField("metadata"):
+            fields = arg.message.metadata.fields
+            if "interrupt" in fields:
+                interrupt = bool(fields["interrupt"].bool_value)
+            if "speak" in fields:  # the surface's speaker toggle (issue-38 R4.1)
+                speak = bool(fields["speak"].bool_value)
         sender = task.ext.participant(participant) if participant else None
         if sender is not None and sender.kind == "agent":
             source = "agent"
+        media: tuple[MediaRef, ...] = ()
+        if accepted and ordinary:
+            media = await self._own_media(task.id, arg.message)
         return IntakeOut(
             accepted=accepted,
             text=text if accepted and ordinary else "",
@@ -353,7 +381,34 @@ class Activities:
             ui_action=ui_action if accepted else None,
             command=command if accepted else None,
             control=control if accepted else None,
+            media=media,
+            speak=speak and accepted and ordinary,
         )
+
+    async def _own_media(self, task_id: str, message: Message) -> tuple[MediaRef, ...]:
+        """The message's media (issue-38 R1.5): each url part whose path ends in
+        ``/media/<this task>/<id>`` and whose id the store knows. Anything else (another
+        task's media, an unknown id, a raw part that skipped intake) is ignored and logged:
+        the workflow never takes a reference it cannot resolve."""
+        store = self.engine.media_store
+        refs: list[MediaRef] = []
+        for part in message.parts:
+            content = part.WhichOneof("content")
+            if content not in ("url", "raw"):
+                continue
+            ref: MediaRef | None = None
+            if content == "url" and store is not None:
+                segments = urlsplit(part.url).path.rstrip("/").split("/")
+                if len(segments) >= 3 and segments[-3:-1] == [MEDIA_SEGMENT, task_id]:
+                    ref = await store.lookup(task_id, segments[-1])
+            if ref is None:
+                log.warning(
+                    "file part ignored: not this task's stored media",
+                    extra={"task_id": task_id, "part": content},
+                )
+                continue
+            refs.append(ref)
+        return tuple(refs)
 
     # --- commands (issue-25 R6, R6a) ------------------------------------------------
 
@@ -445,6 +500,7 @@ class Activities:
         self.engine.correlation_id = arg.correlation_id
         task = HarnessTask(arg.task)
         self.engine.context.task = task
+        unseen = unseen_images(arg.request, self.engine.model_info(arg.request.model))
         try:
             response = await _heartbeating(
                 self.engine.invoke_llm(task, arg.request), every=self.heartbeat_every
@@ -452,7 +508,134 @@ class Activities:
             calls = await self.engine.extract(task, response)
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
-        return LLMTurn(response=response, calls=calls)
+        return LLMTurn(response=response, calls=calls, unseen=unseen)
+
+    @activity.defn(name=ActivityName.TRANSCRIBE.value)
+    async def transcribe(self, arg: TranscribeIn) -> TranscribeOut:
+        """How one audio attachment reaches the model (issue-38 R1.6, R3.4): natively
+        WHERE the task's model takes audio of its type, else as its transcript from
+        speech-to-text. A provider's refusal is ``failed`` (the turn goes on); a retryable
+        failure is raised for the workflow to retry. Bytes stay inside this activity."""
+        engine = self.engine
+        model, _ = engine.catalog.settings_for(HarnessTask(arg.task).ext)
+        info = engine.model_info(model)
+        ref = arg.ref
+        if "audio" in info.input_modalities and ref.media_type in info.audio_input_formats:
+            return TranscribeOut(mode="native")
+        stt, store = engine.speech_to_text, engine.media_store
+        if stt is None or store is None:
+            return TranscribeOut(mode="no_stt")
+        try:
+            audio = await store.get(ref)
+            with media_span(
+                "transcription",
+                provider=stt.info.provider,
+                model=stt.info.model,
+                endpoint=stt.info.endpoint,
+                task_id=arg.task_id,
+                media_id=ref.id,
+            ) as span:
+                span.set(input_bytes=len(audio), duration_ms=ref.duration_ms)
+                transcript = await _heartbeating(
+                    stt.transcribe(audio, media_type=ref.media_type, name=ref.name or "audio"),
+                    every=self.heartbeat_every,
+                )
+                span.set(output_chars=len(transcript.text), duration_ms=transcript.duration_ms)
+        except FileNotFoundError:
+            return TranscribeOut(mode="failed")
+        except ProviderError as exc:
+            log.warning(
+                "transcription refused",
+                extra={"task_id": arg.task_id, "media_id": ref.id, "code": exc.code},
+            )
+            return TranscribeOut(mode="failed")
+        except TinyHarnessError as exc:
+            raise _translate(exc) from exc
+        # Scrubbed here, so a secret spoken aloud never reaches Temporal history (critic 2).
+        text = engine.runner.redactor.scrub_text(transcript.text)
+        return TranscribeOut(mode="transcribed", text=text)
+
+    # --- spoken replies (issue-38 R4) -------------------------------------------------
+
+    @activity.defn(name=ActivityName.OPEN_SPEECH.value)
+    async def open_speech(self, arg: OpenSpeechIn) -> OpenSpeechOut:
+        """Create the open, empty object a spoken reply streams from, so its URL never
+        points at nothing (design critic 2). No text-to-speech: no object, no speech."""
+        engine = self.engine
+        store, tts = engine.media_store, engine.text_to_speech
+        if store is None or tts is None:
+            return OpenSpeechOut()
+        ref = await store.create(arg.task_id, arg.media_id, media_type=tts.format.media_type)
+        url = f"{engine.media_base_url}{MEDIA_ROUTE}/{arg.task_id}/{arg.media_id}"
+        return OpenSpeechOut(ref=ref, url=url)
+
+    @activity.defn(name=ActivityName.SPEAK.value)
+    async def speak(self, arg: SpeakIn) -> None:
+        """Speak the reply into its object, as one new generation (design critic 3): a
+        retry starts again from the first chunk and fences an older attempt still
+        writing, whose readers are told the stream was interrupted. A provider's refusal,
+        the last attempt's failure or a cancel closes the object failed (R4.5)."""
+        engine = self.engine
+        store, tts = engine.media_store, engine.text_to_speech
+        if store is None or tts is None:
+            raise ApplicationError("text-to-speech is not configured", non_retryable=True)
+        ref = await store.lookup(arg.task_id, arg.media_id)
+        if ref is None:
+            raise ApplicationError("no speech object to write", non_retryable=True)
+        writer = await store.begin(ref)
+        last = arg.attempt >= arg.max_attempts
+        text = speakable_text(arg.text)
+        written = 0
+        fmt = tts.format
+        bytes_per_second = fmt.sample_rate * fmt.channels * 2  # pcm_s16le
+
+        async def stream() -> None:
+            nonlocal written
+            chunks = tts.stream(text, voice=arg.voice)
+            try:
+                try:
+                    async for chunk in chunks:
+                        await writer.append(chunk)  # MediaFenced: a newer attempt owns it
+                        written += len(chunk)
+                        activity.heartbeat()
+                finally:
+                    await close_stream(chunks)  # an early exit hangs up on the provider
+                await writer.close()
+            finally:
+                # The generation's file, also when this attempt fails and is retried: the
+                # object stays open for the retry, not marked failed (self-review 2.9).
+                writer.release()
+
+        try:
+            with media_span(
+                "speech",
+                provider=tts.info.provider,
+                model=tts.info.model,
+                endpoint=tts.info.endpoint,
+                task_id=arg.task_id,
+                media_id=arg.media_id,
+            ) as span:
+                span.set(input_chars=len(text), generation=writer.generation)
+                try:
+                    await _heartbeating(stream(), every=self.heartbeat_every)
+                finally:
+                    span.set(
+                        output_bytes=written,
+                        duration_ms=round(written / bytes_per_second * 1000),
+                    )
+        except MediaFenced as exc:  # a newer attempt owns the object
+            raise ApplicationError(exc.message, type=exc.code, non_retryable=True) from exc
+        except asyncio.CancelledError:
+            await _close_failed(writer)
+            raise
+        except TinyHarnessError as exc:
+            if last or exc.code in NON_RETRYABLE_CODES:
+                await _close_failed(writer)
+            raise _translate(exc) from exc
+        except Exception:
+            if last:
+                await _close_failed(writer)
+            raise
 
     @activity.defn(name=ActivityName.INVOKE_TOOL.value)
     async def invoke_tool(self, arg: ToolIn) -> ToolOut:
@@ -464,7 +647,15 @@ class Activities:
             )
         except TinyHarnessError as exc:
             raise _translate(exc) from exc
-        return ToolOut(result=result)
+        urls: dict[str, str] = {}
+        if isinstance(result, ToolResult):
+            for part in result.content:
+                if part.kind == "media" and part.media is not None:
+                    ref = part.media
+                    urls[ref.id] = (
+                        f"{self.engine.media_base_url}{MEDIA_ROUTE}/{ref.task_id}/{ref.id}"
+                    )
+        return ToolOut(result=result, urls=urls)
 
     @activity.defn(name=ActivityName.DECIDE_COMPLETION.value)
     async def decide_completion(self, arg: CompletionIn) -> CompletionOut:
@@ -684,7 +875,7 @@ class Activities:
         if not isinstance(agent, RemoteAgent):
             raise ApplicationError("not a remote agent", non_retryable=True)
         task = await agent.get_task(arg.remote_task_id, participant=arg.participant)
-        text = _status_text(task) or arg.known_text
+        text = await _status_text(task) or arg.known_text
         out = remote_out(
             arg.remote_task_id,
             task.status.state,
@@ -750,9 +941,11 @@ class Activities:
                 if self.client is None:
                     continue
                 handle = self.client.get_workflow_handle(channel.task_id)
+                # A channel's delivery carries no media (issue-38 design critic 5).
+                delivery = await guard(channel_to_a2a(channel, message), allow="drop")
                 try:
                     await handle.execute_update(  # pyright: ignore[reportUnknownMemberType]
-                        "inbox", channel_to_a2a(channel, message), result_type=InboxReceipt
+                        "inbox", delivery, result_type=InboxReceipt
                     )
                 except RPCError, WorkflowUpdateFailedError:
                     continue  # the task is gone or closed; the message stays recorded
@@ -787,8 +980,41 @@ class Activities:
 
     @activity.defn(name=ActivityName.RETENTION_SWEEP.value)
     async def retention_sweep(self, arg: SweepIn) -> SweepOut:
-        deleted = await self.engine.store.sweep(self.retention, datetime.now(UTC))
-        return SweepOut(deleted={k.value: v for k, v in deleted.items()})
+        """Delete expired records, then media (issue-38): every object of a task whose
+        record this sweep deletes, and every object older than ``[retention] media``."""
+        now = datetime.now(UTC)
+        store, media = self.engine.store, self.engine.media_store
+        count, expired_tasks = 0, 0
+        ttl = self.retention.get(RecordKind.TASKS)
+        if media is not None and ttl is not None:
+            # Page by page, oldest first, so no expired task is missed however many
+            # there are (critic 4): delete a task's media, then its record, so a
+            # failure part-way leaves the record for the next sweep to retry.
+            while True:
+                page = await store.query(TaskRecord, Filter(limit=1000))
+                expired = [r for r in page if r.created_at < now - ttl]
+                removed = 0
+                for record in expired:
+                    count += await media.delete_task(record.task_id)
+                    removed += int(await store.delete(TaskRecord, record.id))
+                expired_tasks += removed
+                if not removed or len(expired) < len(page) or len(page) < 1000:
+                    break
+        deleted = await store.sweep(self.retention, now)
+        out = {k.value: v for k, v in deleted.items()}
+        if expired_tasks:
+            out[RecordKind.TASKS.value] = out.get(RecordKind.TASKS.value, 0) + expired_tasks
+        if media is not None:
+            if self.media_retention is not None:
+                count += await media.sweep(now - self.media_retention)
+            out["media"] = count
+        return SweepOut(deleted=out)
+
+
+async def _close_failed(writer: SpeechWriter) -> None:
+    """Close a speech generation as failed, unless a newer one already owns the object."""
+    with contextlib.suppress(MediaFenced, OSError):
+        await writer.close(failed=True)
 
 
 def ui_action_of(message: Message) -> Action | None:
@@ -819,10 +1045,17 @@ def sub_state_of(metadata: struct_pb2.Struct) -> str | None:
     return fields["sub_state"].string_value if "sub_state" in fields else None
 
 
-def _status_text(event: Task | TaskStatusUpdateEvent) -> str | None:
+async def remote_text(message: Message) -> str:
+    """A remote agent's message as the text the stand-in records: its file parts dropped,
+    each with a note, so no remote media reaches history (issue-38 design critic 5)."""
+    kept = await guard(message, allow="drop")
+    return "\n".join(p.text for p in kept.parts if p.HasField("text"))
+
+
+async def _status_text(event: Task | TaskStatusUpdateEvent) -> str | None:
     if not event.status.HasField("message"):
         return None
-    return "\n".join(p.text for p in event.status.message.parts if p.HasField("text"))
+    return await remote_text(event.status.message)
 
 
 def remote_out(
@@ -873,14 +1106,14 @@ async def _remote_turn(
                 remote_task_id = event.id
                 state = event.status.state
                 sub_state = sub_state_of(event.metadata)
-                text = _status_text(event) or text
+                text = await _status_text(event) or text
             elif isinstance(event, TaskStatusUpdateEvent):
                 remote_task_id = event.task_id or remote_task_id
                 state = event.status.state
                 sub_state = sub_state_of(event.metadata)
-                text = _status_text(event) or text
+                text = await _status_text(event) or text
             elif isinstance(event, Message):
-                text = "\n".join(p.text for p in event.parts if p.HasField("text"))
+                text = await remote_text(event)
             activity.heartbeat()
             if first and remote_task_id and state != TaskState.TASK_STATE_SUBMITTED:
                 # Past SUBMITTED the agent has the task under way: leaving the stream earlier
@@ -934,7 +1167,7 @@ async def _first_change(
                 elif stamp and stamp <= baseline:
                     activity.heartbeat()
                     continue  # history replayed after the snapshot
-                text = _status_text(event) or text
+                text = await _status_text(event) or text
                 out = scrub(
                     remote_out(
                         arg.remote_task_id,
@@ -1008,5 +1241,6 @@ __all__ = [
     "Activities",
     "EventSink",
     "channel_to_a2a",
+    "remote_text",
     "running_task_workflows",
 ]

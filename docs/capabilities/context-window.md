@@ -40,6 +40,15 @@ three `in` hook points. Lives in `tiny_harness/harness/core/context.py`,
   that replaced it SHALL be persisted.
 - The budget and fraction SHALL be configuration (`[context]`: `turn_budget_tokens`,
   `compaction_fraction`).
+- The turn SHALL carry the media of every history entry still in the window. The budget
+  SHALL count an image as `max(1100, ceil(size / 4000))` tokens, a transcribed audio file
+  as its transcript and
+  native audio as `audio_tokens_per_second` tokens per second, corrected by the model's
+  reported usage after each turn.
+- Compaction SHALL carry the folded entries' media where the model accepts it and SHALL
+  name every folded media item in the summary (`[image <id> "<name>": …]`, `[audio <id>
+  "<name>": …]`); a missing line is appended as "not described". The bytes stay in the
+  media store until retention.
 
 ## Design
 
@@ -51,3 +60,4 @@ three `in` hook points. Lives in `tiny_harness/harness/core/context.py`,
 |-----------|--------------|-------|
 | issue-3 | Agent state, the context window manager, compaction (Layer 4) | [spec](../specs/issue-3/), [PR #10](https://github.com/MadaraUchiha-314/tiny-harness/pull/10) |
 | issue-34 | The static, never-compacted `agents` section | [spec](../specs/issue-34/), [PR #35](https://github.com/MadaraUchiha-314/tiny-harness/pull/35) |
+| issue-38 | Media in the turn, in the token estimate and in compaction summaries | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

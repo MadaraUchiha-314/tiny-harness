@@ -13,9 +13,9 @@ from datetime import UTC, datetime
 
 from a2a.types import TaskState
 
-from tiny_harness.harness.core.compaction import CompactionRecord, Compactor
+from tiny_harness.harness.core.compaction import CompactionMedia, CompactionRecord, Compactor
 from tiny_harness.harness.core.context import NO_AGENTS, ContextWindow, ContextWindowManager
-from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics
+from tiny_harness.harness.core.intrinsics import TaskContext, core_intrinsics, image_intrinsic
 from tiny_harness.harness.core.loop import (
     LLMInvokedPost,
     LLMInvokedPre,
@@ -43,14 +43,19 @@ from tiny_harness.harness.hooks import (
     OperationRunner,
     Phase,
 )
+from tiny_harness.harness.media import MediaStore
+from tiny_harness.harness.media.render import resolve_media
 from tiny_harness.harness.models import (
     LLM,
+    ImageGenerator,
     LLMModelInfo,
     LLMRequest,
     LLMResponse,
     MessageItem,
     ModelCatalog,
     Role,
+    SpeechToText,
+    TextToSpeech,
     extract_tool_calls,
 )
 from tiny_harness.harness.persistence import (
@@ -109,6 +114,12 @@ class InProcessOperations:
         correlation_id: str = "local",
         actor: str | None = None,
         catalog: ModelCatalog | None = None,
+        media_store: MediaStore | None = None,
+        speech_to_text: SpeechToText | None = None,
+        text_to_speech: TextToSpeech | None = None,
+        image_generator: ImageGenerator | None = None,
+        media_base_url: str = "",
+        max_request_media_bytes: int | None = None,
     ) -> None:
         self.registry = registry
         self.hooks = hooks
@@ -124,7 +135,18 @@ class InProcessOperations:
             selectable=(llm.info.model,),
             fallback_window=llm.info.context_window_tokens,
         )
-        self.compactor = Compactor(hooks=hooks, manager=self.manager, llm=llm)
+        self.compactor = Compactor(
+            hooks=hooks,
+            manager=self.manager,
+            llm=llm,
+            media=(
+                CompactionMedia(
+                    media_store, self.model_info, speech_to_text, max_request_media_bytes
+                )
+                if media_store is not None
+                else None
+            ),
+        )
         self.runner = OperationRunner(hooks, redactor)
         self.invoker = ToolInvoker(registry)
         self.correlation_id = correlation_id
@@ -134,17 +156,30 @@ class InProcessOperations:
         self.ui_commands: list[WorkflowCommand] = []
         self.sources: list[McpToolSource] = []
         self.resolved_children: set[str] = set()
+        # Media (issue-38): the store the activities resolve references from, the speech
+        # entities, and the base of the media route's URLs; all absent when text-only.
+        self.media_store = media_store
+        self.speech_to_text = speech_to_text
+        self.text_to_speech = text_to_speech
+        self.image_generator = image_generator
+        self.media_base_url = media_base_url.rstrip("/")
+        self.max_request_media_bytes = max_request_media_bytes
         self._bound = False
 
     async def bind(self) -> None:
-        """Register the core intrinsics and the default ``in`` bodies; idempotent."""
+        """Register the core intrinsics (with ``generate_image`` WHERE an image generator
+        and a media store exist) and the default ``in`` bodies; idempotent."""
         if self._bound:
             return
 
         def known_agents() -> frozenset[str]:  # read at call time (issue-34 R3)
             return frozenset(ref.id for ref in self.registry.list(EntityKind.AGENT))
 
-        for tool in core_intrinsics(self.context, known_agents=known_agents):
+        tools = (
+            *core_intrinsics(self.context, known_agents=known_agents),
+            *image_intrinsic(self.context, self.image_generator, self.media_store),
+        )
+        for tool in tools:
             await self.registry.add(RegistryEntry(ref=tool.ref, instance=tool), override=True)
         self.compactor.register_defaults()
         register_completion_default(self.hooks)
@@ -227,7 +262,13 @@ class InProcessOperations:
         )
 
         async def body(ctx: LLMInvokedPre) -> LLMResponse:
-            return await self.llm.invoke(ctx.request)
+            # Media references become bytes here, inside the call, and nowhere else: the
+            # resolved request never reaches a hook, a record or a payload (issue-38).
+            info = ctx.model or self.model_info(ctx.request.model)
+            request = await resolve_media(
+                ctx.request, self.media_store, info, max_bytes=self.max_request_media_bytes
+            )
+            return await self.llm.invoke(request)
 
         return await self.runner.run(
             Operation.LLM_INVOKED,

@@ -236,3 +236,5 @@ examples/delegation/.state/
 !renderers/web/src/lib/
 # the five-agent example's runtime state (stores, Temporal)
 examples/multi_agent/.state/
+# the multi-modal demo's runtime state (store, media, trace, Temporal)
+examples/multimodal/.state/

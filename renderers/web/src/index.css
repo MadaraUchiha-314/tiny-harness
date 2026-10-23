@@ -117,3 +117,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* issue-38: the mic while it records (a pulsing ring; static under reduced motion) and
+   the speaking marker's wave. */
+.mic-recording {
+  background: var(--destructive);
+  color: var(--background);
+  animation: mic-pulse 1.2s infinite;
+}
+.mic-recording:hover {
+  background: var(--destructive);
+}
+@keyframes mic-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--destructive) 55%, transparent); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+.speech-wave-live i {
+  animation: speech-wave 0.9s ease-in-out infinite alternate;
+}
+@keyframes speech-wave {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-recording {
+    animation: none;
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--destructive) 35%, transparent);
+  }
+  .speech-wave-live i {
+    animation: none;
+  }
+}

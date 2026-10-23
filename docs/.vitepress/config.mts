@@ -84,6 +84,7 @@ const SDK: DefaultTheme.SidebarItem[] = [
   { text: "Add tools, commands and skills", link: "/sdk/extend" },
   { text: "Example: support agent", link: "/sdk/example" },
   { text: "Example: two agents", link: "/sdk/example-delegation" },
+  { text: "Example: images and voice", link: "/sdk/example-multimodal" },
   { text: "Mount agents on your app", link: "/sdk/mount" },
   { text: "Deploy", link: "/sdk/deploy" },
 ];
@@ -93,6 +94,7 @@ const CONFIGURATION: DefaultTheme.SidebarItem[] = [
   { text: "Agent", link: "/configuration/agent" },
   { text: "Temporal", link: "/configuration/temporal" },
   { text: "Models", link: "/configuration/models" },
+  { text: "Images and voice", link: "/configuration/media" },
   { text: "Server", link: "/configuration/server" },
   { text: "Plugins and other agents", link: "/configuration/plugins-and-agents" },
   { text: "Storage", link: "/configuration/storage" },
@@ -106,6 +108,7 @@ const A2A: DefaultTheme.SidebarItem[] = [
   { text: "Channel extension v1", link: "/a2a/ext/channel/v1" },
   { text: "Status extension v1", link: "/a2a/ext/status/v1" },
   { text: "Commands extension v1", link: "/a2a/ext/commands/v1" },
+  { text: "Media extension v1", link: "/a2a/ext/media/v1" },
 ];
 
 // The contributor sidebar: everything that is not a user guide.

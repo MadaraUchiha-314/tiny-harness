@@ -2,24 +2,44 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from pathlib import PurePath
+import asyncio
+from collections.abc import Awaitable, Callable, Sequence
+from pathlib import Path, PurePath
 from typing import Any, Protocol
 
+from a2a.types import Part, TaskState
+from a2a.utils.errors import InvalidParamsError
 from textual.app import App
 from textual.pilot import Pilot
-from textual.widgets import ListView
+from textual.widgets import Input, ListView, Static
 
+from tests.fixtures import media as fx
 from tests.ui.prototype import (
+    AGENT_URL,
     COMMANDS,
+    MEDIA_COMMANDS,
+    MEDIA_PARAMS,
     TASK_ID,
+    agent_image,
+    agent_text,
     completed_events,
     conversation_events,
+    echo,
+    media_url,
+    parked,
     prototype_events,
+    speech,
+    status,
     sub_task,
     sub_task_events,
+    transcript,
+    url_part,
 )
-from tiny_harness.interaction.tui import HarnessApp, ScriptedClient
+from tests.unit.tui.fakes import FakeMicrophone, FakeSpeakers, tone
+from tiny_harness.interaction.tui import EventSource, HarnessApp, ScriptedClient
+from tiny_harness.interaction.tui.client import Attachment
+from tiny_harness.interaction.tui.media import MediaCache
+from tiny_harness.interaction.tui.voice import PcmPlayer, Recorder
 
 
 class SnapCompare(Protocol):
@@ -119,3 +139,193 @@ def test_sub_task_open(snap_compare: SnapCompare) -> None:
 
 def test_completed_state(snap_compare: SnapCompare) -> None:
     assert snap_compare(controls_app(), terminal_size=(110, 36), run_before=completed)
+
+
+# --- issue-38: the states of ``design/tui-multimodal.html`` ------------------------------
+
+MIB = 1024 * 1024
+
+
+def media_app(tmp_path: Path, client: ScriptedClient) -> HarnessApp:
+    cache = MediaCache(tmp_path, label="~/.cache/tiny-harness/media")
+    return HarnessApp(client, url=AGENT_URL, participant="you", media_cache=cache)
+
+
+def chip_files() -> list[Attachment]:
+    return [
+        Attachment("sofa-closeup.jpg", "image/jpeg", b"\0" * 940 * 1024, width=1600, height=1200),
+        Attachment("note.m4a", "audio/mp4", b"\0" * 180_000, duration_ms=12_000),
+    ]
+
+
+def test_attachment_chips(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 2: two chips above the composer, the count in the hint."""
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(conversation_events())
+        for attachment in chip_files():
+            pilot.app.add_attachment(attachment)
+        pilot.app.query_one("#composer", Input).value = "Which of these works with the rug idea?"
+        await pilot.pause()
+
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
+    assert snap_compare(media_app(tmp_path, client), terminal_size=(110, 36), run_before=run_before)
+
+
+def test_image_fallback_line(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 3: the user's image and audio, and the agent's image as the saved-to line."""
+    photo = url_part("Ph7c", "image/jpeg", "sofa-closeup.jpg", width=1600, height=1200, size=962560)
+    note = url_part("Au1", "audio/mp4", "note.m4a", durationMs=12_000, size=180_000)
+    events = [
+        *conversation_events(),
+        echo(photo, note, Part(text="Which of these works with the rug idea?"), message_id="m-2"),
+        status(TaskState.TASK_STATE_WORKING),
+        status(
+            TaskState.TASK_STATE_WORKING, agent_text("Here is a mock-up with a green sofa:", "a2")
+        ),
+        agent_image("Qm3xk2", "the room with a green sofa"),
+        parked(),
+    ]
+    files = {
+        media_url("Qm3xk2"): [fx.png(1024, 768)],
+        media_url("Ph7c"): [fx.jpeg(1600, 1200)],
+    }
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS, files=files)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(events)
+        await pilot.app.workers.wait_for_complete()  # pyright: ignore[reportUnknownMemberType]
+        await pilot.pause()
+
+    assert snap_compare(media_app(tmp_path, client), terminal_size=(110, 36), run_before=run_before)
+
+
+class Refusing(ScriptedClient):
+    def send(
+        self,
+        parts: Sequence[Part],
+        *,
+        task_id: str | None,
+        context_id: str,
+        speak: bool = False,
+    ) -> EventSource:
+        super().send(parts, task_id=task_id, context_id=context_id, speak=speak)
+        return self._refuse()
+
+    async def _refuse(self) -> EventSource:
+        raise InvalidParamsError(
+            message="'holiday-video.webm' is larger than the 20971520-byte limit per file",
+            data={"reason": "too_large", "limit": str(20 * MIB), "part": "0"},
+        )
+        yield
+
+
+def test_attachment_rejected(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 8: the server refused the file; the chip stays and the error names the limit."""
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(conversation_events())
+        clip = Attachment("holiday-video.webm", "audio/webm", b"\0" * 48 * MIB)
+        pilot.app.add_attachment(clip)
+        await pilot.press("enter")
+        await pilot.app.workers.wait_for_complete()  # pyright: ignore[reportUnknownMemberType]
+        await pilot.pause()
+
+    client = Refusing(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
+    assert snap_compare(media_app(tmp_path, client), terminal_size=(110, 36), run_before=run_before)
+
+
+def voice_snapshot_app(
+    tmp_path: Path, client: ScriptedClient
+) -> tuple[HarnessApp, FakeMicrophone, FakeSpeakers]:
+    mic, speakers = FakeMicrophone(), FakeSpeakers()
+    app = HarnessApp(
+        client,
+        url=AGENT_URL,
+        participant="you",
+        media_cache=MediaCache(tmp_path, label="~/.cache/tiny-harness/media"),
+        recorder=Recorder(open_input=mic),
+        player=PcmPlayer(open_output=speakers),
+    )
+    return app, mic, speakers
+
+
+async def until_shown(pilot: Pilot[Any], text: str, *, timeout: float = 5.0) -> None:
+    """Wait until some widget renders ``text``: the meter and the timers redraw on an
+    interval, so a fixed pause races a slow machine (CI)."""
+    for _ in range(round(timeout / 0.05)):
+        if any(text in str(widget.render()) for widget in pilot.app.query(Static)):
+            return
+        await pilot.pause(0.05)
+    raise AssertionError(f"nothing showed {text!r} within {timeout} s")
+
+
+def speaking_levels(seconds: float) -> bytes:
+    """A voice-like signal: louder and quieter blocks, so the meter moves."""
+    return b"".join(tone(0.1, amplitude=a) for a in (2000, 4000, 7000, 8000) * int(seconds * 2.5))
+
+
+def test_recording_bar(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 4: recording, with the level meter and the timer above the composer."""
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
+    app, mic, _ = voice_snapshot_app(tmp_path, client)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(conversation_events())
+        await pilot.press("f5")
+        mic.stream.feed(speaking_levels(4.0), block=1600)
+        await until_shown(pilot, "0:04")
+
+    assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)
+
+
+def test_voice_transcript(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 5: the voice turn shows its transcript; the task works on it."""
+    voice = url_part("Vo1", "audio/wav", "voice.wav", durationMs=4_000, voice=True, size=128_044)
+    events = [
+        *conversation_events(),
+        echo(voice, message_id="m-3"),
+        status(TaskState.TASK_STATE_WORKING),
+        transcript("Vo1", "Would a rug work better than a throw on the sofa in the first photo?"),
+    ]
+    client = ScriptedClient(commands=MEDIA_COMMANDS, media=MEDIA_PARAMS)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(events)
+        await pilot.pause()
+
+    app, _, _ = voice_snapshot_app(tmp_path, client)
+    assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)
+
+
+def test_speaking_line(snap_compare: SnapCompare, tmp_path: Path) -> None:
+    """State 6: the reply is spoken as it streams; Escape stops it."""
+    gate = asyncio.Event()
+    reply = agent_text(
+        "Yes — a 160 by 230 cm rug in rust under the front legs of the sofa warms the whole "
+        "floor; a throw only changes the sofa.",
+        "a-3",
+    )
+    pcm = speaking_levels(1.0)  # 16 kHz samples played as 24 kHz: 0:00 of 0:01, still streaming
+    client = ScriptedClient(
+        commands=MEDIA_COMMANDS, media=MEDIA_PARAMS, files={media_url("Sp1"): [pcm, gate]}
+    )
+    app, _, speakers = voice_snapshot_app(tmp_path, client)
+
+    async def run_before(pilot: Pilot[Any]) -> None:
+        assert isinstance(pilot.app, HarnessApp)
+        pilot.app.feed(conversation_events())
+        await pilot.press("f6")
+        pilot.app.feed([speech("Sp1"), status(TaskState.TASK_STATE_WORKING, reply), parked()])
+        for _ in range(50):
+            if speakers.played == pcm:
+                break
+            await pilot.pause(0.02)
+        await until_shown(pilot, "0:01 / streaming")
+
+    assert snap_compare(app, terminal_size=(110, 36), run_before=run_before)

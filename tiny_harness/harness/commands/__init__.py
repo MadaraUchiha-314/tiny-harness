@@ -2,9 +2,12 @@
 the built-in commands (R6, R6a, R7-R10)."""
 
 from tiny_harness.harness.commands.builtins import (
+    ATTACH,
     BUILTIN_SPECS,
     EFFORTS,
     ROLE_POLICY_PRIORITY,
+    SURFACE_SPECS,
+    attach_command,
     effort_command,
     model_command,
     register_builtin_commands,
@@ -22,6 +25,7 @@ from tiny_harness.harness.commands.models import (
     CommandResult,
     CommandsExtensionParams,
     CommandSpec,
+    RunsOn,
     SpawnIntent,
     TaskSettings,
     TaskSnapshot,
@@ -36,12 +40,14 @@ from tiny_harness.harness.commands.registry import (
 )
 
 __all__ = [
+    "ATTACH",
     "BUILTIN_SPECS",
     "COMMANDS_EXT_URI",
     "COMMAND_IN",
     "EFFORTS",
     "NAME_PATTERN",
     "ROLE_POLICY_PRIORITY",
+    "SURFACE_SPECS",
     "ChildSnapshot",
     "Command",
     "CommandCall",
@@ -53,9 +59,11 @@ __all__ = [
     "CommandResult",
     "CommandSpec",
     "CommandsExtensionParams",
+    "RunsOn",
     "SpawnIntent",
     "TaskSettings",
     "TaskSnapshot",
+    "attach_command",
     "commands_extension_schema",
     "effort_command",
     "model_command",

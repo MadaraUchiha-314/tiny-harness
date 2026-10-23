@@ -1,0 +1,48 @@
+# The multi-modal demo (issue-38 R7): an embedded Temporal (no Temporal account) and OpenAI
+# for the model, speech-to-text, text-to-speech and image generation. The only secret is
+# OPENAI_API_KEY, from the environment:
+#   export OPENAI_API_KEY="$(secret-tool lookup service openai project tiny-harness)"
+#   uv run python -m examples.multimodal
+# The embedded Temporal is for development and single-host use only.
+
+plugins = ["examples/multimodal"]
+
+[temporal]
+mode = "embedded"
+task_queue = "tiny-harness-multimodal"
+search_attributes = true  # registered on the embedded server at startup
+
+[openai]
+model = "gpt-6.1-sol"
+timeout = "PT120S"
+max_output_tokens = 2000
+
+[media]  # images and audio in messages; limits are the defaults
+dir = "examples/multimodal/.state/media"
+
+[speech_to_text]  # audio files and voice notes become text for the model
+provider = "openai"
+model = "gpt-4o-mini-transcribe"
+
+[text_to_speech]  # replies to a voice message are spoken, streamed as PCM
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "coral"
+
+[image_generation]  # gives the agent the generate_image tool
+provider = "openai"
+model = "gpt-image-2"
+size = "1024x1024"
+
+[server]
+bind = "127.0.0.1:8080"
+base_url = "http://127.0.0.1:8080"
+ui_dir = "renderers/web/dist"
+cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173"]
+
+[store]
+sqlite_path = "examples/multimodal/.state/tiny-harness.sqlite3"
+
+[o11y]
+log_level = "INFO"
+trace_file = "examples/multimodal/.state/trace.jsonl"

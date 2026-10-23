@@ -8,24 +8,52 @@ applies ``settings`` and ``spawn`` deterministically and emits the ``reply``.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Final
+from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.core import HarnessTask, Role, StepState, SubState
 from tiny_harness.harness.hooks import HookContext
 
+type RunsOn = Literal["agent", "surface"]
+
 
 class CommandSpec(BaseModel, frozen=True):
     """What clients see on the card (R6.7). ``name`` must match ``[a-z][a-z0-9-]*``; the
-    registry enforces it."""
+    registry enforces it.
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    ``runs_on`` (issue-38 R1.2) says where the command runs: ``agent`` (the default) on
+    the harness, ``surface`` in the client, which runs a surface command it implements
+    locally and sends nothing. The card names it as ``runsOn``, only for a surface
+    command, so an agent command's entry is unchanged."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", validate_by_name=True)
 
     name: str
     description: str
     argument_hint: str = ""
+    runs_on: RunsOn = Field(
+        default="agent",
+        validation_alias=AliasChoices("runsOn", "runs_on"),
+        description="where the command runs: agent (the harness) or surface (the client)",
+    )
+
+    @model_serializer(mode="wrap")
+    def _runs_on_when_surface(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        dumped: dict[str, object] = handler(self)
+        dumped.pop("runs_on", None)
+        dumped.pop("runsOn", None)
+        if self.runs_on != "agent":
+            dumped["runsOn"] = self.runs_on
+        return dumped
 
 
 COMMANDS_EXT_URI: Final = "https://madarauchiha-314.github.io/tiny-harness/a2a/ext/commands/v1"
@@ -143,6 +171,7 @@ __all__ = [
     "CommandResult",
     "CommandSpec",
     "CommandsExtensionParams",
+    "RunsOn",
     "SpawnIntent",
     "TaskSettings",
     "TaskSnapshot",

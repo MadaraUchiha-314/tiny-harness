@@ -32,6 +32,7 @@ from tiny_harness.harness.core.intrinsics import apply_to_task, link_subtask
 from tiny_harness.harness.core.state import AgentState, LoadedSkillRecord
 from tiny_harness.harness.core.task import HarnessTask, TaskRef
 from tiny_harness.harness.hooks import HookContext
+from tiny_harness.harness.media.models import MediaAttachment
 from tiny_harness.harness.models import (
     LLMModelInfo,
     LLMRequest,
@@ -173,6 +174,22 @@ class Operations(Protocol):
     async def fail(self, task: HarnessTask, reason: str) -> HarnessTask: ...
 
 
+def media_notes(result: ToolResult) -> list[MessageItem]:
+    """An agent note per media part of a tool result (issue-38 R2.5): the media as an
+    attachment of a history message, so this and later turns see it. Marked
+    ``source="agent"``: its text is data, rendered untrusted like a tool's."""
+    return [
+        MessageItem(
+            role=Role.USER,
+            source="agent",
+            text=f"[image generated: {part.text or part.media.name or part.media.id}]",
+            media=(MediaAttachment(ref=part.media),),
+        )
+        for part in result.content
+        if part.kind == "media" and part.media is not None
+    ]
+
+
 def default_completion(unresolved: tuple[TaskRef, ...]) -> CompletionDecision:
     """The ``task.complete.in`` default body (R8.5): wait while a sub-task is unresolved."""
     return CompletionDecision.WAIT if unresolved else CompletionDecision.COMPLETE
@@ -215,6 +232,7 @@ class CoreLoop:
                 await ops.record(task, state, compaction)
                 return await self._finish(task, state, response.output_text)
             waiting: JsonObject | None = None
+            notes: list[MessageItem] = []
             for call in calls:
                 state = state.append(ToolCallItem(call=call))
                 out = await ops.invoke_tool(task, call)
@@ -222,6 +240,10 @@ class CoreLoop:
                     task, state, waiting = await self._apply(task, state, out, waiting)
                     out = out.result
                 state = state.append(ToolResultItem(result=out))
+                notes += media_notes(out)
+            # After every result: a provider wants a call's results before any message.
+            for note in notes:
+                state = state.append(note)
             await ops.record(task, state, compaction)
             if waiting is not None:
                 task = await ops.wait_for_reply(task, waiting)
@@ -283,4 +305,5 @@ __all__ = [
     "ToolInvokedPost",
     "ToolInvokedPre",
     "default_completion",
+    "media_notes",
 ]

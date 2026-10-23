@@ -84,6 +84,7 @@ otlp_endpoint = "https://otel.example.com"
 | `[openai]`, `[anthropic]` | Which AI model the agent uses | [Models](models) |
 | `[server]` | The address, limits and web access of the server | [Server](server) |
 | `plugins`, `agents`, `[card]` | Tools, skills, other agents, and how other agents see this one | [Plugins and other agents](plugins-and-agents) |
+| `[media]`, `[speech_to_text]`, `[text_to_speech]`, `[image_generation]` | Images and audio in messages, spoken replies and generated images | [Images and voice](media) |
 | `[store]`, `[retention]` | Where data is saved, and for how long | [Storage](storage) |
 | `[o11y]` | Logs and traces | [Observability](observability) |
 | `[heartbeat]`, `[retries]`, `[context]` | Timers, retries and the size of the model's input | [Tuning](tuning) |

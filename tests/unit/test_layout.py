@@ -39,6 +39,7 @@ MODULES = [
     "tiny_harness.harness.channels",
     "tiny_harness.harness.agents",
     "tiny_harness.harness.security",
+    "tiny_harness.harness.media",
 ]
 
 

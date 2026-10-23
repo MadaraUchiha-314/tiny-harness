@@ -19,6 +19,7 @@ import {
   type CommandSpec,
   type HarnessPort,
   type JsonObject,
+  type MediaParams,
   type Message,
   type StreamResponse,
   type Task,
@@ -254,5 +255,16 @@ export class FixtureClient implements HarnessPort {
   async commands(): Promise<CommandSpec[]> {
     await Promise.resolve();
     return clone(FIXTURE_COMMANDS);
+  }
+
+  /** This harness has no media extension (issue-38): no attach, mic or speaker. */
+  async media(): Promise<MediaParams | null> {
+    await Promise.resolve();
+    return null;
+  }
+
+  async getMedia(): Promise<Response> {
+    await Promise.resolve();
+    return new Response("not found", { status: 404 });
   }
 }

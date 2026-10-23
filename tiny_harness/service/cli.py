@@ -67,6 +67,12 @@ def build_parser(source: ConfigSource | None = None) -> argparse.ArgumentParser:
         default=None,
         help="the participant id to assert, printable ASCII (default: the OS user name)",
     )
+    tui.add_argument(
+        "--hold-ms",
+        type=int,
+        default=None,
+        help="hold-to-talk: the longest wait for Space to repeat, in ms (default: 600)",
+    )
     schedules = sub.add_parser("schedules", help="manage the heartbeat schedule")
     schedules_sub = schedules.add_subparsers(dest="schedules_command", required=True)
     schedules_sub.add_parser("delete", help="delete the heartbeat schedule")
@@ -125,6 +131,7 @@ def parse(argv: Sequence[str] | None) -> argparse.Namespace:
     args = build_parser(resolve_config_path(known.config)).parse_args(argv)
     if args.command is None:  # R1.2: bare `tiny-harness` is `tiny-harness tui`
         args.command, args.url, args.participant = "tui", None, None
+        args.hold_ms = None
     return args
 
 
@@ -183,7 +190,8 @@ async def dispatch(args: argparse.Namespace, settings: Settings) -> int:
     if args.command == "worker":
         return await commands.worker(settings)
     if args.command == "tui":
-        return await commands.tui(settings, url=args.url, participant=str(args.participant))
+        hold = {"hold_ms": args.hold_ms} if args.hold_ms is not None else {}
+        return await commands.tui(settings, url=args.url, participant=str(args.participant), **hold)
     if args.command == "schedules":
         return await commands.schedules_delete(settings)
     if args.command == "tasks":

@@ -38,14 +38,24 @@ intrinsic tools that return a command the workflow applies. Lives in
 - Tool names SHALL cross the provider boundary as names the provider accepts
   (`[A-Za-z0-9_-]`, at most 64 characters): each adapter builds a per-request bijection,
   encodes names on the way out and decodes them on the tool calls that come back.
+- `generate_image` SHALL be an intrinsic registered only WHERE an `ImageGenerator` and a
+  media store exist. Its input is `{prompt: string ≤ 4000, size?: "1024x1024" |
+  "1536x1024" | "1024x1536", alt: string ≤ 200}`. It runs as a tool activity: it calls the
+  generator, stores the image and returns a `ContentPart` of kind `media` with the
+  `MediaRef` and the text `image <id> shown to the user`. The workflow then emits the
+  `image:<id>` artifact (named by the alt text, one `url` file part) and appends an agent
+  note with the image, so a later turn sees it. A failed generation is a tool error
+  result. Its schema is `docs/a2a/ext/intrinsics/generate_image.json`.
 
 ## Design
 
 [design.md § Tools and MCP](../specs/issue-3/design.md#tools-and-mcp-r6--harnesstools),
 [decision-004](../decisions/decision-004.md).
+[issue-38 design.md § Workflow and activities](../specs/issue-38/design.md#components-interfaces).
 
 ## History
 
 | Work item | What changed | Links |
 |-----------|--------------|-------|
 | issue-3 | Tool models, the validating invoker, the MCP tool source, intrinsic definitions (Layer 3); intrinsic bodies (Layer 4); provider-safe wire names (Layer 9) | [spec](../specs/issue-3/), [PR #9](https://github.com/MadaraUchiha-314/tiny-harness/pull/9), [PR #10](https://github.com/MadaraUchiha-314/tiny-harness/pull/10) |
+| issue-38 | The `generate_image` intrinsic and the `media` content part | [spec](../specs/issue-38/), [PR #39](https://github.com/MadaraUchiha-314/tiny-harness/pull/39) |

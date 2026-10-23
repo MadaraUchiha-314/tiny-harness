@@ -264,6 +264,28 @@ async def test_tui_command_hands_the_participant_to_run_tui(
     assert calls == [("http://x", "alice")]
 
 
+async def test_tui_hold_ms_reaches_run_tui(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """issue-38: ``--hold-ms`` sets hold-to-talk's repeat window; without it run_tui gets
+    no ``hold_ms`` (its default, 600 ms)."""
+    from tiny_harness.config import Settings
+    from tiny_harness.interaction import tui as tui_module
+    from tiny_harness.service import commands
+
+    assert build_parser().parse_args(["tui", "--hold-ms", "350"]).hold_ms == 350
+    assert build_parser().parse_args(["tui"]).hold_ms is None
+    calls: list[dict[str, object]] = []
+
+    async def fake_run_tui(url: str, *, participant: str, **kwargs: object) -> int:
+        calls.append(kwargs)
+        return 0
+
+    monkeypatch.setattr(tui_module, "run_tui", fake_run_tui)
+    settings = Settings.load(embedded_config(tmp_path, monkeypatch))
+    assert await commands.tui(settings, url="http://x", participant="a", hold_ms=350) == 0
+    assert await commands.tui(settings, url="http://x", participant="a") == 0
+    assert calls == [{"hold_ms": 350}, {}]
+
+
 # issue-25 R1, R2: bare `tiny-harness` is the TUI; the default configuration file.
 
 SUBCOMMANDS = ("serve", "worker", "tui", "schedules", "tasks")

@@ -1,10 +1,13 @@
 import { Role, userMessage } from "./a2a";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
+import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
+import { MediaCache } from "./media";
 import { replay } from "./model";
+import { PcmStreamPlayer } from "./voice";
 
 describe("the web renderer", () => {
   it("folds the prototype's events into the view", () => {
@@ -162,4 +165,239 @@ it("userMessage builds the SDK's message shape with the participant in the metad
   expect(message.taskId).toBe("t-1");
   expect(message.parts[0]?.content).toEqual({ $case: "text", value: "hello" });
   expect(message.metadata).toEqual({ participant_id: "alice" });
+});
+
+describe("media against the harness (issue-38 fixture client)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    let n = 0;
+    Object.assign(URL, { createObjectURL: () => `blob:test/${(n += 1)}`, revokeObjectURL: () => undefined });
+  });
+
+  const mount = () =>
+    render(
+      <App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client: new MediaFixtureClient() }} />,
+    );
+
+  it("shows the conversation's images, voice turn, transcript and the agent's image", async () => {
+    mount();
+    expect(await screen.findByRole("img", { name: "Image living-room.png" })).toHaveAttribute("src", expect.stringMatching(/^blob:/));
+    expect(await screen.findByText("“Would a rug work better than a throw on the sofa in the first photo?”")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Generated: the same room with a green sofa and a rust rug" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Attach image or audio" })).toBeInTheDocument();
+  });
+
+  it("puts the chips back and names the file when the harness refuses it", async () => {
+    const { container } = mount();
+    await screen.findByRole("img", { name: "Image living-room.png" });
+    const input = container.querySelector<HTMLInputElement>("input[type=file]")!;
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array([1, 2, 3])], "photo.png", { type: "image/png" })] } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("error")).toHaveTextContent("Not sent: photo.png is not a file this agent accepts. Remove it and send again."),
+    );
+    expect(screen.getByRole("button", { name: "Remove photo.png" })).toBeInTheDocument();
+  });
+});
+
+describe("the page's own copy of a sent file (self-review 2.5)", () => {
+  let created: Array<{ url: string; blob: Blob }>;
+  let revoked: string[];
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    created = [];
+    revoked = [];
+    Object.assign(URL, {
+      createObjectURL: (blob: Blob) => {
+        const url = `blob:test/${created.length + 1}`;
+        created.push({ url, blob });
+        return url;
+      },
+      revokeObjectURL: (url: string) => revoked.push(url),
+    });
+  });
+
+  const sendPhoto = async (container: HTMLElement, bytes: number[]) => {
+    const input = container.querySelector<HTMLInputElement>("input[type=file]")!;
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array(bytes)], "photo.png", { type: "image/png" })] } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+  };
+
+  it("binds the echoed URL to the file already shown, with no second download", async () => {
+    const client = new MediaFixtureClient();
+    const getMedia = vi.spyOn(client, "getMedia");
+    const { container } = render(
+      <App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />,
+    );
+    await screen.findByRole("img", { name: "Image living-room.png" });
+    const before = getMedia.mock.calls.length;
+    await sendPhoto(container, [137, 80, 78, 71, 13, 10, 26, 10]);
+    await screen.findByText("Noted. A rust rug and a warm lamp would do the most.");
+    expect(await screen.findByRole("img", { name: "Image photo.png" })).toHaveAttribute("src", expect.stringMatching(/^blob:/));
+    // The fixture's stored files are m<n>…; the spoken reply (s<n>…) streams as usual.
+    const files = getMedia.mock.calls.slice(before).filter(([url]) => /\/m\d+\w*$/.test(url));
+    expect(files).toEqual([]);
+  });
+
+  it("revokes the page's copy of a file the harness refused", async () => {
+    const adopt = vi.spyOn(MediaCache.prototype, "adopt");
+    const release = vi.spyOn(MediaCache.prototype, "release");
+    const { container } = render(
+      <App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client: new MediaFixtureClient() }} />,
+    );
+    await screen.findByRole("img", { name: "Image living-room.png" });
+    await sendPhoto(container, [1, 2, 3]);
+    await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("Not sent: photo.png"));
+    const key = adopt.mock.results[0]?.value as string;
+    expect(release.mock.calls).toEqual([[key]]);
+    const blob = created.find(({ blob }) => blob === adopt.mock.calls[0]?.[0]);
+    expect(blob && revoked.includes(blob.url)).toBe(true);
+    adopt.mockRestore();
+    release.mockRestore();
+  });
+});
+
+describe("voice controls against the harness (issue-38 fixture client)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    let n = 0;
+    Object.assign(URL, { createObjectURL: () => `blob:test/${(n += 1)}`, revokeObjectURL: () => undefined });
+  });
+
+  it("asks for a spoken reply while the speaker is on, and not once it is off", async () => {
+    const client = new MediaFixtureClient();
+    const sent: Array<unknown> = [];
+    const original = client.sendMessage.bind(client);
+    client.sendMessage = (message) => {
+      sent.push(message.metadata?.["speak"]);
+      return original(message);
+    };
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    const speaker = await screen.findByRole("button", { name: "Spoken replies" });
+    expect(speaker).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
+    const box = screen.getByRole("combobox", { name: "Message or /command" });
+    fireEvent.change(box, { target: { value: "first" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    await waitFor(() => expect(screen.getAllByTestId("speech").length).toBeGreaterThan(1));
+    fireEvent.click(speaker);
+    expect(speaker).toHaveAttribute("aria-pressed", "false");
+    fireEvent.change(box, { target: { value: "second" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    expect(sent).toEqual([true, false]);
+  });
+
+  it("stops the reply being spoken when a new message is sent (R4.3)", async () => {
+    const client = new MediaFixtureClient();
+    const order: string[] = [];
+    const stop = vi.spyOn(PcmStreamPlayer.prototype, "stop").mockImplementation(() => {
+      order.push("stop");
+    });
+    const original = client.sendMessage.bind(client);
+    client.sendMessage = (message) => {
+      order.push("send");
+      return original(message);
+    };
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    await screen.findByRole("button", { name: "Spoken replies" });
+    order.length = 0;
+    const box = screen.getByRole("combobox", { name: "Message or /command" });
+    fireEvent.change(box, { target: { value: "and the lamp?" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    expect(order.slice(0, 2)).toEqual(["stop", "send"]);
+    stop.mockRestore();
+  });
+
+  it("shows no mic or speaker for a harness without the media extension", async () => {
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: CONTROLS_ROOT, client: new FixtureClient() }} />);
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("INPUT_REQUIRED"));
+    expect(screen.queryByRole("button", { name: "Hold to talk" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Spoken replies" })).toBeNull();
+  });
+});
+
+describe("a pending spoken-reply download (issue-38 critic 5)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    let n = 0;
+    Object.assign(URL, { createObjectURL: () => `blob:test/${(n += 1)}`, revokeObjectURL: () => undefined });
+  });
+
+  /** The fixture client, with every speech download held until the test releases it. */
+  const held = () => {
+    const client = new MediaFixtureClient();
+    const pending: Array<{ signal: AbortSignal | undefined; release: () => void; cancelled: () => boolean }> = [];
+    const original = client.getMedia.bind(client);
+    client.getMedia = (url, taskId, signal) => {
+      if (!/\/s\d+\w*$/.test(url)) return original(url, taskId, signal);
+      let cancelled = false;
+      return new Promise<Response>((resolve) => {
+        pending.push({
+          signal,
+          cancelled: () => cancelled,
+          release: () => {
+            const body = new ReadableStream<Uint8Array>({
+              cancel() {
+                cancelled = true;
+              },
+            });
+            resolve(new Response(body, { headers: { "content-type": "audio/L16;rate=24000;channels=1" } }));
+          },
+        });
+      });
+    };
+    return { client, pending };
+  };
+
+  it("never plays a download that Stop overtook, and cancels its body", async () => {
+    const { client, pending } = held();
+    const play = vi.spyOn(PcmStreamPlayer.prototype, "play").mockImplementation(() => new Promise(() => undefined));
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Play spoken reply" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "Stop speaking" }));
+    expect(pending[0]?.signal?.aborted).toBe(true);
+    await act(async () => {
+      pending[0]?.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(play).not.toHaveBeenCalled();
+    expect(pending[0]?.cancelled()).toBe(true);
+    expect(screen.getByRole("button", { name: "Replay spoken reply" })).toBeInTheDocument();
+    play.mockRestore();
+  });
+
+  it("does not let an older Replay's late answer replace the newer playback", async () => {
+    const { client, pending } = held();
+    const play = vi.spyOn(PcmStreamPlayer.prototype, "play").mockImplementation(() => new Promise(() => undefined));
+    render(<App config={{ baseUrl: "http://test", participant: "you", agent: "a", taskId: MEDIA_ROOT, client }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Play spoken reply" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "Stop speaking" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Replay spoken reply" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    await act(async () => {
+      pending[1]?.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(play).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      pending[0]?.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(pending[0]?.cancelled()).toBe(true);
+    expect(screen.getByRole("button", { name: "Stop speaking" })).toBeInTheDocument();
+    play.mockRestore();
+  });
 });

@@ -1,6 +1,8 @@
 """The agent card (R14.2, R14.3): built from the agent's description so every extension
 the harness declares reaches ``capabilities.extensions``. No security scheme is declared
-(decision-003): the perimeter authenticates."""
+(decision-003): the perimeter authenticates. With media (issue-38 R5.5) the card adds the
+effective input and output media types to its default modes and declares the media
+extension; without it the card is unchanged."""
 
 from __future__ import annotations
 
@@ -17,6 +19,8 @@ from tiny_harness.harness.agents import A2UI_EXT_URI, SUPPORTED_EXTENSIONS
 from tiny_harness.harness.channels import CHANNEL_EXT_MEDIA_TYPE, CHANNEL_EXT_URI
 from tiny_harness.harness.commands import COMMANDS_EXT_URI, CommandsExtensionParams, CommandSpec
 from tiny_harness.harness.core import STATUS_EXT_URI, TASK_EXT_MEDIA_TYPE, TASK_EXT_URI
+from tiny_harness.harness.media import MediaCapabilities
+from tiny_harness.harness.media.extension import MEDIA_EXT_URI, media_params
 from tiny_harness.interaction.a2ui import BASIC_CATALOG_ID
 from tiny_harness.service.inbox import EVENT_MEDIA_TYPE
 
@@ -32,6 +36,8 @@ EXTENSION_DESCRIPTIONS: Final[dict[str, str]] = {
     "Task.metadata and TaskStatusUpdateEvent.metadata",
     COMMANDS_EXT_URI: "tiny-harness slash commands: params.commands lists each /<name> "
     "with its description and argument hint",
+    MEDIA_EXT_URI: "tiny-harness media: accepted and produced media types, limits and "
+    "services in params; file parts are stored and served by the media route",
 }
 
 
@@ -91,11 +97,19 @@ def public_url(base_url: str, prefix: str | None = None) -> str:
     return urlunsplit((split.scheme, split.netloc, path, "", ""))
 
 
+def _with(modes: list[str], extra: Sequence[str]) -> list[str]:
+    return [*modes, *(m for m in extra if m not in modes)]
+
+
 def build_agent_card(
-    agent: AgentDescription, base_url: str, *, commands: Sequence[CommandSpec] = ()
+    agent: AgentDescription,
+    base_url: str,
+    *,
+    commands: Sequence[CommandSpec] = (),
+    media: MediaCapabilities | None = None,
 ) -> AgentCard:
     """The card; ``commands`` are the registered commands the commands extension lists
-    (issue-25 R6.7)."""
+    (issue-25 R6.7); ``media`` the instance's effective media capabilities (issue-38)."""
     url = base_url.rstrip("/") + "/"
     extensions: list[AgentExtension] = []
     for uri in agent.extensions:
@@ -110,6 +124,22 @@ def build_agent_card(
             params = CommandsExtensionParams(commands=tuple(commands))
             extension.params.update(params.model_dump(mode="json"))
         extensions.append(extension)
+    input_modes = [
+        "text/plain",
+        TASK_EXT_MEDIA_TYPE,
+        CHANNEL_EXT_MEDIA_TYPE,
+        EVENT_MEDIA_TYPE,
+        A2UI_MEDIA_TYPE,
+    ]
+    output_modes = ["text/plain", TASK_EXT_MEDIA_TYPE, CHANNEL_EXT_MEDIA_TYPE, A2UI_MEDIA_TYPE]
+    if media is not None and media.enabled:
+        input_modes = _with(input_modes, media.input)
+        output_modes = _with(output_modes, media.output)
+        extension = AgentExtension(
+            uri=MEDIA_EXT_URI, description=EXTENSION_DESCRIPTIONS[MEDIA_EXT_URI], required=False
+        )
+        extension.params.update(media_params(media).model_dump(mode="json", by_alias=True))
+        extensions.append(extension)
     return AgentCard(
         name=agent.name,
         description=agent.description,
@@ -123,19 +153,8 @@ def build_agent_card(
         capabilities=AgentCapabilities(
             streaming=True, push_notifications=True, extensions=extensions
         ),
-        default_input_modes=[
-            "text/plain",
-            TASK_EXT_MEDIA_TYPE,
-            CHANNEL_EXT_MEDIA_TYPE,
-            EVENT_MEDIA_TYPE,
-            A2UI_MEDIA_TYPE,
-        ],
-        default_output_modes=[
-            "text/plain",
-            TASK_EXT_MEDIA_TYPE,
-            CHANNEL_EXT_MEDIA_TYPE,
-            A2UI_MEDIA_TYPE,
-        ],
+        default_input_modes=input_modes,
+        default_output_modes=output_modes,
         skills=[
             AgentSkill(
                 id=s.id,
@@ -154,6 +173,7 @@ __all__ = [
     "A2UI_MEDIA_TYPE",
     "EVENT_MEDIA_TYPE",
     "EXTENSION_DESCRIPTIONS",
+    "MEDIA_EXT_URI",
     "PROTOCOL_VERSION",
     "SUPPORTED_EXTENSIONS",
     "AgentDescription",

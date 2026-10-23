@@ -10,14 +10,17 @@ inside a delimited block with a fixed preamble that they are data, never instruc
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from enum import StrEnum
+from typing import Final
 
 from pydantic import BaseModel
 
 from tiny_harness.config import ReasoningEffort
 from tiny_harness.harness.core.state import AgentState
 from tiny_harness.harness.core.task import HarnessTask, StepState
+from tiny_harness.harness.media import MediaAttachment, MediaKind
 from tiny_harness.harness.models import (
     InputItem,
     LLMModelInfo,
@@ -48,6 +51,16 @@ NEVER_COMPACT: frozenset[str] = frozenset(
     {"system_prompt", "participants", "agents", "task", "plan"}
 )
 NO_AGENTS = "(no agents)"
+IMAGE_TOKEN_ESTIMATE: Final = 1_100
+"""What one image costs in input tokens: a 1024x1024 image at ``detail=auto``."""
+IMAGE_BYTES_PER_TOKEN: Final = 4_000
+"""A larger image's cost: one token per this many bytes of the file. Providers bill an
+image by its pixels after their resize (about 1 100 to 1 600 tokens), but its bytes go
+with every request; at this rate many large images push compaction, while one image at
+``max_file_bytes`` (20 MiB, about 5 200 tokens) still fits the default turn budget."""
+AUDIO_TOKENS_PER_SECOND: Final = 10
+"""What one second of native audio input costs (OpenAI's audio input rate); a model may
+override it with ``[openai] audio_tokens_per_second``."""
 
 
 class Stability(StrEnum):
@@ -169,10 +182,15 @@ class ContextWindowManager:
     """Assembles the window in ``ORDER`` and decides when it is over budget."""
 
     def __init__(
-        self, *, turn_budget_tokens: int = 12_000, compaction_fraction: float = 0.75
+        self,
+        *,
+        turn_budget_tokens: int = 12_000,
+        compaction_fraction: float = 0.75,
+        audio_tokens_per_second: int = AUDIO_TOKENS_PER_SECOND,
     ) -> None:
         self.turn_budget_tokens = turn_budget_tokens
         self.compaction_fraction = compaction_fraction
+        self.audio_tokens_per_second = audio_tokens_per_second
 
     def assemble(
         self,
@@ -256,7 +274,7 @@ class ContextWindowManager:
                     update={"text": render_untrusted_text(item.text, item.source)}
                 )
             input_items.append(item)
-            history_chars += _chars(item)
+            history_chars += _chars(item, audio_tokens_per_second=self.audio_tokens_per_second)
         tool_defs = tuple(sorted(tools, key=lambda t: t.name))
         chars = (
             sum(len(s.content) for s in sections)
@@ -279,15 +297,33 @@ class ContextWindowManager:
         return window.estimated_tokens > self.compaction_fraction * self.budget(model)
 
 
-def _chars(item: InputItem) -> int:
+def _media_chars(attachment: MediaAttachment, *, audio_tokens_per_second: int) -> int:
+    """An attachment's size in the window, in characters (4 per token), so the budget and
+    compaction see media (issue-38 design critic 7): an image by its token estimate,
+    transcribed audio as its transcript, native audio by its duration."""
+    if attachment.ref.kind is MediaKind.IMAGE:
+        # At least the flat estimate; a large image by its size (self-review 2.1), so
+        # many large images push the window to compaction.
+        return max(IMAGE_TOKEN_ESTIMATE, math.ceil(attachment.ref.size / IMAGE_BYTES_PER_TOKEN)) * 4
+    if attachment.transcript is not None:
+        return len(attachment.transcript)
+    seconds = (attachment.ref.duration_ms or 0) / 1000
+    return math.ceil(seconds * audio_tokens_per_second) * 4
+
+
+def _chars(item: InputItem, *, audio_tokens_per_second: int = AUDIO_TOKENS_PER_SECOND) -> int:
     if isinstance(item, MessageItem):
-        return len(item.text)
+        return len(item.text) + sum(
+            _media_chars(a, audio_tokens_per_second=audio_tokens_per_second) for a in item.media
+        )
     if isinstance(item, ToolCallItem):
         return len(item.call.name) + len(str(item.call.arguments))
     return sum(len(p.text or "") + len(str(p.data or "")) for p in item.result.content)
 
 
 __all__ = [
+    "AUDIO_TOKENS_PER_SECOND",
+    "IMAGE_TOKEN_ESTIMATE",
     "NEVER_COMPACT",
     "NO_AGENTS",
     "ORDER",

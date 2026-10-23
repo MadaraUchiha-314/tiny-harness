@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "multimodal-interior",
+  "version": "0.1.0",
+  "description": "The tiny-harness multi-modal demo: a prompt extension that makes the agent an interior design helper that looks at room photos, listens to voice notes and draws mock-ups with generate_image.",
+  "license": "Apache-2.0"
+}

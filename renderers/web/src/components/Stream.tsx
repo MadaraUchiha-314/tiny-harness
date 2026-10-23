@@ -3,9 +3,11 @@
  * view, each item is a `Message` with a `Bubble` (the user on the end side, the agent on
  * the start side), status changes and tool calls are `Marker`s, and an A2UI card is the
  * official renderer inside an outline bubble. A command's reply is a quiet, ruled line
- * under the command's name; a `/sub-task` reply links the new task (R9.4).
+ * under the command's name; a `/sub-task` reply links the new task (R9.4). Issue-38: an
+ * image or audio file is a turn of its own (`MediaItem`), and a spoken reply's line sits
+ * under the reply it speaks.
  */
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import { BotIcon, CircleAlertIcon, CircleHelpIcon, TriangleAlertIcon, WrenchIcon } from "lucide-react";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
@@ -19,7 +21,8 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
-import type { Item } from "../model";
+import type { Item, SpeechItemData } from "../model";
+import { MediaItem, type MediaLoad } from "./MediaItem";
 import { A2uiCard, type ActionPayload } from "./A2uiCard";
 import { TaskLink } from "./TaskLink";
 
@@ -29,7 +32,11 @@ interface RowProps {
   item: Item;
   onAction: (action: ActionPayload) => void;
   onOpen: (taskId: string) => void;
+  load?: MediaLoad | undefined;
+  speech?: ((item: SpeechItemData) => ReactNode) | undefined;
 }
+
+const noMedia: MediaLoad = () => Promise.reject(new Error("media is not available here"));
 
 function Row(props: RowProps): JSX.Element {
   const { item } = props;
@@ -121,6 +128,33 @@ function Row(props: RowProps): JSX.Element {
           </MessageContent>
         </Message>
       );
+    case "media":
+      return item.role === "user" ? (
+        <Message align="end">
+          <MessageContent>
+            <Bubble variant="secondary" data-testid="media">
+              <BubbleContent>
+                <MediaItem item={item} load={props.load ?? noMedia} />
+              </BubbleContent>
+            </Bubble>
+          </MessageContent>
+        </Message>
+      ) : (
+        <Message>
+          <MessageContent>
+            <MessageHeader>
+              <BotIcon className="size-3.5" /> Agent · {item.media}
+            </MessageHeader>
+            <Bubble variant="outline" data-testid="media">
+              <BubbleContent>
+                <MediaItem item={item} load={props.load ?? noMedia} />
+              </BubbleContent>
+            </Bubble>
+          </MessageContent>
+        </Message>
+      );
+    case "speech":
+      return <div data-testid="speech">{props.speech ? props.speech(item) : null}</div>;
     case "placeholder":
       return (
         <Marker variant="border" data-testid="placeholder">
@@ -139,6 +173,8 @@ export function Stream(props: {
   items: Item[];
   onAction: (action: ActionPayload) => void;
   onOpen: (taskId: string) => void;
+  load?: MediaLoad;
+  speech?: (item: SpeechItemData) => ReactNode;
 }): JSX.Element {
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
@@ -155,9 +191,9 @@ export function Stream(props: {
               <MessageScrollerItem
                 key={item.key}
                 messageId={item.key}
-                scrollAnchor={item.kind === "text" && item.role === "user"}
+                scrollAnchor={(item.kind === "text" || item.kind === "media") && item.role === "user"}
               >
-                <Row item={item} onAction={props.onAction} onOpen={props.onOpen} />
+                <Row item={item} onAction={props.onAction} onOpen={props.onOpen} load={props.load} speech={props.speech} />
               </MessageScrollerItem>
             ))}
           </MessageScrollerContent>

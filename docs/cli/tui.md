@@ -1,7 +1,8 @@
 # Use the TUI
 
 The TUI is the terminal user interface of tiny-harness. This page tells you how to talk
-to the agent, how to end a conversation and how to use commands.
+to the agent, how to end a conversation, how to use commands, and how to send images
+and talk to the agent by voice.
 
 ## The screen
 
@@ -22,6 +23,10 @@ to the agent, how to end a conversation and how to use commands.
 | `Ctrl+D` | **Complete** the task |
 | `Ctrl+C` | **Cancel** the task |
 | `F4` | Go back from a sub-task to its parent task |
+| `F5` | Start a voice message. Press again to stop and send it |
+| `F6` | Turn spoken replies on or off |
+| `Escape` | Stop a recording without sending it, or stop a spoken reply |
+| `Space` (hold, in an empty message box) | Record a voice message while you hold it |
 | `q` | Quit the TUI |
 
 ## A conversation
@@ -63,6 +68,7 @@ model does not see it. Type `/` in the message box to see the list.
 | `/effort low`, `/effort medium`, `/effort high` | Set the reasoning effort for the next replies |
 | `/sub-task <description>` | Start a sub-task: a separate conversation inside this task |
 | `/status` | Show the state, model, effort, plan progress and sub-tasks of this task |
+| `/attach <path>` | Add an image or audio file to your next message. See [Images and voice](#images-and-voice) |
 
 A `/word` that is not a command goes to the model as a normal message.
 
@@ -77,6 +83,123 @@ You can start one with `/sub-task`.
 1. Open the **Task** tab (`F2`).
 2. Select a sub-task and press `Enter` to open it.
 3. Press `F4` to go back to the parent task.
+
+## Images and voice
+
+The agent can look at images, listen to audio and voice messages, speak its replies and
+make images. The server must turn on these features. See
+[Images and voice](../configuration/media).
+
+### Start in four steps
+
+1. Install the two optional packages. `voice` records and plays audio. `images` shows
+   images in the terminal.
+
+   ```sh
+   pip install "tiny-harness[voice,images]"
+   ```
+
+   On Linux, `voice` also needs the PortAudio library. Install the `portaudio` package
+   of your system (for example, `libportaudio2` on Debian and Ubuntu).
+
+2. Add these sections to the configuration file:
+
+   ```toml
+   [media]
+
+   [speech_to_text]
+
+   [text_to_speech]
+
+   [image_generation]
+   ```
+
+3. Start the TUI, and attach a photo:
+
+   ```text
+   /attach ~/Pictures/room.jpg
+   ```
+
+4. Type a question about the photo and press `Enter`.
+
+You see the photo in the conversation, and the agent's answer about it.
+
+### Attach a file
+
+Type `/attach <path>` to add a file to your next message. The file shows above the
+message box. Add more files in the same way. Press `Backspace` in an empty message box
+to remove the last file. Press `Enter` to send the files with your text. A message can
+have files and no text.
+
+The TUI checks the type and the size of each file before it sends it. The agent accepts
+PNG, JPEG, WebP and GIF images, and WAV, MP3, M4A, Ogg and WebM audio.
+
+### Images
+
+The TUI shows images in the conversation in terminals that can draw them: kitty,
+iTerm2, WezTerm and other terminals with sixel support. In other terminals, and without
+the `images` package, it shows one line with the name, the size and the path of a copy:
+
+```text
+image · room.jpg · 1024×1024 · saved to ~/.cache/tiny-harness/media/…/….jpg
+```
+
+Open the copy in an image viewer. The TUI keeps the copies in
+`~/.cache/tiny-harness/media/`.
+
+### Audio files
+
+Each audio file and voice message shows as one line. Select the line and press `Enter`:
+
+- A WAV file plays in the TUI. Its line ends with `⏎ to play`.
+- The TUI does not play other types (MP3, M4A, Ogg and WebM, for example a voice
+  message from the web UI). Their line ends with `⏎ saves`. Press `Enter` to save a
+  copy. The line then shows `saved to <path>`. Open the copy in an audio player.
+
+```text
+[audio] note.m4a · 0:12 · saved to ~/.cache/tiny-harness/media/…/….m4a
+```
+
+### Talk to the agent
+
+1. Make sure the message box is empty.
+2. Hold `Space`. The recording bar shows the time and the sound level.
+3. Speak.
+4. Release `Space`. The TUI sends the recording.
+
+You see your words as text under the voice message. The TUI does not send a recording
+that is shorter than 0.3 seconds or silent.
+
+A short press of `Space` types a space. Most terminals do not report when you release a
+key. The TUI sees the release when the key stops repeating. If holding `Space` does not
+start a recording, or a recording stops too early, add `--hold-ms` with a larger value,
+for example `--hold-ms 800`.
+
+If holding a key is difficult, press `F5` to start a recording and `F5` again to send
+it. Press `Escape` to stop a recording without sending it.
+
+### Spoken replies
+
+Press `F6` to turn spoken replies on. The top bar shows `spoken replies: on`. The agent
+then speaks each reply. The reply starts to play before the agent has spoken all of it.
+Press `Escape` to stop it. The reply also stops when you start a recording or send a
+message. Select the reply line and press `Enter` to play it again.
+
+### Media from other tasks
+
+The TUI downloads an image, an audio file or a spoken reply only from the server that it
+connects to, and only for the task on the screen. For all other links, the TUI shows
+`unavailable (not a medium of this task)` and does not download the file.
+
+### When voice is not available
+
+| You see | The reason | Do this |
+|---------|------------|---------|
+| `voice input unavailable: install tiny-harness[voice] (PortAudio)` | The `voice` package or the PortAudio library is not installed, or there is no microphone | Do step 1 of [Start in four steps](#start-in-four-steps) |
+| `voice output unavailable: install tiny-harness[voice] (PortAudio)` | The same, for the speaker | The same |
+| `voice input unavailable: this agent accepts no WAV audio` | The server has no `[speech_to_text]` | Add `[speech_to_text]` to the server's configuration file |
+
+You can always type. Voice problems do not stop the TUI.
 
 ## Connect to a server
 
@@ -108,6 +231,7 @@ the server must be behind a gateway that checks identity. See
 | `--help` | Show all options and the configuration file in use |
 | `tui --url URL` | Connect to the server at `URL` |
 | `tui --participant NAME` | Send messages as `NAME` |
+| `tui --hold-ms MS` | Hold-to-talk: the longest wait, in milliseconds, for `Space` to repeat. Default `600` |
 
 ## Problems
 

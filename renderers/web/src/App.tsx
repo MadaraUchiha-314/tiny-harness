@@ -8,11 +8,18 @@
  * state the renderer keeps a subscription open, so a reply or a completion from another
  * surface shows up here (R5.6). The header carries the state, the sub-state and the
  * Complete and Cancel controls (R5.5, R5.7); sub-task and parent links attach in place.
+ * Issue-38: files are sent as `raw` parts and shown at once from the page's own copy until
+ * the server's echo names their stored URLs; media is fetched through the harness's media
+ * route into blob URLs that go with the task view; a refused file is named and its chips
+ * come back. Voice: the mic records a voice turn and sends it on release; the speaker
+ * toggle asks for spoken replies (`speak`), which play as they stream, with Stop and
+ * Replay. `?fixture=media` runs the multimodal prototype against a scripted harness
+ * (`&speech=broken` breaks every spoken reply off).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import type React from "react";
-import { CheckIcon, PlugZapIcon, XIcon } from "lucide-react";
+import { CheckIcon, PlugZapIcon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
 import {
   A2UI_MEDIA_TYPE,
   HarnessClient,
@@ -23,12 +30,19 @@ import {
   type CommandSpec,
   type HarnessPort,
   type JsonObject,
+  type MediaParams,
+  type Part,
   type StreamResponse,
 } from "./a2a";
-import { apply, attach, emptyView, type View } from "./model";
+import { apply, attach, emptyView, rebound, withoutMessage, type SpeechItemData, type View } from "./model";
+import { MediaCache, PCM_FORMAT, baseType, blobBytes, filePart, rejectionText } from "./media";
+import { PcmStreamPlayer, type Recording, type RecorderLike } from "./voice";
+import { MicButton, RecordingBar } from "./components/MicButton";
+import { SpeechLine, type SpeechUi } from "./components/SpeechLine";
+import { MEDIA_ROOT, MediaFixtureClient } from "./fixtures/media";
 import { CONTROLS_ROOT, FixtureClient } from "./fixtures/controls";
 import { prototypeEvents } from "./fixtures/prototype";
-import { Composer } from "./components/Composer";
+import { Composer, attachmentOf, type Attachment } from "./components/Composer";
 import { Stream } from "./components/Stream";
 import { TaskLink, taskHref } from "./components/TaskLink";
 import { TaskPane } from "./components/TaskPane";
@@ -80,7 +94,24 @@ export function configFromLocation(): AppConfig {
     config.client = new FixtureClient(400);
     config.taskId = task ?? CONTROLS_ROOT;
   }
+  if (params.get("fixture") === "media") {
+    config.client = new MediaFixtureClient({ delay: 400, speech: params.get("speech") === "broken" ? "broken" : "ok" });
+    config.taskId = MEDIA_ROOT;
+  }
   return config;
+}
+
+/** The media refusal in an A2A error (`InvalidParams` data: reason, limit, part). */
+function refusalOf(error: unknown): { reason: string; limit: string | null; part: number | null } | null {
+  const data: unknown = typeof error === "object" && error !== null ? (error as { data?: unknown }).data : undefined;
+  if (typeof data !== "object" || data === null) return null;
+  const { reason, limit, part } = data as { [key: string]: unknown };
+  if (typeof reason !== "string") return null;
+  return {
+    reason,
+    limit: limit === undefined || limit === null ? null : String(limit),
+    part: typeof part === "number" ? part : typeof part === "string" && /^\d+$/.test(part) ? Number(part) : null,
+  };
 }
 
 const pillVariant = (state: string): "default" | "secondary" | "outline" => {
@@ -101,10 +132,28 @@ export function App(props: { config: AppConfig }): JSX.Element {
   const offline = config.fixture !== undefined; // the prototype's events: nothing to send to
   const [attached, setAttached] = useState(config.taskId);
   const [commands, setCommands] = useState<CommandSpec[]>([]);
+  const [media, setMedia] = useState<MediaParams | null>(null);
+  const cache = useRef<MediaCache>(new MediaCache((url, taskId, signal) => client.current.getMedia(url, taskId, signal)));
+  // A medium is fetched only for the task on screen (critic 8).
+  const shownTask = view.taskId ?? "";
+  const load = useCallback((url: string, mediaType: string) => cache.current.url(url, mediaType, shownTask), [shownTask]);
+  // Voice (issue-38 R3, R4): the speaker setting, the player, and each spoken reply's state.
+  const [speak, setSpeak] = useState(true);
+  const player = useRef(new PcmStreamPlayer());
+  const [speechUi, setSpeechUi] = useState<{ [mediaId: string]: SpeechUi }>({});
+  const [recorder, setRecorder] = useState<RecorderLike | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const wantSpeech = useRef(false); // this page asked for the next spoken reply
+  const seenSpeech = useRef(new Set<string>());
 
   const fold = useCallback((event: StreamResponse) => {
     const index = seq.current++;
-    setView((current) => apply(current, event, index));
+    setView((current) => {
+      const next = apply(current, event, index);
+      // The echo binds a file shown from the page's copy: no second download (2.5).
+      for (const { src, key } of rebound(current, next)) cache.current.alias(src, key);
+      return next;
+    });
   }, []);
 
   const fail = useCallback((error: unknown) => {
@@ -116,6 +165,92 @@ export function App(props: { config: AppConfig }): JSX.Element {
       ],
     }));
   }, []);
+
+
+  /** Start audio from the user's gesture (a send, the mic, Replay): browsers allow it there. */
+  const unlockAudio = useCallback(() => {
+    try {
+      player.current.unlock();
+    } catch {
+      // no Web Audio here: spoken replies show their line, and Replay stays available
+    }
+  }, []);
+
+  /**
+   * One spoken reply at a time (critic 5): each play is a generation with an
+   * AbortController that spans the download and the playback. Stop, a recording, a send
+   * and a task change end the current one; a download that a newer generation overtook is
+   * aborted, and its body cancelled if it still arrives, so it can never start playing.
+   */
+  const speechRun = useRef<{ generation: number; controller: AbortController | null; mediaId: string | null }>({
+    generation: 0,
+    controller: null,
+    mediaId: null,
+  });
+  const stopSpeech = useCallback(() => {
+    const run = speechRun.current;
+    run.controller?.abort();
+    const stopped = run.mediaId;
+    speechRun.current = { generation: run.generation + 1, controller: null, mediaId: null };
+    player.current.stop();
+    if (stopped !== null) {
+      // A download still pending shows as stopped; a playing reply reports it itself.
+      const playedMs = player.current.playedMs;
+      setSpeechUi((current) =>
+        current[stopped]?.state === "speaking" ? { ...current, [stopped]: { state: "stopped", playedMs } } : current,
+      );
+    }
+  }, []);
+
+  // The task view's blob URLs and its playback (a pending download too) go with it.
+  useEffect(() => {
+    const media = cache.current;
+    return () => {
+      media.revokeAll();
+      stopSpeech();
+    };
+  }, [attached, stopSpeech]);
+
+  const playSpeech = useCallback(
+    async (item: SpeechItemData) => {
+      stopSpeech();
+      unlockAudio();
+      const controller = new AbortController();
+      const generation = speechRun.current.generation;
+      speechRun.current = { generation, controller, mediaId: item.mediaId };
+      const current = () => speechRun.current.generation === generation;
+      setSpeechUi((ui) => ({ ...ui, [item.mediaId]: { state: "speaking", playedMs: 0 } }));
+      let outcome: "done" | "stopped" | "interrupted" = "interrupted";
+      try {
+        const response = await client.current.getMedia(item.url, shownTask, controller.signal);
+        if (!current()) {
+          void response.body?.cancel().catch(() => undefined);
+          return;
+        }
+        outcome = await player.current.play(response, PCM_FORMAT);
+      } catch {
+        outcome = "interrupted";
+      }
+      if (!current()) return; // a newer play, or Stop, owns the line now
+      speechRun.current = { generation, controller: null, mediaId: null };
+      const playedMs = player.current.playedMs;
+      setSpeechUi((ui) => ({ ...ui, [item.mediaId]: { state: outcome, playedMs } }));
+    },
+    [shownTask, stopSpeech, unlockAudio],
+  );
+
+  // A spoken reply this page asked for plays as it arrives (R4.1); one in a replayed log
+  // or asked for by another surface waits for Play.
+  useEffect(() => {
+    for (const item of view.items) {
+      if (item.kind !== "speech" || seenSpeech.current.has(item.mediaId)) continue;
+      seenSpeech.current.add(item.mediaId);
+      if (wantSpeech.current && item.state !== "failed") {
+        wantSpeech.current = false;
+        void playSpeech(item);
+      }
+    }
+  }, [view.items, playSpeech]);
 
   const stopSubscription = useCallback(() => {
     subscription.current?.abort();
@@ -200,7 +335,8 @@ export function App(props: { config: AppConfig }): JSX.Element {
     return () => window.removeEventListener("popstate", back);
   }, []);
 
-  // The commands the harness advertises on its card, for the composer (R6.7).
+  // The commands the harness advertises on its card, for the composer (R6.7), and its
+  // media extension, for the attach, mic and speaker controls (issue-38 R5.5).
   useEffect(() => {
     if (offline) return;
     let live = true;
@@ -210,17 +346,26 @@ export function App(props: { config: AppConfig }): JSX.Element {
       },
       () => undefined, // no card, no completions: commands still work when typed
     );
+    client.current.media().then(
+      (found) => {
+        if (!live) return;
+        cache.current.maxFileBytes = found?.maxFileBytes ?? 0; // a download past it is stopped
+        setMedia(found);
+      },
+      () => undefined, // no card: no media controls
+    );
     return () => {
       live = false;
     };
   }, [offline]);
 
   const consume = useCallback(
-    async (events: AsyncGenerator<StreamResponse>) => {
+    async (events: AsyncGenerator<StreamResponse>, refused?: (error: unknown) => boolean): Promise<boolean> => {
       stopSubscription();
       setBusy(true);
       let taskId: string | null = null;
       let state = "";
+      let ok = true;
       try {
         for await (const event of events) {
           folded.current += 1;
@@ -235,12 +380,15 @@ export function App(props: { config: AppConfig }): JSX.Element {
           }
         }
       } catch (error) {
-        fail(error);
+        ok = false;
+        if (!refused?.(error)) fail(error);
       } finally {
         setBusy(false);
       }
       // Keep following the task while it is not finished: another surface may answer.
-      if (taskId && !TERMINAL.has(state)) void subscribe(taskId);
+      const following = taskId ?? viewRef.current.taskId;
+      if (following && !TERMINAL.has(state || viewRef.current.state)) void subscribe(following);
+      return ok;
     },
     [fail, fold, stopSubscription, subscribe],
   );
@@ -259,21 +407,84 @@ export function App(props: { config: AppConfig }): JSX.Element {
     [fail],
   );
 
+  /**
+   * Send the text and the files (issue-38 R1.1): the message carries `raw` file parts,
+   * while the page shows its own copy of each file under a `local:` key until the echo
+   * binds it to the stored URL. Resolves false when the harness refused a file: the turn
+   * goes, and the error names the file and the limit.
+   */
   const send = useCallback(
-    (text: string) => {
-      const options = {
-        text,
+    async (text: string, files: Attachment[] = []): Promise<boolean> => {
+      stopSpeech(); // R4.3: a new message interrupts the reply being spoken
+      const fileParts: Part[] = [];
+      const shown: Part[] = [];
+      for (const file of files) {
+        const metadata: { [key: string]: unknown } = {};
+        if (file.voice) metadata["voice"] = true;
+        if (file.durationMs !== undefined) metadata["durationMs"] = Math.round(file.durationMs);
+        const extra = Object.keys(metadata).length > 0 ? metadata : undefined;
+        fileParts.push(filePart(await blobBytes(file.blob), file.mediaType, file.name, extra));
+        shown.push({
+          content: { $case: "url", value: cache.current.adopt(file.blob) },
+          metadata: { ...extra, size: file.size },
+          filename: file.name,
+          mediaType: file.mediaType,
+        });
+      }
+      const base = {
         contextId: view.contextId ?? contextId.current,
         participant: config.participant,
         ...(view.taskId ? { taskId: view.taskId } : {}),
       };
-      const message = userMessage(options);
-      fold({ payload: { $case: "message", value: message } });
-      if (offline) return;
-      void consume(client.current.sendMessage(message));
+      const spoken = media?.textToSpeech ? { speak } : {};
+      const message = userMessage({ ...base, ...spoken, parts: fileParts, ...(text ? { text } : {}) });
+      wantSpeech.current = Boolean(media?.textToSpeech && speak);
+      if (wantSpeech.current) unlockAudio();
+      const display = { ...message, parts: [...shown, ...(text ? [textPart(text)] : [])] };
+      fold({ payload: { $case: "message", value: display } });
+      if (offline) return true;
+      let wasRefused = false;
+      const refused = (error: unknown): boolean => {
+        const refusal = refusalOf(error);
+        if (refusal === null || files.length === 0) return false;
+        wasRefused = true;
+        const index = refusal.part === null ? -1 : refusal.part - (text ? 1 : 0);
+        const file = files[index];
+        const fallback = error instanceof Error ? error.message : String(error);
+        const detail = file ? rejectionText(file.name, file.size, refusal.reason, refusal.limit, fallback) : fallback;
+        const key = `err${seq.current++}`;
+        // The page's copies of the refused files go (self-review 2.5).
+        for (const part of shown) if (part.content?.$case === "url") void cache.current.release(part.content.value);
+        setView((current) => {
+          const without = withoutMessage(current, message.messageId);
+          return { ...without, items: [...without.items, { kind: "error", text: `Not sent: ${detail}. Remove it and send again.`, key }] };
+        });
+        return true;
+      };
+      await consume(client.current.sendMessage(message), refused);
+      return !wasRefused;
     },
-    [offline, config.participant, consume, fold, view.contextId, view.taskId],
+    [offline, config.participant, consume, fold, view.contextId, view.taskId, media, speak, stopSpeech, unlockAudio],
   );
+
+  /** A voice turn (R3.1): the recording is sent at once, as a `voice` file part. */
+  const sendRecording = useCallback(
+    (recording: Recording) => {
+      const attachment = attachmentOf(recording.blob, recording.filename, { durationMs: recording.durationMs, voice: true });
+      if (attachment !== null) void send("", [attachment]);
+    },
+    [send],
+  );
+  const nothingRecorded = useCallback(() => setHint("Nothing recorded — hold the button while you speak."), []);
+  useEffect(() => {
+    if (hint === null) return;
+    const timer = setTimeout(() => setHint(null), 4000);
+    return () => clearTimeout(timer);
+  }, [hint]);
+
+  const attachError = useCallback((text: string) => {
+    setView((current) => ({ ...current, items: [...current.items, { kind: "error", text, key: `err${seq.current++}` }] }));
+  }, []);
 
   const onAction = useCallback(
     (action: ActionPayload) => {
@@ -399,8 +610,65 @@ export function App(props: { config: AppConfig }): JSX.Element {
       </header>
       <main className="grid min-h-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
         <section className="flex min-h-0 min-w-0 flex-col" aria-label="Conversation">
-          <Stream items={view.items} onAction={onAction} onOpen={open} />
-          <Composer onSend={send} disabled={busy} commands={commands} />
+          <Stream
+            items={view.items}
+            onAction={onAction}
+            onOpen={open}
+            load={load}
+            speech={(item) => (
+              <SpeechLine
+                item={item}
+                ui={speechUi[item.mediaId] ?? { state: "idle", playedMs: 0 }}
+                onStop={stopSpeech}
+                onReplay={(target) => void playSpeech(target)}
+              />
+            )}
+          />
+          <Composer
+            onSend={send}
+            disabled={busy}
+            commands={commands}
+            media={media}
+            onError={attachError}
+            status={
+              recorder !== null ? (
+                <RecordingBar recorder={recorder} />
+              ) : hint !== null ? (
+                <p role="status" className="m-0 text-sm text-muted-foreground">
+                  {hint}
+                </p>
+              ) : null
+            }
+            voice={
+              <>
+                {media?.textToSpeech ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Spoken replies"
+                    aria-pressed={speak}
+                    title={`Spoken replies: ${speak ? "on" : "off"}`}
+                    onClick={() => setSpeak((on) => !on)}
+                    className={cn(speak && "border-primary text-primary")}
+                  >
+                    {speak ? <Volume2Icon /> : <VolumeXIcon />}
+                  </Button>
+                ) : null}
+                {media?.input.some((t) => baseType(t).startsWith("audio/")) ? (
+                  <MicButton
+                    onRecorded={sendRecording}
+                    onRecording={setRecorder}
+                    onStart={() => {
+                      stopSpeech();
+                      setHint(null);
+                    }}
+                    onNothing={nothingRecorded}
+                  />
+                ) : null}
+              </>
+            }
+          />
         </section>
         <TaskPane ext={view.ext} trace={view.trace} onOpen={open} />
       </main>

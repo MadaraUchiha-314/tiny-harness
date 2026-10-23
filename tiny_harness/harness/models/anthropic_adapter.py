@@ -21,6 +21,8 @@ from pydantic import SecretStr
 
 from tiny_harness.errors import ProviderError, RetryableProviderError
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.media.models import MediaKind
+from tiny_harness.harness.media.render import base64_data, transcript_text
 from tiny_harness.harness.models.llm import (
     LLM,
     FinishReason,
@@ -39,6 +41,8 @@ from tiny_harness.jsontypes import JsonObject, JsonValue
 
 PROVIDER = "anthropic"
 CONTEXT_WINDOWS: dict[str, int] = {"claude-opus-5-5": 1_000_000, "claude-fable-5-1": 1_000_000}
+MAX_IMAGE_BYTES = 5_242_880
+"""The Messages API's per-image limit (5 MiB of base64 data)."""
 
 
 def _result_text(parts: Sequence[ContentPart]) -> str:
@@ -49,6 +53,29 @@ def _result_text(parts: Sequence[ContentPart]) -> str:
         elif part.data is not None:
             chunks.append(json.dumps(part.data, sort_keys=True))
     return "\n".join(chunks)
+
+
+def message_blocks(item: MessageItem) -> list[JsonObject]:
+    """A message's blocks: one ``text`` block when it has no media, as before (issue-38);
+    else ``text`` and base64 ``image`` blocks. The Messages API takes no audio input: audio
+    goes as its transcript, or not at all."""
+    if not item.media:
+        return [{"type": "text", "text": item.text}]
+    blocks: list[JsonObject] = []
+    if item.text:
+        blocks.append({"type": "text", "text": item.text})
+    for attachment in item.media:
+        if attachment.ref.kind is MediaKind.IMAGE:
+            data = base64_data(attachment, provider=PROVIDER)
+            source: JsonObject = {
+                "type": "base64",
+                "media_type": attachment.ref.media_type,
+                "data": data,
+            }
+            blocks.append({"type": "image", "source": source})
+        elif (text := transcript_text(attachment)) is not None:
+            blocks.append({"type": "text", "text": text})
+    return blocks or [{"type": "text", "text": item.text}]
 
 
 def build_messages(request: LLMRequest, names: WireNames | None = None) -> list[MessageParam]:
@@ -65,7 +92,8 @@ def build_messages(request: LLMRequest, names: WireNames | None = None) -> list[
     for item in request.input:
         if isinstance(item, MessageItem):
             role = "user" if item.role is Role.USER else "assistant"
-            push(role, {"type": "text", "text": item.text})
+            for block in message_blocks(item):
+                push(role, block)
         elif isinstance(item, ToolCallItem):
             push(
                 "assistant",
@@ -197,6 +225,8 @@ class AnthropicLLM(LLM):
                 model=model,
                 context_window_tokens=CONTEXT_WINDOWS.get(model, 200_000),
                 min_cacheable_tokens=1_024,
+                input_modalities=frozenset({"text", "image"}),
+                max_image_bytes=MAX_IMAGE_BYTES,
             ),
         )
         self._model = model

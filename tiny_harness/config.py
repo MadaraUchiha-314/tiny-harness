@@ -11,6 +11,7 @@ deployment tunes them without code.
 from __future__ import annotations
 
 import ipaddress
+import math
 import os
 import re
 import tomllib
@@ -157,6 +158,7 @@ def _is_loopback_host(host: str) -> bool:
 
 
 ReasoningEffort = Literal["low", "medium", "high"]
+_Modality = Literal["text", "image", "audio"]
 
 
 def _models_contain(models: tuple[str, ...] | None, info: ValidationInfo) -> tuple[str, ...] | None:
@@ -196,8 +198,26 @@ class OpenAIConfig(_Strict):
     context_window_tokens: StrictInt | None = Field(
         default=None, gt=0, description="the model's window; default: the adapter's table"
     )
+    input_modalities: tuple[_Modality, ...] | None = Field(
+        default=None,
+        description='what the model takes as input; default ["text", "image"] with '
+        'api = "responses", ["text"] with chat_completions; add "audio" only for a '
+        "Chat Completions audio model (issue-38)",
+    )
+    audio_tokens_per_second: StrictInt = Field(
+        default=10, gt=0, description="tokens one second of native audio input costs"
+    )
 
     _models = field_validator("models")(_models_contain)
+
+    @field_validator("input_modalities")
+    @classmethod
+    def _text_and_known(cls, value: tuple[_Modality, ...] | None) -> tuple[_Modality, ...] | None:
+        if value is None:
+            return value
+        if "text" not in value:
+            raise ValueError('must include "text"')
+        return tuple(dict.fromkeys(value))
 
     @field_validator("base_url", mode="before")
     @classmethod
@@ -224,6 +244,15 @@ class OpenAIConfig(_Strict):
     def _key_or_endpoint(self) -> Self:
         if self.api_key is None and self.base_url is None:
             raise ValueError("api_key (OPENAI_API_KEY) is required unless base_url is set")
+        return self
+
+    @model_validator(mode="after")
+    def _modalities_by_api(self) -> Self:
+        """No ``input_modalities`` means what the wire API can carry today: images with
+        Responses, text alone with Chat Completions, so a local model is not sent images
+        unasked (issue-38)."""
+        if self.input_modalities is None:
+            self.input_modalities = ("text", "image") if self.api == "responses" else ("text",)
         return self
 
 
@@ -355,6 +384,78 @@ class O11yConfig(_Strict):
     )
 
 
+class MediaConfig(_Strict):
+    """Images and audio in messages (issue-38). Absent, the instance is text-only, as
+    before; present, it bounds every attachment (abuse case 1) and the request size."""
+
+    max_file_bytes: StrictInt = Field(default=20_971_520, gt=0, description="20 MiB")
+    max_message_bytes: StrictInt = Field(default=26_214_400, gt=0, description="25 MiB")
+    max_image_pixels: StrictInt = Field(
+        default=40_000_000, gt=0, description="width x height, read from the header"
+    )
+    max_audio_seconds: StrictInt = Field(default=120, gt=0)
+    max_request_media_bytes: StrictInt = Field(
+        default=20_971_520,
+        gt=0,
+        description="20 MiB; the media bytes one model request carries, newest first",
+    )
+    dir: Path | None = Field(
+        default=None, description="where media is stored; default <sqlite dir>/media[-<agent>]"
+    )
+    speech_drain: timedelta = Field(
+        default=timedelta(seconds=120),
+        description="how long rollover or completion waits for spoken replies to finish",
+    )
+
+    @field_validator("dir", mode="before")
+    @classmethod
+    def _empty_is_default(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @field_validator("speech_drain")
+    @classmethod
+    def _positive_drain(cls, value: timedelta) -> timedelta:
+        if value <= timedelta(0):
+            raise ValueError("speech_drain must be positive")
+        return value
+
+    @model_validator(mode="after")
+    def _file_within_message(self) -> Self:
+        if self.max_file_bytes > self.max_message_bytes:
+            raise ValueError("max_file_bytes must not exceed max_message_bytes")
+        return self
+
+    def request_cap(self, max_request_bytes: int) -> int:
+        """The request size the A2A routes admit: a full message of media, base64-encoded,
+        plus a JSON envelope, or ``max_request_bytes`` when that is larger."""
+        return max(max_request_bytes, math.ceil(self.max_message_bytes * 4 / 3) + 65_536)
+
+
+class SpeechToTextConfig(_Strict):
+    """Speech-to-text (issue-38 R5.3). Absent, audio goes to the model natively or is
+    refused. ``openai`` uses ``[openai]``'s key and ``base_url``."""
+
+    provider: Literal["openai"] = "openai"
+    model: str = "gpt-4o-mini-transcribe"
+
+
+class TextToSpeechConfig(_Strict):
+    """Spoken replies (issue-38 R4, R5.3). Absent, replies are text only."""
+
+    provider: Literal["openai"] = "openai"
+    model: str = "gpt-4o-mini-tts"
+    voice: str = "coral"
+    instructions: str = Field(default="", description="an optional speaking style")
+
+
+class ImageGenerationConfig(_Strict):
+    """Images from the agent (issue-38 R2, R5.4). Absent, there is no generate_image tool."""
+
+    provider: Literal["openai"] = "openai"
+    model: str = "gpt-image-2"
+    size: Literal["1024x1024", "1536x1024", "1024x1536"] = "1024x1024"
+
+
 class RetryPolicySpec(BaseModel, frozen=True, extra="forbid"):
     """Workflow-managed retry policy for one activity (R19.3): Temporal's fields."""
 
@@ -393,6 +494,7 @@ class RetentionConfig(_Strict):
     inbox_audit: timedelta = timedelta(days=30)
     compactions: timedelta = timedelta(days=30)
     push_configs: timedelta = timedelta(days=30)
+    media: timedelta = timedelta(days=30)
 
 
 class Settings(_Strict):
@@ -412,6 +514,19 @@ class Settings(_Strict):
     retries: RetryPolicies = RetryPolicies()
     context: ContextConfig = ContextConfig()
     retention: RetentionConfig = RetentionConfig()
+    media: MediaConfig | None = None
+    speech_to_text: SpeechToTextConfig | None = None
+    text_to_speech: TextToSpeechConfig | None = None
+    image_generation: ImageGenerationConfig | None = None
+
+    @model_validator(mode="after")
+    def _media_sections_need_media(self) -> Self:
+        """Speech and image providers handle media, so they need ``[media]`` (issue-38)."""
+        if self.media is None:
+            for section in ("speech_to_text", "text_to_speech", "image_generation"):
+                if getattr(self, section) is not None:
+                    raise ValueError(f"[{section}] requires [media]")
+        return self
 
     @model_validator(mode="after")
     def _queue_from_agent(self) -> Self:
@@ -531,6 +646,8 @@ __all__ = [
     "ContextConfig",
     "EmbeddedTemporalConfig",
     "HeartbeatConfig",
+    "ImageGenerationConfig",
+    "MediaConfig",
     "O11yConfig",
     "OpenAIConfig",
     "ReasoningEffort",
@@ -540,7 +657,9 @@ __all__ = [
     "RetryPolicySpec",
     "ServerConfig",
     "Settings",
+    "SpeechToTextConfig",
     "StoreConfig",
     "TemporalConfig",
+    "TextToSpeechConfig",
     "load_settings",
 ]

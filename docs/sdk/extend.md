@@ -203,6 +203,60 @@ It never ignores the failure.
 
 The [hooks reference](../capabilities/hooks) lists every hook point.
 
+## Use your own media services
+
+The agent can hear audio, speak and make images. The
+[`[speech_to_text]`, `[text_to_speech]` and `[image_generation]`](../configuration/media)
+sections use OpenAI. To use another service, write a class and give an instance to
+`Harness`. An instance replaces its section of the configuration file.
+
+| Argument of `Harness` | Base class | Your class implements |
+|-----------------------|------------|-----------------------|
+| `speech_to_text` | `SpeechToText` | `async transcribe(audio, *, media_type, name, language)` returns a `Transcript` |
+| `text_to_speech` | `TextToSpeech` | `stream(text, *, voice, instructions)` yields audio chunks in its `format` |
+| `image_generator` | `ImageGenerator` | `async generate(prompt, *, size)` returns a `GeneratedImage` |
+| `media_store` | `MediaStore` | Where the files of each task are kept. The default is `FileMediaStore`, a folder |
+
+The base classes are in `tiny_harness.harness.models`. `MediaStore`, `FileMediaStore` and
+`AudioFormat` are in `tiny_harness.harness.media`.
+
+This example sends audio to your own speech-to-text service:
+
+```python
+from pathlib import Path
+
+from tiny_harness.config import Settings
+from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.models import SpeechModelInfo, SpeechToText, Transcript
+from tiny_harness.service import Harness
+
+
+class MyTranscriber(SpeechToText):
+    async def transcribe(
+        self, audio: bytes, *, media_type: str, name: str = "audio", language: str | None = None
+    ) -> Transcript:
+        text = await my_service.transcribe(audio, media_type)  # your code
+        return Transcript(text=text)
+
+
+transcriber = MyTranscriber(
+    EntityRef(kind=EntityKind.SPEECH_TO_TEXT, id="my-transcriber"),
+    SpeechModelInfo(provider="my-service", model="v1"),
+)
+harness = Harness(Settings.load(Path("agent.toml")), speech_to_text=transcriber)
+```
+
+- The configuration file must have a [`[media]`](../configuration/media#media-settings)
+  section. Without it, the agent takes no files, and tiny-harness does not use the
+  instance.
+- `build_runtime` takes the same four arguments.
+- Do not retry in your class. Raise `RetryableProviderError` (from `tiny_harness.errors`)
+  for a rate limit, a timeout or a server error, and tiny-harness tries again. Raise
+  `ProviderError` for any other failure.
+- A `TextToSpeech` gives its `format` as an `AudioFormat`. The TUI and the web renderer
+  play 16-bit mono PCM at 24 kHz, so use that format.
+- The [multi-modal example](example-multimodal) shows the OpenAI services at work.
+
 ## Connect other agents
 
 The agent can give work to other A2A agents. List them in the configuration file. See
@@ -212,4 +266,6 @@ The agent can give work to other A2A agents. List them in the configuration file
 
 - [Example: support agent](example): a plugin with two MCP servers, a skill and a
   prompt.
+- [Example: images and voice](example-multimodal): photos, voice messages, spoken
+  replies and generated images.
 - [Deploy](deploy): run it for real users.

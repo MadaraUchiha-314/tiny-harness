@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TUI multi-modal</title>
+<style>
+/* Design plan (issue-38) — a terminal mock of the Textual TUI, extending issue-25's.
+   New: "/attach <path>" adds chips above the composer; images draw inline (kitty/iTerm2/
+   sixel) or as a one-line path fallback; holding Space on an empty composer shows a
+   recording bar; F5 toggles recording, F6 toggles spoken replies, Esc stops speaking.
+   Buttons under the terminal step through the states. ?theme=dark|light forces a theme. */
+:root {
+  --page: #eef0ec; --term: #fbfbf8; --fg: #1f2622; --dim: #6b746f; --rule: #cfd5cd;
+  --you: #1d6b5a; --agent: #3b4a8a; --warn: #8a5a00; --err: #a33a2a; --sel: #e4efe9;
+  --photo-a: #c9b79c; --photo-b: #7d8f86; --photo-c: #e9e2d4;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #0f1211; --term: #161a19; --fg: #dfe4e0; --dim: #8e9993; --rule: #2b3330;
+  --you: #6cc6a6; --agent: #9fb0ff; --warn: #ffd27a; --err: #ff8c7a; --sel: #1f2d28;
+  --photo-a: #8a7a62; --photo-b: #4c5a53; --photo-c: #a39b8c; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --page: #0f1211; --term: #161a19; --fg: #dfe4e0; --dim: #8e9993; --rule: #2b3330;
+  --you: #6cc6a6; --agent: #9fb0ff; --warn: #ffd27a; --err: #ff8c7a; --sel: #1f2d28;
+  --photo-a: #8a7a62; --photo-b: #4c5a53; --photo-c: #a39b8c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--page); color: var(--fg); font: 15px/1.5 var(--sans); padding-inline: 16px; padding-block: 16px 32px; }
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: .8rem; }
+h1 { font-size: 1rem; margin: 0; }
+.term { background: var(--term); border: 1px solid var(--rule); border-radius: 8px; font: 13px/1.45 var(--mono); overflow-x: auto; }
+.inner { min-width: 640px; display: grid; grid-template-rows: auto 1fr auto auto auto auto; height: 560px; }
+.bar { display: flex; gap: 1ch; padding: 0 1ch; background: var(--sel); white-space: pre; }
+.bar .r { margin-left: auto; color: var(--dim); }
+.body { display: grid; grid-template-columns: 1fr 32ch; min-height: 0; }
+.conv { overflow-y: auto; padding: .3rem 1ch; display: flex; flex-direction: column; gap: .25rem; }
+.side { border-left: 1px solid var(--rule); padding: .3rem 1ch; color: var(--dim); white-space: pre-wrap; }
+.e { white-space: pre-wrap; }
+.e.you .p { color: var(--you); } .e.agent .p { color: var(--agent); }
+.e.status { color: var(--dim); } .e.err { color: var(--err); } .e.note { color: var(--warn); }
+.img { margin: .2rem 0 .2rem 7ch; width: 34ch; height: 11.5em; border: 1px solid var(--rule); background: linear-gradient(180deg, var(--photo-c) 0 55%, var(--photo-a) 55%); position: relative; image-rendering: pixelated; }
+.img::before { content: ""; position: absolute; left: 14%; right: 30%; bottom: 18%; height: 26%; background: var(--photo-b); }
+.img.green::before { background: #3f8a4e; }
+.chips { padding: 0 1ch; color: var(--dim); white-space: pre; }
+.chips b { color: var(--fg); font-weight: 400; border: 1px solid var(--rule); padding: 0 .5ch; }
+.rec { padding: 0 1ch; color: var(--err); white-space: pre; }
+.input { margin: 0 1ch; border: 1px solid var(--you); padding: 0 1ch; white-space: pre; min-height: 1.45em; }
+.input .cur { background: var(--fg); color: var(--term); }
+.hint { padding: 0 1ch; color: var(--dim); white-space: pre; }
+.foot { display: flex; gap: 2ch; padding: 0 1ch; background: var(--sel); white-space: pre; overflow: hidden; }
+.foot k { color: var(--you); }
+.steps { display: flex; gap: .4rem; flex-wrap: wrap; }
+.steps button { font: inherit; font-size: .85rem; border: 1px solid var(--rule); background: var(--term); color: var(--fg); border-radius: 6px; padding: .3rem .6rem; cursor: pointer; }
+.steps button[aria-current="step"] { border-color: var(--you); color: var(--you); }
+button:focus-visible { outline: 2px solid var(--you); outline-offset: 2px; }
+.cap { font-size: .85rem; color: var(--dim); max-width: 75ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>TUI — multi-modal states</h1>
+  <p class="cap">A mock of the Textual TUI in a 110 × 36 terminal. Step through the states. The image draws inline when the terminal supports kitty, iTerm2 or sixel graphics; step 3 shows the one-line fallback.</p>
+  <div class="steps" role="group" aria-label="States" id="steps"></div>
+  <div class="term" role="img" aria-label="Terminal mock of the TUI" tabindex="0"><div class="inner">
+    <div class="bar"><span>tiny-harness</span><span>task 9c41…e07b</span><span id="st">INPUT_REQUIRED</span><span class="r" id="spk">🔈 spoken replies: on (F6)</span></div>
+    <div class="body"><div class="conv" id="conv"></div><div class="side">task  plan  trace
+──────────────────────────
+goal  Make the living room
+      feel warmer
+model gpt-6.1-sol
+media png jpeg webp gif
+      wav mp3 m4a ogg webm
+voice speech-to-text
+      spoken replies (coral)</div></div>
+    <div class="chips" id="chips"></div>
+    <div class="rec" id="rec"></div>
+    <div class="input" id="input"></div>
+    <div class="hint" id="hint"></div>
+  </div><div class="foot"><span><k>F5</k> talk</span><span><k>F6</k> spoken replies</span><span><k>Esc</k> stop speaking</span><span><k>F2</k> pane</span><span><k>^D</k> complete</span><span><k>^C</k> cancel</span><span><k>q</k> quit</span></div></div>
+</div>
+<script>
+(function () {
+  var m = /[?&]theme=(light|dark)/.exec(location.search); if (m) document.documentElement.setAttribute('data-theme', m[1]);
+  var conv = document.getElementById('conv');
+  function E(cls, prefix, text) { var d = document.createElement('div'); d.className = 'e ' + cls; if (prefix) { var p = document.createElement('span'); p.className = 'p'; p.textContent = prefix; d.appendChild(p); } d.appendChild(document.createTextNode(text)); return d; }
+  function IMG(green) { var d = document.createElement('div'); d.className = 'img' + (green ? ' green' : ''); return d; }
+  var base = [
+    function () { return E('you', 'you › ', '[image] living-room.jpg · 2048×1536 · 1.8 MB'); },
+    function () { return IMG(false); },
+    function () { return E('you', '      ', 'What would make this room feel warmer?'); },
+    function () { return E('agent', 'agent › ', 'The grey sofa and beige wall are cool and flat. Try a warm-toned throw, a rust\n         or ochre rug, and a 2700 K lamp beside the sofa.'); },
+    function () { return E('status', '', '── task → INPUT_REQUIRED'); }
+  ];
+  var STATES = [
+    { name: '1 · /attach', chips: '', input: '/attach ~/Pictures/sofa-closeup.jpg', hint: 'attach a local image or audio file · Tab completes the path', rec: '', extra: [] },
+    { name: '2 · chip shown', chips: 'attached: <b>[image] sofa-closeup.jpg · 940 KB</b>  <b>[audio] note.m4a · 0:12</b>   Backspace on empty input removes the last', input: 'Which of these works with the rug idea?', hint: 'Enter sends the message with 2 attachments', rec: '', extra: [] },
+    { name: '3 · image fallback', chips: '', input: '', hint: '', rec: '', extra: [
+      function () { return E('you', 'you › ', '[image] sofa-closeup.jpg · 940 KB   [audio] note.m4a · 0:12 · ⏎ to play'); },
+      function () { return E('you', '      ', 'Which of these works with the rug idea?'); },
+      function () { return E('agent', 'agent › ', 'Here is a mock-up with a green sofa:'); },
+      function () { return E('agent', '        ', 'image · generated · 1024×768 · saved to ~/.cache/tiny-harness/media/9c41…/Qm3x…k2.png\n        (this terminal has no graphics protocol; open the file to view it)'); } ] },
+    { name: '4 · hold Space', chips: '', input: '', hint: 'release Space to send · Esc discards', rec: '● REC  ▂▃▅▇▅▃▂▃▆▇▅▂  0:04', extra: [] },
+    { name: '5 · transcript', chips: '', input: '', hint: '', rec: '', extra: [
+      function () { return E('you', 'you › ', '[voice] 0:04 · “Would a rug work better than a throw on the sofa in the first photo?”'); },
+      function () { return E('status', '', '── task → WORKING'); } ] },
+    { name: '6 · speaking', chips: '', input: '', hint: 'speaking… Esc stops', rec: '', extra: [
+      function () { return E('you', 'you › ', '[voice] 0:04 · “Would a rug work better than a throw on the sofa in the first photo?”'); },
+      function () { return E('agent', 'agent › ', 'Yes — a 160 × 230 cm rug in rust under the front legs of the sofa warms the\n         whole floor; a throw only changes the sofa.'); },
+      function () { return E('agent', '        ', '🔊 speaking ▂▃▅▇▅▃ 0:03 / streaming'); } ] },
+    { name: '7 · inline image', chips: '', input: '', hint: '', rec: '', extra: [
+      function () { return E('agent', 'agent › ', 'Here is the room with the green sofa and the rust rug:'); },
+      function () { return IMG(true); },
+      function () { return E('agent', '        ', 'image · generated · 1024×768'); } ] },
+    { name: '8 · rejected', chips: 'attached: <b>[audio] holiday-video.webm · 48 MB</b>', input: '', hint: '', rec: '', extra: [
+      function () { return E('err', '', '✗ not sent: holiday-video.webm is 48 MB; the limit is 20 MiB per file. Backspace removes it.'); } ] }
+  ];
+  var steps = document.getElementById('steps');
+  STATES.forEach(function (s, i) { var b = document.createElement('button'); b.type = 'button'; b.textContent = s.name; b.onclick = function () { show(i); }; steps.appendChild(b); });
+  function show(i) {
+    var s = STATES[i];
+    [].forEach.call(steps.children, function (b, j) { if (j === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+    conv.innerHTML = ''; base.forEach(function (f) { conv.appendChild(f()); }); s.extra.forEach(function (f) { conv.appendChild(f()); });
+    conv.scrollTop = conv.scrollHeight;
+    document.getElementById('chips').innerHTML = s.chips; document.getElementById('chips').hidden = !s.chips;
+    document.getElementById('rec').textContent = s.rec; document.getElementById('rec').hidden = !s.rec;
+    var inp = document.getElementById('input'); inp.textContent = s.input; var c = document.createElement('span'); c.className = 'cur'; c.textContent = ' '; inp.appendChild(c);
+    document.getElementById('hint').textContent = s.hint;
+    document.getElementById('st').textContent = (i === 4 || i === 5) ? 'WORKING' : 'INPUT_REQUIRED';
+  }
+  show(0);
+})();
+</script>
+</body>
+</html>

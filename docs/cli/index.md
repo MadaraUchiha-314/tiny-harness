@@ -80,6 +80,7 @@ servers, such as OpenRouter, vLLM and LM Studio, work the same way. See
 ## Next steps
 
 - [Use the TUI](tui): keys, commands, and how a conversation ends.
+- [Images and voice](tui#images-and-voice): show the agent a photo, and talk to it.
 - [Configuration](../configuration/): change the model, the folders and more.
 - [Connect to a shared server](tui#connect-to-a-server): chat with an agent that runs
   on another computer.

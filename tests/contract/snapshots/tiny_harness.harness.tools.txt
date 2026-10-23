@@ -1,8 +1,8 @@
 # tiny_harness.harness.tools
-model ContentPart(kind: typing.Literal['text', 'data'], text: str | None = ..., data: JsonObject | None = ..., media_type: str | None = ...)
+model ContentPart(kind: typing.Literal['text', 'data', 'media'], text: str | None = ..., data: JsonObject | None = ..., media_type: str | None = ..., media: tiny_harness.harness.media.models.MediaRef | None = ...)
 enum Execution: ACTIVITY='activity', INTRINSIC='intrinsic'
 enum Idempotency: IDEMPOTENT='idempotent', NOT_IDEMPOTENT='not_idempotent'
-enum IntrinsicName: CREATE_PLAN='create_plan', COMPLETE_STEP='complete_step', SPAWN_SUBTASK='spawn_subtask', ASK_PARTICIPANT='ask_participant', CREATE_TASK_FOR_PARTICIPANT='create_task_for_participant', SET_PARTICIPANT_ROLE='set_participant_role', LIST_SKILLS='list_skills', LOAD_SKILL='load_skill', UNLOAD_SKILL='unload_skill', LIST_SKILL_RESOURCES='list_skill_resources', LOAD_SKILL_RESOURCE='load_skill_resource', EMIT_UI='emit_ui'
+enum IntrinsicName: CREATE_PLAN='create_plan', COMPLETE_STEP='complete_step', SPAWN_SUBTASK='spawn_subtask', ASK_PARTICIPANT='ask_participant', CREATE_TASK_FOR_PARTICIPANT='create_task_for_participant', SET_PARTICIPANT_ROLE='set_participant_role', LIST_SKILLS='list_skills', LOAD_SKILL='load_skill', UNLOAD_SKILL='unload_skill', LIST_SKILL_RESOURCES='list_skill_resources', LOAD_SKILL_RESOURCE='load_skill_resource', EMIT_UI='emit_ui', GENERATE_IMAGE='generate_image'
 class McpTool(Tool)
   def __init__(self, source: 'McpToolSource', spec_name: 'str', definition: 'ToolDefinition', version: 'str | None') -> 'None'
   def invoke(self, call: 'ToolCall') -> 'ToolResult | WorkflowCommand'

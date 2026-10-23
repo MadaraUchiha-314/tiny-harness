@@ -1,0 +1,4 @@
+# tiny_harness.interaction.surface
+enum Modality: TEXT='text', IMAGE='image', AUDIO='audio'
+class Surface(Entity)
+  def __init__(self, ref: 'EntityRef', *, modality: 'Modality', renderer: 'EntityRef') -> 'None'

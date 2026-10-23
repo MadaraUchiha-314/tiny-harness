@@ -2,6 +2,12 @@
 
 from tiny_harness.harness.models.anthropic_adapter import AnthropicLLM
 from tiny_harness.harness.models.catalog import ModelCatalog, ModelChoice
+from tiny_harness.harness.models.images import (
+    FakeImageGenerator,
+    GeneratedImage,
+    ImageGenerator,
+    ImageModelInfo,
+)
 from tiny_harness.harness.models.llm import (
     LLM,
     FakeLLM,
@@ -12,6 +18,7 @@ from tiny_harness.harness.models.llm import (
     LLMResponse,
     LLMStreamEvent,
     MessageItem,
+    Modality,
     Role,
     ToolCallItem,
     ToolResultItem,
@@ -20,6 +27,19 @@ from tiny_harness.harness.models.llm import (
     scripted,
 )
 from tiny_harness.harness.models.openai_adapter import OpenAILLM
+from tiny_harness.harness.models.openai_media import (
+    OpenAIImageGenerator,
+    OpenAISpeechToText,
+    OpenAITextToSpeech,
+)
+from tiny_harness.harness.models.speech import (
+    FakeSpeechToText,
+    FakeTextToSpeech,
+    SpeechModelInfo,
+    SpeechToText,
+    TextToSpeech,
+    Transcript,
+)
 from tiny_harness.harness.models.system_one import (
     Answer,
     ChoiceAnswer,
@@ -39,27 +59,41 @@ __all__ = [
     "AnthropicLLM",
     "ChoiceAnswer",
     "ChoiceQuestion",
+    "FakeImageGenerator",
     "FakeLLM",
+    "FakeSpeechToText",
     "FakeSystemOne",
+    "FakeTextToSpeech",
     "FinishReason",
+    "GeneratedImage",
+    "ImageGenerator",
+    "ImageModelInfo",
     "InputItem",
     "LLMModelInfo",
     "LLMRequest",
     "LLMResponse",
     "LLMStreamEvent",
     "MessageItem",
+    "Modality",
     "ModelCatalog",
     "ModelChoice",
     "NoulAnswer",
     "NoulQuestion",
+    "OpenAIImageGenerator",
     "OpenAILLM",
+    "OpenAISpeechToText",
+    "OpenAITextToSpeech",
     "Question",
     "Role",
     "ScoreAnswer",
     "ScoreQuestion",
+    "SpeechModelInfo",
+    "SpeechToText",
     "SystemOne",
+    "TextToSpeech",
     "ToolCallItem",
     "ToolResultItem",
+    "Transcript",
     "Usage",
     "extract_tool_calls",
     "scripted",

@@ -116,3 +116,120 @@ for (const state of states) {
     await capture(page, `completed-${state.name}`, true);
   });
 }
+
+/** The multimodal prototype (issue-38, `design/web-multimodal.html`), T5. */
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAMCAIAAADkharWAAAAHUlEQVR4nGO8c+cOAymAiSTVoxpGNYxqGNVATQ0A3NQCZlxZHasAAAAASUVORK5CYII=",
+  "base64",
+);
+
+async function openMedia(page: Page, theme: string, width: number, query = ""): Promise<void> {
+  await page.setViewportSize({ width, height: 900 });
+  await page.emulateMedia({ colorScheme: theme === "dark" ? "dark" : "light" });
+  await page.goto(`/?fixture=media${query}`);
+  await expect(page.getByTestId("state")).toHaveText("INPUT_REQUIRED");
+  // Images load lazily, when they come near the viewport (critic 6). Whether one far
+  // above the bottom loaded before the stream auto-scrolled depends on timing, so bring
+  // each into view as a reader scrolling up would, then return to the bottom.
+  for (const name of ["Image living-room.png", "Generated: the same room with a green sofa and a rust rug"]) {
+    await page.getByTestId("media-image").first().waitFor();
+    await scrollUntilLoaded(page, page.getByRole("img", { name }));
+  }
+  const viewport = page.locator('[data-slot="message-scroller-viewport"]');
+  await viewport.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+  await expect.poll(() => viewport.evaluate((el) => Math.round(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+}
+
+/** Scroll each image figure into view in turn until `image` has loaded. */
+async function scrollUntilLoaded(page: Page, image: ReturnType<Page["getByRole"]>): Promise<void> {
+  const figures = page.getByTestId("media-image");
+  for (let i = 0; i < (await figures.count()); i += 1) {
+    if (await image.isVisible()) break;
+    await figures.nth(i).scrollIntoViewIfNeeded();
+  }
+  await expect(image).toBeVisible();
+}
+
+for (const state of states) {
+  test(`media turns render: image, voice turn, transcript, agent image (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    await expect(page.getByText("living-room.png · ")).toBeVisible();
+    await expect(page.getByTestId("transcript")).toHaveText("“Would a rug work better than a throw on the sofa in the first photo?”");
+    await expect(page.locator("audio")).toHaveAttribute("src", /^blob:/);
+    await expect(page.getByRole("button", { name: "Attach image or audio" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-${state.name}`, true);
+  });
+
+  test(`attachment chips render (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    await page.locator("input[type=file]").setInputFiles([
+      { name: "sofa-closeup.png", mimeType: "image/png", buffer: TINY_PNG },
+      { name: "note.wav", mimeType: "audio/wav", buffer: Buffer.from("RIFF\0\0\0\0WAVE") },
+    ]);
+    const chips = page.getByRole("list", { name: "Attachments" });
+    await expect(chips).toContainText("sofa-closeup.png");
+    await expect(chips).toContainText("note.wav");
+    await expect(page.getByRole("button", { name: "Remove note.wav" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-chips-${state.name}`, false);
+  });
+
+  test(`a refused file is named and its chip stays (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    await page.locator("input[type=file]").setInputFiles([{ name: "photo.png", mimeType: "image/png", buffer: Buffer.from("not really a png") }]);
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByTestId("error")).toHaveText("Not sent: photo.png is not a file this agent accepts. Remove it and send again.");
+    await expect(page.getByRole("button", { name: "Remove photo.png" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-rejected-${state.name}`, false);
+  });
+}
+
+test("a sent image shows at once, then from the media route; it opens full size", async ({ page }) => {
+  await openMedia(page, "light", 1280);
+  await page.locator("input[type=file]").setInputFiles([{ name: "sofa-closeup.png", mimeType: "image/png", buffer: TINY_PNG }]);
+  await page.getByRole("combobox", { name: "Message or /command" }).fill("And this one?");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("img", { name: "Image sofa-closeup.png" })).toBeVisible();
+  await expect(page.getByText("Noted. A rust rug and a warm lamp would do the most.")).toBeVisible();
+  await page.getByRole("button", { name: "Open living-room.png full size" }).click();
+  const dialog = page.getByRole("dialog", { name: "living-room.png" });
+  await expect(dialog).toBeVisible();
+  await capture(page, "media-dialog", false);
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toBeHidden();
+});
+
+/** Voice (issue-38 task 26): recording, speaking, interrupted — T5. */
+for (const state of states) {
+  test(`hold to talk: recording, then the voice turn and its spoken reply (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width);
+    const mic = page.getByRole("button", { name: "Hold to talk" });
+    await expect(page.getByRole("button", { name: "Spoken replies" })).toHaveAttribute("aria-pressed", "true");
+    await mic.hover();
+    await page.mouse.down();
+    await expect(mic).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("recording")).toContainText("Recording");
+    await capture(page, `media-recording-${state.name}`, false);
+    await page.waitForTimeout(1500);
+    await page.mouse.up();
+    await expect(mic).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("mic-live")).toHaveText("Sent");
+    await expect(page.getByText("“Could the lamp be warmer too?”")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Stop speaking" })).toBeVisible();
+    await expect(page.getByText("Speaking…")).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-speaking-${state.name}`, false);
+  });
+
+  test(`a spoken reply that breaks off is interrupted, with Replay (${state.name})`, async ({ page }) => {
+    await openMedia(page, state.theme, state.width, "&speech=broken");
+    await page.getByRole("combobox", { name: "Message or /command" }).fill("And the curtains?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Speech interrupted")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Replay spoken reply" })).toBeVisible();
+    await noOverflow(page);
+    await capture(page, `media-interrupted-${state.name}`, false);
+  });
+}

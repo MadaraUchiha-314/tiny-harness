@@ -42,8 +42,17 @@ from tiny_harness.errors import (
     HarnessNotStartedError,
     HarnessStoppedError,
 )
+from tiny_harness.harness.agents import SUPPORTED_EXTENSIONS
 from tiny_harness.harness.commands import CommandHandler, CommandSpec
-from tiny_harness.harness.models import LLM, ModelCatalog
+from tiny_harness.harness.media import MediaStore
+from tiny_harness.harness.media.extension import MEDIA_EXT_URI
+from tiny_harness.harness.models import (
+    LLM,
+    ImageGenerator,
+    ModelCatalog,
+    SpeechToText,
+    TextToSpeech,
+)
 from tiny_harness.harness.plugins import Plugin
 from tiny_harness.harness.security import PROCESS_SECRETS
 from tiny_harness.jsontypes import JsonObject
@@ -73,6 +82,7 @@ from tiny_harness.service.a2a.card import (
     normalize_prefix,
     public_url,
 )
+from tiny_harness.service.a2a.media_routes import MediaSource
 from tiny_harness.service.claims import PROCESS_CLAIMS, Claim
 from tiny_harness.service.durable.activities import Activities
 from tiny_harness.service.durable.temporal import temporal_client
@@ -106,7 +116,9 @@ class Harness:
     authentication; with it the ``X-Participant-Id`` header is ignored. ``routes`` turns the
     harness's own middleware and routes off one by one. ``agent`` describes the agent for
     its card; ``[agent]``'s name and description apply over it. ``plugins``, ``commands``,
-    ``builtin_commands`` and ``llm`` go to the runtime. A harness runs once."""
+    ``builtin_commands``, ``llm`` and the media seams (``speech_to_text``,
+    ``text_to_speech``, ``image_generator``, ``media_store``) go to the runtime. A harness
+    runs once."""
 
     def __init__(
         self,
@@ -123,6 +135,10 @@ class Harness:
         builtin_commands: bool = True,
         llm: LLM | None = None,
         log_stream: TextIO | None = None,
+        speech_to_text: SpeechToText | None = None,
+        text_to_speech: TextToSpeech | None = None,
+        image_generator: ImageGenerator | None = None,
+        media_store: MediaStore | None = None,
     ) -> None:
         if settings.temporal.mode == "embedded" and not with_worker and client is None:
             log.info("embedded mode: the worker runs in this process")
@@ -139,12 +155,23 @@ class Harness:
         self._commands = tuple(commands)
         self._builtin_commands = builtin_commands
         self._llm = llm
+        self._media_seams: dict[str, object] = {
+            name: value
+            for name, value in (
+                ("speech_to_text", speech_to_text),
+                ("text_to_speech", text_to_speech),
+                ("image_generator", image_generator),
+                ("media_store", media_store),
+            )
+            if value is not None
+        }
         self._log_stream = log_stream
         self._state: Literal["new", "running", "stopped"] = "new"
         self._stack: AsyncExitStack | None = None
         self._client: Client | None = None
         self._card: AgentCard | None = None
         self._push: PushReceiver | None = None
+        self._media: MediaSource | None = None  # the media route's source, once started
         self._activities: Activities | None = None
         self._handler = DeferredRequestHandler()
         self._groups: RouteGroups | None = None
@@ -210,8 +237,14 @@ class Harness:
                 monitor=self._monitor,
                 push=lambda: self._push,
                 participant=self._participant,
+                media=(lambda: self._media) if self._serves_media else None,
             )
         return self._groups
+
+    @property
+    def _serves_media(self) -> bool:
+        """Whether the agent has media to serve: ``[media]``, or a media store given."""
+        return self.settings.media is not None or "media_store" in self._media_seams
 
     def routes(self) -> list[BaseRoute]:
         """The agent's routes, before any prefix. They need the harness started; mount
@@ -222,7 +255,10 @@ class Harness:
         """The app to mount at ``prefix``; the same object on every call (R2.1, R2.2)."""
         if self._app is None:
             inner = wrap_middleware(
-                Starlette(routes=self.routes()), config=self.settings.server, options=self._routes
+                Starlette(routes=self.routes()),
+                config=self.settings.server,
+                options=self._routes,
+                media=self.settings.media,
             )
             self._app = HarnessApp(
                 agent_id=self.agent_id,
@@ -302,8 +338,12 @@ class Harness:
             client = await stack.enter_async_context(
                 temporal_client(settings, output=self._log_stream)
             )
-        # ``llm`` only when given: a caller (or a test) may have bound one into the builder.
-        build = build_runtime if self._llm is None else partial(build_runtime, llm=self._llm)
+        # ``llm`` and the media seams only when given: a caller (or a test) may have bound
+        # them into the builder.
+        seams = dict(self._media_seams)
+        if self._llm is not None:
+            seams["llm"] = self._llm
+        build = partial(build_runtime, **seams) if seams else build_runtime
         runtime = await build(
             settings,
             plugins=self._plugins,
@@ -327,6 +367,7 @@ class Harness:
             self.description,
             self._public_url,
             commands=runtime.commands.specs,
+            media=runtime.media,
         )
         executor = HarnessExecutor(
             client,
@@ -336,6 +377,14 @@ class Harness:
             redactor=runtime.redactor,
             delegators=settings.server.delegators,
             models=ModelCatalog.from_settings(settings).selectable,
+            media_intake=runtime.media_intake,
+            max_request_bytes=settings.server.max_request_bytes,
+            # a request may activate the media extension where the card declares it
+            extensions=(
+                (*SUPPORTED_EXTENSIONS, MEDIA_EXT_URI)
+                if runtime.media.enabled
+                else SUPPORTED_EXTENSIONS
+            ),
         )
         activities = Activities(
             runtime.engine,
@@ -343,14 +392,16 @@ class Harness:
             sink=PushSink(push_store, push_http),
             client=client,
             retention=retention_map(settings),
+            media_retention=settings.retention.media,
             # R4.5: without the push route, remote sub-tasks are followed instead
             push_base_url=self._public_url if self._routes.push else None,
             task_queue=queue,
         )
+        task_store = TemporalTaskStore(client, runtime.store, task_queue=queue)
         handler = HarnessRequestHandler(
             bridge=bridge,
             agent_executor=executor,
-            task_store=TemporalTaskStore(client, runtime.store, task_queue=queue),
+            task_store=task_store,
             agent_card=card,
             push_config_store=push_store,
             push_sender=BasePushNotificationSender(push_http, push_store),
@@ -370,12 +421,15 @@ class Harness:
         self._card = card
         self._activities = activities
         self._push = PushReceiver(client, task_queue=queue)
+        if runtime.media_store is not None:
+            self._media = MediaSource(store=runtime.media_store, lookup=task_store.lookup)
         self._handler.target = handler
         stack.callback(self._forget)
 
     def _forget(self) -> None:
         self._handler.target = None
         self._push = None
+        self._media = None
         self._client = None
 
 

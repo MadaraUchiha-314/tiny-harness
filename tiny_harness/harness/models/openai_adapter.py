@@ -11,7 +11,7 @@ other provider error as ``ProviderError``.
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Iterable, Mapping, Sequence
 from datetime import timedelta
 from typing import Literal, cast
 from urllib.parse import urlsplit
@@ -36,6 +36,8 @@ from pydantic import SecretStr
 
 from tiny_harness.errors import ProviderError, RetryableProviderError
 from tiny_harness.harness.entities import EntityKind, EntityRef
+from tiny_harness.harness.media.models import MediaKind
+from tiny_harness.harness.media.render import data_url, transcript_text
 from tiny_harness.harness.models.json_args import loads_arguments
 from tiny_harness.harness.models.llm import (
     LLM,
@@ -45,10 +47,12 @@ from tiny_harness.harness.models.llm import (
     LLMResponse,
     LLMStreamEvent,
     MessageItem,
+    Modality,
     ToolCallItem,
     Usage,
 )
 from tiny_harness.harness.models.openai_chat import (
+    CHAT_AUDIO_FORMATS,
     ChatStreamAssembler,
     build_chat_params,
     parse_chat,
@@ -69,6 +73,30 @@ CONTEXT_WINDOWS: dict[str, int] = {
     "gpt-6-luna": 400_000,
 }
 MIN_CACHEABLE_TOKENS = 1_024
+# What each wire API is sent by default, as ``[openai] input_modalities`` (issue-38): a
+# local Chat Completions model is not sent images unasked.
+DEFAULT_INPUT_MODALITIES: dict[WireApi, tuple[Modality, ...]] = {
+    "responses": ("text", "image"),
+    "chat_completions": ("text",),
+}
+
+
+def message_content(item: MessageItem) -> JsonValue:
+    """A message's ``content``: the plain text when it has no media, so a text-only
+    request stays byte-identical (issue-38); else ``input_text`` and ``input_image`` parts.
+    The Responses API takes no audio input: audio goes as its transcript, or not at all."""
+    if not item.media:
+        return item.text
+    parts: list[JsonValue] = []
+    if item.text:
+        parts.append({"type": "input_text", "text": item.text})
+    for attachment in item.media:
+        if attachment.ref.kind is MediaKind.IMAGE:
+            url = data_url(attachment, provider=PROVIDER)
+            parts.append({"type": "input_image", "image_url": url, "detail": "auto"})
+        elif (text := transcript_text(attachment)) is not None:
+            parts.append({"type": "input_text", "text": text})
+    return parts or item.text
 
 
 def build_input(request: LLMRequest, names: WireNames | None = None) -> ResponseInputParam:
@@ -77,7 +105,7 @@ def build_input(request: LLMRequest, names: WireNames | None = None) -> Response
     items: list[JsonObject] = []
     for item in request.input:
         if isinstance(item, MessageItem):
-            items.append({"role": item.role.value, "content": item.text})
+            items.append({"role": item.role.value, "content": message_content(item)})
         elif isinstance(item, ToolCallItem):
             items.append(
                 {
@@ -267,6 +295,7 @@ class OpenAILLM(LLM):
         api: WireApi = "responses",
         context_window_tokens: int | None = None,
         client: AsyncOpenAI | None = None,
+        input_modalities: Iterable[Modality] | None = None,
     ) -> None:
         if api_key is None and base_url is None:
             raise ValueError("an api_key is required unless base_url is set")
@@ -279,6 +308,14 @@ class OpenAILLM(LLM):
                 min_cacheable_tokens=MIN_CACHEABLE_TOKENS,
                 endpoint=endpoint_origin(base_url),
                 api=api,
+                input_modalities=frozenset(
+                    input_modalities
+                    if input_modalities is not None
+                    else DEFAULT_INPUT_MODALITIES[api]
+                ),
+                audio_input_formats=frozenset(CHAT_AUDIO_FORMATS)
+                if api == "chat_completions"
+                else frozenset(),
             ),
         )
         self._model = model

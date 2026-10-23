@@ -1,0 +1,87 @@
+{
+  "data": {
+    "data": {},
+    "schemas": {}
+  },
+  "history": [
+    {
+      "id": 1,
+      "item": {
+        "kind": "message",
+        "role": "user",
+        "source": null,
+        "text": "[alice] where is 48213?"
+      }
+    },
+    {
+      "id": 2,
+      "item": {
+        "call": {
+          "arguments": {
+            "id": "48213"
+          },
+          "call_id": "c1",
+          "name": "orders.get_order"
+        },
+        "kind": "tool_call"
+      }
+    },
+    {
+      "id": 3,
+      "item": {
+        "kind": "tool_result",
+        "result": {
+          "call_id": "c1",
+          "content": [
+            {
+              "data": null,
+              "kind": "text",
+              "media_type": null,
+              "text": "ok 1"
+            }
+          ],
+          "is_error": false,
+          "untrusted": true
+        }
+      }
+    },
+    {
+      "id": 4,
+      "item": {
+        "kind": "message",
+        "role": "assistant",
+        "source": null,
+        "text": "Order 48213 shipped."
+      }
+    },
+    {
+      "id": 5,
+      "item": {
+        "kind": "message",
+        "role": "user",
+        "source": null,
+        "text": "[alice] thanks"
+      }
+    },
+    {
+      "id": 6,
+      "item": {
+        "kind": "message",
+        "role": "assistant",
+        "source": null,
+        "text": "Bye."
+      }
+    }
+  ],
+  "last_context_chars": 6585,
+  "last_usage": {
+    "cached_tokens": 0,
+    "input_tokens": 100,
+    "output_tokens": 10
+  },
+  "loaded_skills": [],
+  "next_history_id": 7,
+  "summary": "",
+  "task_id": "t-1",
+  "turn": 3
+}

@@ -1,7 +1,8 @@
 """The agent's HTTP surface (R14.1, R14.2; issue-36 R2, R4).
 
 ``build_routes`` returns the SDK's agent-card, JSON-RPC and HTTP+JSON routes plus the
-harness's own (``GET /_monitor``, ``POST /a2a/push/{task_id}``, ``/ui``). The routes can be
+harness's own (``GET /_monitor``, ``POST /a2a/push/{task_id}``, ``GET /media/{task_id}/
+{media_id}``, ``/ui``). The routes can be
 built before the harness starts: they call a ``DeferredRequestHandler`` and read the card
 through ``card_modifier``, both filled in at start. ``HarnessApp`` is the ASGI app a host
 mounts: it answers ``503`` until the harness has started, refuses every request when it is
@@ -49,9 +50,10 @@ from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from tiny_harness.config import ServerConfig
+from tiny_harness.config import MediaConfig, ServerConfig
 from tiny_harness.errors import HarnessNotStartedError
 from tiny_harness.jsontypes import JsonObject
+from tiny_harness.service.a2a.media_routes import MediaSource, media_route
 from tiny_harness.service.a2a.middleware import LimitsMiddleware
 from tiny_harness.service.a2a.push import (
     MAX_PUSH_BYTES,
@@ -113,6 +115,7 @@ class RouteOptions:
     monitor: bool = True  # GET /_monitor
     push: bool = True  # POST /a2a/push/{task_id}; off: remote sub-tasks are followed
     ui: bool = True  # /ui when [server] ui_dir is set
+    media: bool = True  # GET /media/{task_id}/{media_id} when [media] is set (issue-38)
 
 
 ALL_ROUTES = RouteOptions()
@@ -199,7 +202,7 @@ class RouteGroups:
     """The agent's routes by kind, so the FastAPI helper can tag each group (issue-36 R3.3)."""
 
     card: list[BaseRoute]
-    own: list[BaseRoute]  # /_monitor and /a2a/push/{task_id}
+    own: list[BaseRoute]  # /_monitor, /a2a/push/{task_id} and /media/{task_id}/{media_id}
     ui: list[BaseRoute]  # the /ui mount, when configured
     jsonrpc: list[BaseRoute]
     rest: list[BaseRoute]
@@ -220,7 +223,10 @@ def build_route_groups(
     monitor: MonitorSource | None = None,
     push: Callable[[], PushReceiver | None] | None = None,
     participant: ParticipantResolver | None = None,
+    media: Callable[[], MediaSource | None] | None = None,
 ) -> RouteGroups:
+    """``media``, when given, serves the media route (``RouteOptions.media``); it is read
+    per request, so it may be filled in when the harness starts."""
     drop_sdk_request_bodies()  # a request body may carry a push token (issue-27)
     builder = HarnessContextBuilder(participant)
 
@@ -250,6 +256,8 @@ def build_route_groups(
         own.append(Route("/_monitor", monitor_view, methods=["GET"]))
     if options.push and push is not None:
         own.append(Route(PUSH_PATH, push_view, methods=["POST"]))
+    if options.media and media is not None:  # same participant resolution as the A2A routes
+        own.append(media_route(media, builder.build))
     ui: list[BaseRoute] = []
     if options.ui and config.ui_dir is not None:  # the built web renderer, same origin
         ui.append(Mount("/ui", app=StaticFiles(directory=config.ui_dir, html=True)))
@@ -271,6 +279,7 @@ def build_routes(
     monitor: MonitorSource | None = None,
     push: Callable[[], PushReceiver | None] | None = None,
     participant: ParticipantResolver | None = None,
+    media: Callable[[], MediaSource | None] | None = None,
 ) -> list[BaseRoute]:
     """The agent's routes, flat and in order (``RouteGroups.flat``)."""
     return build_route_groups(
@@ -281,11 +290,19 @@ def build_routes(
         monitor=monitor,
         push=push,
         participant=participant,
+        media=media,
     ).flat()
 
 
-def wrap_middleware(app: ASGIApp, *, config: ServerConfig, options: RouteOptions) -> ASGIApp:
-    """CORS inside the limits, as ``create_app`` always stacked them."""
+def wrap_middleware(
+    app: ASGIApp,
+    *,
+    config: ServerConfig,
+    options: RouteOptions,
+    media: MediaConfig | None = None,
+) -> ASGIApp:
+    """CORS inside the limits, as ``create_app`` always stacked them. With ``media`` the
+    size limit admits a full message of media (issue-38)."""
     if options.cors and config.cors_origins:  # a web renderer served elsewhere
         app = CORSMiddleware(
             app,
@@ -294,9 +311,10 @@ def wrap_middleware(app: ASGIApp, *, config: ServerConfig, options: RouteOptions
             allow_headers=["A2A-Version", "A2A-Extensions", "Content-Type", "X-Participant-Id"],
         )
     if options.limits:
+        cap = config.max_request_bytes
         app = LimitsMiddleware(
             app,
-            max_request_bytes=config.max_request_bytes,
+            max_request_bytes=media.request_cap(cap) if media is not None else cap,
             rate_limit_per_minute=config.rate_limit_per_minute,
         )
     return app
@@ -309,6 +327,7 @@ def create_app(
     config: ServerConfig,
     monitor: MonitorSource | None = None,
     push: PushReceiver | None = None,
+    media: MediaSource | None = None,
 ) -> Starlette:
     """The server's app over a handler that already exists (the pre-issue-36 form)."""
     routes = build_routes(
@@ -317,6 +336,7 @@ def create_app(
         config=config,
         monitor=monitor,
         push=(lambda: push) if push is not None else None,
+        media=(lambda: media) if media is not None else None,
     )
     app = Starlette(routes=routes)
     if config.cors_origins:
